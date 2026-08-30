@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 class ShapeProjectionTest {
     private val line = Polyline(
-        listOf(LatLon(51.100, 17.000), LatLon(51.110, 17.000), LatLon(51.120, 17.000)),
+        listOf(Point(51.100, 17.000), Point(51.110, 17.000), Point(51.120, 17.000)),
     )
 
     @Test fun `cumulative distances are monotonic and start at zero`() {
@@ -18,13 +18,13 @@ class ShapeProjectionTest {
     }
 
     @Test fun `project a point near the middle vertex`() {
-        val pr = line.project(LatLon(51.1101, 17.0005))
+        val pr = line.project(Point(51.1101, 17.0005))
         assertTrue(abs(pr.distanceAlong - line.cumulative[1]) < 30.0, "along=${pr.distanceAlong}")
         assertTrue(pr.deviationM < 60.0, "dev=${pr.deviationM}")
     }
 
     @Test fun `project a far-off point reports large deviation`() {
-        val pr = line.project(LatLon(51.110, 17.050))
+        val pr = line.project(Point(51.110, 17.050))
         assertTrue(pr.deviationM > 1000.0)
     }
 
@@ -45,11 +45,11 @@ class ShapeProjectionTest {
     }
 
     @Test fun `straightLine is the two endpoints`() {
-        val s = ShapeProjection.straightLine(LatLon(1.0, 2.0), LatLon(3.0, 4.0))
-        assertEquals(listOf(LatLon(1.0, 2.0), LatLon(3.0, 4.0)), s)
+        val s = ShapeProjection.straightLine(Point(1.0, 2.0), Point(3.0, 4.0))
+        assertEquals(listOf(Point(1.0, 2.0), Point(3.0, 4.0)), s)
     }
 
     @Test fun `single-point polyline has zero length`() {
-        assertEquals(0.0, Polyline(listOf(LatLon(51.0, 17.0))).lengthM)
+        assertEquals(0.0, Polyline(listOf(Point(51.0, 17.0))).lengthM)
     }
 }
