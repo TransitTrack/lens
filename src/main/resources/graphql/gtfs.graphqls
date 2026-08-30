@@ -1,2 +1,82 @@
-type Query { _empty: Boolean }
-type Mutation { _empty: Boolean }
+scalar JSON
+
+type Query {
+    gtfsFeeds: [GtfsFeed!]!
+    gtfsFeed(code: String!): GtfsFeed
+    gtfsRevisions(feedCode: String!, status: GtfsRevisionStatus): [GtfsRevision!]!
+    gtfsRevision(id: ID!): GtfsRevision
+}
+
+type Mutation {
+    registerGtfsFeed(input: RegisterGtfsFeedInput!): GtfsFeed!
+    updateGtfsFeed(code: String!, input: UpdateGtfsFeedInput!): GtfsFeed!
+    deleteGtfsFeed(code: String!): Boolean!
+    ingestFeed(feedCode: String!): GtfsRevision!
+    activateRevision(revisionId: ID!): GtfsRevision!
+    deleteRevision(revisionId: ID!): Boolean!
+}
+
+enum GtfsRevisionStatus {
+    PENDING
+    DOWNLOADING
+    PARSING
+    VALIDATING
+    READY
+    ACTIVE
+    SUPERSEDED
+    FAILED
+    UNCHANGED
+}
+
+type GtfsFeed {
+    code: String!
+    name: String!
+    description: String
+    url: String!
+    pollingCron: String
+    enabled: Boolean!
+    source: String!
+    activeRevision: GtfsRevision
+    revisions: [GtfsRevision!]!
+}
+
+type GtfsRevision {
+    id: ID!
+    feedCode: String!
+    status: GtfsRevisionStatus!
+    createdAt: String!
+    activatedAt: String
+    supersededAt: String
+    contentSha256: String
+    byteSize: Int
+    filesPresent: [String!]!
+    rowCounts: JSON
+    feedStartDate: String
+    feedEndDate: String
+    validationSummary: GtfsValidationSummary
+    errorMessage: String
+}
+
+type GtfsValidationSummary {
+    errorCount: Int!
+    warningCount: Int!
+}
+
+input RegisterGtfsFeedInput {
+    code: String!
+    name: String!
+    description: String
+    url: String!
+    pollingCron: String
+    enabled: Boolean
+    autoActivate: Boolean
+}
+
+input UpdateGtfsFeedInput {
+    name: String!
+    description: String
+    url: String!
+    pollingCron: String
+    enabled: Boolean
+    autoActivate: Boolean
+}

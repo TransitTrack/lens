@@ -132,6 +132,13 @@ class RevisionService(
         }
     }
 
+    /** Delete every child row for the revision, then the revision row itself. */
+    @Transactional
+    fun deleteWithRows(revisionId: Long) {
+        writer.deleteAllForRevision(revisionId)
+        revisions.deleteById(revisionId)
+    }
+
     fun activeRevisionId(feedId: Long): Long? =
         revisions.findByFeedIdAndStatus(feedId, GtfsRevisionStatus.ACTIVE)?.id
 
