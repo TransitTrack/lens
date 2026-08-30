@@ -113,7 +113,7 @@ class RevisionService(
      * and `UNCHANGED` revisions are dropped ahead of `SUPERSEDED` ones, oldest first.
      */
     @Transactional
-    fun prune(feedId: Long, keep: Int = props.retention.keepRevisionsPerFeed) {
+    fun prune(feedId: Long, keep: Int) {
         val all = revisions.findByFeedIdOrderByCreatedAtDesc(feedId)
         val terminal = all.filter { it.status != GtfsRevisionStatus.ACTIVE && it.status.terminal }
         // Prefer keeping SUPERSEDED over FAILED/UNCHANGED, and newer over older.

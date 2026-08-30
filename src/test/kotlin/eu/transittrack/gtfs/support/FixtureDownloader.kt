@@ -27,7 +27,10 @@ class FixtureDownloader(private val fixture: String) : FeedDownloader {
                 .filter { it.isRegularFile() }
                 .sortedBy { it.name }
                 .forEach { f ->
-                    z.putNextEntry(ZipEntry(f.name))
+                    // Fixed mod-time: an unset ZipEntry time is stamped with
+                    // System.currentTimeMillis() (DOS 2s resolution), so two downloads
+                    // straddling a tick would yield different archive bytes / SHA-256.
+                    z.putNextEntry(ZipEntry(f.name).apply { time = 0L })
                     z.write(f.readBytes())
                     z.closeEntry()
                 }

@@ -105,14 +105,11 @@ class IngestionService(
 
             if (feed.autoActivate ?: props.ingest.autoActivate) {
                 revisionService.activate(revisionId)
-                // Pass `keep` explicitly: `prune`'s Kotlin default-arg value reads
-                // `RevisionService.props`, and through the @Transactional CGLIB proxy that
-                // field read resolves against the (uninitialised) proxy subclass -> NPE.
                 revisionService.prune(feed.id!!, props.retention.keepRevisionsPerFeed)
             }
             feedService.markIngested(feed.id!!)
         } catch (e: Exception) {
-            log.warn("ingest failed for revision {}", revisionId, e)
+            log.warn("ingest failed for revision {}: {}", revisionId, e.message)
             revisionService.fail(revisionId, e.message ?: e.javaClass.simpleName)
         } finally {
             runCatching { tempDir.toFile().deleteRecursively() }
