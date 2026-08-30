@@ -1,0 +1,87 @@
+extend type Query {
+    tripPatterns(feedCode: String!, routeId: String, revisionId: ID): [TripPattern!]!
+    tripPattern(feedCode: String!, patternKey: String!, revisionId: ID): TripPattern
+    schedTrip(feedCode: String!, tripId: String!, revisionId: ID): SchedTrip
+    blocks(feedCode: String!, revisionId: ID): [Block!]!
+    block(feedCode: String!, blockId: String!, serviceId: String!, revisionId: ID): Block
+    blocksOnDate(feedCode: String!, date: String!, revisionId: ID): [Block!]!
+    tripsOnDate(feedCode: String!, date: String!, routeId: String, revisionId: ID): [SchedTrip!]!
+}
+
+type TripPattern {
+    patternKey: String!
+    routeId: String!
+    directionId: Int
+    headsign: String
+    shapeId: String
+    stopCount: Int!
+    lengthM: Float
+    tripCount: Int!
+    minLat: Float
+    minLon: Float
+    maxLat: Float
+    maxLon: Float
+    route: GtfsRoute
+    stopPaths: [StopPath!]!
+    trips: [SchedTrip!]!
+}
+
+type StopPath {
+    stopPathIndex: Int!
+    stopId: String!
+    gtfsStopSeq: Int!
+    lengthM: Float!
+    pathGeometry: JSON
+    pickupType: Int
+    dropOffType: Int
+    waitStop: Boolean!
+    scheduleAdherenceStop: Boolean!
+    layoverStop: Boolean!
+    breakTimeSec: Int
+    typicalTravelTimeSec: Int
+    typicalDwellTimeSec: Int
+    stop: GtfsStop
+}
+
+type SchedTrip {
+    tripId: String!
+    routeId: String!
+    serviceId: String!
+    directionId: Int
+    headsign: String
+    tripShortName: String
+    blockId: String
+    blockSeq: Int
+    layoverAfterSec: Int
+    deadheadAfter: Boolean
+    startTimeSec: Int!
+    endTimeSec: Int!
+    frequencyBased: Boolean!
+    exactTimes: Int
+    pattern: TripPattern
+    route: GtfsRoute
+    block: Block
+    scheduleTimes: [ScheduleTime!]!
+}
+
+type ScheduleTime {
+    stopPathIndex: Int!
+    arrivalSec: Int
+    departureSec: Int
+    interpolated: Boolean!
+    schedTravelTimeSec: Int
+    schedDwellTimeSec: Int
+}
+
+type Block {
+    blockId: String!
+    serviceId: String!
+    startTimeSec: Int!
+    endTimeSec: Int!
+    tripCount: Int!
+    routeIds: [String!]!
+    trips: [SchedTrip!]!
+}
+
+extend type GtfsRoute { tripPatterns: [TripPattern!]! }
+extend type GtfsTrip { schedTrip: SchedTrip }
