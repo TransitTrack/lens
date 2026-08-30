@@ -1,1 +1,212 @@
-databaseChangeLog: []
+databaseChangeLog:
+  - changeSet:
+      id: 0004-gtfs-fare-attribute
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_attribute
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_attr_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: price, type: "DOUBLE PRECISION" }
+              - column: { name: currency_type, type: VARCHAR(8) }
+              - column: { name: payment_method, type: SMALLINT }
+              - column: { name: transfers, type: SMALLINT }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: transfer_duration, type: INT }
+        - addUniqueConstraint: { tableName: gtfs_fare_attribute, columnNames: "revision_id, fare_id", constraintName: uq_fare_attr_rev_id }
+
+  - changeSet:
+      id: 0004-gtfs-fare-rule
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_rule
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255) }
+              - column: { name: origin_id, type: VARCHAR(255) }
+              - column: { name: destination_id, type: VARCHAR(255) }
+              - column: { name: contains_id, type: VARCHAR(255) }
+        - createIndex:
+            indexName: ix_fare_rule_rev_fare
+            tableName: gtfs_fare_rule
+            columns: [ { column: { name: revision_id } }, { column: { name: fare_id } } ]
+
+  - changeSet:
+      id: 0004-gtfs-timeframe
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_timeframe
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_timeframe_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: timeframe_group_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: start_time, type: INT }
+              - column: { name: end_time, type: INT }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: gtfs_timeframe, columnNames: "revision_id, timeframe_group_id, start_time, end_time, service_id", constraintName: uq_timeframe_rev_grp }
+
+  - changeSet:
+      id: 0004-gtfs-rider-category
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_rider_category
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_rider_cat_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: rider_category_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: rider_category_name, type: VARCHAR(255) }
+              - column: { name: is_default_fare_category, type: SMALLINT }
+              - column: { name: eligibility_url, type: TEXT }
+        - addUniqueConstraint: { tableName: gtfs_rider_category, columnNames: "revision_id, rider_category_id", constraintName: uq_rider_cat_rev_id }
+
+  - changeSet:
+      id: 0004-gtfs-fare-media
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_media
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_media_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_media_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: fare_media_name, type: VARCHAR(255) }
+              - column: { name: fare_media_type, type: SMALLINT }
+        - addUniqueConstraint: { tableName: gtfs_fare_media, columnNames: "revision_id, fare_media_id", constraintName: uq_fare_media_rev_id }
+
+  - changeSet:
+      id: 0004-gtfs-fare-product
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_product
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_prod_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_product_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: fare_product_name, type: VARCHAR(255) }
+              - column: { name: rider_category_id, type: VARCHAR(255) }
+              - column: { name: fare_media_id, type: VARCHAR(255) }
+              - column: { name: amount, type: "DOUBLE PRECISION" }
+              - column: { name: currency, type: VARCHAR(8) }
+        - sql:
+            sql: "CREATE UNIQUE INDEX uq_fare_product ON gtfs_fare_product (revision_id, fare_product_id, coalesce(rider_category_id,''), coalesce(fare_media_id,''))"
+
+  - changeSet:
+      id: 0004-gtfs-fare-leg-rule
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_leg_rule
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_leg_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: leg_group_id, type: VARCHAR(255) }
+              - column: { name: network_id, type: VARCHAR(255) }
+              - column: { name: from_area_id, type: VARCHAR(255) }
+              - column: { name: to_area_id, type: VARCHAR(255) }
+              - column: { name: from_timeframe_group_id, type: VARCHAR(255) }
+              - column: { name: to_timeframe_group_id, type: VARCHAR(255) }
+              - column: { name: fare_product_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: rule_priority, type: INT }
+        - createIndex:
+            indexName: ix_fare_leg_rule_rev
+            tableName: gtfs_fare_leg_rule
+            columns: [ { column: { name: revision_id } } ]
+
+  - changeSet:
+      id: 0004-gtfs-fare-leg-join-rule
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_leg_join_rule
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_leg_join_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: from_network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: to_network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: from_stop_id, type: VARCHAR(255) }
+              - column: { name: to_stop_id, type: VARCHAR(255) }
+        - createIndex:
+            indexName: ix_fare_leg_join_rev
+            tableName: gtfs_fare_leg_join_rule
+            columns: [ { column: { name: revision_id } } ]
+
+  - changeSet:
+      id: 0004-gtfs-fare-transfer-rule
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_fare_transfer_rule
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_xfer_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: from_leg_group_id, type: VARCHAR(255) }
+              - column: { name: to_leg_group_id, type: VARCHAR(255) }
+              - column: { name: transfer_count, type: INT }
+              - column: { name: duration_limit, type: INT }
+              - column: { name: duration_limit_type, type: SMALLINT }
+              - column: { name: fare_transfer_type, type: SMALLINT }
+              - column: { name: fare_product_id, type: VARCHAR(255) }
+        - createIndex:
+            indexName: ix_fare_xfer_rule_rev
+            tableName: gtfs_fare_transfer_rule
+            columns: [ { column: { name: revision_id } } ]
+
+  - changeSet:
+      id: 0004-gtfs-area
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_area
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_area_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: area_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: area_name, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: gtfs_area, columnNames: "revision_id, area_id", constraintName: uq_area_rev_id }
+
+  - changeSet:
+      id: 0004-gtfs-stop-area
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_stop_area
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_area_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: area_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: stop_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: gtfs_stop_area, columnNames: "revision_id, area_id, stop_id", constraintName: uq_stop_area_rev }
+
+  - changeSet:
+      id: 0004-gtfs-network
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_network
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_network_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: network_name, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: gtfs_network, columnNames: "revision_id, network_id", constraintName: uq_network_rev_id }
+
+  - changeSet:
+      id: 0004-gtfs-route-network
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_route_network
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_route_network_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: gtfs_route_network, columnNames: "revision_id, route_id", constraintName: uq_route_network_rev }
