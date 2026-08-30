@@ -1,0 +1,8 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id
+RA,WK,E1,To S4,0,BLK,SHP_OUT
+RA,WK,E2,To S4,0,BLK,SHP_OUT
+RA,WK,EF,Frequent,0,BLK,SHP_OUT
+RB,WK,E3,No shape,0,,
+RC,WK,E4,Dangling stop,0,,SHP_OUT
+RC,WK,E5,Good,0,,SHP_OUT
+RD,WK,E6,Off shape,0,,SHP_OUT

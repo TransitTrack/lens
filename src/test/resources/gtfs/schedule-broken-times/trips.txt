@@ -1,0 +1,3 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id
+RX,WK,X1,Broken,0,,
+RX,WK,X2,Fine,0,,

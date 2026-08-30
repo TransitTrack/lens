@@ -1,0 +1,5 @@
+route_id,agency_id,route_short_name,route_long_name,route_type
+RA,AG,A,Line A,3
+RB,AG,B,Line B no shape,3
+RC,AG,C,Line C dangling,3
+RD,AG,D,Line D off shape,3

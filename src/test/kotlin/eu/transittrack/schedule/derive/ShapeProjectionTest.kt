@@ -52,4 +52,73 @@ class ShapeProjectionTest {
     @Test fun `single-point polyline has zero length`() {
         assertEquals(0.0, Polyline(listOf(Point(51.0, 17.0))).lengthM)
     }
+
+    // --- L-shaped (right-angle) polyline: east along a parallel, then north along a meridian ---
+
+    private val elbow = Point(51.100, 17.020)
+    private val lShape = Polyline(listOf(Point(51.100, 17.000), elbow, Point(51.120, 17.020)))
+
+    @Test fun `L-shaped polyline length is the sum of both legs`() {
+        val leg1 = haversineMeters(51.100, 17.000, 51.100, 17.020)
+        val leg2 = haversineMeters(51.100, 17.020, 51.120, 17.020)
+        assertEquals(leg1, lShape.cumulative[1], 1.0)
+        assertEquals(leg1 + leg2, lShape.lengthM, 1.0)
+    }
+
+    @Test fun `project a point near the elbow lands at the elbow distance`() {
+        // Just inside the corner — equally close to both legs, so a naive per-segment
+        // scan must still report the corner's cumulative distance, not leg 2's end.
+        val pr = lShape.project(Point(51.1005, 17.0195))
+        assertTrue(abs(pr.distanceAlong - lShape.cumulative[1]) < 80.0, "along=${pr.distanceAlong}")
+        assertTrue(pr.deviationM < 80.0, "dev=${pr.deviationM}")
+    }
+
+    @Test fun `project on the first leg of an L stays on the first leg`() {
+        val pr = lShape.project(Point(51.100, 17.010))
+        assertEquals(lShape.cumulative[1] / 2.0, pr.distanceAlong, 5.0)
+        assertTrue(pr.deviationM < 1.0, "dev=${pr.deviationM}")
+    }
+
+    @Test fun `project on the second leg of an L is past the elbow`() {
+        val pr = lShape.project(Point(51.110, 17.020))
+        assertTrue(pr.distanceAlong > lShape.cumulative[1], "along=${pr.distanceAlong}")
+        assertTrue(pr.distanceAlong < lShape.lengthM, "along=${pr.distanceAlong}")
+    }
+
+    @Test fun `a point inside the corner of an L projects onto the shape, not the chord`() {
+        // (51.100, 17.000) -> (51.120, 17.020) straight would cut the corner; the corner
+        // point itself must measure as on-shape (deviation ~0) at the elbow distance.
+        val pr = lShape.project(elbow)
+        assertEquals(lShape.cumulative[1], pr.distanceAlong, 1.0)
+        assertTrue(pr.deviationM < 1.0, "dev=${pr.deviationM}")
+    }
+
+    @Test fun `slice across the elbow keeps the corner vertex`() {
+        val s = ShapeProjection.slice(lShape, lShape.cumulative[1] - 100.0, lShape.cumulative[1] + 100.0)
+        assertEquals(3, s.size)
+        assertEquals(elbow, s[1])
+    }
+
+    // --- degenerate polylines ---
+
+    @Test fun `duplicate-point polyline has zero length and a safe pointAt`() {
+        val degenerate = Polyline(listOf(Point(51.0, 17.0), Point(51.0, 17.0)))
+        assertEquals(0.0, degenerate.lengthM)
+        assertEquals(Point(51.0, 17.0), degenerate.pointAt(0.0))
+        assertEquals(Point(51.0, 17.0), degenerate.pointAt(500.0))
+        assertEquals(Point(51.0, 17.0), degenerate.pointAt(-500.0))
+    }
+
+    @Test fun `projecting onto a duplicate-point polyline reports distance zero`() {
+        val degenerate = Polyline(listOf(Point(51.0, 17.0), Point(51.0, 17.0)))
+        val pr = degenerate.project(Point(51.01, 17.0))
+        assertEquals(0.0, pr.distanceAlong)
+        assertTrue(pr.deviationM > 0.0, "dev=${pr.deviationM}")
+    }
+
+    @Test fun `slicing a duplicate-point polyline yields two coincident points`() {
+        val degenerate = Polyline(listOf(Point(51.0, 17.0), Point(51.0, 17.0)))
+        val s = ShapeProjection.slice(degenerate, 0.0, 100.0)
+        assertEquals(listOf(Point(51.0, 17.0), Point(51.0, 17.0)), s)
+    }
 }

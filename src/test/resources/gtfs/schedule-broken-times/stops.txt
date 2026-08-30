@@ -1,0 +1,4 @@
+stop_id,stop_name,stop_lat,stop_lon
+S1,Stop 1,51.100,17.000
+S2,Stop 2,51.110,17.010
+S3,Stop 3,51.120,17.020
