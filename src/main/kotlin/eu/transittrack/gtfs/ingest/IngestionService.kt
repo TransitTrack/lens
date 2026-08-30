@@ -32,11 +32,13 @@ import org.springframework.stereotype.Service
 /**
  * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check -> extract ->
  * required-file check -> parse & bulk-write in registry order -> shape aggregates ->
- * derive dates -> READY -> (auto-)activate -> prune.
+ * validate -> derive dates -> DERIVING (the `eu.transittrack.schedule` model, unless
+ * `transittrack.schedule.enabled` is false) -> READY -> (auto-)activate -> prune.
  *
- * The pipeline runs synchronously here; Task 20 adds the async wrapper and an
- * `ingestBlocking` split. Every failure is funnelled to [RevisionService.fail] and the
- * scratch directory is always deleted.
+ * [ingest] runs the pipeline on the ingest executor and returns immediately;
+ * [ingestBlocking] runs it inline. Every failure is funnelled to [RevisionService.fail],
+ * the revision's derived schedule rows are wiped, and the scratch directory is always
+ * deleted.
  */
 @Service
 class IngestionService(
@@ -51,6 +53,7 @@ class IngestionService(
     private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
     private val scheduleDerivation: eu.transittrack.schedule.derive.ScheduleDerivationService,
     private val scheduleProps: eu.transittrack.schedule.config.ScheduleProperties,
+    private val scheduleWriter: eu.transittrack.schedule.derive.ScheduleWriter,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -159,6 +162,11 @@ class IngestionService(
             feedService.markIngested(feed.id!!)
         } catch (e: Exception) {
             log.warn("ingest failed for revision {}: {}", revisionId, e.message)
+            // RevisionService.fail / RevisionWriter only know the gtfs_* tables. A failure
+            // AFTER a successful derivation (READY, activate, prune, markIngested) would
+            // otherwise leave a full derived model hanging off a FAILED revision.
+            // Idempotent: derive()'s own cleanup may already have wiped them.
+            runCatching { scheduleWriter.deleteForRevision(revisionId) }
             revisionService.fail(revisionId, e.message ?: e.javaClass.simpleName)
         } finally {
             runCatching { tempDir.toFile().deleteRecursively() }
@@ -183,7 +191,7 @@ class IngestionService(
         }
 
     private fun loadCsv(revisionId: Long, dir: Path, def: GtfsFileDef): Long {
-        log.info("Loading CSV ${def.entityType} file ${def.fileName}")
+        log.info("Loading CSV ${def.entityType} from file ${def.fileName}")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         var total = 0L
         GtfsArchive.openFile(dir, def.fileName)!!.use { input ->

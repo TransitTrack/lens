@@ -17,6 +17,7 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsValidator
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.derive.ScheduleDerivationService
+import eu.transittrack.schedule.derive.ScheduleWriter
 import java.time.Instant
 import javax.sql.DataSource
 import org.junit.jupiter.api.AfterEach
@@ -36,7 +37,8 @@ import kotlin.test.assertTrue
 
 @PostgresSliceTest
 @EnableConfigurationProperties(GtfsProperties::class)
-@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class)
+@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class,
+    ScheduleWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ScheduleDerivationFailureTest(
     @Autowired val feeds: GtfsFeedRepository,
@@ -47,6 +49,7 @@ class ScheduleDerivationFailureTest(
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val shapes: GtfsShapeRepository,
     @Autowired val dataSource: DataSource,
+    @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val created = mutableListOf<Long>()
 
@@ -68,7 +71,7 @@ class ScheduleDerivationFailureTest(
         IngestionService(
             FixtureDownloader("minimal-valid"), revisionService, gtfsWriter, feeds, feedService,
             gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
-            derivation, props,
+            derivation, props, scheduleWriter,
         )
 
     @Test

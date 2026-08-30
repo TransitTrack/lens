@@ -17,6 +17,7 @@ import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.schedule.derive.ScheduleWriter
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.Test
@@ -42,7 +43,8 @@ import org.springframework.transaction.annotation.Transactional
  */
 @PostgresSliceTest
 @EnableConfigurationProperties(GtfsProperties::class)
-@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class)
+@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class,
+    ScheduleWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class IngestionServiceTest(
     @Autowired val feeds: GtfsFeedRepository,
@@ -56,6 +58,7 @@ class IngestionServiceTest(
     @Autowired val shapes: GtfsShapeRepository,
     @Autowired val shapePoints: GtfsShapePointRepository,
     @Autowired val dataSource: DataSource,
+    @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val createdFeeds = mutableListOf<Long>()
     private val validator = GtfsValidator(JdbcTemplate(dataSource))
@@ -76,6 +79,7 @@ class IngestionServiceTest(
         SyncTaskExecutor(),
         org.mockito.kotlin.mock<eu.transittrack.schedule.derive.ScheduleDerivationService>(),
         eu.transittrack.schedule.config.ScheduleProperties(enabled = false),
+        scheduleWriter,
     )
 
     @AfterEach
@@ -161,6 +165,7 @@ class IngestionServiceTest(
             shapes, validator, SyncTaskExecutor(),
             org.mockito.kotlin.mock<eu.transittrack.schedule.derive.ScheduleDerivationService>(),
             eu.transittrack.schedule.config.ScheduleProperties(enabled = false),
+            scheduleWriter,
         )
         val rev = strict.ingestBlocking("f")
 

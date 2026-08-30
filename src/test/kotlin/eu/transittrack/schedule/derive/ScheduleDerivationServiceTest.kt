@@ -83,6 +83,7 @@ class ScheduleDerivationServiceTest(
             gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
             org.mockito.kotlin.mock<ScheduleDerivationService>(),
             ScheduleProperties(enabled = false),
+            scheduleWriter,
         )
         rev = ingestion.ingestBlocking("sd").id!!
         return rev
