@@ -21,10 +21,10 @@ import org.springframework.stereotype.Service
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * Derives the schedule model for one GTFS revision: trip patterns + stop paths
- * (this task), plus schedule times per trip. Pattern/block aggregate passes are
- * added in the next task. Owns its failure cleanup: any exception wipes the
- * revision's derived rows and rethrows.
+ * Derives the schedule model for one GTFS revision: trip patterns, stop paths,
+ * schedule times per trip, plus the pattern-aggregate and block passes (typical
+ * travel/dwell times, block ordering, layovers). Owns its failure cleanup: any
+ * throwable wipes the revision's derived rows and rethrows.
  */
 @Service
 class ScheduleDerivationService(
@@ -40,7 +40,7 @@ class ScheduleDerivationService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** Holds what later passes (Task 10) need without reloading entities. */
+    /** Holds what the aggregate/block passes need without reloading entities. */
     class DerivedTrip(
         val schedTripId: Long,
         val patternId: Long,
@@ -51,6 +51,7 @@ class ScheduleDerivationService(
         val endSec: Int,
         val firstStopId: String,
         val lastStopId: String,
+        val frequencyBased: Boolean,
         val resolved: List<ResolvedScheduleTime>,
     )
 
@@ -58,7 +59,6 @@ class ScheduleDerivationService(
     class CoreResult(
         val counts: MutableMap<String, Long>,
         val derivedTrips: List<DerivedTrip>,
-        val patternCumDist: Map<Long, DoubleArray>,
         val patternStopPathIds: Map<Long, List<Long>>,
         var pendingPathUpdates: MutableMap<Long, StopPathAggregateUpdate> = mutableMapOf(),
     )
@@ -70,7 +70,9 @@ class ScheduleDerivationService(
             aggregatePass(core)
             blockPass(revisionId, core)
             core.counts
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // Throwable, not Exception: an Error mid-derive would otherwise strand the
+            // revision in DERIVING, which permanently blocks that feed's future ingests.
             log.warn("schedule derivation failed for revision {}: {}", revisionId, e.message)
             runCatching { writer.deleteForRevision(revisionId) }
             throw e
@@ -103,8 +105,10 @@ class ScheduleDerivationService(
     }
 
     private fun blockPass(revisionId: Long, core: CoreResult) {
+        // Frequency trips are normalized to startTimeSec = 0, so they would all sort to
+        // the front of a block and produce nonsense layovers. They are not blocked.
         val blockInputs = core.derivedTrips
-            .filter { it.blockId != null }
+            .filter { it.blockId != null && !it.frequencyBased }
             .map {
                 BlockTripInput(
                     schedTripId = it.schedTripId, blockId = it.blockId!!, serviceId = it.serviceId,
@@ -162,9 +166,13 @@ class ScheduleDerivationService(
     }
 
     private fun deriveCore(revisionId: Long): CoreResult {
-        val stopCoord: Map<String, Point> = stops.findByRevisionId(revisionId).associate {
-            it.stopId to Point(it.stopLat ?: 0.0, it.stopLon ?: 0.0)
-        }
+        // Only stops with a resolvable coordinate: a stop with no (lat, lon) cannot be
+        // projected or measured, so trips referencing one are skipped entirely (below).
+        val stopCoord: Map<String, Point> = stops.findByRevisionId(revisionId).mapNotNull {
+            val la = it.stopLat
+            val lo = it.stopLon
+            if (la != null && lo != null) it.stopId to Point(la, lo) else null
+        }.toMap()
         val polylineCache = HashMap<String, Polyline?>()
         fun polyline(shapeId: String?): Polyline? {
             if (shapeId == null) return null
@@ -177,8 +185,9 @@ class ScheduleDerivationService(
                 if (pts.size >= 2) Polyline(pts) else null
             }
         }
+        // Spec: "the trip's first gtfs_frequency row" — keep the first, not the last.
         val freqByTrip: Map<String, GtfsFrequency> =
-            frequencies.findByRevisionId(revisionId).associateBy { it.tripId }
+            frequencies.findByRevisionId(revisionId).groupBy { it.tripId }.mapValues { it.value.first() }
 
         val counts = mutableMapOf(
             "trip_pattern" to 0L, "stop_path" to 0L, "sched_trip" to 0L,
@@ -191,17 +200,26 @@ class ScheduleDerivationService(
 
         for (route in routes.findByRevisionId(revisionId)) {
             val routeTrips = trips.findByRevisionIdAndRouteId(revisionId, route.routeId)
-            val pending = routeTrips.map { t ->
-                t to stopTimes.findByRevisionIdAndTripIdOrderByStopSequence(revisionId, t.tripId)
-            }.filter { (_, rows) -> rows.size >= 2 && rows.all { it.stopId != null } }
+            if (routeTrips.isEmpty()) continue
+            // One round-trip per route (spec §5.3.1), not one per trip. The finder orders
+            // by (tripId, stopSequence), so each grouped sublist is already sequenced.
+            val stopTimesByTrip = stopTimes
+                .findByRevisionIdAndTripIdInOrderByTripIdAscStopSequenceAsc(
+                    revisionId, routeTrips.map { it.tripId }.distinct(),
+                )
+                .groupBy { it.tripId }
+            val pending = routeTrips
+                .map { t -> t to (stopTimesByTrip[t.tripId] ?: emptyList()) }
+                .filter { (_, rows) -> rows.size >= 2 && rows.all { it.stopId != null } }
+                .filter { (trip, rows) -> hasResolvableCoords(trip, rows, stopCoord) }
 
             // Pass 1: new patterns for this route
             val newPatterns = ArrayList<TripPattern>()
             val newPatternPaths = LinkedHashMap<String, List<StopPath>>()   // key -> unsaved paths
-            for ((trip, rows) in pending) {
+            for ((trip, rows) in pending) withTripContext(trip) {
                 val stopIds = rows.map { it.stopId!! }
-                val key = PatternKey.of(trip.shapeId, stopIds)
-                if (key in patternIdByKey || newPatterns.any { it.patternKey == key }) continue
+                val key = PatternKey.of(trip.routeId, trip.shapeId, stopIds)
+                if (key in patternIdByKey || newPatterns.any { it.patternKey == key }) return@withTripContext
                 val build = buildPattern(revisionId, trip, rows, stopIds, stopCoord, polyline(trip.shapeId))
                 newPatterns.add(build.pattern)
                 newPatternPaths[key] = build.paths
@@ -226,9 +244,9 @@ class ScheduleDerivationService(
             // Pass 2: sched_trips + schedule_times for this route
             val newTrips = ArrayList<SchedTrip>()
             val pendingTimes = ArrayList<Pair<Int, List<ResolvedScheduleTime>>>() // index into newTrips -> resolved
-            for ((trip, rows) in pending) {
+            for ((trip, rows) in pending) withTripContext(trip) {
                 val stopIds = rows.map { it.stopId!! }
-                val patternId = patternIdByKey[PatternKey.of(trip.shapeId, stopIds)]!!
+                val patternId = patternIdByKey[PatternKey.of(trip.routeId, trip.shapeId, stopIds)]!!
                 val cum = patternCumDist[patternId]!!
                 val raw = rows.mapIndexed { i, r -> RawStopTime(i, r.arrivalTime, r.departureTime) }
                 var resolved = ScheduleInterpolator.resolve(raw, cum)
@@ -256,7 +274,7 @@ class ScheduleDerivationService(
                         serviceId = st.serviceId, routeId = st.routeId,
                         startSec = st.startTimeSec, endSec = st.endTimeSec,
                         firstStopId = stopIds.first(), lastStopId = stopIds.last(),
-                        resolved = resolved,
+                        frequencyBased = st.frequencyBased, resolved = resolved,
                     ),
                 )
             }
@@ -268,7 +286,8 @@ class ScheduleDerivationService(
                 val dt = derivedTrips[baseDerivedIdx + i]
                 derivedTrips[baseDerivedIdx + i] = DerivedTrip(
                     st.id!!, dt.patternId, dt.blockId, dt.serviceId, dt.routeId,
-                    dt.startSec, dt.endSec, dt.firstStopId, dt.lastStopId, dt.resolved,
+                    dt.startSec, dt.endSec, dt.firstStopId, dt.lastStopId,
+                    dt.frequencyBased, dt.resolved,
                 )
             }
             val times = ArrayList<ScheduleTime>()
@@ -289,8 +308,39 @@ class ScheduleDerivationService(
             counts["schedule_time"] = counts["schedule_time"]!! + times.size
         }
 
-        return CoreResult(counts, derivedTrips, patternCumDist, patternStopPathIds)
+        return CoreResult(counts, derivedTrips, patternStopPathIds)
     }
+
+    /**
+     * True when every stop the trip visits has a resolvable `(lat, lon)`. A dangling or
+     * coordinate-less `stop_times.stop_id` would otherwise silently become `(0, 0)` and
+     * feed a ~5,700 km leg into `length_m`, the bbox and the interpolation weighting, so
+     * such a trip is skipped: it simply produces no `sched_trip` row.
+     */
+    private fun hasResolvableCoords(
+        trip: GtfsTrip,
+        rows: List<GtfsStopTime>,
+        stopCoord: Map<String, Point>,
+    ): Boolean {
+        val missing = rows.firstOrNull { it.stopId !in stopCoord } ?: return true
+        log.warn(
+            "skipping trip {} (route {}): stop {} has no resolvable coordinates",
+            trip.tripId, trip.routeId, missing.stopId,
+        )
+        return false
+    }
+
+    /**
+     * Runs one trip's derivation, rethrowing any failure with the trip and route named —
+     * otherwise a single malformed trip fails the whole revision with a message
+     * ("first and last stop must have a time") that identifies nothing.
+     */
+    private inline fun <T> withTripContext(trip: GtfsTrip, body: () -> T): T =
+        try {
+            body()
+        } catch (e: Exception) {
+            throw IllegalStateException("trip ${trip.tripId} (route ${trip.routeId}): ${e.message}", e)
+        }
 
     private class PatternBuild(val pattern: TripPattern, val paths: List<StopPath>)
 
@@ -302,7 +352,8 @@ class ScheduleDerivationService(
         stopCoord: Map<String, Point>,
         line: Polyline?,
     ): PatternBuild {
-        val coords = stopIds.map { stopCoord[it] ?: Point(0.0, 0.0) }
+        // Callers filter out trips with unresolvable stop coordinates, so this never misses.
+        val coords = stopIds.map { stopCoord.getValue(it) }
         val projected = DoubleArray(stopIds.size) { Double.NaN }
         if (line != null) {
             var last = 0.0
@@ -349,7 +400,7 @@ class ScheduleDerivationService(
         val lats = coords.map { it.lat }; val lons = coords.map { it.lon }
         val pattern = TripPattern(
             revisionId = revisionId,
-            patternKey = PatternKey.of(trip.shapeId, stopIds),
+            patternKey = PatternKey.of(trip.routeId, trip.shapeId, stopIds),
             routeId = trip.routeId, directionId = trip.directionId, headsign = trip.tripHeadsign,
             shapeId = trip.shapeId, stopCount = stopIds.size,
             lengthM = paths.sumOf { it.lengthM },

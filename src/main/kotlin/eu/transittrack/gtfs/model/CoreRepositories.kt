@@ -28,6 +28,15 @@ interface GtfsTripRepository : JpaRepository<GtfsTrip, Long> {
 interface GtfsStopTimeRepository : JpaRepository<GtfsStopTime, Long> {
     fun findByRevisionIdAndTripIdOrderByStopSequence(revisionId: Long, tripId: String): List<GtfsStopTime>
     fun findByRevisionIdAndStopId(revisionId: Long, stopId: String): List<GtfsStopTime>
+
+    /**
+     * Batch load for schedule derivation: all stop times of a set of trips in one
+     * round-trip, ordered so each trip's sublist is already in `stop_sequence` order.
+     */
+    fun findByRevisionIdAndTripIdInOrderByTripIdAscStopSequenceAsc(
+        revisionId: Long,
+        tripIds: Collection<String>,
+    ): List<GtfsStopTime>
 }
 
 interface GtfsCalendarRepository : JpaRepository<GtfsCalendar, Long> {

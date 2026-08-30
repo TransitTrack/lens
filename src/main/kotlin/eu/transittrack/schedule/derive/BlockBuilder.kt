@@ -30,6 +30,11 @@ data class BlockResult(
 
 /** Reconstructs a vehicle's ordered run of trips for one (blockId, serviceId). */
 object BlockBuilder {
+    /**
+     * Precondition: the caller must have filtered out trips with a blank/absent
+     * `block_id` (and frequency-based trips, whose start times are 0-based offsets and
+     * would sort to the front of every block).
+     */
     fun build(trips: List<BlockTripInput>): List<BlockResult> =
         trips.groupBy { it.blockId to it.serviceId }
             .map { (key, group) ->
