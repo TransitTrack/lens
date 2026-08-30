@@ -74,6 +74,8 @@ class IngestionServiceTest(
     private fun service(fixture: String) = IngestionService(
         FixtureDownloader(fixture), revisionService, writer, feeds, feedService, props, shapes, validator,
         SyncTaskExecutor(),
+        org.mockito.kotlin.mock<eu.transittrack.schedule.derive.ScheduleDerivationService>(),
+        eu.transittrack.schedule.config.ScheduleProperties(enabled = false),
     )
 
     @AfterEach
@@ -157,6 +159,8 @@ class IngestionServiceTest(
             FixtureDownloader("dangling-refs"), revisionService, writer, feeds, feedService,
             GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)),
             shapes, validator, SyncTaskExecutor(),
+            org.mockito.kotlin.mock<eu.transittrack.schedule.derive.ScheduleDerivationService>(),
+            eu.transittrack.schedule.config.ScheduleProperties(enabled = false),
         )
         val rev = strict.ingestBlocking("f")
 

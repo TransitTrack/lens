@@ -81,6 +81,8 @@ class ScheduleDerivationServiceTest(
         val ingestion = IngestionService(
             FixtureDownloader("schedule-sample"), revisionService, gtfsWriter, feeds, feedService,
             gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
+            org.mockito.kotlin.mock<ScheduleDerivationService>(),
+            ScheduleProperties(enabled = false),
         )
         rev = ingestion.ingestBlocking("sd").id!!
         return rev

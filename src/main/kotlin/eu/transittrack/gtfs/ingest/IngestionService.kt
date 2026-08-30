@@ -49,6 +49,8 @@ class IngestionService(
     private val shapes: GtfsShapeRepository,
     private val validator: GtfsValidator,
     private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
+    private val scheduleDerivation: eu.transittrack.schedule.derive.ScheduleDerivationService,
+    private val scheduleProps: eu.transittrack.schedule.config.ScheduleProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -139,6 +141,14 @@ class IngestionService(
             }
 
             revisionService.deriveDates(revisionId)
+
+            if (scheduleProps.enabled) {
+                log.info("Deriving schedule model for ${feed.code}")
+                revisionService.transition(revisionId, GtfsRevisionStatus.DERIVING)
+                val derived = scheduleDerivation.derive(revisionId)
+                revisionService.mergeRowCounts(revisionId, derived)
+            }
+
             log.info("Marking feed ${feed.code} READY")
             revisionService.transition(revisionId, GtfsRevisionStatus.READY)
 

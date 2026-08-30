@@ -3,7 +3,9 @@ package eu.transittrack.gtfs
 import eu.transittrack.explorer.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.ingest.IngestionService
+import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -39,6 +41,8 @@ import kotlin.test.assertEquals
 class GtfsEndToEndTest(
     @Autowired val tester: HttpGraphQlTester,
     @Autowired val ingestion: IngestionService,
+    @Autowired val feeds: GtfsFeedRepository,
+    @Autowired val revisionService: RevisionService,
 ) {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -48,9 +52,26 @@ class GtfsEndToEndTest(
         fun downloader(): FeedDownloader = FixtureDownloader("full-spec-sample")
     }
 
+    /**
+     * `GtfsFeedConfigSynchronizer` triggers an ASYNC ingest for the freshly-inserted
+     * `e2e` config feed at startup. Wait for that ingest to reach a terminal state
+     * before starting our own blocking ingest, otherwise the per-feed in-progress
+     * guard rejects it.
+     */
+    private fun awaitStartupIngestSettled() {
+        val feedId = feeds.findByCode("e2e")!!.id!!
+        val deadline = System.nanoTime() + 30_000_000_000L
+        while (revisionService.hasInProgress(feedId)) {
+            check(System.nanoTime() < deadline) { "startup ingest of 'e2e' did not settle within 30s" }
+            Thread.sleep(100)
+        }
+    }
+
     @Test
     fun `config feed ingests and serves via GraphQL, second ingest is unchanged`() {
-        // The config synchronizer already created the `e2e` feed at startup.
+        // The config synchronizer already created the `e2e` feed and kicked off an
+        // async ingest at startup; let it finish before we ingest synchronously.
+        awaitStartupIngestSettled()
         ingestion.ingestBlocking("e2e")
 
         tester.document("{ gtfsFeed(code:\"e2e\"){ source activeRevision { status rowCounts } } }")

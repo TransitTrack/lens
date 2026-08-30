@@ -82,7 +82,7 @@ in-place mutation of a live revision.
 ### State machine (spec §5)
 
 ```
-PENDING -> DOWNLOADING -> PARSING -> VALIDATING -> READY -> ACTIVE -> SUPERSEDED
+PENDING -> DOWNLOADING -> PARSING -> VALIDATING -> DERIVING -> READY -> ACTIVE -> SUPERSEDED
 
   any step     -> FAILED     (error_message set, all rows for revision deleted)
   DOWNLOADING  -> UNCHANGED  (SHA-256 == current ACTIVE; stop, no rows written)
@@ -90,8 +90,10 @@ PENDING -> DOWNLOADING -> PARSING -> VALIDATING -> READY -> ACTIVE -> SUPERSEDED
   ACTIVE -> SUPERSEDED       when a newer revision is activated
 ```
 
+`DERIVING` is skipped when `transittrack.schedule.enabled = false`.
+
 Terminal: `ACTIVE`, `SUPERSEDED`, `FAILED`, `UNCHANGED`.
-Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `READY`
+Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `DERIVING`, `READY`
 (`READY` is only a resting state when `auto-activate = false`).
 
 ### Pipeline steps
@@ -122,11 +124,16 @@ Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `READY`
      ingest proceeds.
 6. **Derive dates** — `feed_start_date` / `feed_end_date` from `feed_info.txt`
    if present, else min/max over `calendar` and `calendar_dates`.
-7. **Ready → Activate** — status becomes `READY`. If the effective
+7. **Derive schedule model** — when `transittrack.schedule.enabled`, the revision
+   transitions to `DERIVING` and `ScheduleDerivationService` builds `trip_pattern`
+   / `stop_path` / `sched_trip` / `schedule_time` / `block` for the revision and
+   merges their counts into `row_counts`. Any failure funnels to `FAILED` like
+   every other step. See [docs/schedule.md](schedule.md).
+8. **Ready → Activate** — status becomes `READY`. If the effective
    `auto-activate` (feed override, else `ingest.auto-activate`, default `true`)
    is set, one transaction flips the current `ACTIVE` → `SUPERSEDED` and this
    revision → `ACTIVE`. Otherwise it waits for `activateRevision`.
-8. **Prune** — see §4.
+9. **Prune** — see §4.
 
 Any exception funnels to `FAILED`: `error_message` is set, every row for that
 `revision_id` is deleted, and the `ACTIVE` pointer is left untouched. Temp
@@ -141,7 +148,7 @@ files are always cleaned up.
 | `IngestionService.ingestBlocking(feedCode)` | synchronous; returns the finished revision (used by tests / programmatic callers) |
 
 **Guard:** an ingest is refused if the feed already has a revision in an
-in-progress state (`PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`). A revision
+in-progress state (`PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `DERIVING`). A revision
 resting at `READY` (auto-activate off) does **not** block a new ingest. At most
 one running ingest per feed; different feeds ingest in parallel up to the pool
 size.
@@ -328,4 +335,8 @@ transittrack:
       sweep-cron: "0 0 * * * *"      # hourly
     prune-config-feeds: false        # delete CONFIG feeds no longer in config
     feeds: []                        # see §1a
+  schedule:
+    enabled: true                    # run the DERIVING step (schedule model)
+    layover-threshold-sec: 60
+    stop-projection-max-deviation-m: 100
 ```

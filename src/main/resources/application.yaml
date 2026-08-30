@@ -44,6 +44,10 @@ transittrack:
         auto-activate: true            # optional; overrides ingest.auto-activate
         pollingCron: "0 * * * * *"
         url: https://blues3.transitpdf.com/files/uran/improved-gtfs-timisoara/9c40c30a5815d3e3.zip
+  schedule:
+    enabled: true
+    layover-threshold-sec: 60
+    stop-projection-max-deviation-m: 100
 
 logging:
   pattern:

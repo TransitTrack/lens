@@ -21,6 +21,7 @@ enum GtfsRevisionStatus {
     DOWNLOADING
     PARSING
     VALIDATING
+    DERIVING
     READY
     ACTIVE
     SUPERSEDED

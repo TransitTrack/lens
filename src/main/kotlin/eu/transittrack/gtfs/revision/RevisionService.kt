@@ -55,6 +55,13 @@ class RevisionService(
     }
 
     @Transactional
+    fun mergeRowCounts(revisionId: Long, extra: Map<String, Long>) {
+        val r = revision(revisionId)
+        r.rowCounts = r.rowCounts + extra
+        revisions.save(r)
+    }
+
+    @Transactional
     fun markUnchanged(revisionId: Long) {
         val r = revision(revisionId)
         r.status = GtfsRevisionStatus.UNCHANGED
