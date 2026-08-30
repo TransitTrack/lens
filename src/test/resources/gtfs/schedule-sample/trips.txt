@@ -1,0 +1,6 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id
+RA,WK,T1,To S4,0,B1,SHP_OUT
+RA,WK,T2,To S4,0,B2,SHP_OUT
+RA,WK,T3,To S4 express,0,,SHP_OUT
+RA,WK,T4,To S1,1,B1,SHP_IN
+RA,WK,T5,Frequent,0,,SHP_OUT
