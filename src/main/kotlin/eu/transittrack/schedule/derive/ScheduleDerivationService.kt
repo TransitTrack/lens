@@ -11,6 +11,7 @@ import eu.transittrack.gtfs.model.GtfsStopTimeRepository
 import eu.transittrack.gtfs.model.GtfsTrip
 import eu.transittrack.gtfs.model.GtfsTripRepository
 import eu.transittrack.schedule.config.ScheduleProperties
+import eu.transittrack.schedule.model.Block
 import eu.transittrack.schedule.model.SchedTrip
 import eu.transittrack.schedule.model.ScheduleTime
 import eu.transittrack.schedule.model.StopPath
@@ -59,17 +60,105 @@ class ScheduleDerivationService(
         val derivedTrips: List<DerivedTrip>,
         val patternCumDist: Map<Long, DoubleArray>,
         val patternStopPathIds: Map<Long, List<Long>>,
+        var pendingPathUpdates: MutableMap<Long, StopPathAggregateUpdate> = mutableMapOf(),
     )
 
     fun derive(revisionId: Long): Map<String, Long> {
         writer.deleteForRevision(revisionId)
         return try {
-            deriveCore(revisionId).counts
+            val core = deriveCore(revisionId)
+            aggregatePass(core)
+            blockPass(revisionId, core)
+            core.counts
         } catch (e: Exception) {
             log.warn("schedule derivation failed for revision {}: {}", revisionId, e.message)
             runCatching { writer.deleteForRevision(revisionId) }
             throw e
         }
+    }
+
+    private fun aggregatePass(core: CoreResult) {
+        val byPattern = core.derivedTrips.groupBy { it.patternId }
+        val pathUpdates = ArrayList<StopPathAggregateUpdate>()
+        for ((patternId, tripsOfPattern) in byPattern) {
+            val pathIds = core.patternStopPathIds[patternId] ?: continue
+            for (idx in pathIds.indices) {
+                val travels = tripsOfPattern.mapNotNull { it.resolved.getOrNull(idx)?.schedTravelTimeSec }
+                val dwells = tripsOfPattern.mapNotNull { it.resolved.getOrNull(idx)?.schedDwellTimeSec }
+                pathUpdates.add(
+                    StopPathAggregateUpdate(
+                        stopPathId = pathIds[idx],
+                        typicalTravelTimeSec = median(travels),
+                        typicalDwellTimeSec = median(dwells),
+                        layoverStop = idx == 0,           // block pass may flip the last index
+                        breakTimeSec = null,
+                    ),
+                )
+            }
+        }
+        // Only trip_count changes on trip_pattern here; build-time extent/length stay.
+        writer.applyTripPatternTripCount(byPattern.mapValues { it.value.size })
+        writer.applyStopPathAggregates(pathUpdates)
+        core.pendingPathUpdates = pathUpdates.associateBy { it.stopPathId }.toMutableMap()
+    }
+
+    private fun blockPass(revisionId: Long, core: CoreResult) {
+        val blockInputs = core.derivedTrips
+            .filter { it.blockId != null }
+            .map {
+                BlockTripInput(
+                    schedTripId = it.schedTripId, blockId = it.blockId!!, serviceId = it.serviceId,
+                    routeId = it.routeId, startTimeSec = it.startSec, endTimeSec = it.endSec,
+                    firstStopId = it.firstStopId, lastStopId = it.lastStopId,
+                )
+            }
+        val results = BlockBuilder.build(blockInputs)
+        val blockRows = results.map {
+            Block(
+                revisionId = revisionId, blockId = it.blockId, serviceId = it.serviceId,
+                startTimeSec = it.startTimeSec, endTimeSec = it.endTimeSec,
+                tripCount = it.tripCount, routeIds = it.routeIds,
+            )
+        }
+        writer.write(blockRows)
+        core.counts["block"] = blockRows.size.toLong()
+        writer.applySchedTripBlockFields(
+            results.flatMap { r ->
+                r.tripUpdates.map {
+                    SchedTripBlockUpdate(it.schedTripId, it.blockSeq, it.layoverAfterSec, it.deadheadAfter)
+                }
+            },
+        )
+
+        // Per-pattern layover flag on the last stop path.
+        val layoverByTrip = results.flatMap { it.tripUpdates }
+            .filter { (it.layoverAfterSec ?: -1) >= props.layoverThresholdSec }
+            .associate { it.schedTripId to it.layoverAfterSec!! }
+        val byPattern = core.derivedTrips.groupBy { it.patternId }
+        val lastPathUpdates = ArrayList<StopPathAggregateUpdate>()
+        for ((patternId, tripsOfPattern) in byPattern) {
+            val gaps = tripsOfPattern.mapNotNull { layoverByTrip[it.schedTripId] }
+            if (gaps.isEmpty()) continue
+            val pathIds = core.patternStopPathIds[patternId] ?: continue
+            val lastId = pathIds.last()
+            val prev = core.pendingPathUpdates[lastId]
+            lastPathUpdates.add(
+                StopPathAggregateUpdate(
+                    stopPathId = lastId,
+                    typicalTravelTimeSec = prev?.typicalTravelTimeSec,
+                    typicalDwellTimeSec = prev?.typicalDwellTimeSec,
+                    layoverStop = true,
+                    breakTimeSec = median(gaps),
+                ),
+            )
+        }
+        writer.applyStopPathAggregates(lastPathUpdates)
+    }
+
+    private fun median(values: List<Int>): Int? {
+        if (values.isEmpty()) return null
+        val s = values.sorted()
+        return if (s.size % 2 == 1) s[s.size / 2] else ((s[s.size / 2 - 1] + s[s.size / 2]) / 2)
     }
 
     private fun deriveCore(revisionId: Long): CoreResult {

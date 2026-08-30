@@ -21,6 +21,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsValidator
 import eu.transittrack.schedule.config.ScheduleProperties
+import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
@@ -66,6 +67,7 @@ class ScheduleDerivationServiceTest(
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val schedTrips: SchedTripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
+    @Autowired val blocks: BlockRepository,
     @Autowired val dataSource: DataSource,
     @Autowired val jsonMapper: JsonMapper,
 ) {
@@ -133,5 +135,34 @@ class ScheduleDerivationServiceTest(
         val again = service().derive(rev)
         assertEquals(counts, again)
         assertEquals(4, patterns.findByRevisionId(rev).size)
+    }
+
+    @Test
+    fun `derives blocks, block ordering, and pattern aggregates`() {
+        ingest()
+        val counts = service().derive(rev)
+        assertEquals(2L, counts["block"])   // B1 (T1,T4), B2 (T2)
+
+        val b1 = blocks.findByRevisionIdAndBlockIdAndServiceId(rev, "B1", "WK")!!
+        assertEquals(2, b1.tripCount)
+        assertEquals(28800, b1.startTimeSec)
+        assertEquals(33000, b1.endTimeSec)
+
+        val t1 = schedTrips.findByRevisionIdAndTripId(rev, "T1")!!
+        assertEquals(0, t1.blockSeq)
+        assertEquals(600, t1.layoverAfterSec)     // T4 08:40 - T1 08:30
+        assertEquals(false, t1.deadheadAfter)     // both at S4
+        val t4 = schedTrips.findByRevisionIdAndTripId(rev, "T4")!!
+        assertEquals(1, t4.blockSeq)
+
+        // Pattern A trip_count and typical times
+        val patternA = patterns.findByRevisionId(rev)
+            .first { it.stopCount == 4 && it.shapeId == "SHP_OUT" && it.directionId == 0 }
+        assertEquals(2, patternA.tripCount)
+        val paths = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, patternA.id!!)
+        assertTrue(paths[1].typicalTravelTimeSec != null && paths[1].typicalTravelTimeSec!! > 0)
+        // T1 is in block B1 with a 600 s layover -> last stop of Pattern A is a layover stop
+        assertEquals(true, paths.last().layoverStop)
+        assertTrue(paths.last().breakTimeSec != null)
     }
 }
