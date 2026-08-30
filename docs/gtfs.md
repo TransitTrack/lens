@@ -101,15 +101,18 @@ Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `READY`
 2. **Unchanged check** — if the SHA-256 equals the feed's current `ACTIVE`
    revision's `content_sha256`, the revision is set to `UNCHANGED` and the
    pipeline stops (no rows written).
-3. **Unzip & required-file check** — extract, record `files_present`. Fails if
+3. **Unzip & required-file check** — extract the archive to a temp dir. Fails if
    any of `agency.txt`, `stops.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`,
-   and (`calendar.txt` or `calendar_dates.txt`) is missing.
+   and (`calendar.txt` or `calendar_dates.txt`) is missing. (`files_present` is
+   persisted later, on the `VALIDATING` transition.)
 4. **Parse & write** — `GtfsFileRegistry` is iterated in dependency order; each
-   present file is streamed by `GtfsCsvReader`, mapped to typed entities, and
-   batched (`ingest.batch-size`, default 1000) through `RevisionWriter`.
-   `locations.geojson` is read by `GtfsGeoJsonReader`; `shapes.txt` also
-   accumulates per-`shape_id` aggregate rows. Unknown files are recorded as a
-   warning and skipped. `row_counts` is populated.
+   present, registered file is streamed by `GtfsCsvReader`, mapped to typed
+   entities, and batched (`ingest.batch-size`, default 1000) through
+   `RevisionWriter`. `locations.geojson` is read by `GtfsGeoJsonReader`;
+   `shapes.txt` also accumulates per-`shape_id` aggregate rows. Files in the
+   archive that are not part of the GTFS Schedule spec are ignored (they still
+   appear in `filesPresent`). `row_counts` is populated, keyed by physical table
+   name (`gtfs_agency`, `gtfs_stop`, …).
 5. **Validate** — revision-scoped referential checks (orphan `route_id`,
    `service_id`, `trip_id`, `stop_id`, `shape_id`, `agency_id`,
    `parent_station`, fare/area/network/pathway refs, …). Counts and samples go
@@ -137,16 +140,18 @@ files are always cleaned up.
 | polling scheduler | see §5 |
 | `IngestionService.ingestBlocking(feedCode)` | synchronous; returns the finished revision (used by tests / programmatic callers) |
 
-**Guard:** an ingest is refused if the feed already has a non-terminal
-revision. At most one in-flight ingest per feed; different feeds ingest in
-parallel up to the pool size.
+**Guard:** an ingest is refused if the feed already has a revision in an
+in-progress state (`PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`). A revision
+resting at `READY` (auto-activate off) does **not** block a new ingest. At most
+one running ingest per feed; different feeds ingest in parallel up to the pool
+size.
 
 ### Revision mutations
 
 | Mutation | Notes |
 | --- | --- |
 | `ingestFeed(feedCode: String!): GtfsRevision!` | starts a new ingest, returns the `PENDING` revision |
-| `activateRevision(revisionId: ID!): GtfsRevision!` | promotes a `READY` (or `SUPERSEDED`) revision to `ACTIVE`, demoting the incumbent to `SUPERSEDED` |
+| `activateRevision(revisionId: ID!): GtfsRevision!` | sets the given revision to `ACTIVE` and demotes the feed's current `ACTIVE` to `SUPERSEDED`. No status precondition is enforced — any revision id is accepted, so callers are responsible for passing a sensible one (normally a `READY` revision). |
 | `deleteRevision(revisionId: ID!): Boolean!` | deletes the revision and its rows; **refuses the `ACTIVE` revision** |
 
 ---
@@ -263,7 +268,7 @@ Nested resolvers: `GtfsRoute.agency`, `GtfsRoute.trips`, `GtfsTrip.route`,
     "source": "CONFIG",
     "activeRevision": {
       "status": "ACTIVE",
-      "rowCounts": { "agency": 1, "stop": 3, "route": 1, "trip": 1, "stop_time": 2 },
+      "rowCounts": { "gtfs_agency": 1, "gtfs_stop": 3, "gtfs_route": 1, "gtfs_trip": 1, "gtfs_stop_time": 2 },
       "validationSummary": { "errorCount": 0, "warningCount": 0 }
     }
   },
