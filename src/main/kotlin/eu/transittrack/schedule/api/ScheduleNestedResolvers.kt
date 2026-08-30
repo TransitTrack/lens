@@ -8,7 +8,6 @@ import eu.transittrack.gtfs.model.GtfsStopRepository
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
-import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.ScheduleReadService
 import eu.transittrack.schedule.read.dto.BlockDto
@@ -27,7 +26,6 @@ import org.springframework.stereotype.Controller
 @Controller
 class ScheduleNestedResolvers(
     private val patterns: TripPatternRepository,
-    private val stopPaths: StopPathRepository,
     private val schedTrips: SchedTripRepository,
     private val scheduleTimes: ScheduleTimeRepository,
     private val blocks: BlockRepository,

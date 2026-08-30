@@ -7,6 +7,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+/** Mean Earth radius in metres — the same sphere [eu.transittrack.haversineMeters] uses. */
+private const val EARTH_RADIUS_M = 6_371_000.0
+
 data class Point(val lat: Double, val lon: Double)
 
 data class Projection(val distanceAlong: Double, val deviationM: Double)
@@ -22,16 +25,14 @@ class Polyline(val points: List<Point>) {
     }
     val lengthM: Double get() = if (cumulative.isEmpty()) 0.0 else cumulative.last()
 
-    private val earthR = 6_371_000.0
-
     fun project(p: Point): Projection {
         if (points.size == 1) {
             return Projection(0.0, haversineMeters(p.lat, p.lon, points[0].lat, points[0].lon))
         }
         var best = Projection(0.0, Double.MAX_VALUE)
         val cosLat = cos(toRadians(p.lat))
-        fun x(pt: Point) = toRadians(pt.lon - p.lon) * cosLat * earthR
-        fun y(pt: Point) = toRadians(pt.lat - p.lat) * earthR
+        fun x(pt: Point) = toRadians(pt.lon - p.lon) * cosLat * EARTH_RADIUS_M
+        fun y(pt: Point) = toRadians(pt.lat - p.lat) * EARTH_RADIUS_M
         for (i in 1 until points.size) {
             val ax = x(points[i - 1]); val ay = y(points[i - 1])
             val bx = x(points[i]); val by = y(points[i])

@@ -3,7 +3,6 @@ package eu.transittrack.schedule.read
 import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.SchedTripRepository
-import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.dto.BlockDto
@@ -19,7 +18,6 @@ class ScheduleReadService(
     private val patterns: TripPatternRepository,
     private val stopPaths: StopPathRepository,
     private val schedTrips: SchedTripRepository,
-    private val scheduleTimes: ScheduleTimeRepository,
     private val blocks: BlockRepository,
     private val serviceDates: ServiceDateResolver,
     private val resolver: RevisionResolver,

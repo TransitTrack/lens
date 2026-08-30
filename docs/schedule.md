@@ -22,7 +22,7 @@ step entirely.
 
 | Table | One row per | Key fields |
 | --- | --- | --- |
-| `trip_pattern` | distinct `(shapeId, ordered stop-id list)` on a route | `pattern_key`, `route_id`, `direction_id`, `shape_id`, extent bbox |
+| `trip_pattern` | distinct `(routeId, shapeId, ordered stop-id list)` | `pattern_key`, `route_id`, `direction_id`, `shape_id`, extent bbox |
 | `stop_path` | stop in a pattern (segment prev-stop -> this-stop) | `stop_path_index`, `length_m`, `path_geometry`, `wait_stop`, `layover_stop`, `typical_travel_time_sec` |
 | `sched_trip` | GTFS trip | `trip_id`, `trip_pattern_id`, `block_id`, `block_seq`, `start_time_sec`, `frequency_based` |
 | `schedule_time` | stop in a trip | `arrival_sec`, `departure_sec`, `interpolated`, `sched_travel_time_sec` |
@@ -33,13 +33,19 @@ are revision-scoped and cascade-delete with `gtfs_revision`.
 
 ## How patterns are built
 
-Pattern identity is `{shapeId}|{firstStop}_to_{lastStop}|{sha1(stopIds)}` —
-direction, headsign and pickup/drop-off flags are stored from the first trip
-that instantiates the pattern but are not part of identity. Stop-path geometry
-is produced by projecting each stop onto the trip's shape and slicing the
-polyline between consecutive projections; a stop that projects more than
-`stop-projection-max-deviation-m` (default 100 m) from the shape, or a trip
-with no shape, falls back to a straight line between stop coordinates.
+Pattern identity is
+`{routeId}|{shapeId}|{firstStop}_to_{lastStop}|{sha1(stopIds)}` — direction,
+headsign and pickup/drop-off flags are stored from the first trip that
+instantiates the pattern but are not part of identity. The route **is** part of
+identity: `trip_pattern.route_id` is single-valued and patterns are exposed
+per route, so two routes sharing a shape and stop list must not collapse onto
+one pattern. Stop-path geometry is produced by projecting each stop onto the
+trip's shape and slicing the polyline between consecutive projections; a stop
+that projects more than `stop-projection-max-deviation-m` (default 100 m) from
+the shape, or a trip with no shape, falls back to a straight line between stop
+coordinates. A trip that references a stop with no resolvable `(lat, lon)` is
+skipped with a warning naming the trip, route and stop — it produces no
+`sched_trip` row rather than a pattern measured against `(0, 0)`.
 
 ## Schedule times
 
@@ -65,8 +71,10 @@ Trips listed in `frequencies.txt` get a pattern, stop paths and
 `schedule_time` rows expressed as **offsets from 0** (first departure).
 `sched_trip.frequency_based = true` and `exact_times` is carried through; the
 concrete departure times come from `gtfs_frequency` windows at read /
-prediction time. Full frequency handling is deferred to the prediction
-sub-project.
+prediction time. Frequency trips are **not placed in blocks** even when they
+carry a `block_id`, because their 0-based start times would sort to the front
+of every block and corrupt the layover gaps. Full frequency handling is
+deferred to the prediction sub-project.
 
 ## Read API
 
