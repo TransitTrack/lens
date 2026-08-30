@@ -10,7 +10,35 @@ spring:
     username: postgres
     password: ${POSTGRES_PASSWORD:password}
   liquibase:
-    enabled: false
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.batch_size: 100
+      hibernate.order_inserts: true
+
+transittrack:
+  gtfs:
+    download:
+      connect-timeout-ms: 10000
+      read-timeout-ms: 60000
+      max-size-bytes: 524288000
+      user-agent: "transittrack-explorer/0.0.1"
+    ingest:
+      auto-activate: true
+      strict-validation: false
+      batch-size: 1000
+      temp-dir: ""
+    retention:
+      keep-revisions-per-feed: 5
+    polling:
+      enabled: false
+      sweep-cron: "0 0 * * * *"
+    prune-config-feeds: false
+    feeds: []
 
 logging:
   pattern:
