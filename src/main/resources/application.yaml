@@ -1,10 +1,9 @@
 spring:
   application:
-    name: transit-track explorer
+    name: transit-track
   graphql:
     graphiql:
       enabled: true
-      path: /
   datasource:
     url: jdbc:postgresql://${POSTGRES_PORT_5432_TCP_ADDR:localhost}:${POSTGRES_PORT_5432_TCP_PORT:5432}/explorer
     username: postgres
@@ -31,18 +30,25 @@ transittrack:
       auto-activate: true
       strict-validation: false
       batch-size: 1000
-      temp-dir: ""
+      temp-dir: "/tmp"
     retention:
       keep-revisions-per-feed: 5
     polling:
-      enabled: false
-      sweep-cron: "0 0 * * * *"
+      enabled: true
+      sweep-cron: "0 * * * * *"
     prune-config-feeds: false
-    feeds: []
+    feeds:
+      - code: stpt
+        name: stpt
+        enabled: true                  # optional, default true
+        auto-activate: true            # optional; overrides ingest.auto-activate
+        pollingCron: "0 * * * * *"
+        url: https://blues3.transitpdf.com/files/uran/improved-gtfs-timisoara/9c40c30a5815d3e3.zip
 
 logging:
   pattern:
     level: '%5p'
     dateformat: MM-dd' 'HH:mm:ss
   level:
+    eu.transittrack: debug
     root: warn

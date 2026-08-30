@@ -6,6 +6,7 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.scheduling.support.CronExpression
 import org.springframework.stereotype.Component
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component
  * [IngestionService.ingest]'s in-progress guard (the resulting exception is logged).
  */
 @Component
+@ConditionalOnProperty("transittrack.gtfs.polling.enabled", havingValue = "true")
 class GtfsIngestScheduler(
     private val feeds: GtfsFeedRepository,
     private val ingestion: IngestionService,
