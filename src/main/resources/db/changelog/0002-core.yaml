@@ -1,1 +1,198 @@
-databaseChangeLog: []
+databaseChangeLog:
+  - changeSet:
+      id: 0002-gtfs-agency
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_agency
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_agency_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: agency_name, type: VARCHAR(255) }
+              - column: { name: agency_url, type: TEXT }
+              - column: { name: agency_timezone, type: VARCHAR(64) }
+              - column: { name: agency_lang, type: VARCHAR(16) }
+              - column: { name: agency_phone, type: VARCHAR(64) }
+              - column: { name: agency_fare_url, type: TEXT }
+              - column: { name: agency_email, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: gtfs_agency, columnNames: "revision_id, agency_id", constraintName: uq_agency_rev_id }
+
+  - changeSet:
+      id: 0002-gtfs-stop
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_stop
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: stop_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: stop_code, type: VARCHAR(255) }
+              - column: { name: stop_name, type: VARCHAR(500) }
+              - column: { name: tts_stop_name, type: VARCHAR(500) }
+              - column: { name: stop_desc, type: TEXT }
+              - column: { name: stop_lat, type: "DOUBLE PRECISION" }
+              - column: { name: stop_lon, type: "DOUBLE PRECISION" }
+              - column: { name: zone_id, type: VARCHAR(255) }
+              - column: { name: stop_url, type: TEXT }
+              - column: { name: location_type, type: SMALLINT }
+              - column: { name: parent_station, type: VARCHAR(255) }
+              - column: { name: stop_timezone, type: VARCHAR(64) }
+              - column: { name: wheelchair_boarding, type: SMALLINT }
+              - column: { name: level_id, type: VARCHAR(255) }
+              - column: { name: platform_code, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: gtfs_stop, columnNames: "revision_id, stop_id", constraintName: uq_stop_rev_id }
+        - createIndex:
+            indexName: ix_stop_rev_parent
+            tableName: gtfs_stop
+            columns: [ { column: { name: revision_id } }, { column: { name: parent_station } } ]
+
+  - changeSet:
+      id: 0002-gtfs-route
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_route
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_route_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: route_short_name, type: VARCHAR(255) }
+              - column: { name: route_long_name, type: VARCHAR(500) }
+              - column: { name: route_desc, type: TEXT }
+              - column: { name: route_type, type: SMALLINT }
+              - column: { name: route_url, type: TEXT }
+              - column: { name: route_color, type: VARCHAR(6) }
+              - column: { name: route_text_color, type: VARCHAR(6) }
+              - column: { name: route_sort_order, type: INT }
+              - column: { name: continuous_pickup, type: SMALLINT }
+              - column: { name: continuous_drop_off, type: SMALLINT }
+              - column: { name: network_id, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: gtfs_route, columnNames: "revision_id, route_id", constraintName: uq_route_rev_id }
+        - createIndex:
+            indexName: ix_route_rev_agency
+            tableName: gtfs_route
+            columns: [ { column: { name: revision_id } }, { column: { name: agency_id } } ]
+
+  - changeSet:
+      id: 0002-gtfs-trip
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_trip
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_trip_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: trip_headsign, type: VARCHAR(500) }
+              - column: { name: trip_short_name, type: VARCHAR(255) }
+              - column: { name: direction_id, type: SMALLINT }
+              - column: { name: block_id, type: VARCHAR(255) }
+              - column: { name: shape_id, type: VARCHAR(255) }
+              - column: { name: wheelchair_accessible, type: SMALLINT }
+              - column: { name: bikes_allowed, type: SMALLINT }
+        - addUniqueConstraint: { tableName: gtfs_trip, columnNames: "revision_id, trip_id", constraintName: uq_trip_rev_id }
+        - createIndex:
+            indexName: ix_trip_rev_route
+            tableName: gtfs_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: route_id } } ]
+        - createIndex:
+            indexName: ix_trip_rev_service
+            tableName: gtfs_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: service_id } } ]
+        - createIndex:
+            indexName: ix_trip_rev_shape
+            tableName: gtfs_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: shape_id } } ]
+
+  - changeSet:
+      id: 0002-gtfs-stop-time
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_stop_time
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_time_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: arrival_time, type: INT }
+              - column: { name: departure_time, type: INT }
+              - column: { name: stop_id, type: VARCHAR(255) }
+              - column: { name: location_group_id, type: VARCHAR(255) }
+              - column: { name: location_id, type: VARCHAR(255) }
+              - column: { name: stop_sequence, type: INT, constraints: { nullable: false } }
+              - column: { name: stop_headsign, type: VARCHAR(500) }
+              - column: { name: start_pickup_drop_off_window, type: INT }
+              - column: { name: end_pickup_drop_off_window, type: INT }
+              - column: { name: pickup_type, type: SMALLINT }
+              - column: { name: drop_off_type, type: SMALLINT }
+              - column: { name: continuous_pickup, type: SMALLINT }
+              - column: { name: continuous_drop_off, type: SMALLINT }
+              - column: { name: shape_dist_traveled, type: "DOUBLE PRECISION" }
+              - column: { name: timepoint, type: SMALLINT }
+              - column: { name: pickup_booking_rule_id, type: VARCHAR(255) }
+              - column: { name: drop_off_booking_rule_id, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: gtfs_stop_time, columnNames: "revision_id, trip_id, stop_sequence", constraintName: uq_stop_time_rev_trip_seq }
+        - createIndex:
+            indexName: ix_stop_time_rev_stop
+            tableName: gtfs_stop_time
+            columns: [ { column: { name: revision_id } }, { column: { name: stop_id } } ]
+
+  - changeSet:
+      id: 0002-gtfs-calendar
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_calendar
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_calendar_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: monday, type: BOOLEAN }
+              - column: { name: tuesday, type: BOOLEAN }
+              - column: { name: wednesday, type: BOOLEAN }
+              - column: { name: thursday, type: BOOLEAN }
+              - column: { name: friday, type: BOOLEAN }
+              - column: { name: saturday, type: BOOLEAN }
+              - column: { name: sunday, type: BOOLEAN }
+              - column: { name: start_date, type: DATE }
+              - column: { name: end_date, type: DATE }
+        - addUniqueConstraint: { tableName: gtfs_calendar, columnNames: "revision_id, service_id", constraintName: uq_calendar_rev_service }
+
+  - changeSet:
+      id: 0002-gtfs-calendar-date
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_calendar_date
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_calendar_date_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: date, type: DATE, constraints: { nullable: false } }
+              - column: { name: exception_type, type: SMALLINT }
+        - addUniqueConstraint: { tableName: gtfs_calendar_date, columnNames: "revision_id, service_id, date", constraintName: uq_calendar_date_rev_service_date }
+
+  - changeSet:
+      id: 0002-gtfs-feed-info
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_feed_info
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_feed_info_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: feed_publisher_name, type: VARCHAR(255) }
+              - column: { name: feed_publisher_url, type: TEXT }
+              - column: { name: feed_lang, type: VARCHAR(16) }
+              - column: { name: default_lang, type: VARCHAR(16) }
+              - column: { name: feed_start_date, type: DATE }
+              - column: { name: feed_end_date, type: DATE }
+              - column: { name: feed_version, type: VARCHAR(255) }
+              - column: { name: feed_contact_email, type: VARCHAR(255) }
+              - column: { name: feed_contact_url, type: TEXT }
+        - addUniqueConstraint: { tableName: gtfs_feed_info, columnNames: "revision_id", constraintName: uq_feed_info_rev }
