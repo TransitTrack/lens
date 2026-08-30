@@ -1,7 +1,9 @@
 package eu.transittrack.gtfs.feed
 
 import eu.transittrack.gtfs.config.GtfsProperties
+import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import org.mockito.Mockito.mock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -13,11 +15,12 @@ import org.springframework.context.annotation.Import
 @PostgresSliceTest
 @Import(GtfsFeedService::class)
 class GtfsFeedConfigSynchronizerTest(@Autowired val repo: GtfsFeedRepository) {
-
+    val ingestionService: IngestionService = mock(IngestionService::class.java)
     private fun sync(pruneConfigFeeds: Boolean = false, vararg feeds: GtfsProperties.FeedDef) =
         GtfsFeedConfigSynchronizer(
             repo,
             GtfsProperties(pruneConfigFeeds = pruneConfigFeeds, feeds = feeds.toList()),
+            ingestionService
         ).sync()
 
     @Test fun `inserts new config feeds and updates existing`() {
