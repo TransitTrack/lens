@@ -10,6 +10,7 @@ import java.nio.file.Path
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.time.Duration
+import java.util.HexFormat
 
 /**
  * Streaming [FeedDownloader] built on Spring's [RestClient] over the JDK HTTP client.
@@ -20,19 +21,20 @@ import java.time.Duration
  * failure. The partial file is always removed on failure.
  */
 @Component
-class RestClientFeedDownloader(props: GtfsProperties.Download) : FeedDownloader {
+class RestClientFeedDownloader(props: GtfsProperties) : FeedDownloader {
 
-    private val maxBytes: Long = props.maxSizeBytes
+    private val maxBytes: Long = props.download.maxSizeBytes
 
     private val client: RestClient = RestClient.builder()
         .requestFactory(
             JdkClientHttpRequestFactory(
                 HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofMillis(props.connectTimeoutMs))
+                    .connectTimeout(Duration.ofMillis(props.download.connectTimeoutMs))
+                    .followRedirects(HttpClient.Redirect.NORMAL)
                     .build()
-            ).apply { setReadTimeout(Duration.ofMillis(props.readTimeoutMs)) }
+            ).apply { setReadTimeout(Duration.ofMillis(props.download.readTimeoutMs)) }
         )
-        .defaultHeader("User-Agent", props.userAgent)
+        .defaultHeader("User-Agent", props.download.userAgent)
         .build()
 
     override fun download(url: String, into: Path): DownloadedFeed {
@@ -57,15 +59,12 @@ class RestClientFeedDownloader(props: GtfsProperties.Download) : FeedDownloader 
                         }
                     }
                 }
-                DownloadedFeed(
-                    into,
-                    digest.digest().joinToString("") { "%02x".format(it) },
-                    total,
-                )
+                DownloadedFeed(into, HexFormat.of().formatHex(digest.digest()), total)
             }
         } catch (e: Exception) {
             Files.deleteIfExists(into)
             val unwrapped = generateSequence(e as Throwable?) { it.cause }
+                .take(20)
                 .filterIsInstance<FeedDownloadException>()
                 .firstOrNull()
             throw unwrapped ?: FeedDownloadException("download of $url failed", e)

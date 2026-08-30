@@ -4,7 +4,9 @@ import eu.transittrack.gtfs.config.GtfsProperties
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
+import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Files
+import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -15,10 +17,18 @@ import kotlin.test.assertFalse
 class RestClientFeedDownloaderTest {
 
     private lateinit var server: MockWebServer
-    private val tmp = Files.createTempDirectory("dl")
+
+    @TempDir
+    lateinit var tmp: Path
 
     private fun downloader(maxBytes: Long = 1_000_000) = RestClientFeedDownloader(
-        GtfsProperties.Download(connectTimeoutMs = 2000, readTimeoutMs = 2000, maxSizeBytes = maxBytes)
+        GtfsProperties(
+            download = GtfsProperties.Download(
+                connectTimeoutMs = 2000,
+                readTimeoutMs = 2000,
+                maxSizeBytes = maxBytes,
+            )
+        )
     )
 
     @BeforeTest fun setUp() { server = MockWebServer(); server.start() }
