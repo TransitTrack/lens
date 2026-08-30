@@ -21,16 +21,13 @@ import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.haversineMeters
 import eu.transittrack.toRadians
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 /**
  * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check -> extract ->
@@ -239,12 +236,4 @@ class IngestionService(
         return meters
     }
 
-    private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6_371_000.0
-        val dLat = toRadians(lat2 - lat1)
-        val dLon = toRadians(lon2 - lon1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-            cos(toRadians(lat1)) * cos(toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
-        return r * 2 * atan2(sqrt(a), sqrt(1 - a))
-    }
 }
