@@ -1,20 +1,56 @@
 spring:
   application:
-    name: transit-track explorer
+    name: transit-track
   graphql:
     graphiql:
       enabled: true
-      path: /
   datasource:
     url: jdbc:postgresql://${POSTGRES_PORT_5432_TCP_ADDR:localhost}:${POSTGRES_PORT_5432_TCP_PORT:5432}/explorer
     username: postgres
     password: ${POSTGRES_PASSWORD:password}
   liquibase:
-    enabled: false
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.batch_size: 100
+      hibernate.order_inserts: true
+
+transittrack:
+  gtfs:
+    download:
+      connect-timeout-ms: 10000
+      read-timeout-ms: 60000
+      max-size-bytes: 524288000
+      user-agent: "transittrack-explorer/0.0.1"
+    ingest:
+      auto-activate: true
+      strict-validation: false
+      batch-size: 1000
+      temp-dir: "/tmp"
+    retention:
+      keep-revisions-per-feed: 5
+    polling:
+      enabled: true
+      sweep-cron: "0 */15 * * * *"
+    prune-config-feeds: false
+    feeds:
+      - code: stpt
+        name: Societatea de transport public Timisoara
+        enabled: true                  # optional, default true
+        auto-activate: true            # optional; overrides ingest.auto-activate
+        pollingCron: "0 * * * * *"
+        url: https://blues3.transitpdf.com/files/uran/improved-gtfs-timisoara/9c40c30a5815d3e3.zip
 
 logging:
   pattern:
     level: '%5p'
-    dateformat: MM-dd' 'HH:mm:ss
+    dateformat: dd-MM-YYYY' 'HH:mm:ss
+    correlation: "[%X{traceId:-}%X{spanId:-}]"
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:-}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-30.30logger{29}){cyan} %clr(:){faint} %m%n"
   level:
+    eu.transittrack: debug
     root: warn

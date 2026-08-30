@@ -1,0 +1,88 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0006-gtfs-frequency
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_frequency
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_frequency_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: start_time, type: INT, constraints: { nullable: false } }
+              - column: { name: end_time, type: INT }
+              - column: { name: headway_secs, type: INT }
+              - column: { name: exact_times, type: SMALLINT }
+        - addUniqueConstraint: { tableName: gtfs_frequency, columnNames: "revision_id, trip_id, start_time", constraintName: uq_frequency_rev_trip_start }
+        - createIndex:
+            indexName: ix_frequency_rev_trip
+            tableName: gtfs_frequency
+            columns: [ { column: { name: revision_id } }, { column: { name: trip_id } } ]
+
+  - changeSet:
+      id: 0006-gtfs-transfer
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_transfer
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_transfer_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: from_stop_id, type: VARCHAR(255) }
+              - column: { name: to_stop_id, type: VARCHAR(255) }
+              - column: { name: from_route_id, type: VARCHAR(255) }
+              - column: { name: to_route_id, type: VARCHAR(255) }
+              - column: { name: from_trip_id, type: VARCHAR(255) }
+              - column: { name: to_trip_id, type: VARCHAR(255) }
+              - column: { name: transfer_type, type: SMALLINT }
+              - column: { name: min_transfer_time, type: INT }
+        - createIndex:
+            indexName: ix_transfer_rev
+            tableName: gtfs_transfer
+            columns: [ { column: { name: revision_id } } ]
+
+  - changeSet:
+      id: 0006-gtfs-translation
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_translation
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_translation_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: table_name, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: field_name, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: language, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: translation, type: TEXT }
+              - column: { name: record_id, type: VARCHAR(255) }
+              - column: { name: record_sub_id, type: VARCHAR(255) }
+              - column: { name: field_value, type: TEXT }
+        - createIndex:
+            indexName: ix_translation_rev
+            tableName: gtfs_translation
+            columns: [ { column: { name: revision_id } } ]
+
+  - changeSet:
+      id: 0006-gtfs-attribution
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_attribution
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_attribution_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: attribution_id, type: VARCHAR(255) }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: route_id, type: VARCHAR(255) }
+              - column: { name: trip_id, type: VARCHAR(255) }
+              - column: { name: organization_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: is_producer, type: SMALLINT }
+              - column: { name: is_operator, type: SMALLINT }
+              - column: { name: is_authority, type: SMALLINT }
+              - column: { name: attribution_url, type: TEXT }
+              - column: { name: attribution_email, type: VARCHAR(255) }
+              - column: { name: attribution_phone, type: VARCHAR(64) }
+        - createIndex:
+            indexName: ix_attribution_rev
+            tableName: gtfs_attribution
+            columns: [ { column: { name: revision_id } } ]

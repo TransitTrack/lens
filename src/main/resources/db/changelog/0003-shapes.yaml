@@ -1,0 +1,34 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0003-gtfs-shape
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_shape
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_shape_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: shape_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: point_count, type: INT, constraints: { nullable: false } }
+              - column: { name: length_m, type: "DOUBLE PRECISION" }
+        - addUniqueConstraint: { tableName: gtfs_shape, columnNames: "revision_id, shape_id", constraintName: uq_shape_rev_id }
+
+  - changeSet:
+      id: 0003-gtfs-shape-point
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: gtfs_shape_point
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_shapept_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: shape_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: shape_pt_lat, type: "DOUBLE PRECISION" }
+              - column: { name: shape_pt_lon, type: "DOUBLE PRECISION" }
+              - column: { name: shape_pt_sequence, type: INT, constraints: { nullable: false } }
+              - column: { name: shape_dist_traveled, type: "DOUBLE PRECISION" }
+        - addUniqueConstraint: { tableName: gtfs_shape_point, columnNames: "revision_id, shape_id, shape_pt_sequence", constraintName: uq_shapept_rev_id_seq }
+        - createIndex:
+            indexName: ix_shapept_rev_shape_seq
+            tableName: gtfs_shape_point
+            columns: [ { column: { name: revision_id } }, { column: { name: shape_id } }, { column: { name: shape_pt_sequence } } ]

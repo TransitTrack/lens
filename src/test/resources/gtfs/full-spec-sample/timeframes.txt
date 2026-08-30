@@ -1,0 +1,2 @@
+timeframe_group_id,start_time,end_time,service_id
+TF1,06:00:00,22:00:00,WK

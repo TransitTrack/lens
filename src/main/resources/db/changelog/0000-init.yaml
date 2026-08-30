@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0000-gtfs-entity-seq
+      author: transittrack
+      changes:
+        - createSequence:
+            sequenceName: gtfs_entity_seq
+            startValue: 1
+            incrementBy: 500

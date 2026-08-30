@@ -1,0 +1,132 @@
+scalar JSON
+
+type Query {
+    gtfsFeeds: [GtfsFeed!]!
+    gtfsFeed(code: String!): GtfsFeed
+    gtfsRevisions(feedCode: String!, status: GtfsRevisionStatus): [GtfsRevision!]!
+    gtfsRevision(id: ID!): GtfsRevision
+}
+
+type Mutation {
+    registerGtfsFeed(input: RegisterGtfsFeedInput!): GtfsFeed!
+    updateGtfsFeed(code: String!, input: UpdateGtfsFeedInput!): GtfsFeed!
+    deleteGtfsFeed(code: String!): Boolean!
+    ingestFeed(feedCode: String!): GtfsRevision!
+    activateRevision(revisionId: ID!): GtfsRevision!
+    deleteRevision(revisionId: ID!): Boolean!
+}
+
+enum GtfsRevisionStatus {
+    PENDING
+    DOWNLOADING
+    PARSING
+    VALIDATING
+    READY
+    ACTIVE
+    SUPERSEDED
+    FAILED
+    UNCHANGED
+}
+
+type GtfsFeed {
+    code: String!
+    name: String!
+    description: String
+    url: String!
+    pollingCron: String
+    enabled: Boolean!
+    source: String!
+    activeRevision: GtfsRevision
+    revisions: [GtfsRevision!]!
+}
+
+type GtfsRevision {
+    id: ID!
+    feedCode: String!
+    status: GtfsRevisionStatus!
+    createdAt: String!
+    activatedAt: String
+    supersededAt: String
+    contentSha256: String
+    byteSize: Int
+    filesPresent: [String!]!
+    rowCounts: JSON
+    feedStartDate: String
+    feedEndDate: String
+    validationSummary: GtfsValidationSummary
+    errorMessage: String
+}
+
+type GtfsValidationSummary {
+    errorCount: Int!
+    warningCount: Int!
+}
+
+input RegisterGtfsFeedInput {
+    code: String!
+    name: String!
+    description: String
+    url: String!
+    pollingCron: String
+    enabled: Boolean
+    autoActivate: Boolean
+}
+
+input UpdateGtfsFeedInput {
+    name: String!
+    description: String
+    url: String!
+    pollingCron: String
+    enabled: Boolean
+    autoActivate: Boolean
+}
+
+extend type Query {
+    gtfsAgencies(feedCode: String!, revisionId: ID): [GtfsAgency!]!
+    gtfsRoutes(feedCode: String!, revisionId: ID): [GtfsRoute!]!
+    gtfsRoute(feedCode: String!, routeId: String!, revisionId: ID): GtfsRoute
+    gtfsStops(feedCode: String!, revisionId: ID): [GtfsStop!]!
+    gtfsStop(feedCode: String!, stopId: String!, revisionId: ID): GtfsStop
+    gtfsTrips(feedCode: String!, routeId: String, serviceId: String, revisionId: ID): [GtfsTrip!]!
+    gtfsTrip(feedCode: String!, tripId: String!, revisionId: ID): GtfsTrip
+    gtfsStopTimes(feedCode: String!, tripId: String!, revisionId: ID): [GtfsStopTime!]!
+    gtfsCalendars(feedCode: String!, revisionId: ID): [GtfsCalendar!]!
+    gtfsCalendarDates(feedCode: String!, serviceId: String, revisionId: ID): [GtfsCalendarDate!]!
+    gtfsShape(feedCode: String!, shapeId: String!, revisionId: ID): GtfsShape
+    gtfsFrequencies(feedCode: String!, tripId: String, revisionId: ID): [GtfsFrequency!]!
+    gtfsTransfers(feedCode: String!, revisionId: ID): [GtfsTransfer!]!
+    gtfsFeedInfo(feedCode: String!, revisionId: ID): GtfsFeedInfo
+    gtfsPathways(feedCode: String!, revisionId: ID): [GtfsPathway!]!
+    gtfsLevels(feedCode: String!, revisionId: ID): [GtfsLevel!]!
+}
+
+type GtfsAgency { agencyId: String, agencyName: String, agencyUrl: String, agencyTimezone: String, agencyLang: String, agencyPhone: String, agencyFareUrl: String, agencyEmail: String }
+type GtfsRoute { routeId: String!, agencyId: String, routeShortName: String, routeLongName: String, routeDesc: String, routeType: Int, routeUrl: String, routeColor: String, routeTextColor: String, routeSortOrder: Int, networkId: String }
+type GtfsStop { stopId: String!, stopCode: String, stopName: String, stopDesc: String, stopLat: Float, stopLon: Float, zoneId: String, locationType: Int, parentStation: String, wheelchairBoarding: Int, levelId: String, platformCode: String }
+type GtfsTrip { tripId: String!, routeId: String!, serviceId: String!, tripHeadsign: String, tripShortName: String, directionId: Int, blockId: String, shapeId: String, wheelchairAccessible: Int, bikesAllowed: Int }
+type GtfsStopTime { tripId: String!, stopSequence: Int!, stopId: String, arrivalTime: String, arrivalTimeSeconds: Int, departureTime: String, departureTimeSeconds: Int, stopHeadsign: String, pickupType: Int, dropOffType: Int, shapeDistTraveled: Float, timepoint: Int }
+type GtfsCalendar { serviceId: String!, monday: Boolean, tuesday: Boolean, wednesday: Boolean, thursday: Boolean, friday: Boolean, saturday: Boolean, sunday: Boolean, startDate: String, endDate: String }
+type GtfsCalendarDate { serviceId: String!, date: String!, exceptionType: Int }
+type GtfsShapePoint { lat: Float, lon: Float, sequence: Int!, distTraveled: Float }
+type GtfsShape { shapeId: String!, pointCount: Int!, lengthM: Float, points: [GtfsShapePoint!]! }
+type GtfsFrequency { tripId: String!, startTime: String!, endTime: String, headwaySecs: Int, exactTimes: Int }
+type GtfsTransfer { fromStopId: String, toStopId: String, fromRouteId: String, toRouteId: String, fromTripId: String, toTripId: String, transferType: Int, minTransferTime: Int }
+type GtfsFeedInfo { feedPublisherName: String, feedPublisherUrl: String, feedLang: String, defaultLang: String, feedStartDate: String, feedEndDate: String, feedVersion: String, feedContactEmail: String, feedContactUrl: String }
+type GtfsPathway { pathwayId: String!, fromStopId: String, toStopId: String, pathwayMode: Int, isBidirectional: Int, length: Float, traversalTime: Int, stairCount: Int, maxSlope: Float, minWidth: Float, signpostedAs: String, reversedSignpostedAs: String }
+type GtfsLevel { levelId: String!, levelIndex: Float, levelName: String }
+
+extend type GtfsRoute { agency: GtfsAgency, trips: [GtfsTrip!]! }
+extend type GtfsTrip { route: GtfsRoute, stopTimes: [GtfsStopTime!]!, shape: GtfsShape }
+extend type GtfsStopTime { stop: GtfsStop }
+extend type GtfsStop { childStops: [GtfsStop!]!, level: GtfsLevel }
+
+extend type Query {
+    gtfsRecords(feedCode: String!, table: GtfsTable!, revisionId: ID): [JSON!]!
+}
+
+enum GtfsTable {
+    FARE_ATTRIBUTES FARE_RULES TIMEFRAMES RIDER_CATEGORIES FARE_MEDIA FARE_PRODUCTS
+    FARE_LEG_RULES FARE_LEG_JOIN_RULES FARE_TRANSFER_RULES AREAS STOP_AREAS NETWORKS
+    ROUTE_NETWORKS LOCATION_GROUPS LOCATION_GROUP_STOPS LOCATIONS BOOKING_RULES
+    TRANSLATIONS ATTRIBUTIONS
+}
