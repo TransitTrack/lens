@@ -5,20 +5,21 @@ import eu.transittrack.gtfs.model.GtfsCalendarDateRepository
 import eu.transittrack.gtfs.model.GtfsCalendarRepository
 import java.time.DayOfWeek
 import java.time.LocalDate
-import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
 
 /**
  * Resolves which GTFS `service_id`s run on a given calendar date for a revision
  * (calendar weekday windows + calendar_dates exceptions). All results are in
  * service-day terms; no timezone handling.
+ *
+ * Not cached: the date comes from the API client, so any cache would be keyed on
+ * unbounded input. Each call is two small indexed reads.
  */
 @Component
 class ServiceDateResolver(
     private val calendars: GtfsCalendarRepository,
     private val calendarDates: GtfsCalendarDateRepository,
 ) {
-    @Cacheable("activeServiceIds")
     fun activeServiceIds(revisionId: Long, date: LocalDate): Set<String> {
         val active = calendars.findByRevisionId(revisionId)
             .filter { withinWindow(it, date) && runsOnWeekday(it, date.dayOfWeek) }
