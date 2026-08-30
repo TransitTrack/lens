@@ -9,7 +9,7 @@ package eu.transittrack.gtfs.parse
 class GtfsRow(private val values: Map<String, String?>) {
 
     /** All header column names present in the source file. */
-    val columns: Set<String> get() = values.keys
+    val columns: Set<String> get() = values.keys.toSet()
 
     /** Raw value for [col], or `null` if the column is absent or its value is blank. */
     fun str(col: String): String? = values[col]?.takeIf { it.isNotEmpty() }

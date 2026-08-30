@@ -1,8 +1,10 @@
 package eu.transittrack.gtfs.parse
 
+import java.io.InputStream
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class GtfsCsvReaderTest {
 
@@ -28,6 +30,25 @@ class GtfsCsvReaderTest {
     fun `strips UTF-8 BOM from first header`() {
         val r = rows("﻿route_id,x\nR1,y\n")
         assertEquals("R1", r[0].str("route_id"))
+        assertTrue("route_id" in r[0].columns)
+    }
+
+    @Test
+    fun `strips UTF-8 BOM when the stream yields one byte per read`() {
+        val bytes = "﻿route_id,x\nR1,y\n".toByteArray(Charsets.UTF_8)
+        val oneByteAtATime = object : InputStream() {
+            private var pos = 0
+            override fun read(): Int = if (pos < bytes.size) bytes[pos++].toInt() and 0xFF else -1
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (len == 0) return 0
+                if (pos >= bytes.size) return -1
+                b[off] = bytes[pos++]
+                return 1
+            }
+        }
+        val r = GtfsCsvReader.read(oneByteAtATime) { it }.toList()
+        assertEquals("R1", r[0].str("route_id"))
+        assertTrue("route_id" in r[0].columns)
     }
 
     @Test

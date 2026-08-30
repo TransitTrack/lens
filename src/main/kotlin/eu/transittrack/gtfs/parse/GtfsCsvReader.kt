@@ -44,13 +44,15 @@ object GtfsCsvReader {
 
     private fun stripBom(input: InputStream): InputStream {
         val pushback = PushbackInputStream(input, 3)
-        val bom = ByteArray(3)
-        val read = pushback.read(bom, 0, 3)
-        val isBom = read == 3 &&
-            bom[0] == 0xEF.toByte() &&
-            bom[1] == 0xBB.toByte() &&
-            bom[2] == 0xBF.toByte()
-        if (!isBom && read > 0) pushback.unread(bom, 0, read)
+        // readNBytes loops until 3 bytes or EOF; a single read(...) can return fewer
+        // (e.g. ZipInputStream hands back 1-2 byte chunks), which previously left the
+        // BOM in the stream and glued it onto the first header name.
+        val prefix = pushback.readNBytes(3)
+        val isBom = prefix.size == 3 &&
+            prefix[0] == 0xEF.toByte() &&
+            prefix[1] == 0xBB.toByte() &&
+            prefix[2] == 0xBF.toByte()
+        if (!isBom && prefix.isNotEmpty()) pushback.unread(prefix)
         return pushback
     }
 }
