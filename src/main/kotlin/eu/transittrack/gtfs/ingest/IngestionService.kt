@@ -46,19 +46,37 @@ class IngestionService(
     private val props: GtfsProperties,
     private val shapes: GtfsShapeRepository,
     private val validator: GtfsValidator,
+    private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * Starts an ingest and returns the freshly created PENDING revision immediately; the
+     * pipeline runs on [gtfsIngestExecutor]. Use [ingestBlocking] when the caller needs
+     * the finished revision (tests, CLI).
+     */
     fun ingest(feedCode: String): GtfsRevision {
+        val revision = openRevision(feedCode)
+        gtfsIngestExecutor.execute { runPipeline(revision.id!!) }
+        return revision
+    }
+
+    /** Synchronous ingest: runs the pipeline inline and returns the finished revision. */
+    fun ingestBlocking(feedCode: String): GtfsRevision {
+        val revision = openRevision(feedCode)
+        runPipeline(revision.id!!)
+        return revisionService.revision(revision.id!!)
+    }
+
+    /** Feed lookup + enabled/in-progress guards + PENDING revision creation. */
+    private fun openRevision(feedCode: String): GtfsRevision {
         val feed = feeds.findByCode(feedCode)
             ?: throw IllegalArgumentException("no feed '$feedCode'")
         require(feed.enabled) { "feed '$feedCode' is disabled" }
         check(!revisionService.hasInProgress(feed.id!!)) {
             "feed '$feedCode' already has an ingest in progress"
         }
-        val revision = revisionService.createPending(feed.id!!, feed.url)
-        runPipeline(revision.id!!)
-        return revisionService.revision(revision.id!!)
+        return revisionService.createPending(feed.id!!, feed.url)
     }
 
     fun runPipeline(revisionId: Long) {

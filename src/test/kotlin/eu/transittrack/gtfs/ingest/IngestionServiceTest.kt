@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import javax.sql.DataSource
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Import
+import org.springframework.core.task.SyncTaskExecutor
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -72,6 +73,7 @@ class IngestionServiceTest(
 
     private fun service(fixture: String) = IngestionService(
         FixtureDownloader(fixture), revisionService, writer, feeds, feedService, props, shapes, validator,
+        SyncTaskExecutor(),
     )
 
     @AfterEach
@@ -88,7 +90,7 @@ class IngestionServiceTest(
     @Test
     fun `happy path loads and activates a revision`() {
         feed()
-        val rev = service("minimal-valid").ingest("f")
+        val rev = service("minimal-valid").ingestBlocking("f")
 
         val loaded = revisions.findById(rev.id!!).get()
         assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
@@ -103,7 +105,7 @@ class IngestionServiceTest(
     @Test
     fun `missing required file fails the revision with no rows`() {
         feed()
-        val rev = service("missing-required-file").ingest("f")
+        val rev = service("missing-required-file").ingestBlocking("f")
 
         val loaded = revisions.findById(rev.id!!).get()
         assertEquals(GtfsRevisionStatus.FAILED, loaded.status)
@@ -114,7 +116,7 @@ class IngestionServiceTest(
     @Test
     fun `malformed csv fails and cleans up`() {
         feed()
-        val rev = service("malformed-csv").ingest("f")
+        val rev = service("malformed-csv").ingestBlocking("f")
 
         assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)
         assertEquals(0, routes.findByRevisionId(rev.id!!).size)
@@ -124,8 +126,8 @@ class IngestionServiceTest(
     fun `second identical import is UNCHANGED`() {
         feed()
         val svc = service("minimal-valid")
-        svc.ingest("f")
-        val second = svc.ingest("f")
+        svc.ingestBlocking("f")
+        val second = svc.ingestBlocking("f")
 
         assertEquals(GtfsRevisionStatus.UNCHANGED, revisions.findById(second.id!!).get().status)
     }
@@ -135,13 +137,13 @@ class IngestionServiceTest(
         val f = feed()
         revisionService.createPending(f.id!!, "u")
 
-        assertFailsWith<IllegalStateException> { service("minimal-valid").ingest("f") }
+        assertFailsWith<IllegalStateException> { service("minimal-valid").ingestBlocking("f") }
     }
 
     @Test
     fun `lenient mode records the validation report but still activates`() {
         feed()
-        val rev = service("dangling-refs").ingest("f")
+        val rev = service("dangling-refs").ingestBlocking("f")
 
         val loaded = revisions.findById(rev.id!!).get()
         assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
@@ -154,9 +156,9 @@ class IngestionServiceTest(
         val strict = IngestionService(
             FixtureDownloader("dangling-refs"), revisionService, writer, feeds, feedService,
             GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)),
-            shapes, validator,
+            shapes, validator, SyncTaskExecutor(),
         )
-        val rev = strict.ingest("f")
+        val rev = strict.ingestBlocking("f")
 
         assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)
     }
@@ -164,8 +166,8 @@ class IngestionServiceTest(
     @Test
     fun `changed import supersedes the first and keeps history`() {
         feed()
-        val first = service("minimal-valid").ingest("f")
-        val second = service("minimal-valid-v2").ingest("f")
+        val first = service("minimal-valid").ingestBlocking("f")
+        val second = service("minimal-valid-v2").ingestBlocking("f")
 
         assertEquals(GtfsRevisionStatus.SUPERSEDED, revisions.findById(first.id!!).get().status)
         assertEquals(GtfsRevisionStatus.ACTIVE, revisions.findById(second.id!!).get().status)
