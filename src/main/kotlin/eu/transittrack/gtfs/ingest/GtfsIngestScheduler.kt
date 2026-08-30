@@ -28,16 +28,26 @@ class GtfsIngestScheduler(
 
     @Scheduled(cron = "\${transittrack.gtfs.polling.sweep-cron}")
     fun sweep() {
-        if (!props.polling.enabled) return
+        //if (!props.polling.enabled) return
         val zone = ZoneId.systemDefault()
         val now = LocalDateTime.now(zone)
         for (feed in feeds.findAllByEnabledTrue()) {
             val cron = feed.pollingCron ?: continue
             val since = LocalDateTime.ofInstant(feed.lastIngestAt ?: Instant.EPOCH, zone)
-            val next = runCatching { CronExpression.parse(cron).next(since) }.getOrNull() ?: continue
-            if (next.isAfter(now)) continue
-            runCatching { ingestion.ingest(feed.code) }
-                .onFailure { log.warn("scheduled ingest for '{}' skipped: {}", feed.code, it.message) }
+            val next = runCatching {
+                CronExpression
+                    .parse(cron)
+                    .next(since)
+            }.getOrNull() ?: continue
+
+            if (next.isAfter(now))
+                continue
+
+            runCatching {
+                ingestion.ingest(feed.code)
+            }.onFailure {
+                log.warn("scheduled ingest for '{}' skipped: {}", feed.code, it.message)
+            }
         }
     }
 }

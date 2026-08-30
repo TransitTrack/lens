@@ -1,6 +1,7 @@
 package eu.transittrack.gtfs.feed
 
 import eu.transittrack.gtfs.config.GtfsProperties
+import eu.transittrack.gtfs.ingest.IngestionService
 import java.time.Instant
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional
 class GtfsFeedConfigSynchronizer(
     private val repo: GtfsFeedRepository,
     private val props: GtfsProperties,
+    private val ingestionService: IngestionService
 ) : ApplicationRunner, Ordered {
 
     override fun getOrder() = Ordered.LOWEST_PRECEDENCE - 100
@@ -26,7 +28,7 @@ class GtfsFeedConfigSynchronizer(
         val configCodes = props.feeds.map { it.code }.toSet()
         for (def in props.feeds) {
             val existing = repo.findByCode(def.code)
-            when {
+            val newFeed = when {
                 existing == null -> repo.save(
                     GtfsFeed(
                         code = def.code,
@@ -58,7 +60,12 @@ class GtfsFeedConfigSynchronizer(
                     repo.save(existing)
                 }
             }
+
+            if (existing == null) {
+                ingestionService.ingest(newFeed.code)
+            }
         }
+
         if (props.pruneConfigFeeds) {
             repo.findAll()
                 .filter { it.source == FeedSource.CONFIG && it.code !in configCodes }

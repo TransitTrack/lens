@@ -9,9 +9,6 @@ import org.springframework.scheduling.annotation.EnableScheduling
 
 @SpringBootApplication(scanBasePackages = ["eu.transittrack"])
 @ConfigurationPropertiesScan("eu.transittrack")
-@EnableScheduling
-@EntityScan(basePackages = ["eu.transittrack"])
-@EnableJpaRepositories(basePackages = ["eu.transittrack"])
 class Application
 
 fun main(args: Array<String>) {

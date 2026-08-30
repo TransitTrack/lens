@@ -21,11 +21,16 @@ import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.toRadians
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check -> extract ->
@@ -57,7 +62,9 @@ class IngestionService(
      */
     fun ingest(feedCode: String): GtfsRevision {
         val revision = openRevision(feedCode)
-        gtfsIngestExecutor.execute { runPipeline(revision.id!!) }
+        gtfsIngestExecutor.execute {
+            runPipeline(revision.id!!)
+        }
         return revision
     }
 
@@ -84,6 +91,7 @@ class IngestionService(
         val tempDir = createTempDirectory(tempRoot(), "gtfs-$revisionId-")
         val zipPath = tempDir.resolve("feed.zip")
         try {
+            log.info("Starting download of ${feed.code}")
             revisionService.transition(revisionId, GtfsRevisionStatus.DOWNLOADING)
             val dl = downloader.download(feed.url, zipPath)
 
@@ -96,9 +104,11 @@ class IngestionService(
                 }
                 revisionService.markUnchanged(revisionId)
                 feedService.markIngested(feed.id!!)
+                log.info("Finished download and detected no changes for ${feed.code}")
                 return
             }
 
+            log.info("Starting processing of ${feed.code}")
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING) {
                 it.contentSha256 = dl.sha256
                 it.byteSize = dl.byteSize
@@ -117,6 +127,7 @@ class IngestionService(
                 }
             }
 
+            log.info("Starting validation of ${feed.code}")
             revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
                 it.filesPresent = present.sorted()
                 it.rowCounts = rowCounts
@@ -131,6 +142,7 @@ class IngestionService(
             }
 
             revisionService.deriveDates(revisionId)
+            log.info("Marking feed ${feed.code} READY")
             revisionService.transition(revisionId, GtfsRevisionStatus.READY)
 
             if (feed.autoActivate ?: props.ingest.autoActivate) {
@@ -164,6 +176,7 @@ class IngestionService(
         }
 
     private fun loadCsv(revisionId: Long, dir: Path, def: GtfsFileDef): Long {
+        log.info("Loading CSV ${def.entityType} file ${def.fileName}")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         var total = 0L
         GtfsArchive.openFile(dir, def.fileName)!!.use { input ->
@@ -179,6 +192,7 @@ class IngestionService(
     }
 
     private fun loadShapes(revisionId: Long, dir: Path): Long {
+        log.info("Loading shapes")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         val perShape = LinkedHashMap<String, MutableList<GtfsShapePoint>>()
         var total = 0L
@@ -202,6 +216,7 @@ class IngestionService(
     }
 
     private fun loadGeoJson(revisionId: Long, dir: Path): Long {
+        log.info("Loading geojson")
         val rows = GtfsArchive.openFile(dir, "locations.geojson")!!.use { GtfsGeoJsonReader.read(it) }
             .map { GtfsLocation(revisionId, it.locationId, it.stopName, it.stopDesc, it.geometryJson) }
         writer.write(rows)
@@ -226,11 +241,10 @@ class IngestionService(
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6_371_000.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2)
-        return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        val dLat = toRadians(lat2 - lat1)
+        val dLon = toRadians(lon2 - lon1)
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+            cos(toRadians(lat1)) * cos(toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
+        return r * 2 * atan2(sqrt(a), sqrt(1 - a))
     }
 }

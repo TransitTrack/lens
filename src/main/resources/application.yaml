@@ -35,11 +35,11 @@ transittrack:
       keep-revisions-per-feed: 5
     polling:
       enabled: true
-      sweep-cron: "0 * * * * *"
+      sweep-cron: "0 */15 * * * *"
     prune-config-feeds: false
     feeds:
       - code: stpt
-        name: stpt
+        name: Societatea de transport public Timisoara
         enabled: true                  # optional, default true
         auto-activate: true            # optional; overrides ingest.auto-activate
         pollingCron: "0 * * * * *"
@@ -48,7 +48,9 @@ transittrack:
 logging:
   pattern:
     level: '%5p'
-    dateformat: MM-dd' 'HH:mm:ss
+    dateformat: dd-MM-YYYY' 'HH:mm:ss
+    correlation: "[%X{traceId:-}%X{spanId:-}]"
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:-}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-30.30logger{29}){cyan} %clr(:){faint} %m%n"
   level:
     eu.transittrack: debug
     root: warn
