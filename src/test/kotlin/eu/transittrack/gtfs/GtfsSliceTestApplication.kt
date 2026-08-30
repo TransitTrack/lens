@@ -1,4 +1,4 @@
-package eu.transittrack.gtfs.support
+package eu.transittrack.gtfs
 
 import org.springframework.boot.SpringBootConfiguration
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration
