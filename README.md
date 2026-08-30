@@ -15,6 +15,15 @@ mutation), the revision lifecycle, the mutations, retention/pruning, the polling
 scheduler, and the read API. Design spec:
 [docs/superpowers/specs/2026-08-30-gtfs-ingestion-versioned-storage-design.md](docs/superpowers/specs/2026-08-30-gtfs-ingestion-versioned-storage-design.md).
 
+## Derived schedule model
+
+After each GTFS revision is validated, the `eu.transittrack.schedule` subsystem
+derives trip patterns, stop paths (with geometry), blocks, and per-trip
+schedule times — the foundation for AVL-based arrival/departure prediction.
+
+See **[docs/schedule.md](docs/schedule.md)**. Design spec:
+[docs/superpowers/specs/2026-08-30-derived-schedule-model-design.md](docs/superpowers/specs/2026-08-30-derived-schedule-model-design.md).
+
 ## Running tests
 
 ```bash
