@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: transit-track explorer
+  graphql:
+    graphiql:
+      enabled: true
+      path: /
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_PORT_5432_TCP_ADDR:localhost}:${POSTGRES_PORT_5432_TCP_PORT:5432}/explorer
+    username: postgres
+    password: ${POSTGRES_PASSWORD:password}
+  liquibase:
+    enabled: false
+
+logging:
+  pattern:
+    level: '%5p'
+    dateformat: MM-dd' 'HH:mm:ss
+  level:
+    root: warn
