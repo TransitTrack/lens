@@ -1,0 +1,14 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "loc_1",
+      "properties": { "stop_name": "Flex Zone", "stop_desc": "On-demand pickup area" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[17.00,51.10],[17.02,51.10],[17.02,51.12],[17.00,51.12],[17.00,51.10]]]
+      }
+    }
+  ]
+}

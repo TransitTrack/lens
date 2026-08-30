@@ -103,6 +103,7 @@ interface GtfsPathwayRepository : JpaRepository<GtfsPathway, Long> {
 
 interface GtfsLevelRepository : JpaRepository<GtfsLevel, Long> {
     fun findByRevisionId(revisionId: Long): List<GtfsLevel>
+    fun findByRevisionIdAndLevelId(revisionId: Long, levelId: String): GtfsLevel?
 }
 
 interface GtfsLocationGroupRepository : JpaRepository<GtfsLocationGroup, Long> {

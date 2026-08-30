@@ -114,3 +114,19 @@ type GtfsTransfer { fromStopId: String, toStopId: String, fromRouteId: String, t
 type GtfsFeedInfo { feedPublisherName: String, feedPublisherUrl: String, feedLang: String, defaultLang: String, feedStartDate: String, feedEndDate: String, feedVersion: String, feedContactEmail: String, feedContactUrl: String }
 type GtfsPathway { pathwayId: String!, fromStopId: String, toStopId: String, pathwayMode: Int, isBidirectional: Int, length: Float, traversalTime: Int, stairCount: Int, maxSlope: Float, minWidth: Float, signpostedAs: String, reversedSignpostedAs: String }
 type GtfsLevel { levelId: String!, levelIndex: Float, levelName: String }
+
+extend type GtfsRoute { agency: GtfsAgency, trips: [GtfsTrip!]! }
+extend type GtfsTrip { route: GtfsRoute, stopTimes: [GtfsStopTime!]!, shape: GtfsShape }
+extend type GtfsStopTime { stop: GtfsStop }
+extend type GtfsStop { childStops: [GtfsStop!]!, level: GtfsLevel }
+
+extend type Query {
+    gtfsRecords(feedCode: String!, table: GtfsTable!, revisionId: ID): [JSON!]!
+}
+
+enum GtfsTable {
+    FARE_ATTRIBUTES FARE_RULES TIMEFRAMES RIDER_CATEGORIES FARE_MEDIA FARE_PRODUCTS
+    FARE_LEG_RULES FARE_LEG_JOIN_RULES FARE_TRANSFER_RULES AREAS STOP_AREAS NETWORKS
+    ROUTE_NETWORKS LOCATION_GROUPS LOCATION_GROUP_STOPS LOCATIONS BOOKING_RULES
+    TRANSLATIONS ATTRIBUTIONS
+}

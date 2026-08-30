@@ -1,6 +1,7 @@
 package eu.transittrack.gtfs.api
 
 import eu.transittrack.gtfs.read.GtfsReadService
+import eu.transittrack.gtfs.read.GtfsRecordsService
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
@@ -10,7 +11,10 @@ import org.springframework.stereotype.Controller
  * to [GtfsReadService]; revision resolution and mapping live there.
  */
 @Controller
-class GtfsQueryController(private val read: GtfsReadService) {
+class GtfsQueryController(
+    private val read: GtfsReadService,
+    private val recordsService: GtfsRecordsService,
+) {
 
     @QueryMapping
     fun gtfsAgencies(@Argument feedCode: String, @Argument revisionId: String?) =
@@ -82,4 +86,11 @@ class GtfsQueryController(private val read: GtfsReadService) {
     @QueryMapping
     fun gtfsLevels(@Argument feedCode: String, @Argument revisionId: String?) =
         read.levels(feedCode, revisionId)
+
+    @QueryMapping
+    fun gtfsRecords(
+        @Argument feedCode: String,
+        @Argument table: String,
+        @Argument revisionId: String?,
+    ) = recordsService.records(feedCode, table, revisionId)
 }
