@@ -19,6 +19,8 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
+import eu.transittrack.gtfs.validate.GtfsValidationException
+import eu.transittrack.gtfs.validate.GtfsValidator
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
@@ -43,6 +45,7 @@ class IngestionService(
     private val feedService: GtfsFeedService,
     private val props: GtfsProperties,
     private val shapes: GtfsShapeRepository,
+    private val validator: GtfsValidator,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -100,6 +103,15 @@ class IngestionService(
                 it.filesPresent = present.sorted()
                 it.rowCounts = rowCounts
             }
+
+            val report = validator.validate(revisionId)
+            revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
+                it.validationReport = report.toJson()
+            }
+            if (props.ingest.strictValidation && report.errorCount > 0) {
+                throw GtfsValidationException(report)
+            }
+
             revisionService.deriveDates(revisionId)
             revisionService.transition(revisionId, GtfsRevisionStatus.READY)
 

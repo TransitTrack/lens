@@ -16,6 +16,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.gtfs.validate.GtfsValidator
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.Test
@@ -25,8 +26,10 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
+import javax.sql.DataSource
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Import
+import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -51,8 +54,10 @@ class IngestionServiceTest(
     @Autowired val stopTimes: GtfsStopTimeRepository,
     @Autowired val shapes: GtfsShapeRepository,
     @Autowired val shapePoints: GtfsShapePointRepository,
+    @Autowired val dataSource: DataSource,
 ) {
     private val createdFeeds = mutableListOf<Long>()
+    private val validator = GtfsValidator(JdbcTemplate(dataSource))
 
     private fun feed(): GtfsFeed {
         val f = feeds.save(
@@ -66,7 +71,7 @@ class IngestionServiceTest(
     }
 
     private fun service(fixture: String) = IngestionService(
-        FixtureDownloader(fixture), revisionService, writer, feeds, feedService, props, shapes,
+        FixtureDownloader(fixture), revisionService, writer, feeds, feedService, props, shapes, validator,
     )
 
     @AfterEach
@@ -131,6 +136,29 @@ class IngestionServiceTest(
         revisionService.createPending(f.id!!, "u")
 
         assertFailsWith<IllegalStateException> { service("minimal-valid").ingest("f") }
+    }
+
+    @Test
+    fun `lenient mode records the validation report but still activates`() {
+        feed()
+        val rev = service("dangling-refs").ingest("f")
+
+        val loaded = revisions.findById(rev.id!!).get()
+        assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
+        assertTrue(loaded.validationReport!!.contains("stop_time.stop_id->stop"))
+    }
+
+    @Test
+    fun `strict mode fails on referential errors`() {
+        feed()
+        val strict = IngestionService(
+            FixtureDownloader("dangling-refs"), revisionService, writer, feeds, feedService,
+            GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)),
+            shapes, validator,
+        )
+        val rev = strict.ingest("f")
+
+        assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)
     }
 
     @Test
