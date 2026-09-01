@@ -24,7 +24,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 @Entity
 @Table(name = "gtfs_pathway")
 class GtfsPathway(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "pathway_id", nullable = false) var pathwayId: String,
     var fromStopId: String?,
     var toStopId: String?,
@@ -39,47 +39,47 @@ class GtfsPathway(
     var minWidth: Double?,
     var signpostedAs: String?,
     var reversedSignpostedAs: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_level")
 class GtfsLevel(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "level_id", nullable = false) var levelId: String,
     var levelIndex: Double?,
     var levelName: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_location_group")
 class GtfsLocationGroup(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "location_group_id", nullable = false) var locationGroupId: String,
     var locationGroupName: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_location_group_stop")
 class GtfsLocationGroupStop(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "location_group_id", nullable = false) var locationGroupId: String,
     @Column(name = "stop_id", nullable = false) var stopId: String,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_location")
 class GtfsLocation(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "location_id", nullable = false) var locationId: String,
     var stopName: String?,
     var stopDesc: String?,
     @JdbcTypeCode(SqlTypes.JSON) @Column(name = "geometry") var geometry: String,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_booking_rule")
 class GtfsBookingRule(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "booking_rule_id", nullable = false) var bookingRuleId: String,
     @JdbcTypeCode(SqlTypes.SMALLINT) var bookingType: Int?,
     var priorNoticeDurationMin: Int?,
@@ -95,29 +95,18 @@ class GtfsBookingRule(
     var phoneNumber: String?,
     var infoUrl: String?,
     var bookingUrl: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
-interface GtfsPathwayRepository : JpaRepository<GtfsPathway, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsPathway>
-}
+interface GtfsPathwayRepository : RevisionScopedRepository<GtfsPathway, Long>
 
-interface GtfsLevelRepository : JpaRepository<GtfsLevel, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsLevel>
+interface GtfsLevelRepository : RevisionScopedRepository<GtfsLevel, Long> {
     fun findByRevisionIdAndLevelId(revisionId: Long, levelId: String): GtfsLevel?
 }
 
-interface GtfsLocationGroupRepository : JpaRepository<GtfsLocationGroup, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsLocationGroup>
-}
+interface GtfsLocationGroupRepository : RevisionScopedRepository<GtfsLocationGroup, Long>
 
-interface GtfsLocationGroupStopRepository : JpaRepository<GtfsLocationGroupStop, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsLocationGroupStop>
-}
+interface GtfsLocationGroupStopRepository : RevisionScopedRepository<GtfsLocationGroupStop, Long>
 
-interface GtfsLocationRepository : JpaRepository<GtfsLocation, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsLocation>
-}
+interface GtfsLocationRepository : RevisionScopedRepository<GtfsLocation, Long>
 
-interface GtfsBookingRuleRepository : JpaRepository<GtfsBookingRule, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsBookingRule>
-}
+interface GtfsBookingRuleRepository : RevisionScopedRepository<GtfsBookingRule, Long>

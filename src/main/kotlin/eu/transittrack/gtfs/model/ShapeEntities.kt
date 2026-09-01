@@ -16,29 +16,28 @@ import org.springframework.data.jpa.repository.JpaRepository
 @Entity
 @Table(name = "gtfs_shape")
 class GtfsShape(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "shape_id", nullable = false) var shapeId: String,
     @Column(name = "point_count", nullable = false) var pointCount: Int,
     // Trailing single capital: CamelCaseToUnderscoresNamingStrategy yields "lengthm", so name it explicitly.
     @Column(name = "length_m") var lengthM: Double?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_shape_point")
 class GtfsShapePoint(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "shape_id", nullable = false) var shapeId: String,
     var shapePtLat: Double?,
     var shapePtLon: Double?,
     @Column(name = "shape_pt_sequence", nullable = false) var shapePtSequence: Int,
     var shapeDistTraveled: Double?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
-interface GtfsShapeRepository : JpaRepository<GtfsShape, Long> {
-    fun findByRevisionId(revisionId: Long): List<GtfsShape>
+interface GtfsShapeRepository : RevisionScopedRepository<GtfsShape, Long> {
     fun findByRevisionIdAndShapeId(revisionId: Long, shapeId: String): GtfsShape?
 }
 
-interface GtfsShapePointRepository : JpaRepository<GtfsShapePoint, Long> {
+interface GtfsShapePointRepository : RevisionScopedRepository<GtfsShapePoint, Long> {
     fun findByRevisionIdAndShapeIdOrderByShapePtSequence(revisionId: Long, shapeId: String): List<GtfsShapePoint>
 }

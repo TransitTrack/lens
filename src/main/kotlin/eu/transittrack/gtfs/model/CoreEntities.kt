@@ -6,10 +6,11 @@ import jakarta.persistence.Table
 import java.time.LocalDate
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
+import org.springframework.data.jpa.repository.JpaRepository
 
 /**
  * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes,
- * trips, stop_times, calendar, calendar_dates, feed_info).
+ * trips, stop_times, calendar, calendar_dates, feed_info, frequencies).
  *
  * GTFS enum integers are stored as `SMALLINT`; the corresponding Kotlin `Int?`
  * fields carry `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto:
@@ -19,7 +20,7 @@ import org.hibernate.type.SqlTypes
 @Entity
 @Table(name = "gtfs_agency")
 class GtfsAgency(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     var agencyId: String?,
     var agencyName: String?,
     var agencyUrl: String?,
@@ -28,12 +29,12 @@ class GtfsAgency(
     var agencyPhone: String?,
     var agencyFareUrl: String?,
     var agencyEmail: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_stop")
 class GtfsStop(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "stop_id", nullable = false) var stopId: String,
     var stopCode: String?,
     var stopName: String?,
@@ -49,12 +50,12 @@ class GtfsStop(
     @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairBoarding: Int?,
     var levelId: String?,
     var platformCode: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_route")
 class GtfsRoute(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "route_id", nullable = false) var routeId: String,
     var agencyId: String?,
     var routeShortName: String?,
@@ -68,12 +69,12 @@ class GtfsRoute(
     @JdbcTypeCode(SqlTypes.SMALLINT) var continuousPickup: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var continuousDropOff: Int?,
     var networkId: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_trip")
 class GtfsTrip(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "route_id", nullable = false) var routeId: String,
     @Column(name = "service_id", nullable = false) var serviceId: String,
     @Column(name = "trip_id", nullable = false) var tripId: String,
@@ -84,12 +85,12 @@ class GtfsTrip(
     var shapeId: String?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairAccessible: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var bikesAllowed: Int?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_stop_time")
 class GtfsStopTime(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "trip_id", nullable = false) var tripId: String,
     @Column(name = "stop_sequence", nullable = false) var stopSequence: Int,
     var stopId: String?,
@@ -108,12 +109,12 @@ class GtfsStopTime(
     @JdbcTypeCode(SqlTypes.SMALLINT) var timepoint: Int?,
     var pickupBookingRuleId: String?,
     var dropOffBookingRuleId: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_calendar")
 class GtfsCalendar(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "service_id", nullable = false) var serviceId: String,
     var monday: Boolean?,
     var tuesday: Boolean?,
@@ -124,21 +125,21 @@ class GtfsCalendar(
     var sunday: Boolean?,
     var startDate: LocalDate?,
     var endDate: LocalDate?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_calendar_date")
 class GtfsCalendarDate(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     @Column(name = "service_id", nullable = false) var serviceId: String,
     @Column(name = "date", nullable = false) var date: LocalDate,
     @JdbcTypeCode(SqlTypes.SMALLINT) var exceptionType: Int?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
 
 @Entity
 @Table(name = "gtfs_feed_info")
 class GtfsFeedInfo(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    revisionId: Long,
     var feedPublisherName: String?,
     var feedPublisherUrl: String?,
     var feedLang: String?,
@@ -148,4 +149,64 @@ class GtfsFeedInfo(
     var feedVersion: String?,
     var feedContactEmail: String?,
     var feedContactUrl: String?,
-) : RevisionScoped()
+) : RevisionScoped(revisionId)
+
+@Entity
+@Table(name = "gtfs_frequency")
+class GtfsFrequency(
+    revisionId: Long,
+    @Column(name = "trip_id", nullable = false) var tripId: String,
+    @Column(name = "start_time", nullable = false) var startTime: Int,
+    var endTime: Int?,
+    var headwaySecs: Int?,
+    @JdbcTypeCode(SqlTypes.SMALLINT) var exactTimes: Int?,
+) : RevisionScoped(revisionId)
+
+interface GtfsAgencyRepository : RevisionScopedRepository<GtfsAgency, Long> {
+    fun findByRevisionIdAndAgencyId(revisionId: Long, agencyId: String): GtfsAgency?
+}
+
+interface GtfsStopRepository : RevisionScopedRepository<GtfsStop, Long> {
+    fun findByRevisionIdAndStopId(revisionId: Long, stopId: String): GtfsStop?
+    fun findByRevisionIdAndParentStation(revisionId: Long, parentStation: String): List<GtfsStop>
+}
+
+interface GtfsRouteRepository : RevisionScopedRepository<GtfsRoute, Long> {
+    fun findByRevisionIdAndRouteId(revisionId: Long, routeId: String): GtfsRoute?
+}
+
+interface GtfsTripRepository : RevisionScopedRepository<GtfsTrip, Long> {
+    fun findByRevisionIdAndTripId(revisionId: Long, tripId: String): GtfsTrip?
+    fun findByRevisionIdAndRouteId(revisionId: Long, routeId: String): List<GtfsTrip>
+    fun findByRevisionIdAndServiceId(revisionId: Long, serviceId: String): List<GtfsTrip>
+}
+
+interface GtfsStopTimeRepository : RevisionScopedRepository<GtfsStopTime, Long> {
+    fun findByRevisionIdAndTripIdOrderByStopSequence(revisionId: Long, tripId: String): List<GtfsStopTime>
+    fun findByRevisionIdAndStopId(revisionId: Long, stopId: String): List<GtfsStopTime>
+
+    /**
+     * Batch load for schedule derivation: all stop times of a set of trips in one
+     * round-trip, ordered so each trip's sublist is already in `stop_sequence` order.
+     */
+    fun findByRevisionIdAndTripIdInOrderByTripIdAscStopSequenceAsc(
+        revisionId: Long,
+        tripIds: Collection<String>,
+    ): List<GtfsStopTime>
+}
+
+interface GtfsCalendarRepository : RevisionScopedRepository<GtfsCalendar, Long> {
+    fun findByRevisionIdAndServiceId(revisionId: Long, serviceId: String): GtfsCalendar?
+}
+
+interface GtfsCalendarDateRepository : RevisionScopedRepository<GtfsCalendarDate, Long> {
+    fun findByRevisionIdAndServiceId(revisionId: Long, serviceId: String): List<GtfsCalendarDate>
+}
+
+interface GtfsFeedInfoRepository : JpaRepository<GtfsFeedInfo, Long> {
+    fun findByRevisionId(revisionId: Long): GtfsFeedInfo?
+}
+
+interface GtfsFrequencyRepository : RevisionScopedRepository<GtfsFrequency, Long> {
+    fun findByRevisionIdAndTripId(revisionId: Long, tripId: String): List<GtfsFrequency>
+}
