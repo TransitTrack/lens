@@ -18,11 +18,11 @@ class GtfsFeedConfigSynchronizer(
 
     override fun getOrder() = Ordered.LOWEST_PRECEDENCE - 100
 
+    @Transactional
     override fun run(args: ApplicationArguments) {
         sync()
     }
 
-    @Transactional
     fun sync() {
         val now = Instant.now()
         val configCodes = props.feeds.map { it.code }.toSet()

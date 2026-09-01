@@ -1,5 +1,6 @@
 package eu.transittrack.gtfs.api
 
+import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
@@ -20,11 +21,10 @@ import org.springframework.boot.graphql.test.autoconfigure.GraphQlTest
 import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
-import eu.transittrack.gtfs.config.GtfsGraphQlConfig
 
 @GraphQlTest
 @Import(
-    GtfsGraphQlConfig::class,
+    GraphQlConfiguration::class,
     GtfsDtoMapper::class,
     GtfsFeedController::class,
     GtfsRevisionController::class,

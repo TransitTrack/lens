@@ -22,7 +22,6 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.gtfs.validate.GtfsValidator
 import eu.transittrack.haversineMeters
-import eu.transittrack.toRadians
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
