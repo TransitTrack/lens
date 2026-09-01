@@ -2,7 +2,12 @@ package eu.transittrack.gtfs.validate
 
 import tools.jackson.databind.json.JsonMapper
 
-enum class Severity { ERROR, WARNING }
+/**
+ * Mirrors `org.mobilitydata.gtfsvalidator.notice.SeverityLevel`. `INFO` issues
+ * are stored in the report but never contribute to [ValidationReport.errorCount]
+ * or [ValidationReport.warningCount].
+ */
+enum class Severity { ERROR, WARNING, INFO }
 
 data class ValidationIssue(
     val rule: String,

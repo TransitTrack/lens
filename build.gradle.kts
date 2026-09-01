@@ -35,6 +35,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
     implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:8.0.1")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
