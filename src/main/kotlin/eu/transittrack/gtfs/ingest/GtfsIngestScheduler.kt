@@ -31,7 +31,7 @@ class GtfsIngestScheduler(
         //if (!props.polling.enabled) return
         val zone = ZoneId.systemDefault()
         val now = LocalDateTime.now(zone)
-        for (feed in feeds.findAllByEnabledTrue()) {
+        for (feed in feeds.findAllEnabled()) {
             val cron = feed.pollingCron ?: continue
             val since = LocalDateTime.ofInstant(feed.lastIngestAt ?: Instant.EPOCH, zone)
             val next = runCatching {

@@ -65,7 +65,7 @@ class GtfsReadService(
 
     fun route(feedCode: String, routeId: String, revisionId: String?): GtfsRouteDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return routes.findByRevisionIdAndRouteId(rev, routeId)?.let { GtfsRouteDto.of(it, rev, feedCode) }
+        return routes.findByRouteId(rev, routeId)?.let { GtfsRouteDto.of(it, rev, feedCode) }
     }
 
     fun stops(feedCode: String, revisionId: String?): List<GtfsStopDto> {
@@ -75,14 +75,14 @@ class GtfsReadService(
 
     fun stop(feedCode: String, stopId: String, revisionId: String?): GtfsStopDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stops.findByRevisionIdAndStopId(rev, stopId)?.let { GtfsStopDto.of(it, rev, feedCode) }
+        return stops.findByStopId(rev, stopId)?.let { GtfsStopDto.of(it, rev, feedCode) }
     }
 
     fun trips(feedCode: String, routeId: String?, serviceId: String?, revisionId: String?): List<GtfsTripDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val list = when {
-            routeId != null -> trips.findByRevisionIdAndRouteId(rev, routeId)
-            serviceId != null -> trips.findByRevisionIdAndServiceId(rev, serviceId)
+            routeId != null -> trips.findByRouteId(rev, routeId)
+            serviceId != null -> trips.findByServiceId(rev, serviceId)
             else -> trips.findByRevisionId(rev)
         }
         return list.map { GtfsTripDto.of(it, rev, feedCode) }
@@ -90,12 +90,12 @@ class GtfsReadService(
 
     fun trip(feedCode: String, tripId: String, revisionId: String?): GtfsTripDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return trips.findByRevisionIdAndTripId(rev, tripId)?.let { GtfsTripDto.of(it, rev, feedCode) }
+        return trips.findByTripId(rev, tripId)?.let { GtfsTripDto.of(it, rev, feedCode) }
     }
 
     fun stopTimes(feedCode: String, tripId: String, revisionId: String?): List<GtfsStopTimeDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stopTimes.findByRevisionIdAndTripIdOrderByStopSequence(rev, tripId)
+        return stopTimes.findByTripId(rev, tripId)
             .map { GtfsStopTimeDto.of(it, rev, feedCode) }
     }
 
@@ -106,21 +106,21 @@ class GtfsReadService(
 
     fun calendarDates(feedCode: String, serviceId: String?, revisionId: String?): List<GtfsCalendarDateDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        val list = if (serviceId != null) calendarDates.findByRevisionIdAndServiceId(rev, serviceId)
+        val list = if (serviceId != null) calendarDates.findByServiceId(rev, serviceId)
         else calendarDates.findByRevisionId(rev)
         return list.map { GtfsCalendarDateDto.of(it, rev, feedCode) }
     }
 
     fun shape(feedCode: String, shapeId: String, revisionId: String?): GtfsShapeDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        val shape = shapes.findByRevisionIdAndShapeId(rev, shapeId) ?: return null
-        val pts = shapePoints.findByRevisionIdAndShapeIdOrderByShapePtSequence(rev, shapeId)
+        val shape = shapes.findByShapeId(rev, shapeId) ?: return null
+        val pts = shapePoints.findByShapeId(rev, shapeId)
         return GtfsShapeDto.of(shape, pts, rev, feedCode)
     }
 
     fun frequencies(feedCode: String, tripId: String?, revisionId: String?): List<GtfsFrequencyDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        val list = if (tripId != null) frequencies.findByRevisionIdAndTripId(rev, tripId)
+        val list = if (tripId != null) frequencies.findByTripId(rev, tripId)
         else frequencies.findByRevisionId(rev)
         return list.map { GtfsFrequencyDto.of(it, rev, feedCode) }
     }

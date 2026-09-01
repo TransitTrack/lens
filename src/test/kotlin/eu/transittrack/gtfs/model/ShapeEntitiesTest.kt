@@ -42,8 +42,8 @@ class ShapeEntitiesTest(
         points.save(GtfsShapePoint(rev, "SH1", 51.1, 17.0, 2, 10.0))
         points.save(GtfsShapePoint(rev, "SH1", 51.0, 17.0, 1, 0.0))
 
-        val ordered = points.findByRevisionIdAndShapeIdOrderByShapePtSequence(rev, "SH1")
+        val ordered = points.findByShapeId(rev, "SH1")
         assertEquals(listOf(1, 2), ordered.map { it.shapePtSequence })
-        assertEquals(2, shapes.findByRevisionIdAndShapeId(rev, "SH1")!!.pointCount)
+        assertEquals(2, shapes.findByShapeId(rev, "SH1")!!.pointCount)
     }
 }

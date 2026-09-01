@@ -3,7 +3,7 @@ package eu.transittrack.gtfs.model
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
-import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 
 /**
  * Typed JPA entities for GTFS `shapes.txt`.
@@ -35,9 +35,14 @@ class GtfsShapePoint(
 ) : RevisionScoped(revisionId)
 
 interface GtfsShapeRepository : RevisionScopedRepository<GtfsShape, Long> {
-    fun findByRevisionIdAndShapeId(revisionId: Long, shapeId: String): GtfsShape?
+    @Query("select s from GtfsShape s where s.revisionId = :revisionId and s.shapeId = :shapeId")
+    fun findByShapeId(revisionId: Long, shapeId: String): GtfsShape?
 }
 
 interface GtfsShapePointRepository : RevisionScopedRepository<GtfsShapePoint, Long> {
-    fun findByRevisionIdAndShapeIdOrderByShapePtSequence(revisionId: Long, shapeId: String): List<GtfsShapePoint>
+    @Query(
+        "select p from GtfsShapePoint p " +
+            "where p.revisionId = :revisionId and p.shapeId = :shapeId order by p.shapePtSequence",
+    )
+    fun findByShapeId(revisionId: Long, shapeId: String): List<GtfsShapePoint>
 }

@@ -1,34 +1,65 @@
 package eu.transittrack.schedule.model
 
-import org.springframework.data.jpa.repository.JpaRepository
+import eu.transittrack.gtfs.model.RevisionScopedRepository
+import org.springframework.data.jpa.repository.Query
 
-interface TripPatternRepository : JpaRepository<TripPattern, Long> {
-    fun findByRevisionId(revisionId: Long): List<TripPattern>
-    fun findByRevisionIdAndRouteId(revisionId: Long, routeId: String): List<TripPattern>
-    fun findByRevisionIdAndPatternKey(revisionId: Long, patternKey: String): TripPattern?
+interface TripPatternRepository : RevisionScopedRepository<TripPattern, Long> {
+    @Query("select p from TripPattern p where p.revisionId = :revisionId and p.routeId = :routeId")
+    fun findByRouteId(revisionId: Long, routeId: String): List<TripPattern>
+
+    @Query("select p from TripPattern p where p.revisionId = :revisionId and p.patternKey = :patternKey")
+    fun findByPatternKey(revisionId: Long, patternKey: String): TripPattern?
 }
 
-interface StopPathRepository : JpaRepository<StopPath, Long> {
-    fun findByRevisionIdAndTripPatternIdOrderByStopPathIndex(revisionId: Long, tripPatternId: Long): List<StopPath>
-    fun findByRevisionIdAndStopId(revisionId: Long, stopId: String): List<StopPath>
+interface StopPathRepository : RevisionScopedRepository<StopPath, Long> {
+    @Query(
+        "select sp from StopPath sp " +
+            "where sp.revisionId = :revisionId and sp.tripPatternId = :tripPatternId order by sp.stopPathIndex",
+    )
+    fun findByTripPatternOrdered(revisionId: Long, tripPatternId: Long): List<StopPath>
+
+    @Query("select sp from StopPath sp where sp.revisionId = :revisionId and sp.stopId = :stopId")
+    fun findByStopId(revisionId: Long, stopId: String): List<StopPath>
 }
 
-interface SchedTripRepository : JpaRepository<SchedTrip, Long> {
-    fun findByRevisionId(revisionId: Long): List<SchedTrip>
-    fun findByRevisionIdAndTripId(revisionId: Long, tripId: String): SchedTrip?
-    fun findByRevisionIdAndTripPatternId(revisionId: Long, tripPatternId: Long): List<SchedTrip>
-    fun findByRevisionIdAndBlockIdOrderByBlockSeq(revisionId: Long, blockId: String): List<SchedTrip>
-    fun findByRevisionIdAndServiceIdIn(revisionId: Long, serviceIds: Collection<String>): List<SchedTrip>
-    fun findByRevisionIdAndRouteIdAndServiceIdIn(revisionId: Long, routeId: String, serviceIds: Collection<String>): List<SchedTrip>
+interface SchedTripRepository : RevisionScopedRepository<SchedTrip, Long> {
+    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.tripId = :tripId")
+    fun findByTripId(revisionId: Long, tripId: String): SchedTrip?
+
+    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.tripPatternId = :tripPatternId")
+    fun findByTripPattern(revisionId: Long, tripPatternId: Long): List<SchedTrip>
+
+    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.blockId = :blockId order by t.blockSeq")
+    fun findByBlockOrdered(revisionId: Long, blockId: String): List<SchedTrip>
+
+    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.serviceId in :serviceIds")
+    fun findByServices(revisionId: Long, serviceIds: Collection<String>): List<SchedTrip>
+
+    @Query(
+        "select t from SchedTrip t " +
+            "where t.revisionId = :revisionId and t.routeId = :routeId and t.serviceId in :serviceIds",
+    )
+    fun findByRouteAndServices(revisionId: Long, routeId: String, serviceIds: Collection<String>): List<SchedTrip>
 }
 
-interface ScheduleTimeRepository : JpaRepository<ScheduleTime, Long> {
-    fun findByRevisionIdAndSchedTripIdOrderByStopPathIndex(revisionId: Long, schedTripId: Long): List<ScheduleTime>
+interface ScheduleTimeRepository : RevisionScopedRepository<ScheduleTime, Long> {
+    @Query(
+        "select st from ScheduleTime st " +
+            "where st.revisionId = :revisionId and st.schedTripId = :schedTripId order by st.stopPathIndex",
+    )
+    fun findBySchedTripOrdered(revisionId: Long, schedTripId: Long): List<ScheduleTime>
 }
 
-interface BlockRepository : JpaRepository<Block, Long> {
-    fun findByRevisionId(revisionId: Long): List<Block>
-    fun findByRevisionIdAndBlockId(revisionId: Long, blockId: String): List<Block>
-    fun findByRevisionIdAndBlockIdAndServiceId(revisionId: Long, blockId: String, serviceId: String): Block?
-    fun findByRevisionIdAndServiceIdIn(revisionId: Long, serviceIds: Collection<String>): List<Block>
+interface BlockRepository : RevisionScopedRepository<Block, Long> {
+    @Query("select b from Block b where b.revisionId = :revisionId and b.blockId = :blockId")
+    fun findByBlockId(revisionId: Long, blockId: String): List<Block>
+
+    @Query(
+        "select b from Block b " +
+            "where b.revisionId = :revisionId and b.blockId = :blockId and b.serviceId = :serviceId",
+    )
+    fun findByBlockAndService(revisionId: Long, blockId: String, serviceId: String): Block?
+
+    @Query("select b from Block b where b.revisionId = :revisionId and b.serviceId in :serviceIds")
+    fun findByServices(revisionId: Long, serviceIds: Collection<String>): List<Block>
 }

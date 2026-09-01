@@ -49,7 +49,7 @@ class GtfsFeedGraphQlTest(@Autowired val tester: GraphQlTester) {
     @Test
     fun `query gtfsFeed`() {
         whenever(feedService.get("w")).thenReturn(feed())
-        whenever(revisions.findByFeedIdOrderByCreatedAtDesc(any())).thenReturn(emptyList())
+        whenever(revisions.findByFeedNewestFirst(any())).thenReturn(emptyList())
         tester.document("{ gtfsFeed(code:\"w\"){ code name enabled source } }")
             .execute()
             .path("gtfsFeed.code").entity(String::class.java).isEqualTo("w")

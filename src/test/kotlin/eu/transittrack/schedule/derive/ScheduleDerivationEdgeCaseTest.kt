@@ -132,7 +132,7 @@ class ScheduleDerivationEdgeCaseTest(
     fun cleanup() {
         if (rev != 0L) {
             scheduleWriter.deleteForRevision(rev)
-            revisions.findByFeedIdOrderByCreatedAtDesc(feedId)
+            revisions.findByFeedNewestFirst(feedId)
                 .forEach { gtfsWriter.deleteAllForRevision(it.id!!); revisions.delete(it) }
         }
         if (feedId != 0L) feeds.deleteById(feedId)
@@ -147,9 +147,9 @@ class ScheduleDerivationEdgeCaseTest(
         service().derive(rev)
 
         // E4 visits GHOST, which is not in stops.txt -> no sched_trip, no pattern from it.
-        assertNull(schedTrips.findByRevisionIdAndTripId(rev, "E4"))
-        assertNotNull(schedTrips.findByRevisionIdAndTripId(rev, "E5"))
-        assertEquals(1, patterns.findByRevisionIdAndRouteId(rev, "RC").size)
+        assertNull(schedTrips.findByTripId(rev, "E4"))
+        assertNotNull(schedTrips.findByTripId(rev, "E5"))
+        assertEquals(1, patterns.findByRouteId(rev, "RC").size)
 
         // No (0,0) coordinate leaked into any geometry or extent.
         for (p in patterns.findByRevisionId(rev)) {
@@ -168,7 +168,7 @@ class ScheduleDerivationEdgeCaseTest(
         // Derivation groups this one query's result by trip id and relies on each
         // sublist already being in stop_sequence order.
         val rows = stopTimes
-            .findByRevisionIdAndTripIdInOrderByTripIdAscStopSequenceAsc(rev, listOf("E6", "E1", "E4"))
+            .findByTripIds(rev, listOf("E6", "E1", "E4"))
         assertEquals(listOf("E1", "E1", "E4", "E4", "E4", "E6", "E6", "E6"), rows.map { it.tripId })
 
         val byTrip = rows.groupBy { it.tripId }
@@ -184,21 +184,21 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-edge")
         service().derive(rev)
 
-        val blk = blocks.findByRevisionIdAndBlockIdAndServiceId(rev, "BLK", "WK")!!
+        val blk = blocks.findByBlockAndService(rev, "BLK", "WK")!!
         assertEquals(2, blk.tripCount, "EF is frequency-based and must not be blocked")
         assertEquals(28800, blk.startTimeSec, "a 0-based frequency trip must not drag the block start to 0")
         assertEquals(34200, blk.endTimeSec)
 
-        val ef = schedTrips.findByRevisionIdAndTripId(rev, "EF")!!
+        val ef = schedTrips.findByTripId(rev, "EF")!!
         assertTrue(ef.frequencyBased)
         assertNull(ef.blockSeq)
         assertNull(ef.layoverAfterSec)
 
         // E1 -> E2 layover is measured against E2, not against the frequency trip.
-        val e1 = schedTrips.findByRevisionIdAndTripId(rev, "E1")!!
+        val e1 = schedTrips.findByTripId(rev, "E1")!!
         assertEquals(0, e1.blockSeq)
         assertEquals(32400 - 30600, e1.layoverAfterSec)   // E2 09:00 - E1 08:30
-        assertEquals(1, schedTrips.findByRevisionIdAndTripId(rev, "E2")!!.blockSeq)
+        assertEquals(1, schedTrips.findByTripId(rev, "E2")!!.blockSeq)
     }
 
     // --- FIX 8: shapeless and off-shape stop paths fall back to straight lines ---
@@ -208,11 +208,11 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-edge")
         service().derive(rev)
 
-        val e3 = schedTrips.findByRevisionIdAndTripId(rev, "E3")!!
+        val e3 = schedTrips.findByTripId(rev, "E3")!!
         val pattern = patterns.findById(e3.tripPatternId).get()
         assertNull(pattern.shapeId)
 
-        val paths = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, pattern.id!!)
+        val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
         assertEquals(2, paths.size)
         assertEquals(0.0, paths[0].lengthM)
         val expected = haversineMeters(51.100, 17.000, 51.120, 17.020)
@@ -229,11 +229,11 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-edge")
         service().derive(rev)
 
-        val e6 = schedTrips.findByRevisionIdAndTripId(rev, "E6")!!
+        val e6 = schedTrips.findByTripId(rev, "E6")!!
         val pattern = patterns.findById(e6.tripPatternId).get()
         assertEquals("SHP_OUT", pattern.shapeId)
 
-        val paths = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, pattern.id!!)
+        val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
         assertEquals(listOf("S1", "OFF", "S4"), paths.map { it.stopId })
 
         // OFF is ~700 m from SHP_OUT (> the 100 m default), so both of its segments are
@@ -255,8 +255,8 @@ class ScheduleDerivationEdgeCaseTest(
 
         // schedule-edge's stop_times.txt has no `timepoint` column at all, so the
         // fallback "has a time -> it is a timed stop" branch decides wait_stop.
-        val e1 = schedTrips.findByRevisionIdAndTripId(rev, "E1")!!
-        val paths = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, e1.tripPatternId)
+        val e1 = schedTrips.findByTripId(rev, "E1")!!
+        val paths = stopPaths.findByTripPatternOrdered(rev, e1.tripPatternId)
         assertTrue(paths.all { it.waitStop == true && it.scheduleAdherenceStop == true })
     }
 
@@ -268,8 +268,8 @@ class ScheduleDerivationEdgeCaseTest(
         service().derive(rev)
 
         // RA/E1 and RC/E5 both run SHP_OUT over exactly [S1, S4].
-        val ra = patterns.findByRevisionIdAndRouteId(rev, "RA")
-        val rc = patterns.findByRevisionIdAndRouteId(rev, "RC")
+        val ra = patterns.findByRouteId(rev, "RA")
+        val rc = patterns.findByRouteId(rev, "RC")
         assertEquals(1, ra.size)
         assertEquals(1, rc.size)
         assertTrue(ra.single().patternKey.startsWith("RA|SHP_OUT|S1_to_S4|"))

@@ -56,7 +56,7 @@ class ScheduleDerivationFailureTest(
     @AfterEach
     fun cleanup() {
         for (id in created) {
-            revisions.findByFeedIdOrderByCreatedAtDesc(id).forEach { gtfsWriter.deleteAllForRevision(it.id!!); revisions.delete(it) }
+            revisions.findByFeedNewestFirst(id).forEach { gtfsWriter.deleteAllForRevision(it.id!!); revisions.delete(it) }
             feeds.deleteById(id)
         }
         created.clear()

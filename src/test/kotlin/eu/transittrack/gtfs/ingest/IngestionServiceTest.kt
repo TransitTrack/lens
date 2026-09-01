@@ -85,7 +85,7 @@ class IngestionServiceTest(
     @AfterEach
     fun cleanup() {
         for (feedId in createdFeeds) {
-            val revs = revisions.findByFeedIdOrderByCreatedAtDesc(feedId)
+            val revs = revisions.findByFeedNewestFirst(feedId)
             for (r in revs) writer.deleteAllForRevision(r.id!!)
             revisions.deleteAllInBatch(revs)
             feeds.deleteById(feedId)
@@ -101,9 +101,9 @@ class IngestionServiceTest(
         val loaded = revisions.findById(rev.id!!).get()
         assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
         assertEquals(1, routes.findByRevisionId(rev.id!!).size)
-        assertEquals(2, stopTimes.findByRevisionIdAndTripIdOrderByStopSequence(rev.id!!, "T1").size)
-        assertEquals(2, shapePoints.findByRevisionIdAndShapeIdOrderByShapePtSequence(rev.id!!, "SH1").size)
-        assertEquals(2, shapes.findByRevisionIdAndShapeId(rev.id!!, "SH1")!!.pointCount)
+        assertEquals(2, stopTimes.findByTripId(rev.id!!, "T1").size)
+        assertEquals(2, shapePoints.findByShapeId(rev.id!!, "SH1").size)
+        assertEquals(2, shapes.findByShapeId(rev.id!!, "SH1")!!.pointCount)
         assertEquals(LocalDate.of(2026, 1, 1), loaded.feedStartDate)
         assertNotNull(feeds.findByCode("f")!!.lastIngestAt)
     }

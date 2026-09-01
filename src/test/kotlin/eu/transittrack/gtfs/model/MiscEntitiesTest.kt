@@ -39,7 +39,7 @@ class MiscEntitiesTest(
         val rev = seedRevisionId()
 
         frequencies.save(GtfsFrequency(rev, "T1", 21600, 36000, 600, 0))
-        assertEquals(1, frequencies.findByRevisionIdAndTripId(rev, "T1").size)
+        assertEquals(1, frequencies.findByTripId(rev, "T1").size)
 
         translations.save(GtfsTranslation(rev, "stops", "stop_name", "de", "Hauptbahnhof", "S1", null, null))
         assertEquals("Hauptbahnhof", translations.findByRevisionId(rev)[0].translation)

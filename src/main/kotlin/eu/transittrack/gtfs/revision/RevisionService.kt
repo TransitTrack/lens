@@ -99,7 +99,7 @@ class RevisionService(
     @Transactional
     fun activate(revisionId: Long): GtfsRevision {
         val r = revision(revisionId)
-        revisions.findByFeedIdAndStatus(r.feedId, GtfsRevisionStatus.ACTIVE)?.let { current ->
+        revisions.findByFeedAndStatus(r.feedId, GtfsRevisionStatus.ACTIVE)?.let { current ->
             if (current.id != r.id) {
                 current.status = GtfsRevisionStatus.SUPERSEDED
                 current.supersededAt = Instant.now()
@@ -121,7 +121,7 @@ class RevisionService(
      */
     @Transactional
     fun prune(feedId: Long, keep: Int) {
-        val all = revisions.findByFeedIdOrderByCreatedAtDesc(feedId)
+        val all = revisions.findByFeedNewestFirst(feedId)
         val terminal = all.filter { it.status != GtfsRevisionStatus.ACTIVE && it.status.terminal }
         // Prefer keeping SUPERSEDED over FAILED/UNCHANGED, and newer over older.
         val keepRank = terminal.sortedWith(
@@ -147,10 +147,10 @@ class RevisionService(
     }
 
     fun activeRevisionId(feedId: Long): Long? =
-        revisions.findByFeedIdAndStatus(feedId, GtfsRevisionStatus.ACTIVE)?.id
+        revisions.findByFeedAndStatus(feedId, GtfsRevisionStatus.ACTIVE)?.id
 
     fun hasInProgress(feedId: Long): Boolean =
-        revisions.existsByFeedIdAndStatusIn(feedId, GtfsRevisionStatus.NON_TERMINAL_IN_PROGRESS)
+        revisions.existsByFeedAndStatusIn(feedId, GtfsRevisionStatus.NON_TERMINAL_IN_PROGRESS)
 
     fun revision(id: Long): GtfsRevision =
         revisions.findById(id).orElseThrow()

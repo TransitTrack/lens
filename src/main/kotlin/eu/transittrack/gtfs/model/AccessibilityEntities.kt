@@ -5,7 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 
 /**
  * Typed JPA entities for the GTFS accessibility / flex files: pathways.txt,
@@ -100,7 +100,8 @@ class GtfsBookingRule(
 interface GtfsPathwayRepository : RevisionScopedRepository<GtfsPathway, Long>
 
 interface GtfsLevelRepository : RevisionScopedRepository<GtfsLevel, Long> {
-    fun findByRevisionIdAndLevelId(revisionId: Long, levelId: String): GtfsLevel?
+    @Query("select l from GtfsLevel l where l.revisionId = :revisionId and l.levelId = :levelId")
+    fun findByLevelId(revisionId: Long, levelId: String): GtfsLevel?
 }
 
 interface GtfsLocationGroupRepository : RevisionScopedRepository<GtfsLocationGroup, Long>

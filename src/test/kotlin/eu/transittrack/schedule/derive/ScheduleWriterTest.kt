@@ -61,25 +61,25 @@ class ScheduleWriterTest(
         seed()
         val tp = TripPattern(rev, "K", "RA", 0, "H", "SHP", 1, null, null, null, null, null, 0)
         writer.write(listOf(tp))
-        val savedTp = patterns.findByRevisionIdAndPatternKey(rev, "K")!!
+        val savedTp = patterns.findByPatternKey(rev, "K")!!
         val sp = StopPath(rev, savedTp.id!!, 0, "S1", 1, 0.0, null, null, null,
             false, false, false, null, null, null)
         writer.write(listOf(sp))
 
         writer.applyTripPatternTripCount(mapOf(savedTp.id!! to 3))
-        val spId = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, savedTp.id!!).single().id!!
+        val spId = stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).single().id!!
         writer.applyStopPathAggregates(listOf(StopPathAggregateUpdate(spId, 42, 10, true, 300)))
         // null bindings must also work (see the NOTE in Step 4)
         writer.applyStopPathAggregates(listOf(StopPathAggregateUpdate(spId, null, null, true, null)))
         writer.applySchedTripBlockFields(listOf(SchedTripBlockUpdate(-1L, 0, null, null)))  // no-op, just exercises null binds
 
-        assertEquals(3, patterns.findByRevisionIdAndPatternKey(rev, "K")!!.tripCount)
-        val reloaded = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, savedTp.id!!).single()
+        assertEquals(3, patterns.findByPatternKey(rev, "K")!!.tripCount)
+        val reloaded = stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).single()
         assertEquals(null, reloaded.typicalTravelTimeSec)
         assertEquals(true, reloaded.layoverStop)
 
         writer.deleteForRevision(rev)
         assertEquals(0, patterns.findByRevisionId(rev).size)
-        assertEquals(0, stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, savedTp.id!!).size)
+        assertEquals(0, stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).size)
     }
 }

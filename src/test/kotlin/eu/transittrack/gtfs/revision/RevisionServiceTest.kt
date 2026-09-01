@@ -54,10 +54,10 @@ class RevisionServiceTest(
     @AfterEach
     fun cleanup() {
         for (feedId in createdFeeds) {
-            for (r in revisions.findByFeedIdOrderByCreatedAtDesc(feedId)) {
+            for (r in revisions.findByFeedNewestFirst(feedId)) {
                 writer.deleteAllForRevision(r.id!!)
             }
-            revisions.deleteAllInBatch(revisions.findByFeedIdOrderByCreatedAtDesc(feedId))
+            revisions.deleteAllInBatch(revisions.findByFeedNewestFirst(feedId))
             feeds.deleteById(feedId)
         }
     }
@@ -79,7 +79,7 @@ class RevisionServiceTest(
         }
         svc.prune(f, keep = 2)
         assertTrue(revisions.findById(active.id!!).isPresent)
-        assertEquals(2, revisions.findByFeedIdOrderByCreatedAtDesc(f).count { it.status == GtfsRevisionStatus.SUPERSEDED })
+        assertEquals(2, revisions.findByFeedNewestFirst(f).count { it.status == GtfsRevisionStatus.SUPERSEDED })
     }
 
     @Test fun `deriveDates falls back to calendar span`() {

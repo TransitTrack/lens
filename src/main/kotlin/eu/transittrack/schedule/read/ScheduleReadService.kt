@@ -25,19 +25,19 @@ class ScheduleReadService(
 ) {
     fun tripPatterns(feedCode: String, routeId: String?, revisionId: String?): List<TripPatternDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        val list = if (routeId != null) patterns.findByRevisionIdAndRouteId(rev, routeId)
+        val list = if (routeId != null) patterns.findByRouteId(rev, routeId)
         else patterns.findByRevisionId(rev)
         return list.map { TripPatternDto.of(it, rev, feedCode) }
     }
 
     fun tripPattern(feedCode: String, patternKey: String, revisionId: String?): TripPatternDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return patterns.findByRevisionIdAndPatternKey(rev, patternKey)?.let { TripPatternDto.of(it, rev, feedCode) }
+        return patterns.findByPatternKey(rev, patternKey)?.let { TripPatternDto.of(it, rev, feedCode) }
     }
 
     fun schedTrip(feedCode: String, tripId: String, revisionId: String?): SchedTripDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return schedTrips.findByRevisionIdAndTripId(rev, tripId)?.let { SchedTripDto.of(it, rev, feedCode) }
+        return schedTrips.findByTripId(rev, tripId)?.let { SchedTripDto.of(it, rev, feedCode) }
     }
 
     fun blocks(feedCode: String, revisionId: String?): List<BlockDto> {
@@ -47,7 +47,7 @@ class ScheduleReadService(
 
     fun block(feedCode: String, blockId: String, serviceId: String, revisionId: String?): BlockDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return blocks.findByRevisionIdAndBlockIdAndServiceId(rev, blockId, serviceId)
+        return blocks.findByBlockAndService(rev, blockId, serviceId)
             ?.let { BlockDto.of(it, rev, feedCode) }
     }
 
@@ -55,15 +55,15 @@ class ScheduleReadService(
         val rev = resolver.resolve(feedCode, revisionId)
         val services = serviceDates.activeServiceIds(rev, LocalDate.parse(date))
         if (services.isEmpty()) return emptyList()
-        return blocks.findByRevisionIdAndServiceIdIn(rev, services).map { BlockDto.of(it, rev, feedCode) }
+        return blocks.findByServices(rev, services).map { BlockDto.of(it, rev, feedCode) }
     }
 
     fun tripsOnDate(feedCode: String, date: String, routeId: String?, revisionId: String?): List<SchedTripDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val services = serviceDates.activeServiceIds(rev, LocalDate.parse(date))
         if (services.isEmpty()) return emptyList()
-        val list = if (routeId != null) schedTrips.findByRevisionIdAndRouteIdAndServiceIdIn(rev, routeId, services)
-        else schedTrips.findByRevisionIdAndServiceIdIn(rev, services)
+        val list = if (routeId != null) schedTrips.findByRouteAndServices(rev, routeId, services)
+        else schedTrips.findByServices(rev, services)
         return list.map { SchedTripDto.of(it, rev, feedCode) }
     }
 
@@ -71,6 +71,6 @@ class ScheduleReadService(
     fun parseGeometry(raw: String?): Any? = raw?.let { json.readValue(it, List::class.java) }
 
     fun stopPathsOf(rev: Long, feedCode: String, tripPatternId: Long): List<StopPathDto> =
-        stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, tripPatternId)
+        stopPaths.findByTripPatternOrdered(rev, tripPatternId)
             .map { StopPathDto.of(it, rev, feedCode, parseGeometry(it.pathGeometry)) }
 }

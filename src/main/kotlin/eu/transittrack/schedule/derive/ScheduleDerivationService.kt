@@ -177,7 +177,7 @@ class ScheduleDerivationService(
         fun polyline(shapeId: String?): Polyline? {
             if (shapeId == null) return null
             return polylineCache.getOrPut(shapeId) {
-                val pts = shapePoints.findByRevisionIdAndShapeIdOrderByShapePtSequence(revisionId, shapeId)
+                val pts = shapePoints.findByShapeId(revisionId, shapeId)
                     .mapNotNull { p ->
                         val la = p.shapePtLat; val lo = p.shapePtLon
                         if (la != null && lo != null) Point(la, lo) else null
@@ -199,12 +199,12 @@ class ScheduleDerivationService(
         val patternStopPathIds = HashMap<Long, List<Long>>()
 
         for (route in routes.findByRevisionId(revisionId)) {
-            val routeTrips = trips.findByRevisionIdAndRouteId(revisionId, route.routeId)
+            val routeTrips = trips.findByRouteId(revisionId, route.routeId)
             if (routeTrips.isEmpty()) continue
             // One round-trip per route (spec §5.3.1), not one per trip. The finder orders
             // by (tripId, stopSequence), so each grouped sublist is already sequenced.
             val stopTimesByTrip = stopTimes
-                .findByRevisionIdAndTripIdInOrderByTripIdAscStopSequenceAsc(
+                .findByTripIds(
                     revisionId, routeTrips.map { it.tripId }.distinct(),
                 )
                 .groupBy { it.tripId }

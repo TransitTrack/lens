@@ -5,7 +5,6 @@ import jakarta.persistence.Entity
 import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import org.springframework.data.jpa.repository.JpaRepository
 
 /**
  * Typed JPA entities for the GTFS Fares v2 (and v1) files: fare_attributes,

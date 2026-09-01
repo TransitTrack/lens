@@ -7,7 +7,10 @@ import jakarta.persistence.Id
 import jakarta.persistence.MappedSuperclass
 import jakarta.persistence.SequenceGenerator
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.NoRepositoryBean
+import org.springframework.transaction.annotation.Transactional
 
 /**
  * Base class for all revision-scoped GTFS entities.
@@ -31,8 +34,18 @@ abstract class RevisionScoped(
     var id: Long? = null
 }
 
+/**
+ * Shared query surface for every [RevisionScoped] entity. Queries use JPQL with
+ * the SpEL `#{#entityName}` placeholder so one declaration serves all concrete
+ * repositories.
+ */
 @NoRepositoryBean
-interface RevisionScopedRepository<E : RevisionScoped, ID: Any> : JpaRepository<E, ID> {
+interface RevisionScopedRepository<E : RevisionScoped, ID : Any> : JpaRepository<E, ID> {
+    @Query("select e from #{#entityName} e where e.revisionId = :revisionId")
     fun findByRevisionId(revisionId: Long): List<E>
-    fun deleteByRevisionId(revisionId: Long): Long
+
+    @Modifying
+    @Transactional
+    @Query("delete from #{#entityName} e where e.revisionId = :revisionId")
+    fun deleteByRevisionId(revisionId: Long): Int
 }

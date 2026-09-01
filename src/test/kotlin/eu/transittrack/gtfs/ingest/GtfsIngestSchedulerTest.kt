@@ -26,7 +26,7 @@ class GtfsIngestSchedulerTest {
     @Test
     fun `triggers only feeds that are due`() {
         val repo = mock<GtfsFeedRepository>()
-        whenever(repo.findAllByEnabledTrue()).thenReturn(
+        whenever(repo.findAllEnabled()).thenReturn(
             listOf(
                 feed("due", "0 0 3 * * *", Instant.parse("2000-01-01T00:00:00Z")),
                 feed("not-due", "0 0 3 * * *", Instant.now()),

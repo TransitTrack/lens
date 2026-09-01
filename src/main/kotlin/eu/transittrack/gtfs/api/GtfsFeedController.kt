@@ -26,13 +26,13 @@ class GtfsFeedController(
     @SchemaMapping(typeName = "GtfsFeed")
     fun revisions(feed: GtfsFeedDto): List<GtfsRevisionDto> {
         val feedId = feed.feedId ?: return emptyList()
-        return revisions.findByFeedIdOrderByCreatedAtDesc(feedId).map { mapper.toDto(it, feed.code) }
+        return revisions.findByFeedNewestFirst(feedId).map { mapper.toDto(it, feed.code) }
     }
 
     @SchemaMapping(typeName = "GtfsFeed")
     fun activeRevision(feed: GtfsFeedDto): GtfsRevisionDto? {
         val feedId = feed.feedId ?: return null
-        return revisions.findByFeedIdOrderByCreatedAtDesc(feedId)
+        return revisions.findByFeedNewestFirst(feedId)
             .firstOrNull { it.status == GtfsRevisionStatus.ACTIVE }
             ?.let { mapper.toDto(it, feed.code) }
     }

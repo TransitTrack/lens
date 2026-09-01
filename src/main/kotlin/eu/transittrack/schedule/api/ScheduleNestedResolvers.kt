@@ -35,7 +35,7 @@ class ScheduleNestedResolvers(
 ) {
     @SchemaMapping(typeName = "TripPattern")
     fun route(p: TripPatternDto): GtfsRouteDto? =
-        routes.findByRevisionIdAndRouteId(p.revisionId, p.routeId)
+        routes.findByRouteId(p.revisionId, p.routeId)
             ?.let { GtfsRouteDto.of(it, p.revisionId, p.feedCode) }
 
     @SchemaMapping(typeName = "TripPattern")
@@ -44,12 +44,12 @@ class ScheduleNestedResolvers(
 
     @SchemaMapping(typeName = "TripPattern")
     fun trips(p: TripPatternDto): List<SchedTripDto> =
-        schedTrips.findByRevisionIdAndTripPatternId(p.revisionId, p.id)
+        schedTrips.findByTripPattern(p.revisionId, p.id)
             .map { SchedTripDto.of(it, p.revisionId, p.feedCode) }
 
     @SchemaMapping(typeName = "StopPath")
     fun stop(sp: StopPathDto): GtfsStopDto? =
-        stops.findByRevisionIdAndStopId(sp.revisionId, sp.stopId)
+        stops.findByStopId(sp.revisionId, sp.stopId)
             ?.let { GtfsStopDto.of(it, sp.revisionId, sp.feedCode) }
 
     @SchemaMapping(typeName = "SchedTrip")
@@ -59,34 +59,34 @@ class ScheduleNestedResolvers(
 
     @SchemaMapping(typeName = "SchedTrip")
     fun route(t: SchedTripDto): GtfsRouteDto? =
-        routes.findByRevisionIdAndRouteId(t.revisionId, t.routeId)
+        routes.findByRouteId(t.revisionId, t.routeId)
             ?.let { GtfsRouteDto.of(it, t.revisionId, t.feedCode) }
 
     @SchemaMapping(typeName = "SchedTrip")
     fun block(t: SchedTripDto): BlockDto? {
         val bid = t.blockId ?: return null
-        return blocks.findByRevisionIdAndBlockIdAndServiceId(t.revisionId, bid, t.serviceId)
+        return blocks.findByBlockAndService(t.revisionId, bid, t.serviceId)
             ?.let { BlockDto.of(it, t.revisionId, t.feedCode) }
     }
 
     @SchemaMapping(typeName = "SchedTrip")
     fun scheduleTimes(t: SchedTripDto): List<ScheduleTimeDto> =
-        scheduleTimes.findByRevisionIdAndSchedTripIdOrderByStopPathIndex(t.revisionId, t.id)
+        scheduleTimes.findBySchedTripOrdered(t.revisionId, t.id)
             .map { ScheduleTimeDto.of(it, t.revisionId, t.feedCode) }
 
     @SchemaMapping(typeName = "Block")
     fun trips(b: BlockDto): List<SchedTripDto> =
-        schedTrips.findByRevisionIdAndBlockIdOrderByBlockSeq(b.revisionId, b.blockId)
+        schedTrips.findByBlockOrdered(b.revisionId, b.blockId)
             .filter { it.serviceId == b.serviceId }
             .map { SchedTripDto.of(it, b.revisionId, b.feedCode) }
 
     @SchemaMapping(typeName = "GtfsRoute")
     fun tripPatterns(r: GtfsRouteDto): List<TripPatternDto> =
-        patterns.findByRevisionIdAndRouteId(r.revisionId, r.routeId)
+        patterns.findByRouteId(r.revisionId, r.routeId)
             .map { TripPatternDto.of(it, r.revisionId, r.feedCode) }
 
     @SchemaMapping(typeName = "GtfsTrip")
     fun schedTrip(t: GtfsTripDto): SchedTripDto? =
-        schedTrips.findByRevisionIdAndTripId(t.revisionId, t.tripId)
+        schedTrips.findByTripId(t.revisionId, t.tripId)
             ?.let { SchedTripDto.of(it, t.revisionId, t.feedCode) }
 }

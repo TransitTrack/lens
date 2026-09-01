@@ -97,7 +97,7 @@ class ScheduleDerivationServiceTest(
     fun cleanup() {
         if (rev != 0L) {
             scheduleWriter.deleteForRevision(rev)
-            revisions.findByFeedIdOrderByCreatedAtDesc(feedId).forEach { gtfsWriter.deleteAllForRevision(it.id!!); revisions.delete(it) }
+            revisions.findByFeedNewestFirst(feedId).forEach { gtfsWriter.deleteAllForRevision(it.id!!); revisions.delete(it) }
         }
         if (feedId != 0L) feeds.deleteById(feedId)
         rev = 0; feedId = 0
@@ -114,22 +114,22 @@ class ScheduleDerivationServiceTest(
 
         val all = patterns.findByRevisionId(rev)
         val patternA = all.first { it.stopCount == 4 && it.shapeId == "SHP_OUT" && it.directionId == 0 }
-        assertEquals(2, schedTrips.findByRevisionIdAndTripPatternId(rev, patternA.id!!).size)
+        assertEquals(2, schedTrips.findByTripPattern(rev, patternA.id!!).size)
 
         // T2 / S2 arrival is interpolated between 09:00:00 and 09:20:00
-        val t2 = schedTrips.findByRevisionIdAndTripId(rev, "T2")!!
-        val t2times = scheduleTimes.findByRevisionIdAndSchedTripIdOrderByStopPathIndex(rev, t2.id!!)
+        val t2 = schedTrips.findByTripId(rev, "T2")!!
+        val t2times = scheduleTimes.findBySchedTripOrdered(rev, t2.id!!)
         assertTrue(t2times[1].interpolated)
         assertTrue(t2times[1].arrivalSec!! in 32401..33599, "was ${t2times[1].arrivalSec}")
 
         // frequency-based T5: offset schedule, flagged
-        val t5 = schedTrips.findByRevisionIdAndTripId(rev, "T5")!!
+        val t5 = schedTrips.findByTripId(rev, "T5")!!
         assertTrue(t5.frequencyBased)
         assertEquals(0, t5.exactTimes)
-        assertEquals(0, scheduleTimes.findByRevisionIdAndSchedTripIdOrderByStopPathIndex(rev, t5.id!!)[0].departureSec)
+        assertEquals(0, scheduleTimes.findBySchedTripOrdered(rev, t5.id!!)[0].departureSec)
 
         // geometry present on a shaped segment
-        val paths = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, patternA.id!!)
+        val paths = stopPaths.findByTripPatternOrdered(rev, patternA.id!!)
         assertEquals(0.0, paths[0].lengthM)
         assertTrue(paths[1].lengthM > 0.0)
         assertTrue(paths[1].pathGeometry!!.startsWith("[["))
@@ -146,23 +146,23 @@ class ScheduleDerivationServiceTest(
         val counts = service().derive(rev)
         assertEquals(2L, counts["block"])   // B1 (T1,T4), B2 (T2)
 
-        val b1 = blocks.findByRevisionIdAndBlockIdAndServiceId(rev, "B1", "WK")!!
+        val b1 = blocks.findByBlockAndService(rev, "B1", "WK")!!
         assertEquals(2, b1.tripCount)
         assertEquals(28800, b1.startTimeSec)
         assertEquals(33000, b1.endTimeSec)
 
-        val t1 = schedTrips.findByRevisionIdAndTripId(rev, "T1")!!
+        val t1 = schedTrips.findByTripId(rev, "T1")!!
         assertEquals(0, t1.blockSeq)
         assertEquals(600, t1.layoverAfterSec)     // T4 08:40 - T1 08:30
         assertEquals(false, t1.deadheadAfter)     // both at S4
-        val t4 = schedTrips.findByRevisionIdAndTripId(rev, "T4")!!
+        val t4 = schedTrips.findByTripId(rev, "T4")!!
         assertEquals(1, t4.blockSeq)
 
         // Pattern A trip_count and typical times
         val patternA = patterns.findByRevisionId(rev)
             .first { it.stopCount == 4 && it.shapeId == "SHP_OUT" && it.directionId == 0 }
         assertEquals(2, patternA.tripCount)
-        val paths = stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, patternA.id!!)
+        val paths = stopPaths.findByTripPatternOrdered(rev, patternA.id!!)
         assertTrue(paths[1].typicalTravelTimeSec != null && paths[1].typicalTravelTimeSec!! > 0)
         // T1 is in block B1 with a 600 s layover -> last stop of Pattern A is a layover stop
         assertEquals(true, paths.last().layoverStop)

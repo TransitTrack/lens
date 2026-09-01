@@ -55,7 +55,7 @@ class RevisionRepositoryTest(
     fun `finds non-terminal revision`() {
         val f = feed()
         revisions.save(newRev(f.id!!, GtfsRevisionStatus.PARSING))
-        assertEquals(true, revisions.existsByFeedIdAndStatusIn(
+        assertEquals(true, revisions.existsByFeedAndStatusIn(
             f.id!!,
             listOf(GtfsRevisionStatus.PENDING, GtfsRevisionStatus.DOWNLOADING,
                    GtfsRevisionStatus.PARSING, GtfsRevisionStatus.VALIDATING),

@@ -21,7 +21,7 @@ class GtfsRevisionController(
         @Argument status: GtfsRevisionStatus?,
     ): List<GtfsRevisionDto> {
         val feed = feeds.findByCode(feedCode) ?: return emptyList()
-        return revisions.findByFeedIdOrderByCreatedAtDesc(feed.id!!)
+        return revisions.findByFeedNewestFirst(feed.id!!)
             .filter { status == null || it.status == status }
             .map { mapper.toDto(it, feedCode) }
     }

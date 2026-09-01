@@ -85,10 +85,10 @@ class ScheduleEntitiesTest(
         )
 
         assertEquals(1, patterns.findByRevisionId(rev).size)
-        assertEquals("RA", patterns.findByRevisionIdAndPatternKey(rev, "SHP|S1_to_S4|abc123")!!.routeId)
-        assertEquals(1, stopPaths.findByRevisionIdAndTripPatternIdOrderByStopPathIndex(rev, tp.id!!).size)
-        assertEquals("T1", schedTrips.findByRevisionIdAndTripId(rev, "T1")!!.tripId)
-        assertEquals(1, scheduleTimes.findByRevisionIdAndSchedTripIdOrderByStopPathIndex(rev, st.id!!).size)
-        assertEquals(listOf("RA"), blocks.findByRevisionIdAndBlockId(rev, "B1").single().routeIds)
+        assertEquals("RA", patterns.findByPatternKey(rev, "SHP|S1_to_S4|abc123")!!.routeId)
+        assertEquals(1, stopPaths.findByTripPatternOrdered(rev, tp.id!!).size)
+        assertEquals("T1", schedTrips.findByTripId(rev, "T1")!!.tripId)
+        assertEquals(1, scheduleTimes.findBySchedTripOrdered(rev, st.id!!).size)
+        assertEquals(listOf("RA"), blocks.findByBlockId(rev, "B1").single().routeIds)
     }
 }

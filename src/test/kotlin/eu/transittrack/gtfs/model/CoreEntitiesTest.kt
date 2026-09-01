@@ -58,18 +58,18 @@ class CoreEntitiesTest(
             continuousPickup = null, continuousDropOff = null, networkId = null))
 
         assertEquals(1, routes.findByRevisionId(rev1).size)
-        assertEquals("Line 1", routes.findByRevisionIdAndRouteId(rev1, "R1")!!.routeLongName)
+        assertEquals("Line 1", routes.findByRouteId(rev1, "R1")!!.routeLongName)
 
         stopTimes.save(GtfsStopTime(revisionId = rev1, tripId = "T1", stopSequence = 1, stopId = "S1",
             arrivalTime = 3600, departureTime = 3660, locationGroupId = null, locationId = null,
             stopHeadsign = null, startPickupDropOffWindow = null, endPickupDropOffWindow = null,
             pickupType = null, dropOffType = null, continuousPickup = null, continuousDropOff = null,
             shapeDistTraveled = null, timepoint = null, pickupBookingRuleId = null, dropOffBookingRuleId = null))
-        assertEquals(3600, stopTimes.findByRevisionIdAndTripIdOrderByStopSequence(rev1, "T1")[0].arrivalTime)
+        assertEquals(3600, stopTimes.findByTripId(rev1, "T1")[0].arrivalTime)
 
         calendars.save(GtfsCalendar(revisionId = rev1, serviceId = "WK", monday = true, tuesday = true,
             wednesday = true, thursday = true, friday = true, saturday = false, sunday = false,
             startDate = LocalDate.of(2026,1,1), endDate = LocalDate.of(2026,12,31)))
-        assertEquals(true, calendars.findByRevisionIdAndServiceId(rev1, "WK")!!.monday)
+        assertEquals(true, calendars.findByServiceId(rev1, "WK")!!.monday)
     }
 }
