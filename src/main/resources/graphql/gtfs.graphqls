@@ -19,8 +19,8 @@ type Mutation {
 enum GtfsRevisionStatus {
     PENDING
     DOWNLOADING
-    PARSING
     VALIDATING
+    PARSING
     DERIVING
     READY
     ACTIVE

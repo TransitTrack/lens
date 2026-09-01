@@ -19,7 +19,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.gtfs.validate.GtfsFeedValidator
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
@@ -27,14 +27,12 @@ import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import java.time.Instant
-import javax.sql.DataSource
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.context.annotation.Import
 import org.springframework.core.task.SyncTaskExecutor
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
@@ -68,7 +66,6 @@ class ScheduleDerivationServiceTest(
     @Autowired val schedTrips: SchedTripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
-    @Autowired val dataSource: DataSource,
     @Autowired val jsonMapper: JsonMapper,
 ) {
     private var feedId: Long = 0
@@ -80,7 +77,7 @@ class ScheduleDerivationServiceTest(
         feedId = f.id!!
         val ingestion = IngestionService(
             FixtureDownloader("schedule-sample"), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedValidator(JsonMapper.builder().build()), SyncTaskExecutor(),
             org.mockito.kotlin.mock<ScheduleDerivationService>(),
             ScheduleProperties(enabled = false),
             scheduleWriter,

@@ -14,12 +14,11 @@ import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.model.GtfsShapeRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.gtfs.validate.GtfsFeedValidator
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.derive.ScheduleDerivationService
 import eu.transittrack.schedule.derive.ScheduleWriter
 import java.time.Instant
-import javax.sql.DataSource
 import org.junit.jupiter.api.AfterEach
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
@@ -28,7 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Import
 import org.springframework.core.task.SyncTaskExecutor
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import kotlin.test.Test
@@ -48,7 +46,6 @@ class ScheduleDerivationFailureTest(
     @Autowired val gtfsWriter: RevisionWriter,
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val shapes: GtfsShapeRepository,
-    @Autowired val dataSource: DataSource,
     @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val created = mutableListOf<Long>()
@@ -70,7 +67,7 @@ class ScheduleDerivationFailureTest(
     private fun ingestion(derivation: ScheduleDerivationService, props: ScheduleProperties) =
         IngestionService(
             FixtureDownloader("minimal-valid"), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedValidator(tools.jackson.databind.json.JsonMapper.builder().build()), SyncTaskExecutor(),
             derivation, props, scheduleWriter,
         )
 

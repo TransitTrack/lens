@@ -16,7 +16,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.gtfs.validate.GtfsFeedValidator
 import eu.transittrack.schedule.derive.ScheduleWriter
 import java.time.Instant
 import java.time.LocalDate
@@ -27,11 +27,9 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
-import javax.sql.DataSource
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Import
 import org.springframework.core.task.SyncTaskExecutor
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -57,11 +55,10 @@ class IngestionServiceTest(
     @Autowired val stopTimes: GtfsStopTimeRepository,
     @Autowired val shapes: GtfsShapeRepository,
     @Autowired val shapePoints: GtfsShapePointRepository,
-    @Autowired val dataSource: DataSource,
     @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val createdFeeds = mutableListOf<Long>()
-    private val validator = GtfsValidator(JdbcTemplate(dataSource))
+    private val validator = GtfsFeedValidator(tools.jackson.databind.json.JsonMapper.builder().build())
 
     private fun feed(): GtfsFeed {
         val f = feeds.save(
@@ -153,7 +150,7 @@ class IngestionServiceTest(
 
         val loaded = revisions.findById(rev.id!!).get()
         assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
-        assertTrue(loaded.validationReport!!.contains("stop_time.stop_id->stop"))
+        assertTrue(loaded.validationReport!!.contains("foreign_key_violation"))
     }
 
     @Test
@@ -170,6 +167,8 @@ class IngestionServiceTest(
         val rev = strict.ingestBlocking("f")
 
         assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)
+        assertEquals(0, routes.findByRevisionId(rev.id!!).size)
+        assertEquals(0, stopTimes.findByRevisionId(rev.id!!).size)
     }
 
     @Test

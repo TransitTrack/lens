@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 /**
  * Lifecycle, activation and pruning of [GtfsRevision] rows.
  *
- * A revision walks `PENDING -> DOWNLOADING -> PARSING -> VALIDATING -> READY` and then
+ * A revision walks `PENDING -> DOWNLOADING -> VALIDATING -> PARSING -> READY` and then
  * either `ACTIVE` (via [activate], which atomically supersedes the previous active
  * revision), `UNCHANGED` (content identical to the current active revision) or `FAILED`.
  */

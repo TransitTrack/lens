@@ -24,7 +24,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsValidator
+import eu.transittrack.gtfs.validate.GtfsFeedValidator
 import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
@@ -112,7 +112,7 @@ class ScheduleDerivationEdgeCaseTest(
         feedId = f.id!!
         val ingestion = IngestionService(
             FixtureDownloader(fixture), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedValidator(JsonMapper.builder().build()), SyncTaskExecutor(),
             if (deriveDuringPipeline) service() else mock<ScheduleDerivationService>(),
             ScheduleProperties(enabled = deriveDuringPipeline),
             scheduleWriter,
@@ -345,7 +345,7 @@ class ScheduleDerivationEdgeCaseTest(
 
         val ingestion = IngestionService(
             FixtureDownloader("schedule-broken-times"), brittle, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsValidator(JdbcTemplate(dataSource)), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedValidator(JsonMapper.builder().build()), SyncTaskExecutor(),
             deriving, ScheduleProperties(enabled = true), scheduleWriter,
         )
         rev = ingestion.ingestBlocking("edge").id!!

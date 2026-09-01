@@ -19,8 +19,8 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
+import eu.transittrack.gtfs.validate.GtfsFeedValidator
 import eu.transittrack.gtfs.validate.GtfsValidationException
-import eu.transittrack.gtfs.validate.GtfsValidator
 import eu.transittrack.haversineMeters
 import java.nio.file.Files
 import java.nio.file.Path
@@ -29,10 +29,12 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 /**
- * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check -> extract ->
- * required-file check -> parse & bulk-write in registry order -> shape aggregates ->
- * validate -> derive dates -> DERIVING (the `eu.transittrack.schedule` model, unless
- * `transittrack.schedule.enabled` is false) -> READY -> (auto-)activate -> prune.
+ * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check ->
+ * validate (MobilityData gtfs-validator on the archive; strict mode fails here,
+ * before anything is written) -> extract -> required-file check -> parse &
+ * bulk-write in registry order -> shape aggregates -> derive dates -> DERIVING
+ * (the `eu.transittrack.schedule` model, unless `transittrack.schedule.enabled`
+ * is false) -> READY -> (auto-)activate -> prune.
  *
  * [ingest] runs the pipeline on the ingest executor and returns immediately;
  * [ingestBlocking] runs it inline. Every failure is funnelled to [RevisionService.fail],
@@ -48,7 +50,7 @@ class IngestionService(
     private val feedService: GtfsFeedService,
     private val props: GtfsProperties,
     private val shapes: GtfsShapeRepository,
-    private val validator: GtfsValidator,
+    private val feedValidator: GtfsFeedValidator,
     private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
     private val scheduleDerivation: eu.transittrack.schedule.derive.ScheduleDerivationService,
     private val scheduleProps: eu.transittrack.schedule.config.ScheduleProperties,
@@ -109,11 +111,22 @@ class IngestionService(
                 return
             }
 
-            log.info("Starting processing of ${feed.code}")
-            revisionService.transition(revisionId, GtfsRevisionStatus.PARSING) {
+            log.info("Starting validation of ${feed.code}")
+            revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
                 it.contentSha256 = dl.sha256
                 it.byteSize = dl.byteSize
             }
+
+            val report = feedValidator.validate(zipPath, tempDir)
+            revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
+                it.validationReport = report.toJson()
+            }
+            if (props.ingest.strictValidation && report.errorCount > 0) {
+                throw GtfsValidationException(report)
+            }
+
+            log.info("Starting processing of ${feed.code}")
+            revisionService.transition(revisionId, GtfsRevisionStatus.PARSING)
 
             val present = GtfsArchive.extract(zipPath, tempDir).toSet()
             requirePresent(present)
@@ -128,18 +141,9 @@ class IngestionService(
                 }
             }
 
-            log.info("Starting validation of ${feed.code}")
-            revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
+            revisionService.transition(revisionId, GtfsRevisionStatus.PARSING) {
                 it.filesPresent = present.sorted()
                 it.rowCounts = rowCounts
-            }
-
-            val report = validator.validate(revisionId)
-            revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
-                it.validationReport = report.toJson()
-            }
-            if (props.ingest.strictValidation && report.errorCount > 0) {
-                throw GtfsValidationException(report)
             }
 
             revisionService.deriveDates(revisionId)
