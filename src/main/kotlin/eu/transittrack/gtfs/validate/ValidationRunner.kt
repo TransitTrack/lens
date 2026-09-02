@@ -1,5 +1,11 @@
 package eu.transittrack.gtfs.validate
 
+import java.io.IOException
+import java.net.URI
+import java.net.URISyntaxException
+import java.nio.file.Paths
+import java.time.LocalDate
+
 import org.mobilitydata.gtfsvalidator.input.CountryCode
 import org.mobilitydata.gtfsvalidator.input.DateForValidation
 import org.mobilitydata.gtfsvalidator.input.GtfsInput
@@ -10,17 +16,15 @@ import org.mobilitydata.gtfsvalidator.notice.URISyntaxError
 import org.mobilitydata.gtfsvalidator.table.GtfsFeedContainer
 import org.mobilitydata.gtfsvalidator.table.GtfsFeedLoader
 import org.mobilitydata.gtfsvalidator.util.ServiceIntervalCache
-import org.mobilitydata.gtfsvalidator.validator.*
+import org.mobilitydata.gtfsvalidator.validator.ClassGraphDiscovery
+import org.mobilitydata.gtfsvalidator.validator.DefaultValidatorProvider
+import org.mobilitydata.gtfsvalidator.validator.ValidationContext
+import org.mobilitydata.gtfsvalidator.validator.ValidatorLoader
+import org.mobilitydata.gtfsvalidator.validator.ValidatorLoaderException
 import org.slf4j.LoggerFactory
-import java.io.IOException
-import java.net.URI
-import java.net.URISyntaxException
-import java.nio.file.Paths
-import java.time.LocalDate
 
-/** The main entry point for running the validator against a GTFS input.  */
+/** The main entry point for running the validator against a GTFS input. */
 class ValidationRunner {
-
     enum class Status {
         // Indicates validation successfully completed, but doesn't imply the
         // feed itself is valid.
@@ -32,20 +36,21 @@ class ValidationRunner {
 
         // Indicates validation did not successfully complete, with exceptions
         // caught and written only to console logging.
-        EXCEPTION
+        EXCEPTION,
     }
 
-    data class ValidationResult(val status: Status,
-                                val feedContainer: GtfsFeedContainer? = null,
-                                val notices: Set<NoticeReport> = emptySet())
+    data class ValidationResult(
+        val status: Status,
+        val feedContainer: GtfsFeedContainer? = null,
+        val notices: Set<NoticeReport> = emptySet(),
+    )
 
     fun validate(source: URI): ValidationResult {
         val validatorLoader: ValidatorLoader?
         try {
-            validatorLoader =
-                ValidatorLoader.createForClasses(
-                    ClassGraphDiscovery.discoverValidatorsInDefaultPackage()
-                )
+            validatorLoader = ValidatorLoader.createForClasses(
+                ClassGraphDiscovery.discoverValidatorsInDefaultPackage(),
+            )
         } catch (e: ValidatorLoaderException) {
             logger.error("Cannot load validator classes", e)
             return ValidationResult(Status.EXCEPTION)
@@ -71,21 +76,25 @@ class ValidationRunner {
             } else {
                 Status.EXCEPTION
             }
-            val validationReport =
-                noticeContainer.createValidationReport(noticeContainer.resolvedValidationNotices)
+            val validationReport = noticeContainer.createValidationReport(noticeContainer.resolvedValidationNotices)
 
             return ValidationResult(status, notices = validationReport.notices)
         }
 
-        val validationContext =
-            ValidationContext.builder()
-                .setCountryCode(CountryCode.forStringOrUnknown(CountryCode.ZZ))
-                .set(ServiceIntervalCache::class.java, ServiceIntervalCache())
-                .setDateForValidation(DateForValidation(LocalDate.now()))
-                .build()
+        val validationContext = ValidationContext
+            .builder()
+            .setCountryCode(CountryCode.forStringOrUnknown(CountryCode.ZZ))
+            .set(ServiceIntervalCache::class.java, ServiceIntervalCache())
+            .setDateForValidation(DateForValidation(LocalDate.now()))
+            .build()
         try {
-            feedContainer = loadAndValidate(validatorLoader, feedLoader,
-                    noticeContainer, gtfsInput, validationContext)
+            feedContainer = loadAndValidate(
+                validatorLoader,
+                feedLoader,
+                noticeContainer,
+                gtfsInput,
+                validationContext,
+            )
         } catch (e: InterruptedException) {
             logger.error("Validation was interrupted", e)
             return ValidationResult(Status.EXCEPTION)
@@ -93,8 +102,7 @@ class ValidationRunner {
 
         closeGtfsInput(gtfsInput, noticeContainer)
 
-        val validationReport =
-            noticeContainer.createValidationReport(noticeContainer.resolvedValidationNotices)
+        val validationReport = noticeContainer.createValidationReport(noticeContainer.resolvedValidationNotices)
 
         // Output
         return ValidationResult(Status.SUCCESS, feedContainer, validationReport.notices)
@@ -104,14 +112,16 @@ class ValidationRunner {
         private val logger = LoggerFactory.getLogger(javaClass)
 
         /**
-         * Closes a `GtfsInput`. Yields `IOError` if the `GtfsInput` could not be
-         * closed.
+         * Closes a `GtfsInput`. Yields `IOError` if the `GtfsInput` could not be closed.
          *
          * @param gtfsInput the `GtfsInput` to close
          * @param noticeContainer the `NoticeContainer` that will contain the `IOError` if the
-         * `GtfsInput` could not be closed.
+         *   `GtfsInput` could not be closed.
          */
-        fun closeGtfsInput(gtfsInput: GtfsInput, noticeContainer: NoticeContainer) {
+        fun closeGtfsInput(
+            gtfsInput: GtfsInput,
+            noticeContainer: NoticeContainer,
+        ) {
             try {
                 gtfsInput.close()
             } catch (e: IOException) {
@@ -125,8 +135,8 @@ class ValidationRunner {
          *
          * @param validatorLoader the `ValidatorLoader` used in the process
          * @param feedLoader the `GtfsFeedLoader` used in the process
-         * @param noticeContainer the `NoticeContainer` that will contain `Notice`s related to
-         * the GTFS feed
+         * @param noticeContainer the `NoticeContainer` that will contain `Notice`s related to the GTFS
+         *   feed
          * @param gtfsInput the source of data
          * @param validationContext the `ValidationContext` do be used during validation
          * @return the `GtfsFeedContainer` used in the validation process
@@ -138,13 +148,14 @@ class ValidationRunner {
             feedLoader: GtfsFeedLoader,
             noticeContainer: NoticeContainer?,
             gtfsInput: GtfsInput?,
-            validationContext: ValidationContext
+            validationContext: ValidationContext,
         ): GtfsFeedContainer {
             val validationProvider = DefaultValidatorProvider(validationContext, validatorLoader)
             val feedContainer: GtfsFeedContainer = feedLoader.loadAndValidate(
-                    gtfsInput,
-                    validationProvider,
-                    noticeContainer)
+                gtfsInput,
+                validationProvider,
+                noticeContainer,
+            )
             return feedContainer
         }
     }

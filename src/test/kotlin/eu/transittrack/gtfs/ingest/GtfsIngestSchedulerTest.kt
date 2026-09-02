@@ -1,11 +1,8 @@
 package eu.transittrack.gtfs.ingest
 
-import eu.transittrack.gtfs.config.GtfsProperties
-import eu.transittrack.gtfs.feed.FeedSource
-import eu.transittrack.gtfs.feed.GtfsFeed
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import java.time.Instant
 import kotlin.test.Test
+
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -14,25 +11,43 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
-class GtfsIngestSchedulerTest {
+import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.gtfs.feed.FeedSource
+import eu.transittrack.gtfs.feed.GtfsFeed
+import eu.transittrack.gtfs.feed.GtfsFeedRepository
 
+class GtfsIngestSchedulerTest {
     private val ingestion = mock<IngestionService>()
 
-    private fun feed(code: String, cron: String?, last: Instant?) = GtfsFeed(
-        code, code, null, "u", cron, true, null, FeedSource.CONFIG,
-        Instant.now(), Instant.now(), last,
+    private fun feed(
+        code: String,
+        cron: String?,
+        last: Instant?,
+    ) = GtfsFeed(
+        code,
+        code,
+        null,
+        "u",
+        cron,
+        true,
+        null,
+        FeedSource.CONFIG,
+        Instant.now(),
+        Instant.now(),
+        last,
     )
 
     @Test
     fun `triggers only feeds that are due`() {
         val repo = mock<GtfsFeedRepository>()
-        whenever(repo.findAllEnabled()).thenReturn(
-            listOf(
-                feed("due", "0 0 3 * * *", Instant.parse("2000-01-01T00:00:00Z")),
-                feed("not-due", "0 0 3 * * *", Instant.now()),
-                feed("manual", null, null),
-            ),
-        )
+        whenever(repo.findAllEnabled())
+            .thenReturn(
+                listOf(
+                    feed("due", "0 0 3 * * *", Instant.parse("2000-01-01T00:00:00Z")),
+                    feed("not-due", "0 0 3 * * *", Instant.now()),
+                    feed("manual", null, null),
+                ),
+            )
         val props = GtfsProperties(polling = GtfsProperties.Polling(enabled = true))
 
         GtfsIngestScheduler(repo, ingestion, props).sweep()

@@ -1,40 +1,47 @@
 package eu.transittrack.gtfs.api
 
+import org.springframework.stereotype.Component
+import tools.jackson.databind.json.JsonMapper
+
 import eu.transittrack.gtfs.api.dto.GtfsFeedDto
 import eu.transittrack.gtfs.api.dto.GtfsRevisionDto
 import eu.transittrack.gtfs.api.dto.GtfsValidationSummaryDto
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.validate.LoadValidationReport
-import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 /**
  * Maps GTFS domain entities to their GraphQL DTOs.
  *
  * The revision's `validationReport` is a raw JSON string; deserializing it into
- * [LoadValidationReport] (a `data class` with no no-arg constructor) requires the
- * Spring-configured [JsonMapper] bean, which Boot 4 wires with `jackson-module-kotlin`.
+ * [LoadValidationReport] (a `data class` with no no-arg constructor) requires the Spring-configured
+ * [JsonMapper] bean, which Boot 4 wires with `jackson-module-kotlin`.
  */
 @Component
-class GtfsDtoMapper(private val jsonMapper: JsonMapper) {
+class GtfsDtoMapper(
+    private val jsonMapper: JsonMapper,
+) {
+    fun toDto(feed: GtfsFeed): GtfsFeedDto =
+        GtfsFeedDto(
+            code = feed.code,
+            name = feed.name,
+            description = feed.description,
+            url = feed.url,
+            pollingCron = feed.pollingCron,
+            enabled = feed.enabled,
+            source = feed.source.name,
+            feedId = feed.id,
+        )
 
-    fun toDto(feed: GtfsFeed): GtfsFeedDto = GtfsFeedDto(
-        code = feed.code,
-        name = feed.name,
-        description = feed.description,
-        url = feed.url,
-        pollingCron = feed.pollingCron,
-        enabled = feed.enabled,
-        source = feed.source.name,
-        feedId = feed.id,
-    )
-
-    fun toDto(revision: GtfsRevision, feedCode: String): GtfsRevisionDto {
-        val summary = revision.validationReport?.let { json ->
-            val report = jsonMapper.readValue(json, LoadValidationReport::class.java)
-            GtfsValidationSummaryDto(report.errorCount, report.warningCount)
-        }
+    fun toDto(
+        revision: GtfsRevision,
+        feedCode: String,
+    ): GtfsRevisionDto {
+        val summary =
+            revision.validationReport?.let { json ->
+                val report = jsonMapper.readValue(json, LoadValidationReport::class.java)
+                GtfsValidationSummaryDto(report.errorCount, report.warningCount)
+            }
         return GtfsRevisionDto(
             id = revision.id.toString(),
             feedCode = feedCode,

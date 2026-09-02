@@ -1,20 +1,22 @@
 package eu.transittrack.gtfs.revision
 
-import eu.transittrack.gtfs.config.GtfsProperties
+import java.time.Instant
+
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+
+import eu.transittrack.gtfs.GtfsProperties
 import eu.transittrack.gtfs.model.CalendarDateRepository
 import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.model.FeedInfoRepository
 import eu.transittrack.gtfs.store.RevisionWriter
-import java.time.Instant
-import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
 
 /**
  * Lifecycle, activation and pruning of [GtfsRevision] rows.
  *
- * A revision walks `PENDING -> DOWNLOADING -> VALIDATING -> PARSING -> READY` and then
- * either `ACTIVE` (via [activate], which atomically supersedes the previous active
- * revision), `UNCHANGED` (content identical to the current active revision) or `FAILED`.
+ * A revision walks `PENDING -> DOWNLOADING -> VALIDATING -> PARSING -> READY` and then either
+ * `ACTIVE` (via [activate], which atomically supersedes the previous active revision), `UNCHANGED`
+ * (content identical to the current active revision) or `FAILED`.
  */
 @Service
 class RevisionService(
@@ -25,11 +27,17 @@ class RevisionService(
     private val calendarDates: CalendarDateRepository,
     private val feedInfos: FeedInfoRepository,
 ) {
-
     @Transactional
-    fun createPending(feedId: Long, sourceUrl: String): GtfsRevision =
+    fun createPending(
+        feedId: Long,
+        sourceUrl: String,
+    ): GtfsRevision =
         revisions.save(
-            GtfsRevision(feedId = feedId, status = GtfsRevisionStatus.PENDING, sourceUrl = sourceUrl),
+            GtfsRevision(
+                feedId = feedId,
+                status = GtfsRevisionStatus.PENDING,
+                sourceUrl = sourceUrl,
+            ),
         )
 
     @Transactional
@@ -46,7 +54,10 @@ class RevisionService(
 
     /** Wipe every row written for the revision, then record a terminal `FAILED` state. */
     @Transactional
-    fun fail(revisionId: Long, message: String) {
+    fun fail(
+        revisionId: Long,
+        message: String,
+    ) {
         writer.deleteAllForRevision(revisionId)
         val r = revision(revisionId)
         r.status = GtfsRevisionStatus.FAILED
@@ -55,7 +66,10 @@ class RevisionService(
     }
 
     @Transactional
-    fun mergeRowCounts(revisionId: Long, extra: Map<String, Long>) {
+    fun mergeRowCounts(
+        revisionId: Long,
+        extra: Map<String, Long>,
+    ) {
         val r = revision(revisionId)
         r.rowCounts = r.rowCounts + extra
         revisions.save(r)
@@ -69,9 +83,8 @@ class RevisionService(
     }
 
     /**
-     * Populate `feedStartDate` / `feedEndDate` from `gtfs_feed_info` when present,
-     * otherwise fall back to the span covered by `gtfs_calendar` and
-     * `gtfs_calendar_date`.
+     * Populate `feedStartDate` / `feedEndDate` from `gtfs_feed_info` when present, otherwise fall
+     * back to the span covered by `gtfs_calendar` and `gtfs_calendar_date`.
      */
     @Transactional
     fun deriveDates(revisionId: Long) {
@@ -93,45 +106,52 @@ class RevisionService(
     }
 
     /**
-     * Atomically swap the active pointer for the feed: any current `ACTIVE`
-     * revision becomes `SUPERSEDED`, then this revision becomes `ACTIVE`.
+     * Atomically swap the active pointer for the feed: any current `ACTIVE` revision becomes
+     * `SUPERSEDED`, then this revision becomes `ACTIVE`.
      */
     @Transactional
     fun activate(revisionId: Long): GtfsRevision {
         val r = revision(revisionId)
-        revisions.findByFeedAndStatus(r.feedId, GtfsRevisionStatus.ACTIVE)?.let { current ->
-            if (current.id != r.id) {
-                current.status = GtfsRevisionStatus.SUPERSEDED
-                current.supersededAt = Instant.now()
-                // Flush the demotion before the promotion so the "one ACTIVE per feed"
-                // partial unique index never sees two ACTIVE rows mid-transaction.
-                revisions.saveAndFlush(current)
+        revisions
+            .findByFeedAndStatus(r.feedId, GtfsRevisionStatus.ACTIVE)
+            ?.let { current ->
+                if (current.id != r.id) {
+                    current.status = GtfsRevisionStatus.SUPERSEDED
+                    current.supersededAt = Instant.now()
+                    // Flush the demotion before the promotion so the "one ACTIVE per feed"
+                    // partial unique index never sees two ACTIVE rows mid-transaction.
+                    revisions.saveAndFlush(current)
+                }
             }
-        }
         r.status = GtfsRevisionStatus.ACTIVE
         r.activatedAt = Instant.now()
         return revisions.save(r)
     }
 
     /**
-     * Keep the `ACTIVE` revision plus the [keep] most-recent other terminal revisions;
-     * delete the rest (child rows via [RevisionWriter.deleteAllForRevision], then the
-     * revision row). In-progress revisions are never touched. When trimming, `FAILED`
-     * and `UNCHANGED` revisions are dropped ahead of `SUPERSEDED` ones, oldest first.
+     * Keep the `ACTIVE` revision plus the [keep] most-recent other terminal revisions; delete the
+     * rest (child rows via [RevisionWriter.deleteAllForRevision], then the revision row). In-progress
+     * revisions are never touched. When trimming, `FAILED` and `UNCHANGED` revisions are dropped
+     * ahead of `SUPERSEDED` ones, oldest first.
      */
     @Transactional
-    fun prune(feedId: Long, keep: Int) {
+    fun prune(
+        feedId: Long,
+        keep: Int,
+    ) {
         val all = revisions.findByFeedNewestFirst(feedId)
         val terminal = all.filter { it.status != GtfsRevisionStatus.ACTIVE && it.status.terminal }
         // Prefer keeping SUPERSEDED over FAILED/UNCHANGED, and newer over older.
         val keepRank = terminal.sortedWith(
-            compareByDescending<GtfsRevision> { it.status == GtfsRevisionStatus.SUPERSEDED }
-                .thenByDescending { it.createdAt },
+            compareByDescending<GtfsRevision> {
+                it.status == GtfsRevisionStatus.SUPERSEDED
+            }.thenByDescending { it.createdAt },
         )
-        val keepIds = buildSet {
-            all.firstOrNull { it.status == GtfsRevisionStatus.ACTIVE }?.id?.let(::add)
-            keepRank.take(keep.coerceAtLeast(0)).forEach { it.id?.let(::add) }
-        }
+        val keepIds =
+            buildSet {
+                all.firstOrNull { it.status == GtfsRevisionStatus.ACTIVE }?.id?.let(::add)
+                keepRank.take(keep.coerceAtLeast(0)).forEach { it.id?.let(::add) }
+            }
         val toDelete = terminal.filter { it.id !in keepIds }.sortedBy { it.createdAt }
         for (r in toDelete) {
             writer.deleteAllForRevision(r.id!!)
@@ -146,12 +166,9 @@ class RevisionService(
         revisions.deleteById(revisionId)
     }
 
-    fun activeRevisionId(feedId: Long): Long? =
-        revisions.findByFeedAndStatus(feedId, GtfsRevisionStatus.ACTIVE)?.id
+    fun activeRevisionId(feedId: Long): Long? = revisions.findByFeedAndStatus(feedId, GtfsRevisionStatus.ACTIVE)?.id
 
-    fun hasInProgress(feedId: Long): Boolean =
-        revisions.existsByFeedAndStatusIn(feedId, GtfsRevisionStatus.NON_TERMINAL_IN_PROGRESS)
+    fun hasInProgress(feedId: Long): Boolean = revisions.existsByFeedAndStatusIn(feedId, GtfsRevisionStatus.NON_TERMINAL_IN_PROGRESS)
 
-    fun revision(id: Long): GtfsRevision =
-        revisions.findById(id).orElseThrow()
+    fun revision(id: Long): GtfsRevision = revisions.findById(id).orElseThrow()
 }

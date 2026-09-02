@@ -1,28 +1,29 @@
 package eu.transittrack.gtfs.model
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
-import java.time.LocalDate
-import java.time.ZoneId
-import java.util.*
+
+import eu.transittrack.Extent
+import eu.transittrack.Point
 
 /**
- * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes,
- * trips, stop_times, calendar, calendar_dates, feed_info, frequencies).
+ * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes, trips, stop_times,
+ * calendar, calendar_dates, feed_info, frequencies).
  *
- * GTFS enum integers are stored as `SMALLINT`; the corresponding Kotlin `Int?`
- * fields carry `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto:
- * validate` sees matching JDBC type codes.
+ * GTFS enum integers are stored as `SMALLINT`; the corresponding Kotlin `Int?` fields carry
+ * `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate` sees matching JDBC type
+ * codes.
  */
-
 @Entity
 @Table(name = "agencies")
 class Agency(
@@ -62,7 +63,8 @@ class Stop(
     var waitStop: Boolean? = null,
     var hidden: Boolean? = null,
 ) : RevisionScoped(revisionId) {
-    val point: Point get() = Point(stopLat!!, stopLon!!)
+    val point: Point
+        get() = Point(stopLat!!, stopLon!!)
 }
 
 @Entity
@@ -181,31 +183,54 @@ class Frequency(
 
 interface AgencyRepository : RevisionScopedRepository<Agency, Long> {
     @Query("select a from Agency a where a.revisionId = :revisionId and a.agencyId = :agencyId")
-    fun findByAgencyId(revisionId: Long, agencyId: String): Agency?
+    fun findByAgencyId(
+        revisionId: Long,
+        agencyId: String,
+    ): Agency?
 }
 
 interface StopRepository : RevisionScopedRepository<Stop, Long> {
     @Query("select s from Stop s where s.revisionId = :revisionId and s.stopId = :stopId")
-    fun findByStopId(revisionId: Long, stopId: String): Stop?
+    fun findByStopId(
+        revisionId: Long,
+        stopId: String,
+    ): Stop?
 
-    @Query("select s from Stop s where s.revisionId = :revisionId and s.parentStation = :parentStation")
-    fun findByParentStation(revisionId: Long, parentStation: String): List<Stop>
+    @Query(
+        "select s from Stop s where s.revisionId = :revisionId and s.parentStation = :parentStation",
+    )
+    fun findByParentStation(
+        revisionId: Long,
+        parentStation: String,
+    ): List<Stop>
 }
 
 interface RouteRepository : RevisionScopedRepository<Route, Long> {
     @Query("select r from Route r where r.revisionId = :revisionId and r.routeId = :routeId")
-    fun findByRouteId(revisionId: Long, routeId: String): Route?
+    fun findByRouteId(
+        revisionId: Long,
+        routeId: String,
+    ): Route?
 }
 
 interface TripRepository : RevisionScopedRepository<Trip, Long> {
     @Query("select t from Trip t where t.revisionId = :revisionId and t.tripId = :tripId")
-    fun findByTripId(revisionId: Long, tripId: String): Trip?
+    fun findByTripId(
+        revisionId: Long,
+        tripId: String,
+    ): Trip?
 
     @Query("select t from Trip t where t.revisionId = :revisionId and t.routeId = :routeId")
-    fun findByRouteId(revisionId: Long, routeId: String): List<Trip>
+    fun findByRouteId(
+        revisionId: Long,
+        routeId: String,
+    ): List<Trip>
 
     @Query("select t from Trip t where t.revisionId = :revisionId and t.serviceId = :serviceId")
-    fun findByServiceId(revisionId: Long, serviceId: String): List<Trip>
+    fun findByServiceId(
+        revisionId: Long,
+        serviceId: String,
+    ): List<Trip>
 }
 
 interface StopTimeRepository : RevisionScopedRepository<StopTime, Long> {
@@ -213,30 +238,47 @@ interface StopTimeRepository : RevisionScopedRepository<StopTime, Long> {
         "select st from StopTime st " +
             "where st.revisionId = :revisionId and st.tripId = :tripId order by st.stopSequence",
     )
-    fun findByTripId(revisionId: Long, tripId: String): List<StopTime>
+    fun findByTripId(
+        revisionId: Long,
+        tripId: String,
+    ): List<StopTime>
 
     @Query("select st from StopTime st where st.revisionId = :revisionId and st.stopId = :stopId")
-    fun findByStopId(revisionId: Long, stopId: String): List<StopTime>
+    fun findByStopId(
+        revisionId: Long,
+        stopId: String,
+    ): List<StopTime>
 
     /**
-     * Batch load for schedule derivation: all stop times of a set of trips in one
-     * round-trip, ordered so each trip's sublist is already in `stop_sequence` order.
+     * Batch load for schedule derivation: all stop times of a set of trips in one round-trip, ordered
+     * so each trip's sublist is already in `stop_sequence` order.
      */
     @Query(
         "select st from StopTime st " +
             "where st.revisionId = :revisionId and st.tripId in :tripIds order by st.tripId asc, st.stopSequence asc",
     )
-    fun findByTripIds(revisionId: Long, tripIds: Collection<String>): List<StopTime>
+    fun findByTripIds(
+        revisionId: Long,
+        tripIds: Collection<String>,
+    ): List<StopTime>
 }
 
 interface CalendarRepository : RevisionScopedRepository<Calendar, Long> {
     @Query("select c from Calendar c where c.revisionId = :revisionId and c.serviceId = :serviceId")
-    fun findByServiceId(revisionId: Long, serviceId: String): Calendar?
+    fun findByServiceId(
+        revisionId: Long,
+        serviceId: String,
+    ): Calendar?
 }
 
 interface CalendarDateRepository : RevisionScopedRepository<CalendarDate, Long> {
-    @Query("select cd from CalendarDate cd where cd.revisionId = :revisionId and cd.serviceId = :serviceId")
-    fun findByServiceId(revisionId: Long, serviceId: String): List<CalendarDate>
+    @Query(
+        "select cd from CalendarDate cd where cd.revisionId = :revisionId and cd.serviceId = :serviceId",
+    )
+    fun findByServiceId(
+        revisionId: Long,
+        serviceId: String,
+    ): List<CalendarDate>
 }
 
 interface FeedInfoRepository : JpaRepository<FeedInfo, Long> {
@@ -246,5 +288,8 @@ interface FeedInfoRepository : JpaRepository<FeedInfo, Long> {
 
 interface FrequencyRepository : RevisionScopedRepository<Frequency, Long> {
     @Query("select f from Frequency f where f.revisionId = :revisionId and f.tripId = :tripId")
-    fun findByTripId(revisionId: Long, tripId: String): List<Frequency>
+    fun findByTripId(
+        revisionId: Long,
+        tripId: String,
+    ): List<Frequency>
 }

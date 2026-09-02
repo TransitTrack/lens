@@ -3,21 +3,19 @@ package eu.transittrack.gtfs.model
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 
 /**
- * Typed JPA entities for the GTFS Fares v2 (and v1) files: fare_attributes,
- * fare_rules, timeframes, rider_categories, fare_media, fare_products,
- * fare_leg_rules, fare_leg_join_rules, fare_transfer_rules, areas, stop_areas,
- * networks, route_networks.
+ * Typed JPA entities for the GTFS Fares v2 (and v1) files: fare_attributes, fare_rules, timeframes,
+ * rider_categories, fare_media, fare_products, fare_leg_rules, fare_leg_join_rules,
+ * fare_transfer_rules, areas, stop_areas, networks, route_networks.
  *
- * GTFS enum integers are stored as `SMALLINT`; the matching Kotlin `Int?` fields
- * carry `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate`
- * sees matching JDBC type codes. `timeframe.start_time` / `end_time` are stored
- * as seconds-of-day (`INT`).
+ * GTFS enum integers are stored as `SMALLINT`; the matching Kotlin `Int?` fields carry
+ * `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate` sees matching JDBC type
+ * codes. `timeframe.start_time` / `end_time` are stored as seconds-of-day (`INT`).
  */
-
 @Entity
 @Table(name = "fare_attributes")
 class FareAttribute(
@@ -58,9 +56,7 @@ class RiderCategory(
     revisionId: Long,
     @Column(name = "rider_category_id", nullable = false) var riderCategoryId: String,
     var riderCategoryName: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT)
-    @Column(name = "is_default_fare_category")
-    var isDefaultFareCategory: Int?,
+    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "is_default_fare_category") var isDefaultFareCategory: Int?,
     var eligibilityUrl: String?,
 ) : RevisionScoped(revisionId)
 

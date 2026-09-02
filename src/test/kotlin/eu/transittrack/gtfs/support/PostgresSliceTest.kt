@@ -7,8 +7,7 @@ import org.springframework.context.annotation.Import
 /**
  * Slice-test meta-annotation for GTFS repository / JPA tests.
  *
- * Runs against a real Postgres (Testcontainers via `@ServiceConnection`), with
- * Liquibase enabled and Hibernate `ddl-auto: validate`.
+ * Runs against a real Postgres (Testcontainers via `@ServiceConnection`), with Liquibase enabled and Hibernate `ddl-auto: validate`.
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)

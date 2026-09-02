@@ -3,26 +3,22 @@ package eu.transittrack.gtfs.model
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 
 /**
- * Typed JPA entities for the remaining GTFS files: transfers.txt,
- * translations.txt, attributions.txt.
+ * Typed JPA entities for the remaining GTFS files: transfers.txt, translations.txt,
+ * attributions.txt.
  *
- * GTFS enum integers are stored as `SMALLINT`; the matching Kotlin `Int?` fields
- * carry `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate`
- * sees matching JDBC type codes. `gtfs_frequency.start_time` / `end_time` /
- * `headway_secs` are stored as seconds (`INT`), and `gtfs_transfer.min_transfer_time`
- * is stored as seconds (`INT`).
+ * GTFS enum integers are stored as `SMALLINT`; the matching Kotlin `Int?` fields carry
+ * `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate` sees matching JDBC type
+ * codes. `gtfs_frequency.start_time` / `end_time` / `headway_secs` are stored as seconds (`INT`),
+ * and `gtfs_transfer.min_transfer_time` is stored as seconds (`INT`).
  *
- * `is_producer` / `is_operator` / `is_authority` are non-boolean GTFS enum ints, so
- * they carry explicit `@Column(name = ...)` to avoid Kotlin's `is`-prefix property
- * naming quirk.
+ * `is_producer` / `is_operator` / `is_authority` are non-boolean GTFS enum ints, so they carry
+ * explicit `@Column(name = ...)` to avoid Kotlin's `is`-prefix property naming quirk.
  */
-
-
-
 @Entity
 @Table(name = "transfers")
 class Transfer(

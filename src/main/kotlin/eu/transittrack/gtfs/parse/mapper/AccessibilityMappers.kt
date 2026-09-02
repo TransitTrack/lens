@@ -1,13 +1,21 @@
 package eu.transittrack.gtfs.parse.mapper
 
-import eu.transittrack.gtfs.model.*
 import org.mobilitydata.gtfsvalidator.table.GtfsBookingRules
 import org.mobilitydata.gtfsvalidator.table.GtfsLevel
 import org.mobilitydata.gtfsvalidator.table.GtfsLocationGroupStops
 import org.mobilitydata.gtfsvalidator.table.GtfsLocationGroups
 import org.mobilitydata.gtfsvalidator.table.GtfsPathway
 
-fun mapPathway(rev: Long, r: GtfsPathway) = Pathway(
+import eu.transittrack.gtfs.model.BookingRule
+import eu.transittrack.gtfs.model.Level
+import eu.transittrack.gtfs.model.LocationGroup
+import eu.transittrack.gtfs.model.LocationGroupStop
+import eu.transittrack.gtfs.model.Pathway
+
+fun mapPathway(
+    rev: Long,
+    r: GtfsPathway,
+) = Pathway(
     revisionId = rev,
     pathwayId = r.pathwayId().takeIf { r.hasPathwayId() } ?: error("pathways.txt row missing pathway_id"),
     fromStopId = r.fromStopId().takeIf { r.hasFromStopId() },
@@ -23,31 +31,45 @@ fun mapPathway(rev: Long, r: GtfsPathway) = Pathway(
     reversedSignpostedAs = r.reversedSignpostedAs().takeIf { r.hasReversedSignpostedAs() },
 )
 
-fun mapLevel(rev: Long, r: GtfsLevel) = Level(
+fun mapLevel(
+    rev: Long,
+    r: GtfsLevel,
+) = Level(
     revisionId = rev,
     levelId = r.levelId().takeIf { r.hasLevelId() } ?: error("levels.txt row missing level_id"),
     levelIndex = r.levelIndex().takeIf { r.hasLevelIndex() },
     levelName = r.levelName().takeIf { r.hasLevelName() },
 )
 
-fun mapLocationGroup(rev: Long, r: GtfsLocationGroups) = LocationGroup(
+fun mapLocationGroup(
+    rev: Long,
+    r: GtfsLocationGroups,
+) = LocationGroup(
     revisionId = rev,
-    locationGroupId = r.locationGroupId().takeIf { r.hasLocationGroupId() }
-        ?: error("location_groups.txt row missing location_group_id"),
+    locationGroupId =
+        r.locationGroupId().takeIf { r.hasLocationGroupId() }
+            ?: error("location_groups.txt row missing location_group_id"),
     locationGroupName = r.locationGroupName().takeIf { r.hasLocationGroupName() },
 )
 
-fun mapLocationGroupStop(rev: Long, r: GtfsLocationGroupStops) = LocationGroupStop(
+fun mapLocationGroupStop(
+    rev: Long,
+    r: GtfsLocationGroupStops,
+) = LocationGroupStop(
     revisionId = rev,
-    locationGroupId = r.locationGroupId().takeIf { r.hasLocationGroupId() }
-        ?: error("location_group_stops.txt row missing location_group_id"),
+    locationGroupId =
+        r.locationGroupId().takeIf { r.hasLocationGroupId() }
+            ?: error("location_group_stops.txt row missing location_group_id"),
     stopId = r.stopId().takeIf { r.hasStopId() } ?: error("location_group_stops.txt row missing stop_id"),
 )
 
-fun mapBookingRule(rev: Long, r: GtfsBookingRules) = BookingRule(
+fun mapBookingRule(
+    rev: Long,
+    r: GtfsBookingRules,
+) = BookingRule(
     revisionId = rev,
-    bookingRuleId = r.bookingRuleId().takeIf { r.hasBookingRuleId() }
-        ?: error("booking_rules.txt row missing booking_rule_id"),
+    bookingRuleId =
+        r.bookingRuleId().takeIf { r.hasBookingRuleId() } ?: error("booking_rules.txt row missing booking_rule_id"),
     bookingType = r.bookingTypeValue().takeIf { r.hasBookingType() },
     priorNoticeDurationMin = r.priorNoticeDurationMin().takeIf { r.hasPriorNoticeDurationMin() },
     priorNoticeDurationMax = r.priorNoticeDurationMax().takeIf { r.hasPriorNoticeDurationMax() },

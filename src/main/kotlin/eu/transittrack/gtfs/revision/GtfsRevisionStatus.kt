@@ -1,7 +1,17 @@
 package eu.transittrack.gtfs.revision
 
 enum class GtfsRevisionStatus {
-    PENDING, DOWNLOADING, VALIDATING, PARSING, DERIVING, READY, ACTIVE, SUPERSEDED, FAILED, UNCHANGED;
+    PENDING,
+    DOWNLOADING,
+    VALIDATING,
+    PARSING,
+    DERIVING,
+    READY,
+    ACTIVE,
+    SUPERSEDED,
+    FAILED,
+    UNCHANGED,
+    ;
 
     val terminal: Boolean
         get() = this == ACTIVE || this == SUPERSEDED || this == FAILED || this == UNCHANGED

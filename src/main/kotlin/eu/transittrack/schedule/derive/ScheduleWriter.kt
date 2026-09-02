@@ -1,9 +1,12 @@
 package eu.transittrack.schedule.derive
 
-import eu.transittrack.gtfs.model.RevisionScoped
 import jakarta.persistence.EntityManagerFactory
+
 import org.hibernate.SessionFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+
+import eu.transittrack.gtfs.model.RevisionScoped
 
 data class StopPathAggregateUpdate(
     val stopPathId: Long,
@@ -15,16 +18,17 @@ data class StopPathAggregateUpdate(
 
 /**
  * Bulk write path for the derived schedule model, backed by a Hibernate
- * [org.hibernate.StatelessSession] (no persistence context; JDBC-batched).
- * Mirrors [eu.transittrack.gtfs.store.StatelessSessionRevisionWriter].
+ * [org.hibernate.StatelessSession] (no persistence context; JDBC-batched). Mirrors
+ * [eu.transittrack.gtfs.store.StatelessSessionRevisionWriter].
  */
 @Component
-class ScheduleWriter(emf: EntityManagerFactory) {
-
+@ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
+class ScheduleWriter(
+    emf: EntityManagerFactory,
+) {
     private val sessionFactory: SessionFactory = emf.unwrap(SessionFactory::class.java)
 
-    private val deleteOrder =
-        listOf("schedule_time", "block_trip", "stop_path", "sched_trip", "block", "trip_patterns")
+    private val deleteOrder = listOf("schedule_time", "block_trip", "stop_path", "sched_trip", "block", "trip_patterns")
 
     fun write(rows: List<RevisionScoped>) {
         if (rows.isEmpty()) return
@@ -36,8 +40,10 @@ class ScheduleWriter(emf: EntityManagerFactory) {
     fun deleteForRevision(revisionId: Long) {
         sessionFactory.inStatelessTransaction { session ->
             for (table in deleteOrder) {
-                session.createNativeMutationQuery("delete from $table where revision_id = :r")
-                    .setParameter("r", revisionId)
+                session
+                    .createNativeMutationQuery(
+                        "delete from $table where revision_id = :r",
+                    ).setParameter("r", revisionId)
                     .executeUpdate()
             }
         }
@@ -47,17 +53,17 @@ class ScheduleWriter(emf: EntityManagerFactory) {
         if (updates.isEmpty()) return
         sessionFactory.inStatelessTransaction { session ->
             for (u in updates) {
-                session.createNativeMutationQuery(
-                    """
-                    update stop_path
-                       set typical_travel_time_sec = :tt,
-                           typical_dwell_time_sec = :td,
-                           layover_stop = :lo,
-                           break_time_sec = :bt
-                     where id = :id
-                    """.trimIndent(),
-                )
-                    .setParameter("tt", u.typicalTravelTimeSec)
+                session
+                    .createNativeMutationQuery(
+                        """
+                        update stop_path
+                           set typical_travel_time_sec = :tt,
+                               typical_dwell_time_sec = :td,
+                               layover_stop = :lo,
+                               break_time_sec = :bt
+                         where id = :id
+                        """.trimIndent(),
+                    ).setParameter("tt", u.typicalTravelTimeSec)
                     .setParameter("td", u.typicalDwellTimeSec)
                     .setParameter("lo", u.layoverStop)
                     .setParameter("bt", u.breakTimeSec)
@@ -71,7 +77,8 @@ class ScheduleWriter(emf: EntityManagerFactory) {
         if (counts.isEmpty()) return
         sessionFactory.inStatelessTransaction { session ->
             for ((id, tc) in counts) {
-                session.createNativeMutationQuery("update trip_patterns set trip_count = :tc where id = :id")
+                session
+                    .createNativeMutationQuery("update trip_patterns set trip_count = :tc where id = :id")
                     .setParameter("tc", tc)
                     .setParameter("id", id)
                     .executeUpdate()

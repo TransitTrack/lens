@@ -1,7 +1,8 @@
 package eu.transittrack.gtfs.parse
 
-import tools.jackson.databind.json.JsonMapper
 import java.io.InputStream
+
+import tools.jackson.databind.json.JsonMapper
 
 data class ParsedLocation(
     val locationId: String,
@@ -11,7 +12,6 @@ data class ParsedLocation(
 )
 
 object GtfsGeoJsonReader {
-
     private val mapper = JsonMapper.builder().build()
 
     fun read(input: InputStream): List<ParsedLocation> {
@@ -22,16 +22,17 @@ object GtfsGeoJsonReader {
         val features = root.get("features") ?: return emptyList()
         return buildList {
             for (f in features) {
-                val id = f.get("id")?.takeIf { !it.isNull }?.asString()
-                    ?: throw GtfsParseException("locations.geojson feature missing 'id'")
+                val id =
+                    f.get("id")?.takeIf { !it.isNull }?.asString()
+                        ?: throw GtfsParseException("locations.geojson feature missing 'id'")
                 val props = f.get("properties")
                 add(
                     ParsedLocation(
                         locationId = id,
                         stopName = props?.get("stop_name")?.takeIf { !it.isNull }?.asString(),
                         stopDesc = props?.get("stop_desc")?.takeIf { !it.isNull }?.asString(),
-                        geometryJson = f.get("geometry")?.takeIf { !it.isNull }
-                            ?.let { mapper.writeValueAsString(it) } ?: "null",
+                        geometryJson =
+                            f.get("geometry")?.takeIf { !it.isNull }?.let { mapper.writeValueAsString(it) } ?: "null",
                     ),
                 )
             }

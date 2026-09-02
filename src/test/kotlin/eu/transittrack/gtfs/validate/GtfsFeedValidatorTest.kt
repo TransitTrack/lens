@@ -14,14 +14,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import tools.jackson.databind.json.JsonMapper
 
-/**
- * Plain JUnit (no Spring context, no database): exercises [GtfsFeedLoader]
- * against the checked-in GTFS fixture folders zipped on the fly.
- */
+/** Plain JUnit (no Spring context, no database): exercises [GtfsFeedLoader] against the checked-in GTFS fixture folders zipped on the fly. */
 class GtfsFeedValidatorTest {
-
     private val validator = GtfsFeedLoader()
     private val workDirs = mutableListOf<Path>()
 
@@ -35,11 +30,15 @@ class GtfsFeedValidatorTest {
         val zip = work.resolve("feed.zip")
         val dir = Path("src/test/resources/gtfs/$fixture")
         ZipOutputStream(Files.newOutputStream(zip)).use { z ->
-            dir.listDirectoryEntries().filter { it.isRegularFile() }.sortedBy { it.name }.forEach { f ->
-                z.putNextEntry(ZipEntry(f.name).apply { time = 0L })
-                z.write(f.readBytes())
-                z.closeEntry()
-            }
+            dir
+                .listDirectoryEntries()
+                .filter { it.isRegularFile() }
+                .sortedBy { it.name }
+                .forEach { f ->
+                    z.putNextEntry(ZipEntry(f.name).apply { time = 0L })
+                    z.write(f.readBytes())
+                    z.closeEntry()
+                }
         }
         return zip to work
     }
@@ -51,7 +50,10 @@ class GtfsFeedValidatorTest {
         val report = validator.load(zip)
 
         val fk = report.issues.find { it.rule == "foreign_key_violation" }
-        assertNotNull(fk, "expected a foreign_key_violation issue, got ${report.issues.map { it.rule }}")
+        assertNotNull(
+            fk,
+            "expected a foreign_key_violation issue, got ${report.issues.map { it.rule }}",
+        )
         assertEquals(Severity.ERROR, fk.severity)
         assertTrue(fk.count >= 1)
         assertTrue(report.errorCount >= 1)
@@ -63,7 +65,11 @@ class GtfsFeedValidatorTest {
 
         val report = validator.load(zip)
 
-        assertEquals(0L, report.errorCount, "unexpected errors: ${report.issues.filter { it.severity == Severity.ERROR }}")
+        assertEquals(
+            0L,
+            report.errorCount,
+            "unexpected errors: ${report.issues.filter { it.severity == Severity.ERROR }}",
+        )
     }
 
     @Test

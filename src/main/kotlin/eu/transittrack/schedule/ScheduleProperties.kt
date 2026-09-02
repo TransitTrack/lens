@@ -1,4 +1,4 @@
-package eu.transittrack.schedule.config
+package eu.transittrack.schedule
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

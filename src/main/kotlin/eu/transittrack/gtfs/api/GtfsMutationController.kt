@@ -1,5 +1,9 @@
 package eu.transittrack.gtfs.api
 
+import org.springframework.graphql.data.method.annotation.Argument
+import org.springframework.graphql.data.method.annotation.MutationMapping
+import org.springframework.stereotype.Controller
+
 import eu.transittrack.gtfs.api.dto.GtfsFeedDto
 import eu.transittrack.gtfs.api.dto.GtfsRevisionDto
 import eu.transittrack.gtfs.api.dto.RegisterGtfsFeedInput
@@ -11,9 +15,6 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
-import org.springframework.graphql.data.method.annotation.Argument
-import org.springframework.graphql.data.method.annotation.MutationMapping
-import org.springframework.stereotype.Controller
 
 @Controller
 class GtfsMutationController(
@@ -24,9 +25,10 @@ class GtfsMutationController(
     private val feeds: GtfsFeedRepository,
     private val mapper: GtfsDtoMapper,
 ) {
-
     @MutationMapping
-    fun registerGtfsFeed(@Argument input: RegisterGtfsFeedInput): GtfsFeedDto =
+    fun registerGtfsFeed(
+        @Argument input: RegisterGtfsFeedInput,
+    ): GtfsFeedDto =
         mapper.toDto(
             feedService.register(
                 FeedInput(
@@ -42,7 +44,10 @@ class GtfsMutationController(
         )
 
     @MutationMapping
-    fun updateGtfsFeed(@Argument code: String, @Argument input: UpdateGtfsFeedInput): GtfsFeedDto =
+    fun updateGtfsFeed(
+        @Argument code: String,
+        @Argument input: UpdateGtfsFeedInput,
+    ): GtfsFeedDto =
         mapper.toDto(
             feedService.update(
                 code,
@@ -59,21 +64,28 @@ class GtfsMutationController(
         )
 
     @MutationMapping
-    fun deleteGtfsFeed(@Argument code: String): Boolean = feedService.delete(code)
+    fun deleteGtfsFeed(
+        @Argument code: String,
+    ): Boolean = feedService.delete(code)
 
     @MutationMapping
-    fun ingestFeed(@Argument feedCode: String): GtfsRevisionDto =
-        mapper.toDto(ingestion.ingest(feedCode), feedCode)
+    fun ingestFeed(
+        @Argument feedCode: String,
+    ): GtfsRevisionDto = mapper.toDto(ingestion.ingest(feedCode), feedCode)
 
     @MutationMapping
-    fun activateRevision(@Argument revisionId: String): GtfsRevisionDto {
+    fun activateRevision(
+        @Argument revisionId: String,
+    ): GtfsRevisionDto {
         val revision = revisionService.activate(revisionId.toLong())
         val code = feeds.findById(revision.feedId).map { it.code }.orElse("")
         return mapper.toDto(revision, code)
     }
 
     @MutationMapping
-    fun deleteRevision(@Argument revisionId: String): Boolean {
+    fun deleteRevision(
+        @Argument revisionId: String,
+    ): Boolean {
         val revision = revisions.findById(revisionId.toLong()).orElse(null) ?: return false
         check(revision.status != GtfsRevisionStatus.ACTIVE) { "cannot delete the ACTIVE revision" }
         revisionService.deleteWithRows(revision.id!!)

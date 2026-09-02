@@ -1,6 +1,12 @@
 package eu.transittrack.schedule.derive
 
-data class RawStopTime(val stopPathIndex: Int, val arrivalSec: Int?, val departureSec: Int?)
+import kotlin.math.roundToInt
+
+data class RawStopTime(
+    val stopPathIndex: Int,
+    val arrivalSec: Int?,
+    val departureSec: Int?,
+)
 
 data class ResolvedScheduleTime(
     val stopPathIndex: Int,
@@ -12,13 +18,15 @@ data class ResolvedScheduleTime(
 )
 
 /**
- * Turns the partial arrival/departure times GTFS provides (only some stops are
- * timed; first and last always are) into a dense per-stop schedule. Missing
- * times are linearly interpolated along cumulative distance between the nearest
- * enclosing timed stops.
+ * Turns the partial arrival/departure times GTFS provides (only some stops are timed; first and
+ * last always are) into a dense per-stop schedule. Missing times are linearly interpolated along
+ * cumulative distance between the nearest enclosing timed stops.
  */
 object ScheduleInterpolator {
-    fun resolve(raw: List<RawStopTime>, cumulativeDistM: DoubleArray): List<ResolvedScheduleTime> {
+    fun resolve(
+        raw: List<RawStopTime>,
+        cumulativeDistM: DoubleArray,
+    ): List<ResolvedScheduleTime> {
         require(raw.size == cumulativeDistM.size) { "raw and distance sizes differ" }
         require(raw.isNotEmpty()) { "raw must not be empty" }
 
@@ -27,26 +35,33 @@ object ScheduleInterpolator {
         val known = BooleanArray(raw.size)
         raw.forEachIndexed { i, r ->
             val a = r.arrivalSec ?: r.departureSec
-            if (a != null) { anchor[i] = a; known[i] = true }
+            if (a != null) {
+                anchor[i] = a
+                known[i] = true
+            }
         }
         require(known.first() && known.last()) { "first and last stop must have a time" }
 
         // Fill unknown anchors by interpolation between surrounding known indices.
         var i = 0
         while (i < raw.size) {
-            if (known[i]) { i++; continue }
-            var lo = i - 1
+            if (known[i]) {
+                i++
+                continue
+            }
+            val lo = i - 1
             var hi = i
             while (!known[hi]) hi++
             val span = cumulativeDistM[hi] - cumulativeDistM[lo]
             val timeSpan = anchor[hi] - anchor[lo]
             for (k in i until hi) {
-                val frac = if (span > 0.0) {
-                    (cumulativeDistM[k] - cumulativeDistM[lo]) / span
-                } else {
-                    (k - lo).toDouble() / (hi - lo)
-                }
-                anchor[k] = anchor[lo] + Math.round(timeSpan * frac).toInt()
+                val frac =
+                    if (span > 0.0) {
+                        (cumulativeDistM[k] - cumulativeDistM[lo]) / span
+                    } else {
+                        (k - lo).toDouble() / (hi - lo)
+                    }
+                anchor[k] = anchor[lo] + (timeSpan * frac).roundToInt()
                 known[k] = true
             }
             i = hi + 1

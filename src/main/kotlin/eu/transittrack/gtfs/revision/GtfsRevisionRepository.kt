@@ -7,7 +7,10 @@ import org.springframework.stereotype.Repository
 @Repository
 interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
     @Query("select r from GtfsRevision r where r.feedId = :feedId and r.status = :status")
-    fun findByFeedAndStatus(feedId: Long, status: GtfsRevisionStatus): GtfsRevision?
+    fun findByFeedAndStatus(
+        feedId: Long,
+        status: GtfsRevisionStatus,
+    ): GtfsRevision?
 
     @Query("select r from GtfsRevision r where r.feedId = :feedId order by r.createdAt desc")
     fun findByFeedNewestFirst(feedId: Long): List<GtfsRevision>
@@ -16,5 +19,8 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
         "select case when count(r) > 0 then true else false end " +
             "from GtfsRevision r where r.feedId = :feedId and r.status in :statuses",
     )
-    fun existsByFeedAndStatusIn(feedId: Long, statuses: Collection<GtfsRevisionStatus>): Boolean
+    fun existsByFeedAndStatusIn(
+        feedId: Long,
+        statuses: Collection<GtfsRevisionStatus>,
+    ): Boolean
 }

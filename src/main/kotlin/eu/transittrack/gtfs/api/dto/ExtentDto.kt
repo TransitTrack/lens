@@ -11,7 +11,10 @@ data class ExtentDto(
     companion object {
         /** `null` when the extent was never populated (all-NaN). */
         fun of(e: Extent?): ExtentDto? =
-            if (e == null || e.isEmpty) null
-            else ExtentDto(e.minLat, e.minLon, e.maxLat, e.maxLon)
+            if (e == null || e.isEmpty) {
+                null
+            } else {
+                ExtentDto(e.minLat, e.minLon, e.maxLat, e.maxLon)
+            }
     }
 }

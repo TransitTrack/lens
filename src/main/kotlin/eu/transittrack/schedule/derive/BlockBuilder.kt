@@ -31,23 +31,25 @@ data class BlockResult(
 /** Reconstructs a vehicle's ordered run of trips for one (blockId, serviceId). */
 object BlockBuilder {
     /**
-     * Precondition: the caller must have filtered out trips with a blank/absent
-     * `block_id` (and frequency-based trips, whose start times are 0-based offsets and
-     * would sort to the front of every block).
+     * Precondition: the caller must have filtered out trips with a blank/absent `block_id` (and
+     * frequency-based trips, whose start times are 0-based offsets and would sort to the front of
+     * every block).
      */
     fun build(trips: List<BlockTripInput>): List<BlockResult> =
-        trips.groupBy { it.blockId to it.serviceId }
+        trips
+            .groupBy { it.blockId to it.serviceId }
             .map { (key, group) ->
                 val ordered = group.sortedWith(compareBy({ it.startTimeSec }, { it.schedTripId }))
-                val updates = ordered.mapIndexed { i, t ->
-                    val next = ordered.getOrNull(i + 1)
-                    BlockTripUpdate(
-                        schedTripId = t.schedTripId,
-                        listIndex = i,
-                        layoverAfterSec = next?.let { it.startTimeSec - t.endTimeSec },
-                        deadheadAfter = next?.let { it.firstStopId != t.lastStopId },
-                    )
-                }
+                val updates =
+                    ordered.mapIndexed { i, t ->
+                        val next = ordered.getOrNull(i + 1)
+                        BlockTripUpdate(
+                            schedTripId = t.schedTripId,
+                            listIndex = i,
+                            layoverAfterSec = next?.let { it.startTimeSec - t.endTimeSec },
+                            deadheadAfter = next?.let { it.firstStopId != t.lastStopId },
+                        )
+                    }
                 BlockResult(
                     blockId = key.first,
                     serviceId = key.second,

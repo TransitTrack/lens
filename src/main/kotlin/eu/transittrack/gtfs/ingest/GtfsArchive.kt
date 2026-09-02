@@ -1,14 +1,17 @@
 package eu.transittrack.gtfs.ingest
 
-import eu.transittrack.gtfs.parse.GtfsParseException
 import java.io.InputStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipInputStream
 
-object GtfsArchive {
+import eu.transittrack.gtfs.parse.GtfsParseException
 
-    fun extract(zip: Path, destDir: Path): List<String> {
+object GtfsArchive {
+    fun extract(
+        zip: Path,
+        destDir: Path,
+    ): List<String> {
         Files.createDirectories(destDir)
         val normalizedDest = destDir.normalize()
         val extracted = mutableListOf<String>()
@@ -34,7 +37,10 @@ object GtfsArchive {
         return extracted
     }
 
-    fun openFile(destDir: Path, name: String): InputStream? {
+    fun openFile(
+        destDir: Path,
+        name: String,
+    ): InputStream? {
         val path = destDir.resolve(name)
         return if (Files.exists(path)) Files.newInputStream(path) else null
     }

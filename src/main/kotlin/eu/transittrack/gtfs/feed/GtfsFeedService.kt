@@ -1,12 +1,21 @@
 package eu.transittrack.gtfs.feed
 
 import java.time.Instant
+
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-class FeedConflictException(msg: String) : RuntimeException(msg)
-class FeedProtectedException(msg: String) : RuntimeException(msg)
-class FeedNotFoundException(code: String) : RuntimeException("no feed '$code'")
+class FeedConflictException(
+    msg: String,
+) : RuntimeException(msg)
+
+class FeedProtectedException(
+    msg: String,
+) : RuntimeException(msg)
+
+class FeedNotFoundException(
+    code: String,
+) : RuntimeException("no feed '$code'")
 
 data class FeedInput(
     val code: String,
@@ -19,8 +28,9 @@ data class FeedInput(
 )
 
 @Service
-class GtfsFeedService(private val repo: GtfsFeedRepository) {
-
+class GtfsFeedService(
+    private val repo: GtfsFeedRepository,
+) {
     @Transactional
     fun register(input: FeedInput): GtfsFeed {
         if (repo.findByCode(input.code) != null) {
@@ -44,7 +54,10 @@ class GtfsFeedService(private val repo: GtfsFeedRepository) {
     }
 
     @Transactional
-    fun update(code: String, input: FeedInput): GtfsFeed {
+    fun update(
+        code: String,
+        input: FeedInput,
+    ): GtfsFeed {
         val feed = repo.findByCode(code) ?: throw FeedNotFoundException(code)
         if (feed.source == FeedSource.CONFIG) {
             throw FeedProtectedException("feed '$code' is config-managed")

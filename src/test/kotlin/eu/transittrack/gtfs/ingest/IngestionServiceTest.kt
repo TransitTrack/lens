@@ -1,6 +1,22 @@
 package eu.transittrack.gtfs.ingest
 
-import eu.transittrack.gtfs.config.GtfsProperties
+import java.time.Instant
+import java.time.LocalDate
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
+
+import org.junit.jupiter.api.AfterEach
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Import
+import org.springframework.core.task.SyncTaskExecutor
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
+
+import eu.transittrack.gtfs.GtfsProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -18,31 +34,19 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.derive.ScheduleWriter
-import java.time.Instant
-import java.time.LocalDate
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
-import org.junit.jupiter.api.AfterEach
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.context.annotation.Import
-import org.springframework.core.task.SyncTaskExecutor
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
 
 /**
- * [RevisionWriter] and the pieces of [RevisionService] it calls commit on their own
- * connections, so — like [eu.transittrack.gtfs.revision.RevisionServiceTest] — this
- * must NOT run inside the `@DataJpaTest` rollback transaction. Hence `NOT_SUPPORTED`
- * plus explicit `@AfterEach` cleanup.
+ * [RevisionWriter] and the pieces of [RevisionService] it calls commit on their own connections, so — like [eu.transittrack.gtfs.revision.RevisionServiceTest] — this must NOT run inside the `@DataJpaTest` rollback transaction. Hence `NOT_SUPPORTED` plus
+ * explicit `@AfterEach` cleanup.
  */
 @PostgresSliceTest
 @EnableConfigurationProperties(GtfsProperties::class)
-@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class,
-    ScheduleWriter::class)
+@Import(
+    StatelessSessionRevisionWriter::class,
+    RevisionService::class,
+    GtfsFeedService::class,
+    ScheduleWriter::class,
+)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class IngestionServiceTest(
     @Autowired val feeds: GtfsFeedRepository,
@@ -61,23 +65,40 @@ class IngestionServiceTest(
     private val validator = GtfsFeedLoader()
 
     private fun feed(): GtfsFeed {
-        val f = feeds.save(
-            GtfsFeed(
-                "f", "F", null, "http://x/g.zip", null, true, true,
-                FeedSource.API, Instant.now(), Instant.now(),
-            ),
-        )
+        val f =
+            feeds.save(
+                GtfsFeed(
+                    "f",
+                    "F",
+                    null,
+                    "http://x/g.zip",
+                    null,
+                    true,
+                    true,
+                    FeedSource.API,
+                    Instant.now(),
+                    Instant.now(),
+                ),
+            )
         createdFeeds += f.id!!
         return f
     }
 
-    private fun service(fixture: String) = IngestionService(
-        FixtureDownloader(fixture), revisionService, writer, feeds, feedService, props, shapes, validator,
-        SyncTaskExecutor(),
-        org.mockito.kotlin.mock<eu.transittrack.schedule.derive.ScheduleDerivationService>(),
-        eu.transittrack.schedule.config.ScheduleProperties(enabled = false),
-        scheduleWriter,
-    )
+    private fun service(fixture: String) =
+        IngestionService(
+            FixtureDownloader(fixture),
+            revisionService,
+            writer,
+            feeds,
+            feedService,
+            props,
+            shapes,
+            validator,
+            SyncTaskExecutor(),
+            org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
+            eu.transittrack.gtfs.support
+                .postProcessors(),
+        )
 
     @AfterEach
     fun cleanup() {
@@ -112,7 +133,7 @@ class IngestionServiceTest(
 
         val loaded = revisions.findById(rev.id!!).get()
         assertEquals(GtfsRevisionStatus.FAILED, loaded.status)
-        assertTrue(loaded.errorMessage!!.contains("stop_times.txt"))
+        assertTrue(loaded.errorMessage!!.contains("1 error"))
         assertEquals(0, routes.findByRevisionId(rev.id!!).size)
     }
 
@@ -156,14 +177,21 @@ class IngestionServiceTest(
     @Test
     fun `strict mode fails on referential errors`() {
         feed()
-        val strict = IngestionService(
-            FixtureDownloader("dangling-refs"), revisionService, writer, feeds, feedService,
-            GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)),
-            shapes, validator, SyncTaskExecutor(),
-            org.mockito.kotlin.mock<eu.transittrack.schedule.derive.ScheduleDerivationService>(),
-            eu.transittrack.schedule.config.ScheduleProperties(enabled = false),
-            scheduleWriter,
-        )
+        val strict =
+            IngestionService(
+                FixtureDownloader("dangling-refs"),
+                revisionService,
+                writer,
+                feeds,
+                feedService,
+                GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)),
+                shapes,
+                validator,
+                SyncTaskExecutor(),
+                org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
+                eu.transittrack.gtfs.support
+                    .postProcessors(),
+            )
         val rev = strict.ingestBlocking("f")
 
         assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)

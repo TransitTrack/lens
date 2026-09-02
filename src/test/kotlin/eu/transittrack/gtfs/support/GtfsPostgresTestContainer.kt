@@ -8,9 +8,6 @@ import org.testcontainers.utility.DockerImageName
 
 @TestConfiguration(proxyBeanMethods = false)
 class GtfsPostgresTestContainer {
-
-    @Bean
-    @ServiceConnection
-    fun gtfsPostgres(): PostgreSQLContainer =
-        PostgreSQLContainer(DockerImageName.parse("postgres:18-alpine"))
+    @Bean @ServiceConnection
+    fun gtfsPostgres(): PostgreSQLContainer = PostgreSQLContainer(DockerImageName.parse("postgres:18-alpine"))
 }

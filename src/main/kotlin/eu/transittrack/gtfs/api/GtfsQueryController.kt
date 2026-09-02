@@ -1,40 +1,52 @@
 package eu.transittrack.gtfs.api
 
-import eu.transittrack.gtfs.read.GtfsReadService
-import eu.transittrack.gtfs.read.GtfsRecordsService
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.gtfs.read.GtfsReadService
+import eu.transittrack.gtfs.read.GtfsRecordsService
+
 /**
- * GraphQL query entry points for a revision's core GTFS entities. Thin delegation
- * to [GtfsReadService]; revision resolution and mapping live there.
+ * GraphQL query entry points for a revision's core GTFS entities. Thin delegation to
+ * [GtfsReadService]; revision resolution and mapping live there.
  */
 @Controller
 class GtfsQueryController(
     private val read: GtfsReadService,
     private val recordsService: GtfsRecordsService,
 ) {
+    @QueryMapping
+    fun gtfsAgencies(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.agencies(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsAgencies(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.agencies(feedCode, revisionId)
+    fun gtfsRoutes(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.routes(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsRoutes(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.routes(feedCode, revisionId)
+    fun gtfsRoute(
+        @Argument feedCode: String,
+        @Argument routeId: String,
+        @Argument revisionId: String?,
+    ) = read.route(feedCode, routeId, revisionId)
 
     @QueryMapping
-    fun gtfsRoute(@Argument feedCode: String, @Argument routeId: String, @Argument revisionId: String?) =
-        read.route(feedCode, routeId, revisionId)
+    fun gtfsStops(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.stops(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsStops(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.stops(feedCode, revisionId)
-
-    @QueryMapping
-    fun gtfsStop(@Argument feedCode: String, @Argument stopId: String, @Argument revisionId: String?) =
-        read.stop(feedCode, stopId, revisionId)
+    fun gtfsStop(
+        @Argument feedCode: String,
+        @Argument stopId: String,
+        @Argument revisionId: String?,
+    ) = read.stop(feedCode, stopId, revisionId)
 
     @QueryMapping
     fun gtfsTrips(
@@ -45,16 +57,24 @@ class GtfsQueryController(
     ) = read.trips(feedCode, routeId, serviceId, revisionId)
 
     @QueryMapping
-    fun gtfsTrip(@Argument feedCode: String, @Argument tripId: String, @Argument revisionId: String?) =
-        read.trip(feedCode, tripId, revisionId)
+    fun gtfsTrip(
+        @Argument feedCode: String,
+        @Argument tripId: String,
+        @Argument revisionId: String?,
+    ) = read.trip(feedCode, tripId, revisionId)
 
     @QueryMapping
-    fun gtfsStopTimes(@Argument feedCode: String, @Argument tripId: String, @Argument revisionId: String?) =
-        read.stopTimes(feedCode, tripId, revisionId)
+    fun gtfsStopTimes(
+        @Argument feedCode: String,
+        @Argument tripId: String,
+        @Argument revisionId: String?,
+    ) = read.stopTimes(feedCode, tripId, revisionId)
 
     @QueryMapping
-    fun gtfsCalendars(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.calendars(feedCode, revisionId)
+    fun gtfsCalendars(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.calendars(feedCode, revisionId)
 
     @QueryMapping
     fun gtfsCalendarDates(
@@ -64,28 +84,42 @@ class GtfsQueryController(
     ) = read.calendarDates(feedCode, serviceId, revisionId)
 
     @QueryMapping
-    fun gtfsShape(@Argument feedCode: String, @Argument shapeId: String, @Argument revisionId: String?) =
-        read.shape(feedCode, shapeId, revisionId)
+    fun gtfsShape(
+        @Argument feedCode: String,
+        @Argument shapeId: String,
+        @Argument revisionId: String?,
+    ) = read.shape(feedCode, shapeId, revisionId)
 
     @QueryMapping
-    fun gtfsFrequencies(@Argument feedCode: String, @Argument tripId: String?, @Argument revisionId: String?) =
-        read.frequencies(feedCode, tripId, revisionId)
+    fun gtfsFrequencies(
+        @Argument feedCode: String,
+        @Argument tripId: String?,
+        @Argument revisionId: String?,
+    ) = read.frequencies(feedCode, tripId, revisionId)
 
     @QueryMapping
-    fun gtfsTransfers(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.transfers(feedCode, revisionId)
+    fun gtfsTransfers(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.transfers(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsFeedInfo(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.feedInfo(feedCode, revisionId)
+    fun gtfsFeedInfo(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.feedInfo(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsPathways(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.pathways(feedCode, revisionId)
+    fun gtfsPathways(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.pathways(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsLevels(@Argument feedCode: String, @Argument revisionId: String?) =
-        read.levels(feedCode, revisionId)
+    fun gtfsLevels(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = read.levels(feedCode, revisionId)
 
     @QueryMapping
     fun gtfsRecords(

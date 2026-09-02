@@ -1,20 +1,21 @@
 package eu.transittrack.schedule.model
 
-import eu.transittrack.Extent
-import eu.transittrack.gtfs.model.RevisionScoped
 import jakarta.persistence.Column
 import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 
-/**
- * Derived transit model (TransitClock-style) for one GTFS revision. Every row
- * carries the `revision_id` it was derived under; tables cascade-delete with
- * `gtfs_revision`. Clock fields are seconds into the service day.
- */
+import eu.transittrack.Extent
+import eu.transittrack.gtfs.model.RevisionScoped
 
+/**
+ * Derived transit model (TransitClock-style) for one GTFS revision. Every row carries the
+ * `revision_id` it was derived under; tables cascade-delete with `gtfs_revision`. Clock fields are
+ * seconds into the service day.
+ */
 @Entity
 @Table(name = "trip_patterns")
 class TripPattern(

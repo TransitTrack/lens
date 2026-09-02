@@ -11,11 +11,23 @@ fun toRadians(deg: Double): Double = deg / 180.0 * PI
 fun toDegrees(rad: Double): Double = rad * 180.0 / PI
 
 /** Great-circle distance between two WGS-84 points, in metres. */
-fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+fun haversineMeters(
+    lat1: Double,
+    lon1: Double,
+    lat2: Double,
+    lon2: Double,
+): Double {
     val r = 6_371_000.0
     val dLat = toRadians(lat2 - lat1)
     val dLon = toRadians(lon2 - lon1)
-    val a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(toRadians(lat1)) * cos(toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
+    val a = sin(dLat / 2) * sin(dLat / 2) + cos(toRadians(lat1)) * cos(toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
     return r * 2 * atan2(sqrt(a), sqrt(1 - a))
+}
+
+fun median(values: List<Int>): Int? {
+    if (values.isEmpty()) {
+        return null
+    }
+    val s = values.sorted()
+    return if (s.size % 2 == 1) s[s.size / 2] else ((s[s.size / 2 - 1] + s[s.size / 2]) / 2)
 }

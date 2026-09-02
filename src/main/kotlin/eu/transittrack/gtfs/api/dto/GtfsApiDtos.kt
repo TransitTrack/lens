@@ -31,7 +31,10 @@ data class GtfsRevisionDto(
     val errorMessage: String?,
 )
 
-data class GtfsValidationSummaryDto(val errorCount: Long, val warningCount: Long)
+data class GtfsValidationSummaryDto(
+    val errorCount: Long,
+    val warningCount: Long,
+)
 
 data class RegisterGtfsFeedInput(
     val code: String,

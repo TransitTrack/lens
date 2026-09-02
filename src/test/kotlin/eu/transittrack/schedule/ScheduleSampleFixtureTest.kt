@@ -1,9 +1,10 @@
 package eu.transittrack.schedule
 
-import eu.transittrack.gtfs.support.FixtureDownloader
 import kotlin.io.path.createTempFile
 import kotlin.test.Test
 import kotlin.test.assertTrue
+
+import eu.transittrack.gtfs.support.FixtureDownloader
 
 class ScheduleSampleFixtureTest {
     @Test

@@ -37,6 +37,8 @@ transittrack:
       enabled: true
       sweep-cron: "0 */15 * * * *"
     prune-config-feeds: false
+    title-sanitizing:
+      enabled: false
     feeds:
       - code: stpt
         name: Societatea de transport public Timisoara

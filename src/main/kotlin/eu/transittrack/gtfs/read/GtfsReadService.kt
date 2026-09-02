@@ -1,5 +1,7 @@
 package eu.transittrack.gtfs.read
 
+import org.springframework.stereotype.Service
+
 import eu.transittrack.gtfs.api.dto.AgencyDto
 import eu.transittrack.gtfs.api.dto.CalendarDateDto
 import eu.transittrack.gtfs.api.dto.CalendarDto
@@ -27,13 +29,12 @@ import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TransferRepository
 import eu.transittrack.gtfs.model.TripRepository
-import org.springframework.stereotype.Service
 
 /**
- * Read-side facade for a revision's core GTFS entities: one method per GraphQL
- * query. Each resolves `(feedCode, revisionId?)` to a concrete revision id via
- * [RevisionResolver], hits the matching repository and maps rows to DTOs (which
- * carry `revisionId` + `feedCode` for downstream field resolvers).
+ * Read-side facade for a revision's core GTFS entities: one method per GraphQL query. Each resolves
+ * `(feedCode, revisionId?)` to a concrete revision id via [RevisionResolver], hits the matching
+ * repository and maps rows to DTOs (which carry `revisionId` + `feedCode` for downstream field
+ * resolvers).
  */
 @Service
 class GtfsReadService(
@@ -53,32 +54,64 @@ class GtfsReadService(
     private val pathways: PathwayRepository,
     private val levels: LevelRepository,
 ) {
-    fun agencies(feedCode: String, revisionId: String?): List<AgencyDto> {
+    fun agencies(
+        feedCode: String,
+        revisionId: String?,
+    ): List<AgencyDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return agencies.findByRevisionId(rev).map { AgencyDto.of(it, rev, feedCode) }
+        return agencies
+            .findByRevisionId(rev)
+            .map { AgencyDto.of(it, rev, feedCode) }
     }
 
-    fun routes(feedCode: String, revisionId: String?): List<RouteDto> {
+    fun routes(
+        feedCode: String,
+        revisionId: String?,
+    ): List<RouteDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return routes.findByRevisionId(rev).map { RouteDto.of(it, rev, feedCode) }
+        return routes
+            .findByRevisionId(rev)
+            .map { RouteDto.of(it, rev, feedCode) }
     }
 
-    fun route(feedCode: String, routeId: String, revisionId: String?): RouteDto? {
+    fun route(
+        feedCode: String,
+        routeId: String,
+        revisionId: String?,
+    ): RouteDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return routes.findByRouteId(rev, routeId)?.let { RouteDto.of(it, rev, feedCode) }
+        return routes
+            .findByRouteId(rev, routeId)
+            ?.let { RouteDto.of(it, rev, feedCode) }
     }
 
-    fun stops(feedCode: String, revisionId: String?): List<StopDto> {
+    fun stops(
+        feedCode: String,
+        revisionId: String?,
+    ): List<StopDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stops.findByRevisionId(rev).map { StopDto.of(it, rev, feedCode) }
+        return stops
+            .findByRevisionId(rev)
+            .map { StopDto.of(it, rev, feedCode) }
     }
 
-    fun stop(feedCode: String, stopId: String, revisionId: String?): StopDto? {
+    fun stop(
+        feedCode: String,
+        stopId: String,
+        revisionId: String?,
+    ): StopDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stops.findByStopId(rev, stopId)?.let { StopDto.of(it, rev, feedCode) }
+        return stops
+            .findByStopId(rev, stopId)
+            ?.let { StopDto.of(it, rev, feedCode) }
     }
 
-    fun trips(feedCode: String, routeId: String?, serviceId: String?, revisionId: String?): List<TripDto> {
+    fun trips(
+        feedCode: String,
+        routeId: String?,
+        serviceId: String?,
+        revisionId: String?,
+    ): List<TripDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val list = when {
             routeId != null -> trips.findByRouteId(rev, routeId)
@@ -88,59 +121,101 @@ class GtfsReadService(
         return list.map { TripDto.of(it, rev, feedCode) }
     }
 
-    fun trip(feedCode: String, tripId: String, revisionId: String?): TripDto? {
+    fun trip(
+        feedCode: String,
+        tripId: String,
+        revisionId: String?,
+    ): TripDto? {
         val rev = resolver.resolve(feedCode, revisionId)
         return trips.findByTripId(rev, tripId)?.let { TripDto.of(it, rev, feedCode) }
     }
 
-    fun stopTimes(feedCode: String, tripId: String, revisionId: String?): List<StopTimeDto> {
+    fun stopTimes(
+        feedCode: String,
+        tripId: String,
+        revisionId: String?,
+    ): List<StopTimeDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stopTimes.findByTripId(rev, tripId)
-            .map { StopTimeDto.of(it, rev, feedCode) }
+        return stopTimes.findByTripId(rev, tripId).map { StopTimeDto.of(it, rev, feedCode) }
     }
 
-    fun calendars(feedCode: String, revisionId: String?): List<CalendarDto> {
+    fun calendars(
+        feedCode: String,
+        revisionId: String?,
+    ): List<CalendarDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         return calendars.findByRevisionId(rev).map { CalendarDto.of(it, rev, feedCode) }
     }
 
-    fun calendarDates(feedCode: String, serviceId: String?, revisionId: String?): List<CalendarDateDto> {
+    fun calendarDates(
+        feedCode: String,
+        serviceId: String?,
+        revisionId: String?,
+    ): List<CalendarDateDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        val list = if (serviceId != null) calendarDates.findByServiceId(rev, serviceId)
-        else calendarDates.findByRevisionId(rev)
+        val list =
+            if (serviceId != null) {
+                calendarDates.findByServiceId(rev, serviceId)
+            } else {
+                calendarDates.findByRevisionId(rev)
+            }
         return list.map { CalendarDateDto.of(it, rev, feedCode) }
     }
 
-    fun shape(feedCode: String, shapeId: String, revisionId: String?): ShapeDto? {
+    fun shape(
+        feedCode: String,
+        shapeId: String,
+        revisionId: String?,
+    ): ShapeDto? {
         val rev = resolver.resolve(feedCode, revisionId)
         val shape = shapes.findByShapeId(rev, shapeId) ?: return null
         val pts = shapePoints.findByShapeId(rev, shapeId)
         return ShapeDto.of(shape, pts, rev, feedCode)
     }
 
-    fun frequencies(feedCode: String, tripId: String?, revisionId: String?): List<FrequencyDto> {
+    fun frequencies(
+        feedCode: String,
+        tripId: String?,
+        revisionId: String?,
+    ): List<FrequencyDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        val list = if (tripId != null) frequencies.findByTripId(rev, tripId)
-        else frequencies.findByRevisionId(rev)
+        val list =
+            if (tripId != null) {
+                frequencies.findByTripId(rev, tripId)
+            } else {
+                frequencies.findByRevisionId(rev)
+            }
         return list.map { FrequencyDto.of(it, rev, feedCode) }
     }
 
-    fun transfers(feedCode: String, revisionId: String?): List<TransferDto> {
+    fun transfers(
+        feedCode: String,
+        revisionId: String?,
+    ): List<TransferDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         return transfers.findByRevisionId(rev).map { TransferDto.of(it, rev, feedCode) }
     }
 
-    fun feedInfo(feedCode: String, revisionId: String?): FeedInfoDto? {
+    fun feedInfo(
+        feedCode: String,
+        revisionId: String?,
+    ): FeedInfoDto? {
         val rev = resolver.resolve(feedCode, revisionId)
         return feedInfos.findByRevisionId(rev)?.let { FeedInfoDto.of(it, rev, feedCode) }
     }
 
-    fun pathways(feedCode: String, revisionId: String?): List<PathwayDto> {
+    fun pathways(
+        feedCode: String,
+        revisionId: String?,
+    ): List<PathwayDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         return pathways.findByRevisionId(rev).map { PathwayDto.of(it, rev, feedCode) }
     }
 
-    fun levels(feedCode: String, revisionId: String?): List<LevelDto> {
+    fun levels(
+        feedCode: String,
+        revisionId: String?,
+    ): List<LevelDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         return levels.findByRevisionId(rev).map { LevelDto.of(it, rev, feedCode) }
     }

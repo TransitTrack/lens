@@ -18,17 +18,15 @@ import eu.transittrack.gtfs.model.Trip
 /**
  * GraphQL projections of the core / shape / accessibility / misc GTFS entities.
  *
- * Every DTO carries `revisionId` + `feedCode` from the start (factory
- * `of(entity, revisionId, feedCode)`); these two fields are intentionally absent
- * from the schema types (Spring GraphQL ignores extra DTO properties) and exist so
- * Task 23's `@SchemaMapping` field resolvers can chain without DTO churn.
+ * Every DTO carries `revisionId` + `feedCode` from the start (factory `of(entity, revisionId, feedCode)`); these two fields are intentionally absent from the schema types (Spring GraphQL ignores extra DTO properties) and exist so Task 23's `@SchemaMapping`
+ * field resolvers can chain without DTO churn.
  *
- * GTFS clock times are stored as seconds-of-day (which may exceed 24h). They are
- * exposed both as an `Int` (`*Seconds`) and as an `HH:MM:SS` string via
- * [secondsToHms]; dates are rendered with `LocalDate.toString()` (ISO-8601).
+ * GTFS clock times are stored as seconds-of-day (which may exceed 24h). They are exposed both as an `Int` (`*Seconds`) and as an `HH:MM:SS` string via [secondsToHms]; dates are rendered with `LocalDate.toString()` (ISO-8601).
  */
 internal fun secondsToHms(s: Int?): String? =
-    s?.let { "%02d:%02d:%02d".format(it / 3600, (it % 3600) / 60, it % 60) }
+    s?.let {
+        "%02d:%02d:%02d".format(it / 3600, (it % 3600) / 60, it % 60)
+    }
 
 data class AgencyDto(
     val revisionId: Long,
@@ -44,8 +42,13 @@ data class AgencyDto(
     val extent: ExtentDto? = null,
 ) {
     companion object {
-        fun of(e: Agency, revisionId: Long, feedCode: String) = AgencyDto(
-            revisionId, feedCode,
+        fun of(
+            e: Agency,
+            revisionId: Long,
+            feedCode: String,
+        ) = AgencyDto(
+            revisionId,
+            feedCode,
             e.agencyId,
             e.agencyName,
             e.agencyUrl,
@@ -76,10 +79,24 @@ data class RouteDto(
     val extent: ExtentDto? = null,
 ) {
     companion object {
-        fun of(e: Route, revisionId: Long, feedCode: String) = RouteDto(
-            revisionId, feedCode,
-            e.routeId, e.agencyId, e.routeShortName, e.routeLongName, e.routeDesc,
-            e.routeType, e.routeUrl, e.routeColor, e.routeTextColor, e.routeSortOrder, e.networkId,
+        fun of(
+            e: Route,
+            revisionId: Long,
+            feedCode: String,
+        ) = RouteDto(
+            revisionId,
+            feedCode,
+            e.routeId,
+            e.agencyId,
+            e.routeShortName,
+            e.routeLongName,
+            e.routeDesc,
+            e.routeType,
+            e.routeUrl,
+            e.routeColor,
+            e.routeTextColor,
+            e.routeSortOrder,
+            e.networkId,
             ExtentDto.of(e.extent),
         )
     }
@@ -102,10 +119,25 @@ data class StopDto(
     val platformCode: String?,
 ) {
     companion object {
-        fun of(e: Stop, revisionId: Long, feedCode: String) = StopDto(
-            revisionId, feedCode,
-            e.stopId, e.stopCode, e.stopName, e.stopDesc, e.stopLat, e.stopLon, e.zoneId,
-            e.locationType, e.parentStation, e.wheelchairBoarding, e.levelId, e.platformCode,
+        fun of(
+            e: Stop,
+            revisionId: Long,
+            feedCode: String,
+        ) = StopDto(
+            revisionId,
+            feedCode,
+            e.stopId,
+            e.stopCode,
+            e.stopName,
+            e.stopDesc,
+            e.stopLat,
+            e.stopLon,
+            e.zoneId,
+            e.locationType,
+            e.parentStation,
+            e.wheelchairBoarding,
+            e.levelId,
+            e.platformCode,
         )
     }
 }
@@ -126,10 +158,23 @@ data class TripDto(
     val tripPatternId: Long?,
 ) {
     companion object {
-        fun of(e: Trip, revisionId: Long, feedCode: String) = TripDto(
-            revisionId, feedCode,
-            e.tripId, e.routeId, e.serviceId, e.tripHeadsign, e.tripShortName,
-            e.directionId, e.blockId, e.shapeId, e.wheelchairAccessible, e.bikesAllowed,
+        fun of(
+            e: Trip,
+            revisionId: Long,
+            feedCode: String,
+        ) = TripDto(
+            revisionId,
+            feedCode,
+            e.tripId,
+            e.routeId,
+            e.serviceId,
+            e.tripHeadsign,
+            e.tripShortName,
+            e.directionId,
+            e.blockId,
+            e.shapeId,
+            e.wheelchairAccessible,
+            e.bikesAllowed,
             e.tripPatternId,
         )
     }
@@ -152,12 +197,25 @@ data class StopTimeDto(
     val timepoint: Int?,
 ) {
     companion object {
-        fun of(e: StopTime, revisionId: Long, feedCode: String) = StopTimeDto(
-            revisionId, feedCode,
-            e.tripId, e.stopSequence, e.stopId,
-            secondsToHms(e.arrivalTime), e.arrivalTime,
-            secondsToHms(e.departureTime), e.departureTime,
-            e.stopHeadsign, e.pickupType, e.dropOffType, e.shapeDistTraveled, e.timepoint,
+        fun of(
+            e: StopTime,
+            revisionId: Long,
+            feedCode: String,
+        ) = StopTimeDto(
+            revisionId,
+            feedCode,
+            e.tripId,
+            e.stopSequence,
+            e.stopId,
+            secondsToHms(e.arrivalTime),
+            e.arrivalTime,
+            secondsToHms(e.departureTime),
+            e.departureTime,
+            e.stopHeadsign,
+            e.pickupType,
+            e.dropOffType,
+            e.shapeDistTraveled,
+            e.timepoint,
         )
     }
 }
@@ -177,10 +235,23 @@ data class CalendarDto(
     val endDate: String?,
 ) {
     companion object {
-        fun of(e: Calendar, revisionId: Long, feedCode: String) = CalendarDto(
-            revisionId, feedCode,
-            e.serviceId, e.monday, e.tuesday, e.wednesday, e.thursday, e.friday, e.saturday, e.sunday,
-            e.startDate?.toString(), e.endDate?.toString(),
+        fun of(
+            e: Calendar,
+            revisionId: Long,
+            feedCode: String,
+        ) = CalendarDto(
+            revisionId,
+            feedCode,
+            e.serviceId,
+            e.monday,
+            e.tuesday,
+            e.wednesday,
+            e.thursday,
+            e.friday,
+            e.saturday,
+            e.sunday,
+            e.startDate?.toString(),
+            e.endDate?.toString(),
         )
     }
 }
@@ -193,8 +264,16 @@ data class CalendarDateDto(
     val exceptionType: Int?,
 ) {
     companion object {
-        fun of(e: CalendarDate, revisionId: Long, feedCode: String) = CalendarDateDto(
-            revisionId, feedCode, e.serviceId, e.date.toString(), e.exceptionType,
+        fun of(
+            e: CalendarDate,
+            revisionId: Long,
+            feedCode: String,
+        ) = CalendarDateDto(
+            revisionId,
+            feedCode,
+            e.serviceId,
+            e.date.toString(),
+            e.exceptionType,
         )
     }
 }
@@ -208,8 +287,17 @@ data class ShapePointDto(
     val distTraveled: Double?,
 ) {
     companion object {
-        fun of(e: ShapePoint, revisionId: Long, feedCode: String) = ShapePointDto(
-            revisionId, feedCode, e.shapePtLat, e.shapePtLon, e.shapePtSequence, e.shapeDistTraveled,
+        fun of(
+            e: ShapePoint,
+            revisionId: Long,
+            feedCode: String,
+        ) = ShapePointDto(
+            revisionId,
+            feedCode,
+            e.shapePtLat,
+            e.shapePtLon,
+            e.shapePtSequence,
+            e.shapeDistTraveled,
         )
     }
 }
@@ -223,11 +311,19 @@ data class ShapeDto(
     val points: List<ShapePointDto>,
 ) {
     companion object {
-        fun of(shape: Shape, points: List<ShapePoint>, revisionId: Long, feedCode: String) =
-            ShapeDto(
-                revisionId, feedCode, shape.shapeId, shape.pointCount, shape.lengthM,
-                points.map { ShapePointDto.of(it, revisionId, feedCode) },
-            )
+        fun of(
+            shape: Shape,
+            points: List<ShapePoint>,
+            revisionId: Long,
+            feedCode: String,
+        ) = ShapeDto(
+            revisionId,
+            feedCode,
+            shape.shapeId,
+            shape.pointCount,
+            shape.lengthM,
+            points.map { ShapePointDto.of(it, revisionId, feedCode) },
+        )
     }
 }
 
@@ -241,9 +337,18 @@ data class FrequencyDto(
     val exactTimes: Int?,
 ) {
     companion object {
-        fun of(e: Frequency, revisionId: Long, feedCode: String) = FrequencyDto(
-            revisionId, feedCode, e.tripId,
-            secondsToHms(e.startTime)!!, secondsToHms(e.endTime), e.headwaySecs, e.exactTimes,
+        fun of(
+            e: Frequency,
+            revisionId: Long,
+            feedCode: String,
+        ) = FrequencyDto(
+            revisionId,
+            feedCode,
+            e.tripId,
+            secondsToHms(e.startTime)!!,
+            secondsToHms(e.endTime),
+            e.headwaySecs,
+            e.exactTimes,
         )
     }
 }
@@ -261,10 +366,21 @@ data class TransferDto(
     val minTransferTime: Int?,
 ) {
     companion object {
-        fun of(e: Transfer, revisionId: Long, feedCode: String) = TransferDto(
-            revisionId, feedCode,
-            e.fromStopId, e.toStopId, e.fromRouteId, e.toRouteId, e.fromTripId, e.toTripId,
-            e.transferType, e.minTransferTime,
+        fun of(
+            e: Transfer,
+            revisionId: Long,
+            feedCode: String,
+        ) = TransferDto(
+            revisionId,
+            feedCode,
+            e.fromStopId,
+            e.toStopId,
+            e.fromRouteId,
+            e.toRouteId,
+            e.fromTripId,
+            e.toTripId,
+            e.transferType,
+            e.minTransferTime,
         )
     }
 }
@@ -283,11 +399,22 @@ data class FeedInfoDto(
     val feedContactUrl: String?,
 ) {
     companion object {
-        fun of(e: FeedInfo, revisionId: Long, feedCode: String) = FeedInfoDto(
-            revisionId, feedCode,
-            e.feedPublisherName, e.feedPublisherUrl, e.feedLang, e.defaultLang,
-            e.feedStartDate?.toString(), e.feedEndDate?.toString(),
-            e.feedVersion, e.feedContactEmail, e.feedContactUrl,
+        fun of(
+            e: FeedInfo,
+            revisionId: Long,
+            feedCode: String,
+        ) = FeedInfoDto(
+            revisionId,
+            feedCode,
+            e.feedPublisherName,
+            e.feedPublisherUrl,
+            e.feedLang,
+            e.defaultLang,
+            e.feedStartDate?.toString(),
+            e.feedEndDate?.toString(),
+            e.feedVersion,
+            e.feedContactEmail,
+            e.feedContactUrl,
         )
     }
 }
@@ -309,10 +436,25 @@ data class PathwayDto(
     val reversedSignpostedAs: String?,
 ) {
     companion object {
-        fun of(e: Pathway, revisionId: Long, feedCode: String) = PathwayDto(
-            revisionId, feedCode,
-            e.pathwayId, e.fromStopId, e.toStopId, e.pathwayMode, e.isBidirectional, e.length,
-            e.traversalTime, e.stairCount, e.maxSlope, e.minWidth, e.signpostedAs, e.reversedSignpostedAs,
+        fun of(
+            e: Pathway,
+            revisionId: Long,
+            feedCode: String,
+        ) = PathwayDto(
+            revisionId,
+            feedCode,
+            e.pathwayId,
+            e.fromStopId,
+            e.toStopId,
+            e.pathwayMode,
+            e.isBidirectional,
+            e.length,
+            e.traversalTime,
+            e.stairCount,
+            e.maxSlope,
+            e.minWidth,
+            e.signpostedAs,
+            e.reversedSignpostedAs,
         )
     }
 }
@@ -325,8 +467,16 @@ data class LevelDto(
     val levelName: String?,
 ) {
     companion object {
-        fun of(e: Level, revisionId: Long, feedCode: String) = LevelDto(
-            revisionId, feedCode, e.levelId, e.levelIndex, e.levelName,
+        fun of(
+            e: Level,
+            revisionId: Long,
+            feedCode: String,
+        ) = LevelDto(
+            revisionId,
+            feedCode,
+            e.levelId,
+            e.levelIndex,
+            e.levelName,
         )
     }
 }

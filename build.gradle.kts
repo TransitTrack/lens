@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     kotlin("jvm") version "2.4.10"
     kotlin("plugin.spring") version "2.4.10"
@@ -5,23 +7,26 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "2.4.10"
     kotlin("kapt") version "2.4.10"
+    id("com.diffplug.spotless") version "8.10.1"
 }
 
 group = "eu.transittrack"
 version = "0.0.1-SNAPSHOT"
 description = "transittrack"
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
-    }
-}
-
 repositories {
     mavenCentral()
 }
 
 extra["springCloudVersion"] = "2025.1.3"
+
+dependencyManagement {
+    imports {
+        mavenBom(
+            "org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}",
+        )
+    }
+}
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
@@ -48,7 +53,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.15.0")
 
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+    // annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-cache-test")
@@ -57,7 +62,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.5.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.testcontainers:testcontainers-grafana")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
@@ -66,15 +71,49 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-dependencyManagement {
-    imports {
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
 kotlin {
     compilerOptions {
-        freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+        freeCompilerArgs.addAll(
+            "-Xjsr305=strict",
+            //            "-Xannotation-default-target=param-property"
+        )
+    }
+}
+
+spotless {
+    // Apply styling to all Java files
+    java {
+        target("src/**/*.java")
+
+        // 1. Enforce No Wildcards
+        importOrder("java", "javax", "jakarta", "", "\\#")
+        removeUnusedImports()
+
+        // 2. Format with standard eclipse or google format if desired
+        googleJavaFormat()
+    }
+
+    // Apply styling to all Kotlin files
+    kotlin {
+        target("src/**/*.kt")
+
+        // Uses ktlint rules under the hood which honors your .editorconfig layout
+        ktlint()
+
+        // Optional additions:
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+
+    kotlinGradle {
+        target("*.gradle.kts") // Target your build scripts
+        ktlint()
     }
 }
 
@@ -86,4 +125,13 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+// Automatically apply styling whenever you run a Gradle build
+tasks.withType<KotlinCompile>().configureEach {
+    dependsOn("spotlessApply")
+}
+
+tasks.withType<JavaCompile>().configureEach {
+    dependsOn("spotlessApply")
 }

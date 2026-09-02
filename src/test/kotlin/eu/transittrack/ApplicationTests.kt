@@ -1,4 +1,4 @@
-package eu.transittrack.explorer
+package eu.transittrack
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
@@ -6,10 +6,8 @@ import org.springframework.context.annotation.Import
 
 @Import(TestcontainersConfiguration::class)
 @SpringBootTest
-class TransittrackApplicationTests {
-
-	@Test
-	fun contextLoads() {
-	}
-
+class ApplicationTests {
+    @Test
+    fun contextLoads() {
+    }
 }
