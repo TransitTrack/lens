@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service
  * raw `Map` (serialized by the GraphQL `JSON` scalar).
  *
  * The table is chosen from the schema `GtfsTable` enum, whose values are the GTFS
- * *file* names (plural — `FARE_PRODUCTS`), while the physical tables are singular
- * (`gtfs_fare_product`); [TABLE_BY_ENUM] bridges the two. The resulting name is a
+ * *file* names (`FARE_PRODUCTS`); the physical tables are the pluralised, un-prefixed
+ * form (`fare_products`); [TABLE_BY_ENUM] bridges the two. The resulting name is a
  * validated member of [GtfsTables.ALL], so the `select *` string interpolation is
  * safe (no user text reaches the SQL).
  */
@@ -28,27 +28,27 @@ class GtfsRecordsService(
     }
 
     companion object {
-        /** Schema `GtfsTable` enum value -> physical `gtfs_*` table name. */
+        /** Schema `GtfsTable` enum value -> physical table name. */
         val TABLE_BY_ENUM: Map<String, String> = mapOf(
-            "FARE_ATTRIBUTES" to "gtfs_fare_attribute",
-            "FARE_RULES" to "gtfs_fare_rule",
-            "TIMEFRAMES" to "gtfs_timeframe",
-            "RIDER_CATEGORIES" to "gtfs_rider_category",
-            "FARE_MEDIA" to "gtfs_fare_media",
-            "FARE_PRODUCTS" to "gtfs_fare_product",
-            "FARE_LEG_RULES" to "gtfs_fare_leg_rule",
-            "FARE_LEG_JOIN_RULES" to "gtfs_fare_leg_join_rule",
-            "FARE_TRANSFER_RULES" to "gtfs_fare_transfer_rule",
-            "AREAS" to "gtfs_area",
-            "STOP_AREAS" to "gtfs_stop_area",
-            "NETWORKS" to "gtfs_network",
-            "ROUTE_NETWORKS" to "gtfs_route_network",
-            "LOCATION_GROUPS" to "gtfs_location_group",
-            "LOCATION_GROUP_STOPS" to "gtfs_location_group_stop",
-            "LOCATIONS" to "gtfs_location",
-            "BOOKING_RULES" to "gtfs_booking_rule",
-            "TRANSLATIONS" to "gtfs_translation",
-            "ATTRIBUTIONS" to "gtfs_attribution",
+            "FARE_ATTRIBUTES" to "fare_attributes",
+            "FARE_RULES" to "fare_rules",
+            "TIMEFRAMES" to "timeframes",
+            "RIDER_CATEGORIES" to "rider_categories",
+            "FARE_MEDIA" to "fare_media",
+            "FARE_PRODUCTS" to "fare_products",
+            "FARE_LEG_RULES" to "fare_leg_rules",
+            "FARE_LEG_JOIN_RULES" to "fare_leg_join_rules",
+            "FARE_TRANSFER_RULES" to "fare_transfer_rules",
+            "AREAS" to "areas",
+            "STOP_AREAS" to "stop_areas",
+            "NETWORKS" to "networks",
+            "ROUTE_NETWORKS" to "route_networks",
+            "LOCATION_GROUPS" to "location_groups",
+            "LOCATION_GROUP_STOPS" to "location_group_stops",
+            "LOCATIONS" to "locations",
+            "BOOKING_RULES" to "booking_rules",
+            "TRANSLATIONS" to "translations",
+            "ATTRIBUTIONS" to "attributions",
         )
     }
 }

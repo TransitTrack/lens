@@ -22,8 +22,8 @@ import org.springframework.data.jpa.repository.Query
  */
 
 @Entity
-@Table(name = "gtfs_pathway")
-class GtfsPathway(
+@Table(name = "pathways")
+class Pathway(
     revisionId: Long,
     @Column(name = "pathway_id", nullable = false) var pathwayId: String,
     var fromStopId: String?,
@@ -42,8 +42,8 @@ class GtfsPathway(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_level")
-class GtfsLevel(
+@Table(name = "levels")
+class Level(
     revisionId: Long,
     @Column(name = "level_id", nullable = false) var levelId: String,
     var levelIndex: Double?,
@@ -51,24 +51,24 @@ class GtfsLevel(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_location_group")
-class GtfsLocationGroup(
+@Table(name = "location_groups")
+class LocationGroup(
     revisionId: Long,
     @Column(name = "location_group_id", nullable = false) var locationGroupId: String,
     var locationGroupName: String?,
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_location_group_stop")
-class GtfsLocationGroupStop(
+@Table(name = "location_group_stops")
+class LocationGroupStop(
     revisionId: Long,
     @Column(name = "location_group_id", nullable = false) var locationGroupId: String,
     @Column(name = "stop_id", nullable = false) var stopId: String,
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_location")
-class GtfsLocation(
+@Table(name = "locations")
+class Location(
     revisionId: Long,
     @Column(name = "location_id", nullable = false) var locationId: String,
     var stopName: String?,
@@ -77,8 +77,8 @@ class GtfsLocation(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_booking_rule")
-class GtfsBookingRule(
+@Table(name = "booking_rules")
+class BookingRule(
     revisionId: Long,
     @Column(name = "booking_rule_id", nullable = false) var bookingRuleId: String,
     @JdbcTypeCode(SqlTypes.SMALLINT) var bookingType: Int?,
@@ -97,17 +97,17 @@ class GtfsBookingRule(
     var bookingUrl: String?,
 ) : RevisionScoped(revisionId)
 
-interface GtfsPathwayRepository : RevisionScopedRepository<GtfsPathway, Long>
+interface PathwayRepository : RevisionScopedRepository<Pathway, Long>
 
-interface GtfsLevelRepository : RevisionScopedRepository<GtfsLevel, Long> {
-    @Query("select l from GtfsLevel l where l.revisionId = :revisionId and l.levelId = :levelId")
-    fun findByLevelId(revisionId: Long, levelId: String): GtfsLevel?
+interface LevelRepository : RevisionScopedRepository<Level, Long> {
+    @Query("select l from Level l where l.revisionId = :revisionId and l.levelId = :levelId")
+    fun findByLevelId(revisionId: Long, levelId: String): Level?
 }
 
-interface GtfsLocationGroupRepository : RevisionScopedRepository<GtfsLocationGroup, Long>
+interface LocationGroupRepository : RevisionScopedRepository<LocationGroup, Long>
 
-interface GtfsLocationGroupStopRepository : RevisionScopedRepository<GtfsLocationGroupStop, Long>
+interface LocationGroupStopRepository : RevisionScopedRepository<LocationGroupStop, Long>
 
-interface GtfsLocationRepository : RevisionScopedRepository<GtfsLocation, Long>
+interface LocationRepository : RevisionScopedRepository<Location, Long>
 
-interface GtfsBookingRuleRepository : RevisionScopedRepository<GtfsBookingRule, Long>
+interface BookingRuleRepository : RevisionScopedRepository<BookingRule, Long>

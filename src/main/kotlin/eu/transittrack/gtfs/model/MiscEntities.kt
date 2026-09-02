@@ -24,8 +24,8 @@ import org.hibernate.type.SqlTypes
 
 
 @Entity
-@Table(name = "gtfs_transfer")
-class GtfsTransfer(
+@Table(name = "transfers")
+class Transfer(
     revisionId: Long,
     var fromStopId: String?,
     var toStopId: String?,
@@ -38,8 +38,8 @@ class GtfsTransfer(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_translation")
-class GtfsTranslation(
+@Table(name = "translations")
+class Translation(
     revisionId: Long,
     @Column(name = "table_name", nullable = false) var tableName: String,
     @Column(name = "field_name", nullable = false) var fieldName: String,
@@ -51,8 +51,8 @@ class GtfsTranslation(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_attribution")
-class GtfsAttribution(
+@Table(name = "attributions")
+class Attribution(
     revisionId: Long,
     var attributionId: String?,
     var agencyId: String?,
@@ -67,8 +67,8 @@ class GtfsAttribution(
     var attributionPhone: String?,
 ) : RevisionScoped(revisionId)
 
-interface GtfsTransferRepository : RevisionScopedRepository<GtfsTransfer, Long>
+interface TransferRepository : RevisionScopedRepository<Transfer, Long>
 
-interface GtfsTranslationRepository : RevisionScopedRepository<GtfsTranslation, Long>
+interface TranslationRepository : RevisionScopedRepository<Translation, Long>
 
-interface GtfsAttributionRepository : RevisionScopedRepository<GtfsAttribution, Long>
+interface AttributionRepository : RevisionScopedRepository<Attribution, Long>

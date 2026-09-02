@@ -3,8 +3,8 @@ package eu.transittrack.gtfs.store
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.gtfs.model.GtfsRoute
-import eu.transittrack.gtfs.model.GtfsRouteRepository
+import eu.transittrack.gtfs.model.Route
+import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
@@ -30,7 +30,7 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class StatelessSessionRevisionWriterTest(
     @Autowired val writer: StatelessSessionRevisionWriter,
-    @Autowired val routes: GtfsRouteRepository,
+    @Autowired val routes: RouteRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
 ) {
@@ -64,7 +64,7 @@ class StatelessSessionRevisionWriterTest(
         feeds.deleteById(feedId)
     }
 
-    private fun route(rev: Long, id: String) = GtfsRoute(
+    private fun route(rev: Long, id: String) = Route(
         revisionId = rev, routeId = id, agencyId = null, routeShortName = id, routeLongName = null,
         routeDesc = null, routeType = 3, routeUrl = null, routeColor = null, routeTextColor = null,
         routeSortOrder = null, continuousPickup = null, continuousDropOff = null, networkId = null)

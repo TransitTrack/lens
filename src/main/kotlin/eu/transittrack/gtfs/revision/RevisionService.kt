@@ -1,9 +1,9 @@
 package eu.transittrack.gtfs.revision
 
 import eu.transittrack.gtfs.config.GtfsProperties
-import eu.transittrack.gtfs.model.GtfsCalendarDateRepository
-import eu.transittrack.gtfs.model.GtfsCalendarRepository
-import eu.transittrack.gtfs.model.GtfsFeedInfoRepository
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
+import eu.transittrack.gtfs.model.FeedInfoRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import java.time.Instant
 import org.springframework.stereotype.Service
@@ -21,9 +21,9 @@ class RevisionService(
     private val revisions: GtfsRevisionRepository,
     private val writer: RevisionWriter,
     private val props: GtfsProperties,
-    private val calendars: GtfsCalendarRepository,
-    private val calendarDates: GtfsCalendarDateRepository,
-    private val feedInfos: GtfsFeedInfoRepository,
+    private val calendars: CalendarRepository,
+    private val calendarDates: CalendarDateRepository,
+    private val feedInfos: FeedInfoRepository,
 ) {
 
     @Transactional

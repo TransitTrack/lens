@@ -6,16 +6,16 @@ import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
-import eu.transittrack.gtfs.model.GtfsCalendarDateRepository
-import eu.transittrack.gtfs.model.GtfsCalendarRepository
-import eu.transittrack.gtfs.model.GtfsFeedInfoRepository
-import eu.transittrack.gtfs.model.GtfsFrequencyRepository
-import eu.transittrack.gtfs.model.GtfsRouteRepository
-import eu.transittrack.gtfs.model.GtfsShapePointRepository
-import eu.transittrack.gtfs.model.GtfsShapeRepository
-import eu.transittrack.gtfs.model.GtfsStopRepository
-import eu.transittrack.gtfs.model.GtfsStopTimeRepository
-import eu.transittrack.gtfs.model.GtfsTripRepository
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
+import eu.transittrack.gtfs.model.FeedInfoRepository
+import eu.transittrack.gtfs.model.FrequencyRepository
+import eu.transittrack.gtfs.model.RouteRepository
+import eu.transittrack.gtfs.model.ShapePointRepository
+import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
@@ -80,13 +80,13 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val scheduleProps: ScheduleProperties,
     @Autowired val scheduleWriter: ScheduleWriter,
-    @Autowired val stops: GtfsStopRepository,
-    @Autowired val routes: GtfsRouteRepository,
-    @Autowired val trips: GtfsTripRepository,
-    @Autowired val stopTimes: GtfsStopTimeRepository,
-    @Autowired val shapePoints: GtfsShapePointRepository,
-    @Autowired val shapes: GtfsShapeRepository,
-    @Autowired val frequencies: GtfsFrequencyRepository,
+    @Autowired val stops: StopRepository,
+    @Autowired val routes: RouteRepository,
+    @Autowired val trips: TripRepository,
+    @Autowired val stopTimes: StopTimeRepository,
+    @Autowired val shapePoints: ShapePointRepository,
+    @Autowired val shapes: ShapeRepository,
+    @Autowired val frequencies: FrequencyRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val schedTrips: SchedTripRepository,
@@ -94,9 +94,9 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val blocks: BlockRepository,
     @Autowired val dataSource: DataSource,
     @Autowired val jsonMapper: JsonMapper,
-    @Autowired val calendars: GtfsCalendarRepository,
-    @Autowired val calendarDates: GtfsCalendarDateRepository,
-    @Autowired val feedInfos: GtfsFeedInfoRepository,
+    @Autowired val calendars: CalendarRepository,
+    @Autowired val calendarDates: CalendarDateRepository,
+    @Autowired val feedInfos: FeedInfoRepository,
 ) {
     private var feedId: Long = 0
     private var rev: Long = 0
@@ -112,7 +112,7 @@ class ScheduleDerivationEdgeCaseTest(
         feedId = f.id!!
         val ingestion = IngestionService(
             FixtureDownloader(fixture), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsFeedLoader(JsonMapper.builder().build()), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedLoader(), SyncTaskExecutor(),
             if (deriveDuringPipeline) service() else mock<ScheduleDerivationService>(),
             ScheduleProperties(enabled = deriveDuringPipeline),
             scheduleWriter,
@@ -345,7 +345,7 @@ class ScheduleDerivationEdgeCaseTest(
 
         val ingestion = IngestionService(
             FixtureDownloader("schedule-broken-times"), brittle, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsFeedLoader(JsonMapper.builder().build()), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedLoader(), SyncTaskExecutor(),
             deriving, ScheduleProperties(enabled = true), scheduleWriter,
         )
         rev = ingestion.ingestBlocking("edge").id!!
@@ -359,9 +359,9 @@ class ScheduleDerivationEdgeCaseTest(
         revisions: GtfsRevisionRepository,
         writer: RevisionWriter,
         props: GtfsProperties,
-        calendars: GtfsCalendarRepository,
-        calendarDates: GtfsCalendarDateRepository,
-        feedInfos: GtfsFeedInfoRepository,
+        calendars: CalendarRepository,
+        calendarDates: CalendarDateRepository,
+        feedInfos: FeedInfoRepository,
     ) : RevisionService(revisions, writer, props, calendars, calendarDates, feedInfos) {
         override fun transition(
             revisionId: Long,

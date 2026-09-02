@@ -18,9 +18,9 @@ import org.springframework.beans.factory.annotation.Autowired
 class CoreEntitiesTest(
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
-    @Autowired val routes: GtfsRouteRepository,
-    @Autowired val stopTimes: GtfsStopTimeRepository,
-    @Autowired val calendars: GtfsCalendarRepository,
+    @Autowired val routes: RouteRepository,
+    @Autowired val stopTimes: StopTimeRepository,
+    @Autowired val calendars: CalendarRepository,
 ) {
     // Real revisions to satisfy the FK gtfs_*.revision_id -> gtfs_revision(id).
     private var rev1: Long = 0
@@ -48,11 +48,11 @@ class CoreEntitiesTest(
 
     @Test
     fun `entities persist and query by revision`() {
-        routes.save(GtfsRoute(revisionId = rev1, routeId = "R1", agencyId = "A", routeShortName = "1",
+        routes.save(Route(revisionId = rev1, routeId = "R1", agencyId = "A", routeShortName = "1",
             routeLongName = "Line 1", routeDesc = null, routeType = 3, routeUrl = null,
             routeColor = null, routeTextColor = null, routeSortOrder = null,
             continuousPickup = null, continuousDropOff = null, networkId = null))
-        routes.save(GtfsRoute(revisionId = rev2, routeId = "R1", agencyId = "A", routeShortName = "1",
+        routes.save(Route(revisionId = rev2, routeId = "R1", agencyId = "A", routeShortName = "1",
             routeLongName = null, routeDesc = null, routeType = 3, routeUrl = null,
             routeColor = null, routeTextColor = null, routeSortOrder = null,
             continuousPickup = null, continuousDropOff = null, networkId = null))
@@ -60,14 +60,14 @@ class CoreEntitiesTest(
         assertEquals(1, routes.findByRevisionId(rev1).size)
         assertEquals("Line 1", routes.findByRouteId(rev1, "R1")!!.routeLongName)
 
-        stopTimes.save(GtfsStopTime(revisionId = rev1, tripId = "T1", stopSequence = 1, stopId = "S1",
+        stopTimes.save(StopTime(revisionId = rev1, tripId = "T1", stopSequence = 1, stopId = "S1",
             arrivalTime = 3600, departureTime = 3660, locationGroupId = null, locationId = null,
             stopHeadsign = null, startPickupDropOffWindow = null, endPickupDropOffWindow = null,
             pickupType = null, dropOffType = null, continuousPickup = null, continuousDropOff = null,
             shapeDistTraveled = null, timepoint = null, pickupBookingRuleId = null, dropOffBookingRuleId = null))
         assertEquals(3600, stopTimes.findByTripId(rev1, "T1")[0].arrivalTime)
 
-        calendars.save(GtfsCalendar(revisionId = rev1, serviceId = "WK", monday = true, tuesday = true,
+        calendars.save(Calendar(revisionId = rev1, serviceId = "WK", monday = true, tuesday = true,
             wednesday = true, thursday = true, friday = true, saturday = false, sunday = false,
             startDate = LocalDate.of(2026,1,1), endDate = LocalDate.of(2026,12,31)))
         assertEquals(true, calendars.findByServiceId(rev1, "WK")!!.monday)

@@ -1,15 +1,17 @@
 package eu.transittrack.schedule.derive
 
+import eu.transittrack.Point
+import eu.transittrack.Polyline
 import eu.transittrack.haversineMeters
-import eu.transittrack.gtfs.model.GtfsFrequency
-import eu.transittrack.gtfs.model.GtfsFrequencyRepository
-import eu.transittrack.gtfs.model.GtfsRouteRepository
-import eu.transittrack.gtfs.model.GtfsShapePointRepository
-import eu.transittrack.gtfs.model.GtfsStopRepository
-import eu.transittrack.gtfs.model.GtfsStopTime
-import eu.transittrack.gtfs.model.GtfsStopTimeRepository
-import eu.transittrack.gtfs.model.GtfsTrip
-import eu.transittrack.gtfs.model.GtfsTripRepository
+import eu.transittrack.gtfs.model.Frequency
+import eu.transittrack.gtfs.model.FrequencyRepository
+import eu.transittrack.gtfs.model.RouteRepository
+import eu.transittrack.gtfs.model.ShapePointRepository
+import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTime
+import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.Trip
+import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.Block
 import eu.transittrack.schedule.model.SchedTrip
@@ -28,12 +30,12 @@ import tools.jackson.databind.json.JsonMapper
  */
 @Service
 class ScheduleDerivationService(
-    private val stops: GtfsStopRepository,
-    private val routes: GtfsRouteRepository,
-    private val trips: GtfsTripRepository,
-    private val stopTimes: GtfsStopTimeRepository,
-    private val shapePoints: GtfsShapePointRepository,
-    private val frequencies: GtfsFrequencyRepository,
+    private val stops: StopRepository,
+    private val routes: RouteRepository,
+    private val trips: TripRepository,
+    private val stopTimes: StopTimeRepository,
+    private val shapePoints: ShapePointRepository,
+    private val frequencies: FrequencyRepository,
     private val writer: ScheduleWriter,
     private val props: ScheduleProperties,
     private val json: JsonMapper,
@@ -186,7 +188,7 @@ class ScheduleDerivationService(
             }
         }
         // Spec: "the trip's first gtfs_frequency row" — keep the first, not the last.
-        val freqByTrip: Map<String, GtfsFrequency> =
+        val freqByTrip: Map<String, Frequency> =
             frequencies.findByRevisionId(revisionId).groupBy { it.tripId }.mapValues { it.value.first() }
 
         val counts = mutableMapOf(
@@ -318,8 +320,8 @@ class ScheduleDerivationService(
      * such a trip is skipped: it simply produces no `sched_trip` row.
      */
     private fun hasResolvableCoords(
-        trip: GtfsTrip,
-        rows: List<GtfsStopTime>,
+        trip: Trip,
+        rows: List<StopTime>,
         stopCoord: Map<String, Point>,
     ): Boolean {
         val missing = rows.firstOrNull { it.stopId !in stopCoord } ?: return true
@@ -335,7 +337,7 @@ class ScheduleDerivationService(
      * otherwise a single malformed trip fails the whole revision with a message
      * ("first and last stop must have a time") that identifies nothing.
      */
-    private inline fun <T> withTripContext(trip: GtfsTrip, body: () -> T): T =
+    private inline fun <T> withTripContext(trip: Trip, body: () -> T): T =
         try {
             body()
         } catch (e: Exception) {
@@ -346,8 +348,8 @@ class ScheduleDerivationService(
 
     private fun buildPattern(
         revisionId: Long,
-        trip: GtfsTrip,
-        rows: List<GtfsStopTime>,
+        trip: Trip,
+        rows: List<StopTime>,
         stopIds: List<String>,
         stopCoord: Map<String, Point>,
         line: Polyline?,
@@ -401,7 +403,10 @@ class ScheduleDerivationService(
         val pattern = TripPattern(
             revisionId = revisionId,
             patternKey = PatternKey.of(trip.routeId, trip.shapeId, stopIds),
-            routeId = trip.routeId, directionId = trip.directionId, headsign = trip.tripHeadsign,
+            routeId = trip.routeId,
+            routeShortName = trip.routeId,
+            directionId = trip.directionId,
+            headsign = trip.tripHeadsign,
             shapeId = trip.shapeId, stopCount = stopIds.size,
             lengthM = paths.sumOf { it.lengthM },
             minLat = lats.min(), minLon = lons.min(), maxLat = lats.max(), maxLon = lons.max(),

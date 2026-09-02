@@ -1,32 +1,32 @@
 package eu.transittrack.gtfs.read
 
-import eu.transittrack.gtfs.api.dto.GtfsAgencyDto
-import eu.transittrack.gtfs.api.dto.GtfsCalendarDateDto
-import eu.transittrack.gtfs.api.dto.GtfsCalendarDto
-import eu.transittrack.gtfs.api.dto.GtfsFeedInfoDto
-import eu.transittrack.gtfs.api.dto.GtfsFrequencyDto
-import eu.transittrack.gtfs.api.dto.GtfsLevelDto
-import eu.transittrack.gtfs.api.dto.GtfsPathwayDto
-import eu.transittrack.gtfs.api.dto.GtfsRouteDto
-import eu.transittrack.gtfs.api.dto.GtfsShapeDto
-import eu.transittrack.gtfs.api.dto.GtfsStopDto
-import eu.transittrack.gtfs.api.dto.GtfsStopTimeDto
-import eu.transittrack.gtfs.api.dto.GtfsTransferDto
-import eu.transittrack.gtfs.api.dto.GtfsTripDto
-import eu.transittrack.gtfs.model.GtfsAgencyRepository
-import eu.transittrack.gtfs.model.GtfsCalendarDateRepository
-import eu.transittrack.gtfs.model.GtfsCalendarRepository
-import eu.transittrack.gtfs.model.GtfsFeedInfoRepository
-import eu.transittrack.gtfs.model.GtfsFrequencyRepository
-import eu.transittrack.gtfs.model.GtfsLevelRepository
-import eu.transittrack.gtfs.model.GtfsPathwayRepository
-import eu.transittrack.gtfs.model.GtfsRouteRepository
-import eu.transittrack.gtfs.model.GtfsShapePointRepository
-import eu.transittrack.gtfs.model.GtfsShapeRepository
-import eu.transittrack.gtfs.model.GtfsStopRepository
-import eu.transittrack.gtfs.model.GtfsStopTimeRepository
-import eu.transittrack.gtfs.model.GtfsTransferRepository
-import eu.transittrack.gtfs.model.GtfsTripRepository
+import eu.transittrack.gtfs.api.dto.AgencyDto
+import eu.transittrack.gtfs.api.dto.CalendarDateDto
+import eu.transittrack.gtfs.api.dto.CalendarDto
+import eu.transittrack.gtfs.api.dto.FeedInfoDto
+import eu.transittrack.gtfs.api.dto.FrequencyDto
+import eu.transittrack.gtfs.api.dto.LevelDto
+import eu.transittrack.gtfs.api.dto.PathwayDto
+import eu.transittrack.gtfs.api.dto.RouteDto
+import eu.transittrack.gtfs.api.dto.ShapeDto
+import eu.transittrack.gtfs.api.dto.StopDto
+import eu.transittrack.gtfs.api.dto.StopTimeDto
+import eu.transittrack.gtfs.api.dto.TransferDto
+import eu.transittrack.gtfs.api.dto.TripDto
+import eu.transittrack.gtfs.model.AgencyRepository
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
+import eu.transittrack.gtfs.model.FeedInfoRepository
+import eu.transittrack.gtfs.model.FrequencyRepository
+import eu.transittrack.gtfs.model.LevelRepository
+import eu.transittrack.gtfs.model.PathwayRepository
+import eu.transittrack.gtfs.model.RouteRepository
+import eu.transittrack.gtfs.model.ShapePointRepository
+import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.TransferRepository
+import eu.transittrack.gtfs.model.TripRepository
 import org.springframework.stereotype.Service
 
 /**
@@ -38,110 +38,110 @@ import org.springframework.stereotype.Service
 @Service
 class GtfsReadService(
     private val resolver: RevisionResolver,
-    private val agencies: GtfsAgencyRepository,
-    private val routes: GtfsRouteRepository,
-    private val stops: GtfsStopRepository,
-    private val trips: GtfsTripRepository,
-    private val stopTimes: GtfsStopTimeRepository,
-    private val calendars: GtfsCalendarRepository,
-    private val calendarDates: GtfsCalendarDateRepository,
-    private val shapes: GtfsShapeRepository,
-    private val shapePoints: GtfsShapePointRepository,
-    private val frequencies: GtfsFrequencyRepository,
-    private val transfers: GtfsTransferRepository,
-    private val feedInfos: GtfsFeedInfoRepository,
-    private val pathways: GtfsPathwayRepository,
-    private val levels: GtfsLevelRepository,
+    private val agencies: AgencyRepository,
+    private val routes: RouteRepository,
+    private val stops: StopRepository,
+    private val trips: TripRepository,
+    private val stopTimes: StopTimeRepository,
+    private val calendars: CalendarRepository,
+    private val calendarDates: CalendarDateRepository,
+    private val shapes: ShapeRepository,
+    private val shapePoints: ShapePointRepository,
+    private val frequencies: FrequencyRepository,
+    private val transfers: TransferRepository,
+    private val feedInfos: FeedInfoRepository,
+    private val pathways: PathwayRepository,
+    private val levels: LevelRepository,
 ) {
-    fun agencies(feedCode: String, revisionId: String?): List<GtfsAgencyDto> {
+    fun agencies(feedCode: String, revisionId: String?): List<AgencyDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return agencies.findByRevisionId(rev).map { GtfsAgencyDto.of(it, rev, feedCode) }
+        return agencies.findByRevisionId(rev).map { AgencyDto.of(it, rev, feedCode) }
     }
 
-    fun routes(feedCode: String, revisionId: String?): List<GtfsRouteDto> {
+    fun routes(feedCode: String, revisionId: String?): List<RouteDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return routes.findByRevisionId(rev).map { GtfsRouteDto.of(it, rev, feedCode) }
+        return routes.findByRevisionId(rev).map { RouteDto.of(it, rev, feedCode) }
     }
 
-    fun route(feedCode: String, routeId: String, revisionId: String?): GtfsRouteDto? {
+    fun route(feedCode: String, routeId: String, revisionId: String?): RouteDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return routes.findByRouteId(rev, routeId)?.let { GtfsRouteDto.of(it, rev, feedCode) }
+        return routes.findByRouteId(rev, routeId)?.let { RouteDto.of(it, rev, feedCode) }
     }
 
-    fun stops(feedCode: String, revisionId: String?): List<GtfsStopDto> {
+    fun stops(feedCode: String, revisionId: String?): List<StopDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stops.findByRevisionId(rev).map { GtfsStopDto.of(it, rev, feedCode) }
+        return stops.findByRevisionId(rev).map { StopDto.of(it, rev, feedCode) }
     }
 
-    fun stop(feedCode: String, stopId: String, revisionId: String?): GtfsStopDto? {
+    fun stop(feedCode: String, stopId: String, revisionId: String?): StopDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return stops.findByStopId(rev, stopId)?.let { GtfsStopDto.of(it, rev, feedCode) }
+        return stops.findByStopId(rev, stopId)?.let { StopDto.of(it, rev, feedCode) }
     }
 
-    fun trips(feedCode: String, routeId: String?, serviceId: String?, revisionId: String?): List<GtfsTripDto> {
+    fun trips(feedCode: String, routeId: String?, serviceId: String?, revisionId: String?): List<TripDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val list = when {
             routeId != null -> trips.findByRouteId(rev, routeId)
             serviceId != null -> trips.findByServiceId(rev, serviceId)
             else -> trips.findByRevisionId(rev)
         }
-        return list.map { GtfsTripDto.of(it, rev, feedCode) }
+        return list.map { TripDto.of(it, rev, feedCode) }
     }
 
-    fun trip(feedCode: String, tripId: String, revisionId: String?): GtfsTripDto? {
+    fun trip(feedCode: String, tripId: String, revisionId: String?): TripDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return trips.findByTripId(rev, tripId)?.let { GtfsTripDto.of(it, rev, feedCode) }
+        return trips.findByTripId(rev, tripId)?.let { TripDto.of(it, rev, feedCode) }
     }
 
-    fun stopTimes(feedCode: String, tripId: String, revisionId: String?): List<GtfsStopTimeDto> {
+    fun stopTimes(feedCode: String, tripId: String, revisionId: String?): List<StopTimeDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         return stopTimes.findByTripId(rev, tripId)
-            .map { GtfsStopTimeDto.of(it, rev, feedCode) }
+            .map { StopTimeDto.of(it, rev, feedCode) }
     }
 
-    fun calendars(feedCode: String, revisionId: String?): List<GtfsCalendarDto> {
+    fun calendars(feedCode: String, revisionId: String?): List<CalendarDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return calendars.findByRevisionId(rev).map { GtfsCalendarDto.of(it, rev, feedCode) }
+        return calendars.findByRevisionId(rev).map { CalendarDto.of(it, rev, feedCode) }
     }
 
-    fun calendarDates(feedCode: String, serviceId: String?, revisionId: String?): List<GtfsCalendarDateDto> {
+    fun calendarDates(feedCode: String, serviceId: String?, revisionId: String?): List<CalendarDateDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val list = if (serviceId != null) calendarDates.findByServiceId(rev, serviceId)
         else calendarDates.findByRevisionId(rev)
-        return list.map { GtfsCalendarDateDto.of(it, rev, feedCode) }
+        return list.map { CalendarDateDto.of(it, rev, feedCode) }
     }
 
-    fun shape(feedCode: String, shapeId: String, revisionId: String?): GtfsShapeDto? {
+    fun shape(feedCode: String, shapeId: String, revisionId: String?): ShapeDto? {
         val rev = resolver.resolve(feedCode, revisionId)
         val shape = shapes.findByShapeId(rev, shapeId) ?: return null
         val pts = shapePoints.findByShapeId(rev, shapeId)
-        return GtfsShapeDto.of(shape, pts, rev, feedCode)
+        return ShapeDto.of(shape, pts, rev, feedCode)
     }
 
-    fun frequencies(feedCode: String, tripId: String?, revisionId: String?): List<GtfsFrequencyDto> {
+    fun frequencies(feedCode: String, tripId: String?, revisionId: String?): List<FrequencyDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val list = if (tripId != null) frequencies.findByTripId(rev, tripId)
         else frequencies.findByRevisionId(rev)
-        return list.map { GtfsFrequencyDto.of(it, rev, feedCode) }
+        return list.map { FrequencyDto.of(it, rev, feedCode) }
     }
 
-    fun transfers(feedCode: String, revisionId: String?): List<GtfsTransferDto> {
+    fun transfers(feedCode: String, revisionId: String?): List<TransferDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return transfers.findByRevisionId(rev).map { GtfsTransferDto.of(it, rev, feedCode) }
+        return transfers.findByRevisionId(rev).map { TransferDto.of(it, rev, feedCode) }
     }
 
-    fun feedInfo(feedCode: String, revisionId: String?): GtfsFeedInfoDto? {
+    fun feedInfo(feedCode: String, revisionId: String?): FeedInfoDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return feedInfos.findByRevisionId(rev)?.let { GtfsFeedInfoDto.of(it, rev, feedCode) }
+        return feedInfos.findByRevisionId(rev)?.let { FeedInfoDto.of(it, rev, feedCode) }
     }
 
-    fun pathways(feedCode: String, revisionId: String?): List<GtfsPathwayDto> {
+    fun pathways(feedCode: String, revisionId: String?): List<PathwayDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return pathways.findByRevisionId(rev).map { GtfsPathwayDto.of(it, rev, feedCode) }
+        return pathways.findByRevisionId(rev).map { PathwayDto.of(it, rev, feedCode) }
     }
 
-    fun levels(feedCode: String, revisionId: String?): List<GtfsLevelDto> {
+    fun levels(feedCode: String, revisionId: String?): List<LevelDto> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return levels.findByRevisionId(rev).map { GtfsLevelDto.of(it, rev, feedCode) }
+        return levels.findByRevisionId(rev).map { LevelDto.of(it, rev, feedCode) }
     }
 }

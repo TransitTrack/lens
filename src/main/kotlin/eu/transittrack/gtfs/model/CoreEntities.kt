@@ -21,8 +21,8 @@ import java.util.Locale
  */
 
 @Entity
-@Table(name = "gtfs_agency")
-class GtfsAgency(
+@Table(name = "agencies")
+class Agency(
     revisionId: Long,
     var agencyId: String?,
     var agencyName: String?,
@@ -35,8 +35,8 @@ class GtfsAgency(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_stop")
-class GtfsStop(
+@Table(name = "stops")
+class Stop(
     revisionId: Long,
     @Column(name = "stop_id", nullable = false) var stopId: String,
     var stopCode: String?,
@@ -56,8 +56,8 @@ class GtfsStop(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_route")
-class GtfsRoute(
+@Table(name = "routes")
+class Route(
     revisionId: Long,
     @Column(name = "route_id", nullable = false) var routeId: String,
     var agencyId: String?,
@@ -75,8 +75,8 @@ class GtfsRoute(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_trip")
-class GtfsTrip(
+@Table(name = "trips")
+class Trip(
     revisionId: Long,
     @Column(name = "route_id", nullable = false) var routeId: String,
     @Column(name = "service_id", nullable = false) var serviceId: String,
@@ -91,8 +91,8 @@ class GtfsTrip(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_stop_time")
-class GtfsStopTime(
+@Table(name = "stop_times")
+class StopTime(
     revisionId: Long,
     @Column(name = "trip_id", nullable = false) var tripId: String,
     @Column(name = "stop_sequence", nullable = false) var stopSequence: Int,
@@ -115,8 +115,8 @@ class GtfsStopTime(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_calendar")
-class GtfsCalendar(
+@Table(name = "calendars")
+class Calendar(
     revisionId: Long,
     @Column(name = "service_id", nullable = false) var serviceId: String,
     var monday: Boolean?,
@@ -131,8 +131,8 @@ class GtfsCalendar(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_calendar_date")
-class GtfsCalendarDate(
+@Table(name = "calendar_dates")
+class CalendarDate(
     revisionId: Long,
     @Column(name = "service_id", nullable = false) var serviceId: String,
     @Column(name = "date", nullable = false) var date: LocalDate,
@@ -140,8 +140,8 @@ class GtfsCalendarDate(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_feed_info")
-class GtfsFeedInfo(
+@Table(name = "feed_infos")
+class FeedInfo(
     revisionId: Long,
     var feedPublisherName: String?,
     var feedPublisherUrl: String?,
@@ -155,8 +155,8 @@ class GtfsFeedInfo(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_frequency")
-class GtfsFrequency(
+@Table(name = "frequencies")
+class Frequency(
     revisionId: Long,
     @Column(name = "trip_id", nullable = false) var tripId: String,
     @Column(name = "start_time", nullable = false) var startTime: Int,
@@ -165,72 +165,72 @@ class GtfsFrequency(
     @JdbcTypeCode(SqlTypes.SMALLINT) var exactTimes: Int?,
 ) : RevisionScoped(revisionId)
 
-interface GtfsAgencyRepository : RevisionScopedRepository<GtfsAgency, Long> {
-    @Query("select a from GtfsAgency a where a.revisionId = :revisionId and a.agencyId = :agencyId")
-    fun findByAgencyId(revisionId: Long, agencyId: String): GtfsAgency?
+interface AgencyRepository : RevisionScopedRepository<Agency, Long> {
+    @Query("select a from Agency a where a.revisionId = :revisionId and a.agencyId = :agencyId")
+    fun findByAgencyId(revisionId: Long, agencyId: String): Agency?
 }
 
-interface GtfsStopRepository : RevisionScopedRepository<GtfsStop, Long> {
-    @Query("select s from GtfsStop s where s.revisionId = :revisionId and s.stopId = :stopId")
-    fun findByStopId(revisionId: Long, stopId: String): GtfsStop?
+interface StopRepository : RevisionScopedRepository<Stop, Long> {
+    @Query("select s from Stop s where s.revisionId = :revisionId and s.stopId = :stopId")
+    fun findByStopId(revisionId: Long, stopId: String): Stop?
 
-    @Query("select s from GtfsStop s where s.revisionId = :revisionId and s.parentStation = :parentStation")
-    fun findByParentStation(revisionId: Long, parentStation: String): List<GtfsStop>
+    @Query("select s from Stop s where s.revisionId = :revisionId and s.parentStation = :parentStation")
+    fun findByParentStation(revisionId: Long, parentStation: String): List<Stop>
 }
 
-interface GtfsRouteRepository : RevisionScopedRepository<GtfsRoute, Long> {
-    @Query("select r from GtfsRoute r where r.revisionId = :revisionId and r.routeId = :routeId")
-    fun findByRouteId(revisionId: Long, routeId: String): GtfsRoute?
+interface RouteRepository : RevisionScopedRepository<Route, Long> {
+    @Query("select r from Route r where r.revisionId = :revisionId and r.routeId = :routeId")
+    fun findByRouteId(revisionId: Long, routeId: String): Route?
 }
 
-interface GtfsTripRepository : RevisionScopedRepository<GtfsTrip, Long> {
-    @Query("select t from GtfsTrip t where t.revisionId = :revisionId and t.tripId = :tripId")
-    fun findByTripId(revisionId: Long, tripId: String): GtfsTrip?
+interface TripRepository : RevisionScopedRepository<Trip, Long> {
+    @Query("select t from Trip t where t.revisionId = :revisionId and t.tripId = :tripId")
+    fun findByTripId(revisionId: Long, tripId: String): Trip?
 
-    @Query("select t from GtfsTrip t where t.revisionId = :revisionId and t.routeId = :routeId")
-    fun findByRouteId(revisionId: Long, routeId: String): List<GtfsTrip>
+    @Query("select t from Trip t where t.revisionId = :revisionId and t.routeId = :routeId")
+    fun findByRouteId(revisionId: Long, routeId: String): List<Trip>
 
-    @Query("select t from GtfsTrip t where t.revisionId = :revisionId and t.serviceId = :serviceId")
-    fun findByServiceId(revisionId: Long, serviceId: String): List<GtfsTrip>
+    @Query("select t from Trip t where t.revisionId = :revisionId and t.serviceId = :serviceId")
+    fun findByServiceId(revisionId: Long, serviceId: String): List<Trip>
 }
 
-interface GtfsStopTimeRepository : RevisionScopedRepository<GtfsStopTime, Long> {
+interface StopTimeRepository : RevisionScopedRepository<StopTime, Long> {
     @Query(
-        "select st from GtfsStopTime st " +
+        "select st from StopTime st " +
             "where st.revisionId = :revisionId and st.tripId = :tripId order by st.stopSequence",
     )
-    fun findByTripId(revisionId: Long, tripId: String): List<GtfsStopTime>
+    fun findByTripId(revisionId: Long, tripId: String): List<StopTime>
 
-    @Query("select st from GtfsStopTime st where st.revisionId = :revisionId and st.stopId = :stopId")
-    fun findByStopId(revisionId: Long, stopId: String): List<GtfsStopTime>
+    @Query("select st from StopTime st where st.revisionId = :revisionId and st.stopId = :stopId")
+    fun findByStopId(revisionId: Long, stopId: String): List<StopTime>
 
     /**
      * Batch load for schedule derivation: all stop times of a set of trips in one
      * round-trip, ordered so each trip's sublist is already in `stop_sequence` order.
      */
     @Query(
-        "select st from GtfsStopTime st " +
+        "select st from StopTime st " +
             "where st.revisionId = :revisionId and st.tripId in :tripIds order by st.tripId asc, st.stopSequence asc",
     )
-    fun findByTripIds(revisionId: Long, tripIds: Collection<String>): List<GtfsStopTime>
+    fun findByTripIds(revisionId: Long, tripIds: Collection<String>): List<StopTime>
 }
 
-interface GtfsCalendarRepository : RevisionScopedRepository<GtfsCalendar, Long> {
-    @Query("select c from GtfsCalendar c where c.revisionId = :revisionId and c.serviceId = :serviceId")
-    fun findByServiceId(revisionId: Long, serviceId: String): GtfsCalendar?
+interface CalendarRepository : RevisionScopedRepository<Calendar, Long> {
+    @Query("select c from Calendar c where c.revisionId = :revisionId and c.serviceId = :serviceId")
+    fun findByServiceId(revisionId: Long, serviceId: String): Calendar?
 }
 
-interface GtfsCalendarDateRepository : RevisionScopedRepository<GtfsCalendarDate, Long> {
-    @Query("select cd from GtfsCalendarDate cd where cd.revisionId = :revisionId and cd.serviceId = :serviceId")
-    fun findByServiceId(revisionId: Long, serviceId: String): List<GtfsCalendarDate>
+interface CalendarDateRepository : RevisionScopedRepository<CalendarDate, Long> {
+    @Query("select cd from CalendarDate cd where cd.revisionId = :revisionId and cd.serviceId = :serviceId")
+    fun findByServiceId(revisionId: Long, serviceId: String): List<CalendarDate>
 }
 
-interface GtfsFeedInfoRepository : JpaRepository<GtfsFeedInfo, Long> {
-    @Query("select fi from GtfsFeedInfo fi where fi.revisionId = :revisionId")
-    fun findByRevisionId(revisionId: Long): GtfsFeedInfo?
+interface FeedInfoRepository : JpaRepository<FeedInfo, Long> {
+    @Query("select fi from FeedInfo fi where fi.revisionId = :revisionId")
+    fun findByRevisionId(revisionId: Long): FeedInfo?
 }
 
-interface GtfsFrequencyRepository : RevisionScopedRepository<GtfsFrequency, Long> {
-    @Query("select f from GtfsFrequency f where f.revisionId = :revisionId and f.tripId = :tripId")
-    fun findByTripId(revisionId: Long, tripId: String): List<GtfsFrequency>
+interface FrequencyRepository : RevisionScopedRepository<Frequency, Long> {
+    @Query("select f from Frequency f where f.revisionId = :revisionId and f.tripId = :tripId")
+    fun findByTripId(revisionId: Long, tripId: String): List<Frequency>
 }

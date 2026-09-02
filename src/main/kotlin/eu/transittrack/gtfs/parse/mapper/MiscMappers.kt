@@ -1,12 +1,12 @@
 package eu.transittrack.gtfs.parse.mapper
 
 import eu.transittrack.gtfs.model.*
-import org.mobilitydata.gtfsvalidator.table.GtfsAttribution as VAttribution
-import org.mobilitydata.gtfsvalidator.table.GtfsFrequency as VFrequency
-import org.mobilitydata.gtfsvalidator.table.GtfsTransfer as VTransfer
-import org.mobilitydata.gtfsvalidator.table.GtfsTranslation as VTranslation
+import org.mobilitydata.gtfsvalidator.table.GtfsAttribution
+import org.mobilitydata.gtfsvalidator.table.GtfsFrequency
+import org.mobilitydata.gtfsvalidator.table.GtfsTransfer
+import org.mobilitydata.gtfsvalidator.table.GtfsTranslation
 
-fun mapFrequency(rev: Long, r: VFrequency) = GtfsFrequency(
+fun mapFrequency(rev: Long, r: GtfsFrequency) = Frequency(
     revisionId = rev,
     tripId = r.tripId().takeIf { r.hasTripId() } ?: error("frequencies.txt row missing trip_id"),
     startTime = r.startTime().takeIf { r.hasStartTime() }.toSeconds()
@@ -16,7 +16,7 @@ fun mapFrequency(rev: Long, r: VFrequency) = GtfsFrequency(
     exactTimes = r.exactTimesValue().takeIf { r.hasExactTimes() },
 )
 
-fun mapTransfer(rev: Long, r: VTransfer) = GtfsTransfer(
+fun mapTransfer(rev: Long, r: GtfsTransfer) = Transfer(
     revisionId = rev,
     fromStopId = r.fromStopId().takeIf { r.hasFromStopId() },
     toStopId = r.toStopId().takeIf { r.hasToStopId() },
@@ -28,7 +28,7 @@ fun mapTransfer(rev: Long, r: VTransfer) = GtfsTransfer(
     minTransferTime = r.minTransferTime().takeIf { r.hasMinTransferTime() },
 )
 
-fun mapTranslation(rev: Long, r: VTranslation) = GtfsTranslation(
+fun mapTranslation(rev: Long, r: GtfsTranslation) = Translation(
     revisionId = rev,
     tableName = r.tableName().takeIf { r.hasTableName() } ?: error("translations.txt row missing table_name"),
     fieldName = r.fieldName().takeIf { r.hasFieldName() } ?: error("translations.txt row missing field_name"),
@@ -40,7 +40,7 @@ fun mapTranslation(rev: Long, r: VTranslation) = GtfsTranslation(
     fieldValue = r.fieldValue().takeIf { r.hasFieldValue() },
 )
 
-fun mapAttribution(rev: Long, r: VAttribution) = GtfsAttribution(
+fun mapAttribution(rev: Long, r: GtfsAttribution) = Attribution(
     revisionId = rev,
     attributionId = r.attributionId().takeIf { r.hasAttributionId() },
     agencyId = r.agencyId().takeIf { r.hasAgencyId() },

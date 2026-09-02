@@ -15,8 +15,8 @@ import tools.jackson.databind.json.JsonMapper
 
 @PostgresSliceTest
 class AccessibilityEntitiesTest(
-    @Autowired val locations: GtfsLocationRepository,
-    @Autowired val pathways: GtfsPathwayRepository,
+    @Autowired val locations: LocationRepository,
+    @Autowired val pathways: PathwayRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
 ) {
@@ -40,7 +40,7 @@ class AccessibilityEntitiesTest(
         val rev = seedRevisionId()
 
         locations.save(
-            GtfsLocation(
+            Location(
                 rev, "L1", "Zone A", null,
                 """{"type":"Polygon","coordinates":[[[17.0,51.0],[17.1,51.0],[17.1,51.1],[17.0,51.0]]]}""",
             )
@@ -52,7 +52,7 @@ class AccessibilityEntitiesTest(
             },
         )
 
-        pathways.save(GtfsPathway(rev, "PW1", "S1", "S2", 1, 1, null, 30, null, null, null, null, null))
+        pathways.save(Pathway(rev, "PW1", "S1", "S2", 1, 1, null, 30, null, null, null, null, null))
         assertEquals(1, pathways.findByRevisionId(rev).size)
     }
 }

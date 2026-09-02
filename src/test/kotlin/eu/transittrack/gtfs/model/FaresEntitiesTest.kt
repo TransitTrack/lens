@@ -14,8 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired
 
 @PostgresSliceTest
 class FaresEntitiesTest(
-    @Autowired val products: GtfsFareProductRepository,
-    @Autowired val areas: GtfsAreaRepository,
+    @Autowired val products: FareProductRepository,
+    @Autowired val areas: AreaRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
 ) {
@@ -39,11 +39,11 @@ class FaresEntitiesTest(
     fun `fare product and area persist and query by revision`() {
         val (rev1, rev2) = seedRevisionIds(2)
 
-        products.save(GtfsFareProduct(rev1, "P1", "Single", null, null, 3.40, "PLN"))
-        products.save(GtfsFareProduct(rev2, "P1", "Single", null, null, 3.60, "PLN"))
+        products.save(FareProduct(rev1, "P1", "Single", null, null, 3.40, "PLN"))
+        products.save(FareProduct(rev2, "P1", "Single", null, null, 3.60, "PLN"))
         assertEquals(1, products.findByRevisionId(rev1).size)
 
-        areas.save(GtfsArea(rev1, "AREA1", "Centre"))
+        areas.save(Area(rev1, "AREA1", "Centre"))
         assertEquals("Centre", areas.findByRevisionId(rev1)[0].areaName)
     }
 }

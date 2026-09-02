@@ -1,19 +1,19 @@
 package eu.transittrack.gtfs.api.dto
 
-import eu.transittrack.gtfs.model.GtfsAgency
-import eu.transittrack.gtfs.model.GtfsCalendar
-import eu.transittrack.gtfs.model.GtfsCalendarDate
-import eu.transittrack.gtfs.model.GtfsFeedInfo
-import eu.transittrack.gtfs.model.GtfsFrequency
-import eu.transittrack.gtfs.model.GtfsLevel
-import eu.transittrack.gtfs.model.GtfsPathway
-import eu.transittrack.gtfs.model.GtfsRoute
-import eu.transittrack.gtfs.model.GtfsShape
-import eu.transittrack.gtfs.model.GtfsShapePoint
-import eu.transittrack.gtfs.model.GtfsStop
-import eu.transittrack.gtfs.model.GtfsStopTime
-import eu.transittrack.gtfs.model.GtfsTransfer
-import eu.transittrack.gtfs.model.GtfsTrip
+import eu.transittrack.gtfs.model.Agency
+import eu.transittrack.gtfs.model.Calendar
+import eu.transittrack.gtfs.model.CalendarDate
+import eu.transittrack.gtfs.model.FeedInfo
+import eu.transittrack.gtfs.model.Frequency
+import eu.transittrack.gtfs.model.Level
+import eu.transittrack.gtfs.model.Pathway
+import eu.transittrack.gtfs.model.Route
+import eu.transittrack.gtfs.model.Shape
+import eu.transittrack.gtfs.model.ShapePoint
+import eu.transittrack.gtfs.model.Stop
+import eu.transittrack.gtfs.model.StopTime
+import eu.transittrack.gtfs.model.Transfer
+import eu.transittrack.gtfs.model.Trip
 
 /**
  * GraphQL projections of the core / shape / accessibility / misc GTFS entities.
@@ -30,7 +30,7 @@ import eu.transittrack.gtfs.model.GtfsTrip
 internal fun secondsToHms(s: Int?): String? =
     s?.let { "%02d:%02d:%02d".format(it / 3600, (it % 3600) / 60, it % 60) }
 
-data class GtfsAgencyDto(
+data class AgencyDto(
     val revisionId: Long,
     val feedCode: String,
     val agencyId: String?,
@@ -43,7 +43,7 @@ data class GtfsAgencyDto(
     val agencyEmail: String?,
 ) {
     companion object {
-        fun of(e: GtfsAgency, revisionId: Long, feedCode: String) = GtfsAgencyDto(
+        fun of(e: Agency, revisionId: Long, feedCode: String) = AgencyDto(
             revisionId, feedCode,
             e.agencyId,
             e.agencyName,
@@ -57,7 +57,7 @@ data class GtfsAgencyDto(
     }
 }
 
-data class GtfsRouteDto(
+data class RouteDto(
     val revisionId: Long,
     val feedCode: String,
     val routeId: String,
@@ -73,7 +73,7 @@ data class GtfsRouteDto(
     val networkId: String?,
 ) {
     companion object {
-        fun of(e: GtfsRoute, revisionId: Long, feedCode: String) = GtfsRouteDto(
+        fun of(e: Route, revisionId: Long, feedCode: String) = RouteDto(
             revisionId, feedCode,
             e.routeId, e.agencyId, e.routeShortName, e.routeLongName, e.routeDesc,
             e.routeType, e.routeUrl, e.routeColor, e.routeTextColor, e.routeSortOrder, e.networkId,
@@ -81,7 +81,7 @@ data class GtfsRouteDto(
     }
 }
 
-data class GtfsStopDto(
+data class StopDto(
     val revisionId: Long,
     val feedCode: String,
     val stopId: String,
@@ -98,7 +98,7 @@ data class GtfsStopDto(
     val platformCode: String?,
 ) {
     companion object {
-        fun of(e: GtfsStop, revisionId: Long, feedCode: String) = GtfsStopDto(
+        fun of(e: Stop, revisionId: Long, feedCode: String) = StopDto(
             revisionId, feedCode,
             e.stopId, e.stopCode, e.stopName, e.stopDesc, e.stopLat, e.stopLon, e.zoneId,
             e.locationType, e.parentStation, e.wheelchairBoarding, e.levelId, e.platformCode,
@@ -106,7 +106,7 @@ data class GtfsStopDto(
     }
 }
 
-data class GtfsTripDto(
+data class TripDto(
     val revisionId: Long,
     val feedCode: String,
     val tripId: String,
@@ -121,7 +121,7 @@ data class GtfsTripDto(
     val bikesAllowed: Int?,
 ) {
     companion object {
-        fun of(e: GtfsTrip, revisionId: Long, feedCode: String) = GtfsTripDto(
+        fun of(e: Trip, revisionId: Long, feedCode: String) = TripDto(
             revisionId, feedCode,
             e.tripId, e.routeId, e.serviceId, e.tripHeadsign, e.tripShortName,
             e.directionId, e.blockId, e.shapeId, e.wheelchairAccessible, e.bikesAllowed,
@@ -129,7 +129,7 @@ data class GtfsTripDto(
     }
 }
 
-data class GtfsStopTimeDto(
+data class StopTimeDto(
     val revisionId: Long,
     val feedCode: String,
     val tripId: String,
@@ -146,7 +146,7 @@ data class GtfsStopTimeDto(
     val timepoint: Int?,
 ) {
     companion object {
-        fun of(e: GtfsStopTime, revisionId: Long, feedCode: String) = GtfsStopTimeDto(
+        fun of(e: StopTime, revisionId: Long, feedCode: String) = StopTimeDto(
             revisionId, feedCode,
             e.tripId, e.stopSequence, e.stopId,
             secondsToHms(e.arrivalTime), e.arrivalTime,
@@ -156,7 +156,7 @@ data class GtfsStopTimeDto(
     }
 }
 
-data class GtfsCalendarDto(
+data class CalendarDto(
     val revisionId: Long,
     val feedCode: String,
     val serviceId: String,
@@ -171,7 +171,7 @@ data class GtfsCalendarDto(
     val endDate: String?,
 ) {
     companion object {
-        fun of(e: GtfsCalendar, revisionId: Long, feedCode: String) = GtfsCalendarDto(
+        fun of(e: Calendar, revisionId: Long, feedCode: String) = CalendarDto(
             revisionId, feedCode,
             e.serviceId, e.monday, e.tuesday, e.wednesday, e.thursday, e.friday, e.saturday, e.sunday,
             e.startDate?.toString(), e.endDate?.toString(),
@@ -179,7 +179,7 @@ data class GtfsCalendarDto(
     }
 }
 
-data class GtfsCalendarDateDto(
+data class CalendarDateDto(
     val revisionId: Long,
     val feedCode: String,
     val serviceId: String,
@@ -187,13 +187,13 @@ data class GtfsCalendarDateDto(
     val exceptionType: Int?,
 ) {
     companion object {
-        fun of(e: GtfsCalendarDate, revisionId: Long, feedCode: String) = GtfsCalendarDateDto(
+        fun of(e: CalendarDate, revisionId: Long, feedCode: String) = CalendarDateDto(
             revisionId, feedCode, e.serviceId, e.date.toString(), e.exceptionType,
         )
     }
 }
 
-data class GtfsShapePointDto(
+data class ShapePointDto(
     val revisionId: Long,
     val feedCode: String,
     val lat: Double?,
@@ -202,30 +202,30 @@ data class GtfsShapePointDto(
     val distTraveled: Double?,
 ) {
     companion object {
-        fun of(e: GtfsShapePoint, revisionId: Long, feedCode: String) = GtfsShapePointDto(
+        fun of(e: ShapePoint, revisionId: Long, feedCode: String) = ShapePointDto(
             revisionId, feedCode, e.shapePtLat, e.shapePtLon, e.shapePtSequence, e.shapeDistTraveled,
         )
     }
 }
 
-data class GtfsShapeDto(
+data class ShapeDto(
     val revisionId: Long,
     val feedCode: String,
     val shapeId: String,
     val pointCount: Int,
     val lengthM: Double?,
-    val points: List<GtfsShapePointDto>,
+    val points: List<ShapePointDto>,
 ) {
     companion object {
-        fun of(shape: GtfsShape, points: List<GtfsShapePoint>, revisionId: Long, feedCode: String) =
-            GtfsShapeDto(
+        fun of(shape: Shape, points: List<ShapePoint>, revisionId: Long, feedCode: String) =
+            ShapeDto(
                 revisionId, feedCode, shape.shapeId, shape.pointCount, shape.lengthM,
-                points.map { GtfsShapePointDto.of(it, revisionId, feedCode) },
+                points.map { ShapePointDto.of(it, revisionId, feedCode) },
             )
     }
 }
 
-data class GtfsFrequencyDto(
+data class FrequencyDto(
     val revisionId: Long,
     val feedCode: String,
     val tripId: String,
@@ -235,14 +235,14 @@ data class GtfsFrequencyDto(
     val exactTimes: Int?,
 ) {
     companion object {
-        fun of(e: GtfsFrequency, revisionId: Long, feedCode: String) = GtfsFrequencyDto(
+        fun of(e: Frequency, revisionId: Long, feedCode: String) = FrequencyDto(
             revisionId, feedCode, e.tripId,
             secondsToHms(e.startTime)!!, secondsToHms(e.endTime), e.headwaySecs, e.exactTimes,
         )
     }
 }
 
-data class GtfsTransferDto(
+data class TransferDto(
     val revisionId: Long,
     val feedCode: String,
     val fromStopId: String?,
@@ -255,7 +255,7 @@ data class GtfsTransferDto(
     val minTransferTime: Int?,
 ) {
     companion object {
-        fun of(e: GtfsTransfer, revisionId: Long, feedCode: String) = GtfsTransferDto(
+        fun of(e: Transfer, revisionId: Long, feedCode: String) = TransferDto(
             revisionId, feedCode,
             e.fromStopId, e.toStopId, e.fromRouteId, e.toRouteId, e.fromTripId, e.toTripId,
             e.transferType, e.minTransferTime,
@@ -263,7 +263,7 @@ data class GtfsTransferDto(
     }
 }
 
-data class GtfsFeedInfoDto(
+data class FeedInfoDto(
     val revisionId: Long,
     val feedCode: String,
     val feedPublisherName: String?,
@@ -277,7 +277,7 @@ data class GtfsFeedInfoDto(
     val feedContactUrl: String?,
 ) {
     companion object {
-        fun of(e: GtfsFeedInfo, revisionId: Long, feedCode: String) = GtfsFeedInfoDto(
+        fun of(e: FeedInfo, revisionId: Long, feedCode: String) = FeedInfoDto(
             revisionId, feedCode,
             e.feedPublisherName, e.feedPublisherUrl, e.feedLang, e.defaultLang,
             e.feedStartDate?.toString(), e.feedEndDate?.toString(),
@@ -286,7 +286,7 @@ data class GtfsFeedInfoDto(
     }
 }
 
-data class GtfsPathwayDto(
+data class PathwayDto(
     val revisionId: Long,
     val feedCode: String,
     val pathwayId: String,
@@ -303,7 +303,7 @@ data class GtfsPathwayDto(
     val reversedSignpostedAs: String?,
 ) {
     companion object {
-        fun of(e: GtfsPathway, revisionId: Long, feedCode: String) = GtfsPathwayDto(
+        fun of(e: Pathway, revisionId: Long, feedCode: String) = PathwayDto(
             revisionId, feedCode,
             e.pathwayId, e.fromStopId, e.toStopId, e.pathwayMode, e.isBidirectional, e.length,
             e.traversalTime, e.stairCount, e.maxSlope, e.minWidth, e.signpostedAs, e.reversedSignpostedAs,
@@ -311,7 +311,7 @@ data class GtfsPathwayDto(
     }
 }
 
-data class GtfsLevelDto(
+data class LevelDto(
     val revisionId: Long,
     val feedCode: String,
     val levelId: String,
@@ -319,7 +319,7 @@ data class GtfsLevelDto(
     val levelName: String?,
 ) {
     companion object {
-        fun of(e: GtfsLevel, revisionId: Long, feedCode: String) = GtfsLevelDto(
+        fun of(e: Level, revisionId: Long, feedCode: String) = LevelDto(
             revisionId, feedCode, e.levelId, e.levelIndex, e.levelName,
         )
     }

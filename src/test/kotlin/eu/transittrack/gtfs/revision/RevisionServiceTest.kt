@@ -4,8 +4,8 @@ import eu.transittrack.gtfs.config.GtfsProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.gtfs.model.GtfsCalendar
-import eu.transittrack.gtfs.model.GtfsCalendarRepository
+import eu.transittrack.gtfs.model.Calendar
+import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
@@ -35,7 +35,7 @@ class RevisionServiceTest(
     @Autowired val svc: RevisionService,
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val feeds: GtfsFeedRepository,
-    @Autowired val calendars: GtfsCalendarRepository,
+    @Autowired val calendars: CalendarRepository,
     @Autowired val writer: RevisionWriter,
 ) {
     private val createdFeeds = mutableListOf<Long>()
@@ -86,7 +86,7 @@ class RevisionServiceTest(
         val f = feed()
         val r = svc.createPending(f, "u")
         calendars.save(
-            GtfsCalendar(
+            Calendar(
                 r.id!!, "WK", true, true, true, true, true, false, false,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2026, 9, 30),
             ),
@@ -100,7 +100,7 @@ class RevisionServiceTest(
     @Test fun `fail deletes rows and records message`() {
         val f = feed()
         val r = svc.createPending(f, "u")
-        calendars.save(GtfsCalendar(r.id!!, "WK", true, null, null, null, null, null, null, null, null))
+        calendars.save(Calendar(r.id!!, "WK", true, null, null, null, null, null, null, null, null))
         svc.fail(r.id!!, "boom")
         assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(r.id!!).get().status)
         assertEquals("boom", revisions.findById(r.id!!).get().errorMessage)

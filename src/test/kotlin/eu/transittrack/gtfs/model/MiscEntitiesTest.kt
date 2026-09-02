@@ -14,8 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired
 
 @PostgresSliceTest
 class MiscEntitiesTest(
-    @Autowired val frequencies: GtfsFrequencyRepository,
-    @Autowired val translations: GtfsTranslationRepository,
+    @Autowired val frequencies: FrequencyRepository,
+    @Autowired val translations: TranslationRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
 ) {
@@ -38,10 +38,10 @@ class MiscEntitiesTest(
     fun `frequency and translation persist`() {
         val rev = seedRevisionId()
 
-        frequencies.save(GtfsFrequency(rev, "T1", 21600, 36000, 600, 0))
+        frequencies.save(Frequency(rev, "T1", 21600, 36000, 600, 0))
         assertEquals(1, frequencies.findByTripId(rev, "T1").size)
 
-        translations.save(GtfsTranslation(rev, "stops", "stop_name", "de", "Hauptbahnhof", "S1", null, null))
+        translations.save(Translation(rev, "stops", "stop_name", "de", "Hauptbahnhof", "S1", null, null))
         assertEquals("Hauptbahnhof", translations.findByRevisionId(rev)[0].translation)
     }
 }

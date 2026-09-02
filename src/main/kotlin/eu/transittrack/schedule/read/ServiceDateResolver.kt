@@ -1,8 +1,8 @@
 package eu.transittrack.schedule.read
 
-import eu.transittrack.gtfs.model.GtfsCalendar
-import eu.transittrack.gtfs.model.GtfsCalendarDateRepository
-import eu.transittrack.gtfs.model.GtfsCalendarRepository
+import eu.transittrack.gtfs.model.Calendar
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
 import java.time.DayOfWeek
 import java.time.LocalDate
 import org.springframework.stereotype.Component
@@ -17,8 +17,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class ServiceDateResolver(
-    private val calendars: GtfsCalendarRepository,
-    private val calendarDates: GtfsCalendarDateRepository,
+    private val calendars: CalendarRepository,
+    private val calendarDates: CalendarDateRepository,
 ) {
     fun activeServiceIds(revisionId: Long, date: LocalDate): Set<String> {
         val active = calendars.findByRevisionId(revisionId)
@@ -35,13 +35,13 @@ class ServiceDateResolver(
         return active
     }
 
-    private fun withinWindow(c: GtfsCalendar, date: LocalDate): Boolean {
+    private fun withinWindow(c: Calendar, date: LocalDate): Boolean {
         val start = c.startDate
         val end = c.endDate
         return (start == null || !date.isBefore(start)) && (end == null || !date.isAfter(end))
     }
 
-    private fun runsOnWeekday(c: GtfsCalendar, dow: DayOfWeek): Boolean = when (dow) {
+    private fun runsOnWeekday(c: Calendar, dow: DayOfWeek): Boolean = when (dow) {
         DayOfWeek.MONDAY -> c.monday
         DayOfWeek.TUESDAY -> c.tuesday
         DayOfWeek.WEDNESDAY -> c.wednesday

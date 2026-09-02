@@ -1,20 +1,20 @@
 package eu.transittrack.gtfs.api
 
-import eu.transittrack.gtfs.api.dto.GtfsAgencyDto
-import eu.transittrack.gtfs.api.dto.GtfsLevelDto
-import eu.transittrack.gtfs.api.dto.GtfsRouteDto
-import eu.transittrack.gtfs.api.dto.GtfsShapeDto
-import eu.transittrack.gtfs.api.dto.GtfsStopDto
-import eu.transittrack.gtfs.api.dto.GtfsStopTimeDto
-import eu.transittrack.gtfs.api.dto.GtfsTripDto
-import eu.transittrack.gtfs.model.GtfsAgencyRepository
-import eu.transittrack.gtfs.model.GtfsLevelRepository
-import eu.transittrack.gtfs.model.GtfsRouteRepository
-import eu.transittrack.gtfs.model.GtfsShapePointRepository
-import eu.transittrack.gtfs.model.GtfsShapeRepository
-import eu.transittrack.gtfs.model.GtfsStopRepository
-import eu.transittrack.gtfs.model.GtfsStopTimeRepository
-import eu.transittrack.gtfs.model.GtfsTripRepository
+import eu.transittrack.gtfs.api.dto.AgencyDto
+import eu.transittrack.gtfs.api.dto.LevelDto
+import eu.transittrack.gtfs.api.dto.RouteDto
+import eu.transittrack.gtfs.api.dto.ShapeDto
+import eu.transittrack.gtfs.api.dto.StopDto
+import eu.transittrack.gtfs.api.dto.StopTimeDto
+import eu.transittrack.gtfs.api.dto.TripDto
+import eu.transittrack.gtfs.model.AgencyRepository
+import eu.transittrack.gtfs.model.LevelRepository
+import eu.transittrack.gtfs.model.RouteRepository
+import eu.transittrack.gtfs.model.ShapePointRepository
+import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.TripRepository
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
@@ -27,59 +27,59 @@ import org.springframework.stereotype.Controller
  */
 @Controller
 class GtfsNestedResolvers(
-    private val agencies: GtfsAgencyRepository,
-    private val routes: GtfsRouteRepository,
-    private val trips: GtfsTripRepository,
-    private val stopTimes: GtfsStopTimeRepository,
-    private val stops: GtfsStopRepository,
-    private val shapes: GtfsShapeRepository,
-    private val shapePoints: GtfsShapePointRepository,
-    private val levels: GtfsLevelRepository,
+    private val agencies: AgencyRepository,
+    private val routes: RouteRepository,
+    private val trips: TripRepository,
+    private val stopTimes: StopTimeRepository,
+    private val stops: StopRepository,
+    private val shapes: ShapeRepository,
+    private val shapePoints: ShapePointRepository,
+    private val levels: LevelRepository,
 ) {
 
     @SchemaMapping(typeName = "GtfsRoute")
-    fun agency(r: GtfsRouteDto): GtfsAgencyDto? =
+    fun agency(r: RouteDto): AgencyDto? =
         r.agencyId
             ?.let { agencies.findByAgencyId(r.revisionId, it) }
-            ?.let { GtfsAgencyDto.of(it, r.revisionId, r.feedCode) }
+            ?.let { AgencyDto.of(it, r.revisionId, r.feedCode) }
 
     @SchemaMapping(typeName = "GtfsRoute")
-    fun trips(r: GtfsRouteDto): List<GtfsTripDto> =
+    fun trips(r: RouteDto): List<TripDto> =
         trips.findByRouteId(r.revisionId, r.routeId)
-            .map { GtfsTripDto.of(it, r.revisionId, r.feedCode) }
+            .map { TripDto.of(it, r.revisionId, r.feedCode) }
 
     @SchemaMapping(typeName = "GtfsTrip")
-    fun route(t: GtfsTripDto): GtfsRouteDto? =
+    fun route(t: TripDto): RouteDto? =
         routes.findByRouteId(t.revisionId, t.routeId)
-            ?.let { GtfsRouteDto.of(it, t.revisionId, t.feedCode) }
+            ?.let { RouteDto.of(it, t.revisionId, t.feedCode) }
 
     @SchemaMapping(typeName = "GtfsTrip")
-    fun stopTimes(t: GtfsTripDto): List<GtfsStopTimeDto> =
+    fun stopTimes(t: TripDto): List<StopTimeDto> =
         stopTimes.findByTripId(t.revisionId, t.tripId)
-            .map { GtfsStopTimeDto.of(it, t.revisionId, t.feedCode) }
+            .map { StopTimeDto.of(it, t.revisionId, t.feedCode) }
 
     @SchemaMapping(typeName = "GtfsTrip")
-    fun shape(t: GtfsTripDto): GtfsShapeDto? {
+    fun shape(t: TripDto): ShapeDto? {
         val sid = t.shapeId ?: return null
         val shape = shapes.findByShapeId(t.revisionId, sid) ?: return null
         val pts = shapePoints.findByShapeId(t.revisionId, sid)
-        return GtfsShapeDto.of(shape, pts, t.revisionId, t.feedCode)
+        return ShapeDto.of(shape, pts, t.revisionId, t.feedCode)
     }
 
     @SchemaMapping(typeName = "GtfsStopTime")
-    fun stop(st: GtfsStopTimeDto): GtfsStopDto? =
+    fun stop(st: StopTimeDto): StopDto? =
         st.stopId
             ?.let { stops.findByStopId(st.revisionId, it) }
-            ?.let { GtfsStopDto.of(it, st.revisionId, st.feedCode) }
+            ?.let { StopDto.of(it, st.revisionId, st.feedCode) }
 
     @SchemaMapping(typeName = "GtfsStop")
-    fun childStops(s: GtfsStopDto): List<GtfsStopDto> =
+    fun childStops(s: StopDto): List<StopDto> =
         stops.findByParentStation(s.revisionId, s.stopId)
-            .map { GtfsStopDto.of(it, s.revisionId, s.feedCode) }
+            .map { StopDto.of(it, s.revisionId, s.feedCode) }
 
     @SchemaMapping(typeName = "GtfsStop")
-    fun level(s: GtfsStopDto): GtfsLevelDto? =
+    fun level(s: StopDto): LevelDto? =
         s.levelId
             ?.let { levels.findByLevelId(s.revisionId, it) }
-            ?.let { GtfsLevelDto.of(it, s.revisionId, s.feedCode) }
+            ?.let { LevelDto.of(it, s.revisionId, s.feedCode) }
 }

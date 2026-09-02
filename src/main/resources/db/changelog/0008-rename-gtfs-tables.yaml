@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0008-rename-gtfs-tables
+      author: transittrack
+      changes:
+        - renameTable: { oldTableName: gtfs_agency, newTableName: agencies }
+        - renameTable: { oldTableName: gtfs_stop, newTableName: stops }
+        - renameTable: { oldTableName: gtfs_route, newTableName: routes }
+        - renameTable: { oldTableName: gtfs_trip, newTableName: trips }
+        - renameTable: { oldTableName: gtfs_stop_time, newTableName: stop_times }
+        - renameTable: { oldTableName: gtfs_calendar, newTableName: calendars }
+        - renameTable: { oldTableName: gtfs_calendar_date, newTableName: calendar_dates }
+        - renameTable: { oldTableName: gtfs_feed_info, newTableName: feed_infos }
+        - renameTable: { oldTableName: gtfs_frequency, newTableName: frequencies }
+        - renameTable: { oldTableName: gtfs_shape, newTableName: shapes }
+        - renameTable: { oldTableName: gtfs_shape_point, newTableName: shape_points }
+        - renameTable: { oldTableName: gtfs_fare_attribute, newTableName: fare_attributes }
+        - renameTable: { oldTableName: gtfs_fare_rule, newTableName: fare_rules }
+        - renameTable: { oldTableName: gtfs_timeframe, newTableName: timeframes }
+        - renameTable: { oldTableName: gtfs_rider_category, newTableName: rider_categories }
+        - renameTable: { oldTableName: gtfs_fare_media, newTableName: fare_media }
+        - renameTable: { oldTableName: gtfs_fare_product, newTableName: fare_products }
+        - renameTable: { oldTableName: gtfs_fare_leg_rule, newTableName: fare_leg_rules }
+        - renameTable: { oldTableName: gtfs_fare_leg_join_rule, newTableName: fare_leg_join_rules }
+        - renameTable: { oldTableName: gtfs_fare_transfer_rule, newTableName: fare_transfer_rules }
+        - renameTable: { oldTableName: gtfs_area, newTableName: areas }
+        - renameTable: { oldTableName: gtfs_stop_area, newTableName: stop_areas }
+        - renameTable: { oldTableName: gtfs_network, newTableName: networks }
+        - renameTable: { oldTableName: gtfs_route_network, newTableName: route_networks }
+        - renameTable: { oldTableName: gtfs_pathway, newTableName: pathways }
+        - renameTable: { oldTableName: gtfs_level, newTableName: levels }
+        - renameTable: { oldTableName: gtfs_location_group, newTableName: location_groups }
+        - renameTable: { oldTableName: gtfs_location_group_stop, newTableName: location_group_stops }
+        - renameTable: { oldTableName: gtfs_location, newTableName: locations }
+        - renameTable: { oldTableName: gtfs_booking_rule, newTableName: booking_rules }
+        - renameTable: { oldTableName: gtfs_transfer, newTableName: transfers }
+        - renameTable: { oldTableName: gtfs_translation, newTableName: translations }
+        - renameTable: { oldTableName: gtfs_attribution, newTableName: attributions }

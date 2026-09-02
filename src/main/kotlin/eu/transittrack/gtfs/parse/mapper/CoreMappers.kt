@@ -1,17 +1,17 @@
 package eu.transittrack.gtfs.parse.mapper
 
 import eu.transittrack.gtfs.model.*
-import org.mobilitydata.gtfsvalidator.table.GtfsAgency as VAgency
-import org.mobilitydata.gtfsvalidator.table.GtfsCalendar as VCalendar
-import org.mobilitydata.gtfsvalidator.table.GtfsCalendarDate as VCalendarDate
-import org.mobilitydata.gtfsvalidator.table.GtfsFeedInfo as VFeedInfo
-import org.mobilitydata.gtfsvalidator.table.GtfsRoute as VRoute
-import org.mobilitydata.gtfsvalidator.table.GtfsShape as VShape
-import org.mobilitydata.gtfsvalidator.table.GtfsStop as VStop
-import org.mobilitydata.gtfsvalidator.table.GtfsStopTime as VStopTime
-import org.mobilitydata.gtfsvalidator.table.GtfsTrip as VTrip
+import org.mobilitydata.gtfsvalidator.table.GtfsAgency
+import org.mobilitydata.gtfsvalidator.table.GtfsCalendar
+import org.mobilitydata.gtfsvalidator.table.GtfsCalendarDate
+import org.mobilitydata.gtfsvalidator.table.GtfsFeedInfo
+import org.mobilitydata.gtfsvalidator.table.GtfsRoute
+import org.mobilitydata.gtfsvalidator.table.GtfsShape
+import org.mobilitydata.gtfsvalidator.table.GtfsStop
+import org.mobilitydata.gtfsvalidator.table.GtfsStopTime
+import org.mobilitydata.gtfsvalidator.table.GtfsTrip
 
-fun mapAgency(rev: Long, r: VAgency) = GtfsAgency(
+fun mapAgency(rev: Long, r: GtfsAgency) = Agency(
     revisionId = rev,
     agencyId = r.agencyId().takeIf { r.hasAgencyId() },
     agencyName = r.agencyName().takeIf { r.hasAgencyName() },
@@ -23,7 +23,7 @@ fun mapAgency(rev: Long, r: VAgency) = GtfsAgency(
     agencyEmail = r.agencyEmail().takeIf { r.hasAgencyEmail() },
 )
 
-fun mapStop(rev: Long, r: VStop) = GtfsStop(
+fun mapStop(rev: Long, r: GtfsStop) = Stop(
     revisionId = rev,
     stopId = r.stopId().takeIf { r.hasStopId() } ?: error("stops.txt row missing stop_id"),
     stopCode = r.stopCode().takeIf { r.hasStopCode() },
@@ -42,7 +42,7 @@ fun mapStop(rev: Long, r: VStop) = GtfsStop(
     platformCode = r.platformCode().takeIf { r.hasPlatformCode() },
 )
 
-fun mapRoute(rev: Long, r: VRoute) = GtfsRoute(
+fun mapRoute(rev: Long, r: GtfsRoute) = Route(
     revisionId = rev,
     routeId = r.routeId().takeIf { r.hasRouteId() } ?: error("routes.txt row missing route_id"),
     agencyId = r.agencyId().takeIf { r.hasAgencyId() },
@@ -59,7 +59,7 @@ fun mapRoute(rev: Long, r: VRoute) = GtfsRoute(
     networkId = r.networkId().takeIf { r.hasNetworkId() },
 )
 
-fun mapTrip(rev: Long, r: VTrip) = GtfsTrip(
+fun mapTrip(rev: Long, r: GtfsTrip) = Trip(
     revisionId = rev,
     routeId = r.routeId().takeIf { r.hasRouteId() } ?: error("trips.txt row missing route_id"),
     serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("trips.txt row missing service_id"),
@@ -73,7 +73,7 @@ fun mapTrip(rev: Long, r: VTrip) = GtfsTrip(
     bikesAllowed = r.bikesAllowedValue().takeIf { r.hasBikesAllowed() },
 )
 
-fun mapStopTime(rev: Long, r: VStopTime) = GtfsStopTime(
+fun mapStopTime(rev: Long, r: GtfsStopTime) = StopTime(
     revisionId = rev,
     tripId = r.tripId().takeIf { r.hasTripId() } ?: error("stop_times.txt row missing trip_id"),
     stopSequence = r.stopSequence().takeIf { r.hasStopSequence() }
@@ -98,7 +98,7 @@ fun mapStopTime(rev: Long, r: VStopTime) = GtfsStopTime(
 
 private fun calendarDay(has: Boolean, value: Int): Boolean? = value.takeIf { has }?.let { it == 1 }
 
-fun mapCalendar(rev: Long, r: VCalendar) = GtfsCalendar(
+fun mapCalendar(rev: Long, r: GtfsCalendar) = Calendar(
     revisionId = rev,
     serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("calendar.txt row missing service_id"),
     monday = calendarDay(r.hasMonday(), r.mondayValue()),
@@ -112,14 +112,14 @@ fun mapCalendar(rev: Long, r: VCalendar) = GtfsCalendar(
     endDate = r.endDate().takeIf { r.hasEndDate() }.toLocalDate(),
 )
 
-fun mapCalendarDate(rev: Long, r: VCalendarDate) = GtfsCalendarDate(
+fun mapCalendarDate(rev: Long, r: GtfsCalendarDate) = CalendarDate(
     revisionId = rev,
     serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("calendar_dates.txt row missing service_id"),
     date = r.date().takeIf { r.hasDate() }.toLocalDate() ?: error("calendar_dates.txt row missing date"),
     exceptionType = r.exceptionTypeValue().takeIf { r.hasExceptionType() },
 )
 
-fun mapFeedInfo(rev: Long, r: VFeedInfo) = GtfsFeedInfo(
+fun mapFeedInfo(rev: Long, r: GtfsFeedInfo) = FeedInfo(
     revisionId = rev,
     feedPublisherName = r.feedPublisherName().takeIf { r.hasFeedPublisherName() },
     feedPublisherUrl = r.feedPublisherUrl().takeIf { r.hasFeedPublisherUrl() },
@@ -132,7 +132,7 @@ fun mapFeedInfo(rev: Long, r: VFeedInfo) = GtfsFeedInfo(
     feedContactUrl = r.feedContactUrl().takeIf { r.hasFeedContactUrl() },
 )
 
-fun mapShapePoint(rev: Long, r: VShape) = GtfsShapePoint(
+fun mapShapePoint(rev: Long, r: GtfsShape) = ShapePoint(
     revisionId = rev,
     shapeId = r.shapeId().takeIf { r.hasShapeId() } ?: error("shapes.txt row missing shape_id"),
     shapePtLat = r.shapePtLat().takeIf { r.hasShapePtLat() },

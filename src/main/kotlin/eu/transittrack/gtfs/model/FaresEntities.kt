@@ -19,8 +19,8 @@ import org.hibernate.type.SqlTypes
  */
 
 @Entity
-@Table(name = "gtfs_fare_attribute")
-class GtfsFareAttribute(
+@Table(name = "fare_attributes")
+class FareAttribute(
     revisionId: Long,
     @Column(name = "fare_id", nullable = false) var fareId: String,
     var price: Double?,
@@ -32,8 +32,8 @@ class GtfsFareAttribute(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_fare_rule")
-class GtfsFareRule(
+@Table(name = "fare_rules")
+class FareRule(
     revisionId: Long,
     @Column(name = "fare_id", nullable = false) var fareId: String,
     var routeId: String?,
@@ -43,8 +43,8 @@ class GtfsFareRule(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_timeframe")
-class GtfsTimeframe(
+@Table(name = "timeframes")
+class Timeframe(
     revisionId: Long,
     @Column(name = "timeframe_group_id", nullable = false) var timeframeGroupId: String,
     var startTime: Int?,
@@ -53,8 +53,8 @@ class GtfsTimeframe(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_rider_category")
-class GtfsRiderCategory(
+@Table(name = "rider_categories")
+class RiderCategory(
     revisionId: Long,
     @Column(name = "rider_category_id", nullable = false) var riderCategoryId: String,
     var riderCategoryName: String?,
@@ -65,8 +65,8 @@ class GtfsRiderCategory(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_fare_media")
-class GtfsFareMedia(
+@Table(name = "fare_media")
+class FareMedia(
     revisionId: Long,
     @Column(name = "fare_media_id", nullable = false) var fareMediaId: String,
     var fareMediaName: String?,
@@ -74,8 +74,8 @@ class GtfsFareMedia(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_fare_product")
-class GtfsFareProduct(
+@Table(name = "fare_products")
+class FareProduct(
     revisionId: Long,
     @Column(name = "fare_product_id", nullable = false) var fareProductId: String,
     var fareProductName: String?,
@@ -86,8 +86,8 @@ class GtfsFareProduct(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_fare_leg_rule")
-class GtfsFareLegRule(
+@Table(name = "fare_leg_rules")
+class FareLegRule(
     revisionId: Long,
     var legGroupId: String?,
     var networkId: String?,
@@ -100,8 +100,8 @@ class GtfsFareLegRule(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_fare_leg_join_rule")
-class GtfsFareLegJoinRule(
+@Table(name = "fare_leg_join_rules")
+class FareLegJoinRule(
     revisionId: Long,
     @Column(name = "from_network_id", nullable = false) var fromNetworkId: String,
     @Column(name = "to_network_id", nullable = false) var toNetworkId: String,
@@ -110,8 +110,8 @@ class GtfsFareLegJoinRule(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_fare_transfer_rule")
-class GtfsFareTransferRule(
+@Table(name = "fare_transfer_rules")
+class FareTransferRule(
     revisionId: Long,
     var fromLegGroupId: String?,
     var toLegGroupId: String?,
@@ -123,59 +123,59 @@ class GtfsFareTransferRule(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_area")
-class GtfsArea(
+@Table(name = "areas")
+class Area(
     revisionId: Long,
     @Column(name = "area_id", nullable = false) var areaId: String,
     var areaName: String?,
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_stop_area")
-class GtfsStopArea(
+@Table(name = "stop_areas")
+class StopArea(
     revisionId: Long,
     @Column(name = "area_id", nullable = false) var areaId: String,
     @Column(name = "stop_id", nullable = false) var stopId: String,
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_network")
-class GtfsNetwork(
+@Table(name = "networks")
+class Network(
     revisionId: Long,
     @Column(name = "network_id", nullable = false) var networkId: String,
     var networkName: String?,
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_route_network")
-class GtfsRouteNetwork(
+@Table(name = "route_networks")
+class RouteNetwork(
     revisionId: Long,
     @Column(name = "network_id", nullable = false) var networkId: String,
     @Column(name = "route_id", nullable = false) var routeId: String,
 ) : RevisionScoped(revisionId)
 
-interface GtfsFareAttributeRepository : RevisionScopedRepository<GtfsFareAttribute, Long>
+interface FareAttributeRepository : RevisionScopedRepository<FareAttribute, Long>
 
-interface GtfsFareRuleRepository : RevisionScopedRepository<GtfsFareRule, Long>
+interface FareRuleRepository : RevisionScopedRepository<FareRule, Long>
 
-interface GtfsTimeframeRepository : RevisionScopedRepository<GtfsTimeframe, Long>
+interface TimeframeRepository : RevisionScopedRepository<Timeframe, Long>
 
-interface GtfsRiderCategoryRepository : RevisionScopedRepository<GtfsRiderCategory, Long>
+interface RiderCategoryRepository : RevisionScopedRepository<RiderCategory, Long>
 
-interface GtfsFareMediaRepository : RevisionScopedRepository<GtfsFareMedia, Long>
+interface FareMediaRepository : RevisionScopedRepository<FareMedia, Long>
 
-interface GtfsFareProductRepository : RevisionScopedRepository<GtfsFareProduct, Long>
+interface FareProductRepository : RevisionScopedRepository<FareProduct, Long>
 
-interface GtfsFareLegRuleRepository : RevisionScopedRepository<GtfsFareLegRule, Long>
+interface FareLegRuleRepository : RevisionScopedRepository<FareLegRule, Long>
 
-interface GtfsFareLegJoinRuleRepository : RevisionScopedRepository<GtfsFareLegJoinRule, Long>
+interface FareLegJoinRuleRepository : RevisionScopedRepository<FareLegJoinRule, Long>
 
-interface GtfsFareTransferRuleRepository : RevisionScopedRepository<GtfsFareTransferRule, Long>
+interface FareTransferRuleRepository : RevisionScopedRepository<FareTransferRule, Long>
 
-interface GtfsAreaRepository : RevisionScopedRepository<GtfsArea, Long>
+interface AreaRepository : RevisionScopedRepository<Area, Long>
 
-interface GtfsStopAreaRepository : RevisionScopedRepository<GtfsStopArea, Long>
+interface StopAreaRepository : RevisionScopedRepository<StopArea, Long>
 
-interface GtfsNetworkRepository : RevisionScopedRepository<GtfsNetwork, Long>
+interface NetworkRepository : RevisionScopedRepository<Network, Long>
 
-interface GtfsRouteNetworkRepository : RevisionScopedRepository<GtfsRouteNetwork, Long>
+interface RouteNetworkRepository : RevisionScopedRepository<RouteNetwork, Long>

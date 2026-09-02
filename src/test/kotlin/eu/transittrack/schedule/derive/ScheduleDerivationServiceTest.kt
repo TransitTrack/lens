@@ -6,13 +6,13 @@ import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
-import eu.transittrack.gtfs.model.GtfsFrequencyRepository
-import eu.transittrack.gtfs.model.GtfsRouteRepository
-import eu.transittrack.gtfs.model.GtfsShapePointRepository
-import eu.transittrack.gtfs.model.GtfsShapeRepository
-import eu.transittrack.gtfs.model.GtfsStopRepository
-import eu.transittrack.gtfs.model.GtfsStopTimeRepository
-import eu.transittrack.gtfs.model.GtfsTripRepository
+import eu.transittrack.gtfs.model.FrequencyRepository
+import eu.transittrack.gtfs.model.RouteRepository
+import eu.transittrack.gtfs.model.ShapePointRepository
+import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
@@ -54,13 +54,13 @@ class ScheduleDerivationServiceTest(
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val scheduleProps: ScheduleProperties,
     @Autowired val scheduleWriter: ScheduleWriter,
-    @Autowired val stops: GtfsStopRepository,
-    @Autowired val routes: GtfsRouteRepository,
-    @Autowired val trips: GtfsTripRepository,
-    @Autowired val stopTimes: GtfsStopTimeRepository,
-    @Autowired val shapePoints: GtfsShapePointRepository,
-    @Autowired val shapes: GtfsShapeRepository,
-    @Autowired val frequencies: GtfsFrequencyRepository,
+    @Autowired val stops: StopRepository,
+    @Autowired val routes: RouteRepository,
+    @Autowired val trips: TripRepository,
+    @Autowired val stopTimes: StopTimeRepository,
+    @Autowired val shapePoints: ShapePointRepository,
+    @Autowired val shapes: ShapeRepository,
+    @Autowired val frequencies: FrequencyRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val schedTrips: SchedTripRepository,
@@ -77,7 +77,7 @@ class ScheduleDerivationServiceTest(
         feedId = f.id!!
         val ingestion = IngestionService(
             FixtureDownloader("schedule-sample"), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsFeedLoader(JsonMapper.builder().build()), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedLoader(), SyncTaskExecutor(),
             org.mockito.kotlin.mock<ScheduleDerivationService>(),
             ScheduleProperties(enabled = false),
             scheduleWriter,

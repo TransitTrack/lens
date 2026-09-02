@@ -4,11 +4,7 @@ import eu.transittrack.gtfs.config.GtfsProperties
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
-import eu.transittrack.gtfs.model.GtfsLocation
-import eu.transittrack.gtfs.model.GtfsShape
-import eu.transittrack.gtfs.model.GtfsShapePoint
-import eu.transittrack.gtfs.model.GtfsShapeRepository
-import eu.transittrack.gtfs.model.RevisionScoped
+import eu.transittrack.gtfs.model.*
 import eu.transittrack.gtfs.parse.GtfsFileDef
 import eu.transittrack.gtfs.parse.GtfsFileRegistry
 import eu.transittrack.gtfs.parse.GtfsGeoJsonReader
@@ -21,15 +17,11 @@ import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.haversineMeters
 import org.mobilitydata.gtfsvalidator.table.GtfsEntity
-import org.mobilitydata.gtfsvalidator.table.GtfsTableContainer
-import org.mobilitydata.gtfsvalidator.table.GtfsTableDescriptor
-import org.mobilitydata.gtfsvalidator.table.TableStatus
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
-import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Service
-import kotlin.jvm.optionals.getOrDefault
 
 /**
  * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check ->
@@ -52,7 +44,7 @@ class IngestionService(
     private val feeds: GtfsFeedRepository,
     private val feedService: GtfsFeedService,
     private val props: GtfsProperties,
-    private val shapes: GtfsShapeRepository,
+    private val shapes: ShapeRepository,
     private val feedLoader: GtfsFeedLoader,
     private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
     private val scheduleDerivation: eu.transittrack.schedule.derive.ScheduleDerivationService,
@@ -93,7 +85,8 @@ class IngestionService(
     }
 
     fun runPipeline(revisionId: Long) {
-        val feed = feeds.findById(revisionService.revision(revisionId).feedId).orElseThrow()
+        val feedId = revisionService.revision(revisionId).feedId
+        val feed = feeds.findById(feedId).orElseThrow()
         val tempDir = createTempDirectory(tempRoot(), "gtfs-$revisionId-")
         val zipPath = tempDir.resolve("feed.zip")
         try {
@@ -124,9 +117,7 @@ class IngestionService(
             revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
                 it.validationReport = loadReport.toJson()
             }
-            if (loadReport.gtfsFeedContainer == null ||
-                !loadReport.gtfsFeedContainer.isParsedSuccessfully ||
-                props.ingest.strictValidation && loadReport.errorCount > 0) {
+            if (!loadReport.loaded || props.ingest.strictValidation && loadReport.errorCount > 0) {
                 throw GtfsValidationException(loadReport)
             }
 
@@ -135,11 +126,10 @@ class IngestionService(
 
             val rowCounts = LinkedHashMap<String, Long>()
             for (def in GtfsFileRegistry.orderedForParsing) {
-                val entities = loadReport.gtfsFeedContainer
-                        .getTableForFilename<GtfsTableContainer<GtfsEntity, GtfsTableDescriptor<GtfsEntity>>>(def.fileName)
-                        .filter { t -> t.isParsedSuccessfully && t.tableStatus == TableStatus.PARSABLE_HEADERS_AND_ROWS }
-                        .map { it.entities }
-                        .getOrDefault(emptyList())
+                if (!loadReport.hasFile(def.fileName))
+                    continue
+
+                val entities = loadReport.getFileContent(def.fileName)
 
                 rowCounts[def.entityType] = when (def.kind) {
                     GtfsFileDef.Kind.CSV -> loadCsv(revisionId, entities, def)
@@ -171,7 +161,7 @@ class IngestionService(
             }
             feedService.markIngested(feed.id!!)
         } catch (e: Exception) {
-            log.warn("ingest failed for revision {}: {}", revisionId, e.message)
+            log.warn("ingest failed for revision {}: {}", revisionId, e.message, e)
             // RevisionService.fail / RevisionWriter only know the gtfs_* tables. A failure
             // AFTER a successful derivation (READY, activate, prune, markIngested) would
             // otherwise leave a full derived model hanging off a FAILED revision.
@@ -225,11 +215,11 @@ class IngestionService(
     private fun loadShapes(revisionId: Long, entities: List<GtfsEntity>, def: GtfsFileDef): Long {
         log.info("Loading CSV ${def.entityType} from file ${def.fileName}")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
-        val perShape = LinkedHashMap<String, MutableList<GtfsShapePoint>>()
+        val perShape = LinkedHashMap<String, MutableList<ShapePoint>>()
         var total = 0L
 
         entities.map { row ->
-            val pt = def.map(revisionId, row) as GtfsShapePoint
+            val pt = def.map(revisionId, row) as ShapePoint
             perShape.getOrPut(pt.shapeId) { mutableListOf() }.add(pt)
             pt
         }.forEach { entity ->
@@ -246,7 +236,7 @@ class IngestionService(
 
         val aggregates = perShape.map { (shapeId, pts) ->
             val ordered = pts.sortedBy { it.shapePtSequence }
-            GtfsShape(revisionId, shapeId, ordered.size, polylineLengthMeters(ordered))
+            Shape(revisionId, shapeId, ordered.size, polylineLengthMeters(ordered))
         }
         writer.write(aggregates)
 
@@ -255,14 +245,16 @@ class IngestionService(
 
     private fun loadGeoJson(revisionId: Long, dir: Path): Long {
         log.info("Loading geojson")
-        val rows = GtfsArchive.openFile(dir, "locations.geojson")!!.use { GtfsGeoJsonReader.read(it) }
-            .map { GtfsLocation(revisionId, it.locationId, it.stopName, it.stopDesc, it.geometryJson) }
-        writer.write(rows)
-        return rows.size.toLong()
+        val rows = GtfsArchive.openFile(dir, "locations.geojson")
+            ?.use { GtfsGeoJsonReader.read(it) }
+            ?.map { Location(revisionId, it.locationId, it.stopName, it.stopDesc, it.geometryJson) }
+
+        rows?.let { writer.write(it) }
+        return rows?.size?.toLong() ?: 0
     }
 
     /** Polyline length in metres (haversine). `0.0` for <2 points; `null` if any point lacks a coordinate. */
-    private fun polylineLengthMeters(points: List<GtfsShapePoint>): Double? {
+    private fun polylineLengthMeters(points: List<ShapePoint>): Double? {
         if (points.size < 2) return 0.0
         var meters = 0.0
         for (i in 1 until points.size) {

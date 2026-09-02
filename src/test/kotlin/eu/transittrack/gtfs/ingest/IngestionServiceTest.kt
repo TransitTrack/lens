@@ -5,10 +5,10 @@ import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
-import eu.transittrack.gtfs.model.GtfsRouteRepository
-import eu.transittrack.gtfs.model.GtfsShapePointRepository
-import eu.transittrack.gtfs.model.GtfsShapeRepository
-import eu.transittrack.gtfs.model.GtfsStopTimeRepository
+import eu.transittrack.gtfs.model.RouteRepository
+import eu.transittrack.gtfs.model.ShapePointRepository
+import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
@@ -51,14 +51,14 @@ class IngestionServiceTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val writer: RevisionWriter,
     @Autowired val props: GtfsProperties,
-    @Autowired val routes: GtfsRouteRepository,
-    @Autowired val stopTimes: GtfsStopTimeRepository,
-    @Autowired val shapes: GtfsShapeRepository,
-    @Autowired val shapePoints: GtfsShapePointRepository,
+    @Autowired val routes: RouteRepository,
+    @Autowired val stopTimes: StopTimeRepository,
+    @Autowired val shapes: ShapeRepository,
+    @Autowired val shapePoints: ShapePointRepository,
     @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val createdFeeds = mutableListOf<Long>()
-    private val validator = GtfsFeedLoader(tools.jackson.databind.json.JsonMapper.builder().build())
+    private val validator = GtfsFeedLoader()
 
     private fun feed(): GtfsFeed {
         val f = feeds.save(

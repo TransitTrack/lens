@@ -14,8 +14,8 @@ import org.springframework.data.jpa.repository.Query
  */
 
 @Entity
-@Table(name = "gtfs_shape")
-class GtfsShape(
+@Table(name = "shapes")
+class Shape(
     revisionId: Long,
     @Column(name = "shape_id", nullable = false) var shapeId: String,
     @Column(name = "point_count", nullable = false) var pointCount: Int,
@@ -24,8 +24,8 @@ class GtfsShape(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "gtfs_shape_point")
-class GtfsShapePoint(
+@Table(name = "shape_points")
+class ShapePoint(
     revisionId: Long,
     @Column(name = "shape_id", nullable = false) var shapeId: String,
     var shapePtLat: Double?,
@@ -34,15 +34,15 @@ class GtfsShapePoint(
     var shapeDistTraveled: Double?,
 ) : RevisionScoped(revisionId)
 
-interface GtfsShapeRepository : RevisionScopedRepository<GtfsShape, Long> {
-    @Query("select s from GtfsShape s where s.revisionId = :revisionId and s.shapeId = :shapeId")
-    fun findByShapeId(revisionId: Long, shapeId: String): GtfsShape?
+interface ShapeRepository : RevisionScopedRepository<Shape, Long> {
+    @Query("select s from Shape s where s.revisionId = :revisionId and s.shapeId = :shapeId")
+    fun findByShapeId(revisionId: Long, shapeId: String): Shape?
 }
 
-interface GtfsShapePointRepository : RevisionScopedRepository<GtfsShapePoint, Long> {
+interface ShapePointRepository : RevisionScopedRepository<ShapePoint, Long> {
     @Query(
-        "select p from GtfsShapePoint p " +
+        "select p from ShapePoint p " +
             "where p.revisionId = :revisionId and p.shapeId = :shapeId order by p.shapePtSequence",
     )
-    fun findByShapeId(revisionId: Long, shapeId: String): List<GtfsShapePoint>
+    fun findByShapeId(revisionId: Long, shapeId: String): List<ShapePoint>
 }

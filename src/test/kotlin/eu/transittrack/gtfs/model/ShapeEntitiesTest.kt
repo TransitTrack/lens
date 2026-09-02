@@ -14,8 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired
 
 @PostgresSliceTest
 class ShapeEntitiesTest(
-    @Autowired val shapes: GtfsShapeRepository,
-    @Autowired val points: GtfsShapePointRepository,
+    @Autowired val shapes: ShapeRepository,
+    @Autowired val points: ShapePointRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
 ) {
@@ -38,9 +38,9 @@ class ShapeEntitiesTest(
     fun `shape and ordered points persist`() {
         val rev = seedRevisionId()
 
-        shapes.save(GtfsShape(revisionId = rev, shapeId = "SH1", pointCount = 2, lengthM = 12.5))
-        points.save(GtfsShapePoint(rev, "SH1", 51.1, 17.0, 2, 10.0))
-        points.save(GtfsShapePoint(rev, "SH1", 51.0, 17.0, 1, 0.0))
+        shapes.save(Shape(revisionId = rev, shapeId = "SH1", pointCount = 2, lengthM = 12.5))
+        points.save(ShapePoint(rev, "SH1", 51.1, 17.0, 2, 10.0))
+        points.save(ShapePoint(rev, "SH1", 51.0, 17.0, 1, 0.0))
 
         val ordered = points.findByShapeId(rev, "SH1")
         assertEquals(listOf(1, 2), ordered.map { it.shapePtSequence })

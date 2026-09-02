@@ -22,7 +22,7 @@ import tools.jackson.databind.json.JsonMapper
  */
 class GtfsFeedValidatorTest {
 
-    private val validator = GtfsFeedLoader(JsonMapper.builder().build())
+    private val validator = GtfsFeedLoader()
     private val workDirs = mutableListOf<Path>()
 
     @AfterTest

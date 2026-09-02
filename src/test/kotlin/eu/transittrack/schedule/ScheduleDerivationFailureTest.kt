@@ -11,7 +11,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
-import eu.transittrack.gtfs.model.GtfsShapeRepository
+import eu.transittrack.gtfs.model.ShapeRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
@@ -45,7 +45,7 @@ class ScheduleDerivationFailureTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val gtfsWriter: RevisionWriter,
     @Autowired val gtfsProps: GtfsProperties,
-    @Autowired val shapes: GtfsShapeRepository,
+    @Autowired val shapes: ShapeRepository,
     @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val created = mutableListOf<Long>()
@@ -67,7 +67,7 @@ class ScheduleDerivationFailureTest(
     private fun ingestion(derivation: ScheduleDerivationService, props: ScheduleProperties) =
         IngestionService(
             FixtureDownloader("minimal-valid"), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsFeedLoader(tools.jackson.databind.json.JsonMapper.builder().build()), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedLoader(), SyncTaskExecutor(),
             derivation, props, scheduleWriter,
         )
 
