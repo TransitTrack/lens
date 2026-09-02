@@ -13,13 +13,6 @@ data class StopPathAggregateUpdate(
     val breakTimeSec: Int?,
 )
 
-data class SchedTripBlockUpdate(
-    val schedTripId: Long,
-    val blockSeq: Int,
-    val layoverAfterSec: Int?,
-    val deadheadAfter: Boolean?,
-)
-
 /**
  * Bulk write path for the derived schedule model, backed by a Hibernate
  * [org.hibernate.StatelessSession] (no persistence context; JDBC-batched).
@@ -30,7 +23,8 @@ class ScheduleWriter(emf: EntityManagerFactory) {
 
     private val sessionFactory: SessionFactory = emf.unwrap(SessionFactory::class.java)
 
-    private val deleteOrder = listOf("schedule_time", "stop_path", "sched_trip", "block", "trip_pattern")
+    private val deleteOrder =
+        listOf("schedule_time", "block_trip", "stop_path", "sched_trip", "block", "trip_patterns")
 
     fun write(rows: List<RevisionScoped>) {
         if (rows.isEmpty()) return
@@ -77,29 +71,9 @@ class ScheduleWriter(emf: EntityManagerFactory) {
         if (counts.isEmpty()) return
         sessionFactory.inStatelessTransaction { session ->
             for ((id, tc) in counts) {
-                session.createNativeMutationQuery("update trip_pattern set trip_count = :tc where id = :id")
+                session.createNativeMutationQuery("update trip_patterns set trip_count = :tc where id = :id")
                     .setParameter("tc", tc)
                     .setParameter("id", id)
-                    .executeUpdate()
-            }
-        }
-    }
-
-    fun applySchedTripBlockFields(updates: List<SchedTripBlockUpdate>) {
-        if (updates.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for (u in updates) {
-                session.createNativeMutationQuery(
-                    """
-                    update sched_trip
-                       set block_seq = :bs, layover_after_sec = :la, deadhead_after = :dh
-                     where id = :id
-                    """.trimIndent(),
-                )
-                    .setParameter("bs", u.blockSeq)
-                    .setParameter("la", u.layoverAfterSec)
-                    .setParameter("dh", u.deadheadAfter)
-                    .setParameter("id", u.schedTripId)
                     .executeUpdate()
             }
         }

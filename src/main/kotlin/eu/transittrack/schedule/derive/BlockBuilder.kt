@@ -13,7 +13,7 @@ data class BlockTripInput(
 
 data class BlockTripUpdate(
     val schedTripId: Long,
-    val blockSeq: Int,
+    val listIndex: Int,
     val layoverAfterSec: Int?,
     val deadheadAfter: Boolean?,
 )
@@ -43,7 +43,7 @@ object BlockBuilder {
                     val next = ordered.getOrNull(i + 1)
                     BlockTripUpdate(
                         schedTripId = t.schedTripId,
-                        blockSeq = i,
+                        listIndex = i,
                         layoverAfterSec = next?.let { it.startTimeSec - t.endTimeSec },
                         deadheadAfter = next?.let { it.firstStopId != t.lastStopId },
                     )

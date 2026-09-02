@@ -1,15 +1,18 @@
 package eu.transittrack.gtfs.model
 
+import eu.transittrack.Extent
+import eu.transittrack.Point
 import jakarta.persistence.Column
+import jakarta.persistence.Embedded
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
-import java.time.LocalDate
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Locale
+import java.util.*
 
 /**
  * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes,
@@ -32,6 +35,7 @@ class Agency(
     var agencyPhone: String?,
     var agencyFareUrl: String?,
     var agencyEmail: String?,
+    @Embedded var extent: Extent? = null,
 ) : RevisionScoped(revisionId)
 
 @Entity
@@ -53,7 +57,13 @@ class Stop(
     @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairBoarding: Int?,
     var levelId: String?,
     var platformCode: String?,
-) : RevisionScoped(revisionId)
+    var timePointStop: Boolean? = null,
+    var layoverStop: Boolean? = null,
+    var waitStop: Boolean? = null,
+    var hidden: Boolean? = null,
+) : RevisionScoped(revisionId) {
+    val point: Point get() = Point(stopLat!!, stopLon!!)
+}
 
 @Entity
 @Table(name = "routes")
@@ -72,6 +82,9 @@ class Route(
     @JdbcTypeCode(SqlTypes.SMALLINT) var continuousPickup: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var continuousDropOff: Int?,
     var networkId: String?,
+    var maxDistance: Double? = null,
+    @Column(nullable = false) var hidden: Boolean = false,
+    @Embedded var extent: Extent? = null,
 ) : RevisionScoped(revisionId)
 
 @Entity
@@ -88,6 +101,7 @@ class Trip(
     var shapeId: String?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairAccessible: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var bikesAllowed: Int?,
+    @Column(name = "trip_pattern_id") var tripPatternId: Long? = null,
 ) : RevisionScoped(revisionId)
 
 @Entity

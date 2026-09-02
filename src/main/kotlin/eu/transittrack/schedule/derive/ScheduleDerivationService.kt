@@ -1,5 +1,6 @@
 package eu.transittrack.schedule.derive
 
+import eu.transittrack.Extent
 import eu.transittrack.Point
 import eu.transittrack.Polyline
 import eu.transittrack.haversineMeters
@@ -14,6 +15,7 @@ import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.Block
+import eu.transittrack.schedule.model.BlockTrip
 import eu.transittrack.schedule.model.SchedTrip
 import eu.transittrack.schedule.model.ScheduleTime
 import eu.transittrack.schedule.model.StopPath
@@ -37,6 +39,7 @@ class ScheduleDerivationService(
     private val shapePoints: ShapePointRepository,
     private val frequencies: FrequencyRepository,
     private val writer: ScheduleWriter,
+    private val derivedGtfsWriter: DerivedGtfsWriter,
     private val props: ScheduleProperties,
     private val json: JsonMapper,
 ) {
@@ -62,6 +65,7 @@ class ScheduleDerivationService(
         val counts: MutableMap<String, Long>,
         val derivedTrips: List<DerivedTrip>,
         val patternStopPathIds: Map<Long, List<Long>>,
+        val routeExtents: Map<String, Extent> = emptyMap(),
         var pendingPathUpdates: MutableMap<Long, StopPathAggregateUpdate> = mutableMapOf(),
     )
 
@@ -71,6 +75,7 @@ class ScheduleDerivationService(
             val core = deriveCore(revisionId)
             aggregatePass(core)
             blockPass(revisionId, core)
+            extentPass(revisionId, core)
             core.counts
         } catch (e: Throwable) {
             // Throwable, not Exception: an Error mid-derive would otherwise strand the
@@ -128,13 +133,19 @@ class ScheduleDerivationService(
         }
         writer.write(blockRows)
         core.counts["block"] = blockRows.size.toLong()
-        writer.applySchedTripBlockFields(
-            results.flatMap { r ->
-                r.tripUpdates.map {
-                    SchedTripBlockUpdate(it.schedTripId, it.blockSeq, it.layoverAfterSec, it.deadheadAfter)
-                }
-            },
-        )
+
+        val blockPkByKey = blockRows.associate { (it.blockId to it.serviceId) to it.id!! }
+        val blockTripRows = results.flatMap { r ->
+            val blockPk = blockPkByKey.getValue(r.blockId to r.serviceId)
+            r.tripUpdates.map { u ->
+                BlockTrip(
+                    revisionId = revisionId, blockId = blockPk, schedTripId = u.schedTripId,
+                    listIndex = u.listIndex, layoverAfterSec = u.layoverAfterSec,
+                    deadheadAfter = u.deadheadAfter,
+                )
+            }
+        }
+        writer.write(blockTripRows)
 
         // Per-pattern layover flag on the last stop path.
         val layoverByTrip = results.flatMap { it.tripUpdates }
@@ -192,13 +203,15 @@ class ScheduleDerivationService(
             frequencies.findByRevisionId(revisionId).groupBy { it.tripId }.mapValues { it.value.first() }
 
         val counts = mutableMapOf(
-            "trip_pattern" to 0L, "stop_path" to 0L, "sched_trip" to 0L,
+            "trip_patterns" to 0L, "stop_path" to 0L, "sched_trip" to 0L,
             "schedule_time" to 0L, "block" to 0L,
         )
         val derivedTrips = ArrayList<DerivedTrip>()
         val patternIdByKey = HashMap<String, Long>()
         val patternCumDist = HashMap<Long, DoubleArray>()
         val patternStopPathIds = HashMap<Long, List<Long>>()
+        val routeExtents = HashMap<String, Extent>()
+        val tripPatternLinks = HashMap<Long, Long>()   // trips.id -> trip_patterns.id
 
         for (route in routes.findByRevisionId(revisionId)) {
             val routeTrips = trips.findByRouteId(revisionId, route.routeId)
@@ -227,7 +240,10 @@ class ScheduleDerivationService(
                 newPatternPaths[key] = build.paths
             }
             writer.write(newPatterns)                       // assigns pattern ids
-            counts["trip_pattern"] = counts["trip_pattern"]!! + newPatterns.size
+            counts["trip_patterns"] = counts["trip_patterns"]!! + newPatterns.size
+            if (newPatterns.isNotEmpty()) {
+                routeExtents[route.routeId] = Extent.ofExtents(newPatterns.map { it.extent })
+            }
             val allPaths = ArrayList<StopPath>()
             for (p in newPatterns) {
                 patternIdByKey[p.patternKey] = p.id!!
@@ -259,12 +275,11 @@ class ScheduleDerivationService(
                         it.copy(arrivalSec = it.arrivalSec - base, departureSec = it.departureSec - base)
                     }
                 }
+                val gtfsBlockId = trip.blockId?.ifBlank { null }
                 val st = SchedTrip(
                     revisionId = revisionId, tripPatternId = patternId, tripId = trip.tripId,
                     routeId = trip.routeId, serviceId = trip.serviceId, directionId = trip.directionId,
                     headsign = trip.tripHeadsign, tripShortName = trip.tripShortName,
-                    blockId = trip.blockId?.ifBlank { null }, blockSeq = null,
-                    layoverAfterSec = null, deadheadAfter = null,
                     startTimeSec = resolved.first().departureSec, endTimeSec = resolved.last().arrivalSec,
                     frequencyBased = freq != null, exactTimes = freq?.exactTimes,
                 )
@@ -272,7 +287,7 @@ class ScheduleDerivationService(
                 pendingTimes.add(newTrips.lastIndex to resolved)
                 derivedTrips.add(
                     DerivedTrip(
-                        schedTripId = -1, patternId = patternId, blockId = st.blockId,
+                        schedTripId = -1, patternId = patternId, blockId = gtfsBlockId,
                         serviceId = st.serviceId, routeId = st.routeId,
                         startSec = st.startTimeSec, endSec = st.endTimeSec,
                         firstStopId = stopIds.first(), lastStopId = stopIds.last(),
@@ -282,6 +297,13 @@ class ScheduleDerivationService(
             }
             writer.write(newTrips)                          // assigns sched_trip ids
             counts["sched_trip"] = counts["sched_trip"]!! + newTrips.size
+            // record each raw trip -> its derived pattern
+            for ((trip, rows) in pending) {
+                val stopIds = rows.map { it.stopId!! }
+                patternIdByKey[PatternKey.of(trip.routeId, trip.shapeId, stopIds)]?.let {
+                    tripPatternLinks[trip.id!!] = it
+                }
+            }
             // back-fill the schedTripId now known
             val baseDerivedIdx = derivedTrips.size - newTrips.size
             newTrips.forEachIndexed { i, st ->
@@ -310,7 +332,20 @@ class ScheduleDerivationService(
             counts["schedule_time"] = counts["schedule_time"]!! + times.size
         }
 
-        return CoreResult(counts, derivedTrips, patternStopPathIds)
+        derivedGtfsWriter.applyTripPatternLinks(tripPatternLinks)
+        return CoreResult(counts, derivedTrips, patternStopPathIds, routeExtents)
+    }
+
+    /** Route extent = union of its patterns; agency extent = union of its routes. */
+    private fun extentPass(revisionId: Long, core: CoreResult) {
+        derivedGtfsWriter.applyRouteExtents(revisionId, core.routeExtents)
+        val agencyExtents = HashMap<String, Extent>()
+        for (route in routes.findByRevisionId(revisionId)) {
+            val re = core.routeExtents[route.routeId] ?: continue
+            val aid = route.agencyId ?: continue
+            agencyExtents.getOrPut(aid) { Extent() }.add(re)
+        }
+        derivedGtfsWriter.applyAgencyExtents(revisionId, agencyExtents)
     }
 
     /**
@@ -390,6 +425,7 @@ class ScheduleDerivationService(
             paths.add(
                 StopPath(
                     revisionId = revisionId, tripPatternId = 0L, stopPathIndex = i, stopId = stopIds[i],
+                    routeId = trip.routeId,
                     gtfsStopSeq = r.stopSequence, lengthM = segLen,
                     pathGeometry = json.writeValueAsString(geom.map { listOf(it.lon, it.lat) }),
                     pickupType = r.pickupType, dropOffType = r.dropOffType,
@@ -399,7 +435,6 @@ class ScheduleDerivationService(
                 ),
             )
         }
-        val lats = coords.map { it.lat }; val lons = coords.map { it.lon }
         val pattern = TripPattern(
             revisionId = revisionId,
             patternKey = PatternKey.of(trip.routeId, trip.shapeId, stopIds),
@@ -409,7 +444,7 @@ class ScheduleDerivationService(
             headsign = trip.tripHeadsign,
             shapeId = trip.shapeId, stopCount = stopIds.size,
             lengthM = paths.sumOf { it.lengthM },
-            minLat = lats.min(), minLon = lons.min(), maxLat = lats.max(), maxLon = lons.max(),
+            extent = Extent.of(coords),
             tripCount = 0,
         )
         return PatternBuild(pattern, paths)

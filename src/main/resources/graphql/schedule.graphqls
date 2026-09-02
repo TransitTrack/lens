@@ -17,10 +17,7 @@ type TripPattern {
     stopCount: Int!
     lengthM: Float
     tripCount: Int!
-    minLat: Float
-    minLon: Float
-    maxLat: Float
-    maxLon: Float
+    extent: Extent
     route: GtfsRoute
     stopPaths: [StopPath!]!
     trips: [SchedTrip!]!
@@ -50,10 +47,6 @@ type SchedTrip {
     directionId: Int
     headsign: String
     tripShortName: String
-    blockId: String
-    blockSeq: Int
-    layoverAfterSec: Int
-    deadheadAfter: Boolean
     startTimeSec: Int!
     endTimeSec: Int!
     frequencyBased: Boolean!
@@ -74,6 +67,7 @@ type ScheduleTime {
 }
 
 type Block {
+    id: ID!
     blockId: String!
     serviceId: String!
     startTimeSec: Int!
@@ -81,7 +75,15 @@ type Block {
     tripCount: Int!
     routeIds: [String!]!
     trips: [SchedTrip!]!
+    blockTrips: [BlockTrip!]!
+}
+
+type BlockTrip {
+    listIndex: Int!
+    layoverAfterSec: Int
+    deadheadAfter: Boolean
+    trip: SchedTrip!
 }
 
 extend type GtfsRoute { tripPatterns: [TripPattern!]! }
-extend type GtfsTrip { schedTrip: SchedTrip }
+extend type GtfsTrip { schedTrip: SchedTrip, tripPattern: TripPattern }

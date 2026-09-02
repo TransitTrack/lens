@@ -57,11 +57,17 @@ class ScheduleGraphQlTest(
             .path("schedTrip.scheduleTimes").entityList(Any::class.java).hasSizeGreaterThan(0)
     }
 
-    @Test fun `block trips are ordered by block seq`() {
-        tester.document("""{ block(feedCode:"g", blockId:"B1", serviceId:"WK"){ trips { tripId blockSeq } } }""")
+    @Test fun `block trips are ordered by list index`() {
+        tester.document(
+            """{ block(feedCode:"g", blockId:"B1", serviceId:"WK"){
+                 trips { tripId }
+                 blockTrips { listIndex trip { tripId } }
+               } }""",
+        )
             .execute()
-            .path("block.trips[0].blockSeq").entity(Int::class.java).isEqualTo(0)
-            .path("block.trips[1].blockSeq").entity(Int::class.java).isEqualTo(1)
+            .path("block.blockTrips[0].listIndex").entity(Int::class.java).isEqualTo(0)
+            .path("block.blockTrips[1].listIndex").entity(Int::class.java).isEqualTo(1)
+            .path("block.trips[0].tripId").entity(String::class.java).isEqualTo("T1")
     }
 
     @Test fun `blocks on a date filters by service`() {

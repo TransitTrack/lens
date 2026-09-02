@@ -22,6 +22,7 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
+import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
@@ -43,7 +44,7 @@ import kotlin.test.assertTrue
 @PostgresSliceTest
 @AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
-@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class, ScheduleWriter::class)
+@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class, ScheduleWriter::class, DerivedGtfsWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ScheduleDerivationServiceTest(
     @Autowired val feeds: GtfsFeedRepository,
@@ -54,6 +55,7 @@ class ScheduleDerivationServiceTest(
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val scheduleProps: ScheduleProperties,
     @Autowired val scheduleWriter: ScheduleWriter,
+    @Autowired val derivedGtfsWriter: DerivedGtfsWriter,
     @Autowired val stops: StopRepository,
     @Autowired val routes: RouteRepository,
     @Autowired val trips: TripRepository,
@@ -66,6 +68,7 @@ class ScheduleDerivationServiceTest(
     @Autowired val schedTrips: SchedTripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
+    @Autowired val blockTrips: BlockTripRepository,
     @Autowired val jsonMapper: JsonMapper,
 ) {
     private var feedId: Long = 0
@@ -87,7 +90,7 @@ class ScheduleDerivationServiceTest(
     }
 
     private fun service() = ScheduleDerivationService(
-        stops, routes, trips, stopTimes, shapePoints, frequencies, scheduleWriter, scheduleProps, jsonMapper,
+        stops, routes, trips, stopTimes, shapePoints, frequencies, scheduleWriter, derivedGtfsWriter, scheduleProps, jsonMapper,
     )
 
     @AfterEach
@@ -105,7 +108,7 @@ class ScheduleDerivationServiceTest(
         ingest()
         val counts = service().derive(rev)
 
-        assertEquals(4L, counts["trip_pattern"])       // A(T1,T2), B(T3), C(T4), D(T5)
+        assertEquals(4L, counts["trip_patterns"])       // A(T1,T2), B(T3), C(T4), D(T5)
         assertEquals(5L, counts["sched_trip"])
         assertEquals(4L + 3L + 4L + 4L + 2L, counts["schedule_time"])
 
@@ -148,12 +151,12 @@ class ScheduleDerivationServiceTest(
         assertEquals(28800, b1.startTimeSec)
         assertEquals(33000, b1.endTimeSec)
 
-        val t1 = schedTrips.findByTripId(rev, "T1")!!
-        assertEquals(0, t1.blockSeq)
-        assertEquals(600, t1.layoverAfterSec)     // T4 08:40 - T1 08:30
-        assertEquals(false, t1.deadheadAfter)     // both at S4
-        val t4 = schedTrips.findByTripId(rev, "T4")!!
-        assertEquals(1, t4.blockSeq)
+        val t1bt = blockTrips.findBySchedTripId(rev, schedTrips.findByTripId(rev, "T1")!!.id!!)!!
+        assertEquals(0, t1bt.listIndex)
+        assertEquals(600, t1bt.layoverAfterSec)   // T4 08:40 - T1 08:30
+        assertEquals(false, t1bt.deadheadAfter)   // both at S4
+        val t4bt = blockTrips.findBySchedTripId(rev, schedTrips.findByTripId(rev, "T4")!!.id!!)!!
+        assertEquals(1, t4bt.listIndex)
 
         // Pattern A trip_count and typical times
         val patternA = patterns.findByRevisionId(rev)

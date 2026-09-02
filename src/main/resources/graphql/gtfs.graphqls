@@ -101,10 +101,11 @@ extend type Query {
     gtfsLevels(feedCode: String!, revisionId: ID): [GtfsLevel!]!
 }
 
-type GtfsAgency { agencyId: String, agencyName: String, agencyUrl: String, agencyTimezone: String, agencyLang: String, agencyPhone: String, agencyFareUrl: String, agencyEmail: String }
-type GtfsRoute { routeId: String!, agencyId: String, routeShortName: String, routeLongName: String, routeDesc: String, routeType: Int, routeUrl: String, routeColor: String, routeTextColor: String, routeSortOrder: Int, networkId: String }
+type Extent { minLat: Float!, minLon: Float!, maxLat: Float!, maxLon: Float! }
+type GtfsAgency { agencyId: String, agencyName: String, agencyUrl: String, agencyTimezone: String, agencyLang: String, agencyPhone: String, agencyFareUrl: String, agencyEmail: String, extent: Extent }
+type GtfsRoute { routeId: String!, agencyId: String, routeShortName: String, routeLongName: String, routeDesc: String, routeType: Int, routeUrl: String, routeColor: String, routeTextColor: String, routeSortOrder: Int, networkId: String, extent: Extent }
 type GtfsStop { stopId: String!, stopCode: String, stopName: String, stopDesc: String, stopLat: Float, stopLon: Float, zoneId: String, locationType: Int, parentStation: String, wheelchairBoarding: Int, levelId: String, platformCode: String }
-type GtfsTrip { tripId: String!, routeId: String!, serviceId: String!, tripHeadsign: String, tripShortName: String, directionId: Int, blockId: String, shapeId: String, wheelchairAccessible: Int, bikesAllowed: Int }
+type GtfsTrip { tripId: String!, routeId: String!, serviceId: String!, tripHeadsign: String, tripShortName: String, directionId: Int, blockId: String, shapeId: String, wheelchairAccessible: Int, bikesAllowed: Int, tripPatternId: ID }
 type GtfsStopTime { tripId: String!, stopSequence: Int!, stopId: String, arrivalTime: String, arrivalTimeSeconds: Int, departureTime: String, departureTimeSeconds: Int, stopHeadsign: String, pickupType: Int, dropOffType: Int, shapeDistTraveled: Float, timepoint: Int }
 type GtfsCalendar { serviceId: String!, monday: Boolean, tuesday: Boolean, wednesday: Boolean, thursday: Boolean, friday: Boolean, saturday: Boolean, sunday: Boolean, startDate: String, endDate: String }
 type GtfsCalendarDate { serviceId: String!, date: String!, exceptionType: Int }

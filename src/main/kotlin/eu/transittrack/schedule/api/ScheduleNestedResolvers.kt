@@ -6,11 +6,13 @@ import eu.transittrack.gtfs.api.dto.TripDto
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.schedule.model.BlockRepository
+import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.ScheduleReadService
 import eu.transittrack.schedule.read.dto.BlockDto
+import eu.transittrack.schedule.read.dto.BlockTripDto
 import eu.transittrack.schedule.read.dto.SchedTripDto
 import eu.transittrack.schedule.read.dto.ScheduleTimeDto
 import eu.transittrack.schedule.read.dto.StopPathDto
@@ -29,6 +31,7 @@ class ScheduleNestedResolvers(
     private val schedTrips: SchedTripRepository,
     private val scheduleTimes: ScheduleTimeRepository,
     private val blocks: BlockRepository,
+    private val blockTrips: BlockTripRepository,
     private val routes: RouteRepository,
     private val stops: StopRepository,
     private val read: ScheduleReadService,
@@ -64,8 +67,8 @@ class ScheduleNestedResolvers(
 
     @SchemaMapping(typeName = "SchedTrip")
     fun block(t: SchedTripDto): BlockDto? {
-        val bid = t.blockId ?: return null
-        return blocks.findByBlockAndService(t.revisionId, bid, t.serviceId)
+        val bt = blockTrips.findBySchedTripId(t.revisionId, t.id) ?: return null
+        return blocks.findById(bt.blockId).orElse(null)
             ?.let { BlockDto.of(it, t.revisionId, t.feedCode) }
     }
 
@@ -75,10 +78,22 @@ class ScheduleNestedResolvers(
             .map { ScheduleTimeDto.of(it, t.revisionId, t.feedCode) }
 
     @SchemaMapping(typeName = "Block")
-    fun trips(b: BlockDto): List<SchedTripDto> =
-        schedTrips.findByBlockOrdered(b.revisionId, b.blockId)
-            .filter { it.serviceId == b.serviceId }
+    fun trips(b: BlockDto): List<SchedTripDto> {
+        val members = blockTrips.findByBlockIdOrdered(b.revisionId, b.id)
+        val byId = schedTrips.findAllById(members.map { it.schedTripId }).associateBy { it.id }
+        return members.mapNotNull { byId[it.schedTripId] }
             .map { SchedTripDto.of(it, b.revisionId, b.feedCode) }
+    }
+
+    @SchemaMapping(typeName = "Block")
+    fun blockTrips(b: BlockDto): List<BlockTripDto> =
+        blockTrips.findByBlockIdOrdered(b.revisionId, b.id)
+            .map { BlockTripDto.of(it, b.revisionId, b.feedCode) }
+
+    @SchemaMapping(typeName = "BlockTrip")
+    fun trip(bt: BlockTripDto): SchedTripDto? =
+        schedTrips.findById(bt.schedTripId).orElse(null)
+            ?.let { SchedTripDto.of(it, bt.revisionId, bt.feedCode) }
 
     @SchemaMapping(typeName = "GtfsRoute")
     fun tripPatterns(r: RouteDto): List<TripPatternDto> =
@@ -89,4 +104,9 @@ class ScheduleNestedResolvers(
     fun schedTrip(t: TripDto): SchedTripDto? =
         schedTrips.findByTripId(t.revisionId, t.tripId)
             ?.let { SchedTripDto.of(it, t.revisionId, t.feedCode) }
+
+    @SchemaMapping(typeName = "GtfsTrip")
+    fun tripPattern(t: TripDto): TripPatternDto? =
+        t.tripPatternId?.let { patterns.findById(it).orElse(null) }
+            ?.let { TripPatternDto.of(it, t.revisionId, t.feedCode) }
 }

@@ -59,10 +59,10 @@ class ScheduleWriterTest(
     @Test
     fun `write, aggregate-update, and delete round-trip`() {
         seed()
-        val tp = TripPattern(rev, "K", "RA", 0, "H", "SHP", 1, null, null, null, null, null, 0)
+        val tp = TripPattern(rev, "K", "RA", null, 0, "H", "SHP", 1, null, tripCount = 0)
         writer.write(listOf(tp))
         val savedTp = patterns.findByPatternKey(rev, "K")!!
-        val sp = StopPath(rev, savedTp.id!!, 0, "S1", 1, 0.0, null, null, null,
+        val sp = StopPath(rev, savedTp.id!!, 0, "S1", null, 1, 0.0, null, null, null,
             false, false, false, null, null, null)
         writer.write(listOf(sp))
 
@@ -71,7 +71,6 @@ class ScheduleWriterTest(
         writer.applyStopPathAggregates(listOf(StopPathAggregateUpdate(spId, 42, 10, true, 300)))
         // null bindings must also work (see the NOTE in Step 4)
         writer.applyStopPathAggregates(listOf(StopPathAggregateUpdate(spId, null, null, true, null)))
-        writer.applySchedTripBlockFields(listOf(SchedTripBlockUpdate(-1L, 0, null, null)))  // no-op, just exercises null binds
 
         assertEquals(3, patterns.findByPatternKey(rev, "K")!!.tripCount)
         val reloaded = stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).single()

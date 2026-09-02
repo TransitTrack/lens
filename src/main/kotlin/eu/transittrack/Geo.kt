@@ -142,6 +142,9 @@ class Extent{
                 !(maxLon < loc.lon - distanceInDegreesLongitude)
     }
 
+    /** True while no point or extent has been added (the bounding box is unset). */
+    val isEmpty: Boolean get() = minLat.isNaN()
+
     companion object {
         // This value is actually dependent on latitude a bit since the earth
         // is not a perfect sphere. But it doesn't vary that much. So using
@@ -150,5 +153,11 @@ class Extent{
         // is a bit less than 0.3%, so pretty small for when doing quick
         // calculations.
         private const val METERS_PER_DEGREE = 110996.45
+
+        /** Bounding box spanning [points]; empty when [points] is empty. */
+        fun of(points: Iterable<Point>): Extent = Extent().apply { points.forEach(::add) }
+
+        /** Union of [extents]; empty ones are ignored. */
+        fun ofExtents(extents: Iterable<Extent>): Extent = Extent().apply { extents.forEach(::add) }
     }
 }

@@ -48,9 +48,9 @@ class ScheduleEntitiesTest(
         val tp = patterns.save(
             TripPattern(
                 revisionId = rev, patternKey = "SHP|S1_to_S4|abc123", routeId = "RA",
+                routeShortName = null,
                 directionId = 0, headsign = "To S4", shapeId = "SHP", stopCount = 2,
-                lengthM = 1500.0, minLat = 51.1, minLon = 17.0, maxLat = 51.13, maxLon = 17.03,
-                tripCount = 1,
+                lengthM = 1500.0, tripCount = 1,
             ),
         )
         stopPaths.save(
@@ -66,7 +66,6 @@ class ScheduleEntitiesTest(
             SchedTrip(
                 revisionId = rev, tripPatternId = tp.id!!, tripId = "T1", routeId = "RA",
                 serviceId = "WK", directionId = 0, headsign = "To S4", tripShortName = null,
-                blockId = "B1", blockSeq = 0, layoverAfterSec = 600, deadheadAfter = false,
                 startTimeSec = 28800, endTimeSec = 30600, frequencyBased = false, exactTimes = null,
             ),
         )

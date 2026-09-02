@@ -15,11 +15,11 @@ class BlockBuilderTest {
         assertEquals(28800, b.startTimeSec); assertEquals(33000, b.endTimeSec)
         assertEquals(listOf("RA"), b.routeIds)
         val u1 = b.tripUpdates.first { it.schedTripId == 1L }
-        assertEquals(0, u1.blockSeq)
+        assertEquals(0, u1.listIndex)
         assertEquals(600, u1.layoverAfterSec)     // 31200 - 30600
         assertEquals(false, u1.deadheadAfter)     // S4 == S4
         val u4 = b.tripUpdates.first { it.schedTripId == 2L }
-        assertEquals(1, u4.blockSeq)
+        assertEquals(1, u4.listIndex)
         assertNull(u4.layoverAfterSec)
         assertNull(u4.deadheadAfter)
     }
@@ -40,7 +40,7 @@ class BlockBuilderTest {
     @Test fun `single-trip block has one seq-0 trip and null gaps`() {
         val a = BlockTripInput(1, "B", "WK", "R", 0, 100, "X", "Y")
         val u = BlockBuilder.build(listOf(a)).single().tripUpdates.single()
-        assertEquals(0, u.blockSeq); assertNull(u.layoverAfterSec)
+        assertEquals(0, u.listIndex); assertNull(u.layoverAfterSec)
     }
 
     @Test fun `route ids are distinct in first-visit order`() {

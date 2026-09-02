@@ -41,6 +41,7 @@ data class AgencyDto(
     val agencyPhone: String?,
     val agencyFareUrl: String?,
     val agencyEmail: String?,
+    val extent: ExtentDto? = null,
 ) {
     companion object {
         fun of(e: Agency, revisionId: Long, feedCode: String) = AgencyDto(
@@ -53,6 +54,7 @@ data class AgencyDto(
             e.agencyPhone,
             e.agencyFareUrl,
             e.agencyEmail,
+            ExtentDto.of(e.extent),
         )
     }
 }
@@ -71,12 +73,14 @@ data class RouteDto(
     val routeTextColor: String?,
     val routeSortOrder: Int?,
     val networkId: String?,
+    val extent: ExtentDto? = null,
 ) {
     companion object {
         fun of(e: Route, revisionId: Long, feedCode: String) = RouteDto(
             revisionId, feedCode,
             e.routeId, e.agencyId, e.routeShortName, e.routeLongName, e.routeDesc,
             e.routeType, e.routeUrl, e.routeColor, e.routeTextColor, e.routeSortOrder, e.networkId,
+            ExtentDto.of(e.extent),
         )
     }
 }
@@ -119,12 +123,14 @@ data class TripDto(
     val shapeId: String?,
     val wheelchairAccessible: Int?,
     val bikesAllowed: Int?,
+    val tripPatternId: Long?,
 ) {
     companion object {
         fun of(e: Trip, revisionId: Long, feedCode: String) = TripDto(
             revisionId, feedCode,
             e.tripId, e.routeId, e.serviceId, e.tripHeadsign, e.tripShortName,
             e.directionId, e.blockId, e.shapeId, e.wheelchairAccessible, e.bikesAllowed,
+            e.tripPatternId,
         )
     }
 }

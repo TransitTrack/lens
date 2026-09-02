@@ -29,9 +29,6 @@ interface SchedTripRepository : RevisionScopedRepository<SchedTrip, Long> {
     @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.tripPatternId = :tripPatternId")
     fun findByTripPattern(revisionId: Long, tripPatternId: Long): List<SchedTrip>
 
-    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.blockId = :blockId order by t.blockSeq")
-    fun findByBlockOrdered(revisionId: Long, blockId: String): List<SchedTrip>
-
     @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.serviceId in :serviceIds")
     fun findByServices(revisionId: Long, serviceIds: Collection<String>): List<SchedTrip>
 
@@ -62,4 +59,15 @@ interface BlockRepository : RevisionScopedRepository<Block, Long> {
 
     @Query("select b from Block b where b.revisionId = :revisionId and b.serviceId in :serviceIds")
     fun findByServices(revisionId: Long, serviceIds: Collection<String>): List<Block>
+}
+
+interface BlockTripRepository : RevisionScopedRepository<BlockTrip, Long> {
+    @Query(
+        "select bt from BlockTrip bt " +
+            "where bt.revisionId = :revisionId and bt.blockId = :blockId order by bt.listIndex",
+    )
+    fun findByBlockIdOrdered(revisionId: Long, blockId: Long): List<BlockTrip>
+
+    @Query("select bt from BlockTrip bt where bt.revisionId = :revisionId and bt.schedTripId = :schedTripId")
+    fun findBySchedTripId(revisionId: Long, schedTripId: Long): BlockTrip?
 }

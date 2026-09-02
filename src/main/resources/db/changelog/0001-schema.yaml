@@ -1,0 +1,718 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0001-schema
+      author: transittrack
+      changes:
+        - createSequence:
+            sequenceName: gtfs_entity_seq
+            startValue: 1
+            incrementBy: 500
+
+        - createTable:
+            tableName: gtfs_feed
+            columns:
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: code, type: VARCHAR(64), constraints: { nullable: false, unique: true } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: url, type: TEXT, constraints: { nullable: false } }
+              - column: { name: polling_cron, type: VARCHAR(64) }
+              - column: { name: enabled, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: auto_activate, type: BOOLEAN }
+              - column: { name: source, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: last_ingest_at, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: created_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: updated_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+        - createTable:
+            tableName: gtfs_revision
+            columns:
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: feed_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_revision_feed, references: "gtfs_feed(id)", deleteCascade: true } }
+              - column: { name: status, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: source_url, type: TEXT, constraints: { nullable: false } }
+              - column: { name: content_sha256, type: VARCHAR(64) }
+              - column: { name: byte_size, type: BIGINT }
+              - column: { name: files_present, type: JSONB }
+              - column: { name: row_counts, type: JSONB }
+              - column: { name: feed_start_date, type: DATE }
+              - column: { name: feed_end_date, type: DATE }
+              - column: { name: validation_report, type: JSONB }
+              - column: { name: error_message, type: TEXT }
+              - column: { name: created_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: activated_at, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: superseded_at, type: "TIMESTAMP WITH TIME ZONE" }
+        - createIndex:
+            indexName: ix_revision_feed_created
+            tableName: gtfs_revision
+            columns:
+              - column: { name: feed_id }
+              - column: { name: created_at }
+        - sql:
+            sql: "CREATE UNIQUE INDEX uq_gtfs_revision_active ON gtfs_revision (feed_id) WHERE status = 'ACTIVE'"
+
+        - createTable:
+            tableName: agencies
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_agency_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: agency_name, type: VARCHAR(255) }
+              - column: { name: agency_url, type: TEXT }
+              - column: { name: agency_timezone, type: VARCHAR(64) }
+              - column: { name: agency_lang, type: VARCHAR(16) }
+              - column: { name: agency_phone, type: VARCHAR(64) }
+              - column: { name: agency_fare_url, type: TEXT }
+              - column: { name: agency_email, type: VARCHAR(255) }
+              # custom
+              - column: { name: min_lat, type: "DOUBLE PRECISION" }
+              - column: { name: min_lon, type: "DOUBLE PRECISION" }
+              - column: { name: max_lat, type: "DOUBLE PRECISION" }
+              - column: { name: max_lon, type: "DOUBLE PRECISION" }
+        - addUniqueConstraint: { tableName: agencies, columnNames: "revision_id, agency_id", constraintName: uq_agency_rev_id }
+
+        - createTable:
+            tableName: stops
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: stop_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: stop_code, type: VARCHAR(255) }
+              - column: { name: stop_name, type: VARCHAR(500) }
+              - column: { name: tts_stop_name, type: VARCHAR(500) }
+              - column: { name: stop_desc, type: TEXT }
+              - column: { name: stop_lat, type: "DOUBLE PRECISION" }
+              - column: { name: stop_lon, type: "DOUBLE PRECISION" }
+              - column: { name: zone_id, type: VARCHAR(255) }
+              - column: { name: stop_url, type: TEXT }
+              - column: { name: location_type, type: SMALLINT }
+              - column: { name: parent_station, type: VARCHAR(255) }
+              - column: { name: stop_timezone, type: VARCHAR(64) }
+              - column: { name: wheelchair_boarding, type: SMALLINT }
+              - column: { name: level_id, type: VARCHAR(255) }
+              - column: { name: platform_code, type: VARCHAR(255) }
+              # newly added columns
+              - column: { name: time_point_stop, type: BOOLEAN }
+              - column: { name: layover_stop, type: BOOLEAN }
+              - column: { name: wait_stop, type: BOOLEAN }
+              - column: { name: hidden, type: BOOLEAN }
+
+        - addUniqueConstraint: { tableName: stops, columnNames: "revision_id, stop_id", constraintName: uq_stop_rev_id }
+        - createIndex:
+            indexName: ix_stop_rev_parent
+            tableName: stops
+            columns: [ { column: { name: revision_id } }, { column: { name: parent_station } } ]
+
+        - createTable:
+            tableName: routes
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_route_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: route_short_name, type: VARCHAR(255) }
+              - column: { name: route_long_name, type: VARCHAR(500) }
+              - column: { name: route_desc, type: TEXT }
+              - column: { name: route_type, type: SMALLINT }
+              - column: { name: route_url, type: TEXT }
+              - column: { name: route_color, type: VARCHAR(7) }
+              - column: { name: route_text_color, type: VARCHAR(7) }
+              - column: { name: route_sort_order, type: INT }
+              - column: { name: continuous_pickup, type: SMALLINT }
+              - column: { name: continuous_drop_off, type: SMALLINT }
+              - column: { name: network_id, type: VARCHAR(255) }
+              # custom columns
+              - column: { name: hidden, type: BOOLEAN, defaultValue: "false"}
+              - column: { name: max_distance, type: "DOUBLE PRECISION" }
+              - column: { name: min_lat, type: "DOUBLE PRECISION" }
+              - column: { name: min_lon, type: "DOUBLE PRECISION" }
+              - column: { name: max_lat, type: "DOUBLE PRECISION" }
+              - column: { name: max_lon, type: "DOUBLE PRECISION" }
+
+        - addUniqueConstraint: { tableName: routes, columnNames: "revision_id, route_id", constraintName: uq_route_rev_id }
+        - createIndex:
+            indexName: ix_route_rev_agency
+            tableName: routes
+            columns: [ { column: { name: revision_id } }, { column: { name: agency_id } } ]
+
+        - createTable:
+            tableName: trips
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_trip_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: trip_headsign, type: VARCHAR(500) }
+              - column: { name: trip_short_name, type: VARCHAR(255) }
+              - column: { name: direction_id, type: SMALLINT }
+              - column: { name: block_id, type: VARCHAR(255) }
+              - column: { name: shape_id, type: VARCHAR(255) }
+              - column: { name: wheelchair_accessible, type: SMALLINT }
+              - column: { name: bikes_allowed, type: SMALLINT }
+              - column: { name: trip_pattern_id, type: BIGINT }
+        - addUniqueConstraint: { tableName: trips, columnNames: "revision_id, trip_id", constraintName: uq_trip_rev_id }
+        - createIndex:
+            indexName: ix_trip_rev_route
+            tableName: trips
+            columns: [ { column: { name: revision_id } }, { column: { name: route_id } } ]
+        - createIndex:
+            indexName: ix_trip_rev_service
+            tableName: trips
+            columns: [ { column: { name: revision_id } }, { column: { name: service_id } } ]
+        - createIndex:
+            indexName: ix_trip_rev_shape
+            tableName: trips
+            columns: [ { column: { name: revision_id } }, { column: { name: shape_id } } ]
+        - createIndex:
+            indexName: ix_trip_rev_pattern
+            tableName: trips
+            columns: [ { column: { name: revision_id } }, { column: { name: trip_pattern_id } } ]
+
+        - createTable:
+            tableName: stop_times
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_time_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: arrival_time, type: INT }
+              - column: { name: departure_time, type: INT }
+              - column: { name: stop_id, type: VARCHAR(255) }
+              - column: { name: location_group_id, type: VARCHAR(255) }
+              - column: { name: location_id, type: VARCHAR(255) }
+              - column: { name: stop_sequence, type: INT, constraints: { nullable: false } }
+              - column: { name: stop_headsign, type: VARCHAR(500) }
+              - column: { name: start_pickup_drop_off_window, type: INT }
+              - column: { name: end_pickup_drop_off_window, type: INT }
+              - column: { name: pickup_type, type: SMALLINT }
+              - column: { name: drop_off_type, type: SMALLINT }
+              - column: { name: continuous_pickup, type: SMALLINT }
+              - column: { name: continuous_drop_off, type: SMALLINT }
+              - column: { name: shape_dist_traveled, type: "DOUBLE PRECISION" }
+              - column: { name: timepoint, type: SMALLINT }
+              - column: { name: pickup_booking_rule_id, type: VARCHAR(255) }
+              - column: { name: drop_off_booking_rule_id, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: stop_times, columnNames: "revision_id, trip_id, stop_sequence", constraintName: uq_stop_time_rev_trip_seq }
+        - createIndex:
+            indexName: ix_stop_time_rev_stop
+            tableName: stop_times
+            columns: [ { column: { name: revision_id } }, { column: { name: stop_id } } ]
+
+        - createTable:
+            tableName: calendars
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_calendar_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: monday, type: BOOLEAN }
+              - column: { name: tuesday, type: BOOLEAN }
+              - column: { name: wednesday, type: BOOLEAN }
+              - column: { name: thursday, type: BOOLEAN }
+              - column: { name: friday, type: BOOLEAN }
+              - column: { name: saturday, type: BOOLEAN }
+              - column: { name: sunday, type: BOOLEAN }
+              - column: { name: start_date, type: DATE }
+              - column: { name: end_date, type: DATE }
+        - addUniqueConstraint: { tableName: calendars, columnNames: "revision_id, service_id", constraintName: uq_calendar_rev_service }
+
+        - createTable:
+            tableName: calendar_dates
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_calendar_date_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: date, type: DATE, constraints: { nullable: false } }
+              - column: { name: exception_type, type: SMALLINT }
+        - addUniqueConstraint: { tableName: calendar_dates, columnNames: "revision_id, service_id, date", constraintName: uq_calendar_date_rev_service_date }
+
+        - createTable:
+            tableName: feed_infos
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_feed_info_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: feed_publisher_name, type: VARCHAR(255) }
+              - column: { name: feed_publisher_url, type: TEXT }
+              - column: { name: feed_lang, type: VARCHAR(16) }
+              - column: { name: default_lang, type: VARCHAR(16) }
+              - column: { name: feed_start_date, type: DATE }
+              - column: { name: feed_end_date, type: DATE }
+              - column: { name: feed_version, type: VARCHAR(255) }
+              - column: { name: feed_contact_email, type: VARCHAR(255) }
+              - column: { name: feed_contact_url, type: TEXT }
+        - addUniqueConstraint: { tableName: feed_infos, columnNames: "revision_id", constraintName: uq_feed_info_rev }
+
+        - createTable:
+            tableName: shapes
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_shape_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: shape_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: point_count, type: INT, constraints: { nullable: false } }
+              - column: { name: length_m, type: "DOUBLE PRECISION" }
+        - addUniqueConstraint: { tableName: shapes, columnNames: "revision_id, shape_id", constraintName: uq_shape_rev_id }
+
+        - createTable:
+            tableName: shape_points
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_shapept_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: shape_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: shape_pt_lat, type: "DOUBLE PRECISION" }
+              - column: { name: shape_pt_lon, type: "DOUBLE PRECISION" }
+              - column: { name: shape_pt_sequence, type: INT, constraints: { nullable: false } }
+              - column: { name: shape_dist_traveled, type: "DOUBLE PRECISION" }
+        - addUniqueConstraint: { tableName: shape_points, columnNames: "revision_id, shape_id, shape_pt_sequence", constraintName: uq_shapept_rev_id_seq }
+        - createIndex:
+            indexName: ix_shapept_rev_shape_seq
+            tableName: shape_points
+            columns: [ { column: { name: revision_id } }, { column: { name: shape_id } }, { column: { name: shape_pt_sequence } } ]
+
+        - createTable:
+            tableName: fare_attributes
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_attr_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: price, type: "DOUBLE PRECISION" }
+              - column: { name: currency_type, type: VARCHAR(8) }
+              - column: { name: payment_method, type: SMALLINT }
+              - column: { name: transfers, type: SMALLINT }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: transfer_duration, type: INT }
+        - addUniqueConstraint: { tableName: fare_attributes, columnNames: "revision_id, fare_id", constraintName: uq_fare_attr_rev_id }
+
+        - createTable:
+            tableName: fare_rules
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255) }
+              - column: { name: origin_id, type: VARCHAR(255) }
+              - column: { name: destination_id, type: VARCHAR(255) }
+              - column: { name: contains_id, type: VARCHAR(255) }
+        - createIndex:
+            indexName: ix_fare_rule_rev_fare
+            tableName: fare_rules
+            columns: [ { column: { name: revision_id } }, { column: { name: fare_id } } ]
+
+        - createTable:
+            tableName: timeframes
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_timeframe_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: timeframe_group_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: start_time, type: INT }
+              - column: { name: end_time, type: INT }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: timeframes, columnNames: "revision_id, timeframe_group_id, start_time, end_time, service_id", constraintName: uq_timeframe_rev_grp }
+
+        - createTable:
+            tableName: rider_categories
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_rider_cat_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: rider_category_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: rider_category_name, type: VARCHAR(255) }
+              - column: { name: is_default_fare_category, type: SMALLINT }
+              - column: { name: eligibility_url, type: TEXT }
+        - addUniqueConstraint: { tableName: rider_categories, columnNames: "revision_id, rider_category_id", constraintName: uq_rider_cat_rev_id }
+
+        - createTable:
+            tableName: fare_media
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_media_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_media_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: fare_media_name, type: VARCHAR(255) }
+              - column: { name: fare_media_type, type: SMALLINT }
+        - addUniqueConstraint: { tableName: fare_media, columnNames: "revision_id, fare_media_id", constraintName: uq_fare_media_rev_id }
+
+        - createTable:
+            tableName: fare_products
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_prod_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: fare_product_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: fare_product_name, type: VARCHAR(255) }
+              - column: { name: rider_category_id, type: VARCHAR(255) }
+              - column: { name: fare_media_id, type: VARCHAR(255) }
+              - column: { name: amount, type: "DOUBLE PRECISION" }
+              - column: { name: currency, type: VARCHAR(8) }
+        - sql:
+            sql: "CREATE UNIQUE INDEX uq_fare_product ON fare_products (revision_id, fare_product_id, coalesce(rider_category_id,''), coalesce(fare_media_id,''))"
+
+        - createTable:
+            tableName: fare_leg_rules
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_leg_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: leg_group_id, type: VARCHAR(255) }
+              - column: { name: network_id, type: VARCHAR(255) }
+              - column: { name: from_area_id, type: VARCHAR(255) }
+              - column: { name: to_area_id, type: VARCHAR(255) }
+              - column: { name: from_timeframe_group_id, type: VARCHAR(255) }
+              - column: { name: to_timeframe_group_id, type: VARCHAR(255) }
+              - column: { name: fare_product_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: rule_priority, type: INT }
+        - createIndex:
+            indexName: ix_fare_leg_rule_rev
+            tableName: fare_leg_rules
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: fare_leg_join_rules
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_leg_join_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: from_network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: to_network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: from_stop_id, type: VARCHAR(255) }
+              - column: { name: to_stop_id, type: VARCHAR(255) }
+        - createIndex:
+            indexName: ix_fare_leg_join_rev
+            tableName: fare_leg_join_rules
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: fare_transfer_rules
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fare_xfer_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: from_leg_group_id, type: VARCHAR(255) }
+              - column: { name: to_leg_group_id, type: VARCHAR(255) }
+              - column: { name: transfer_count, type: INT }
+              - column: { name: duration_limit, type: INT }
+              - column: { name: duration_limit_type, type: SMALLINT }
+              - column: { name: fare_transfer_type, type: SMALLINT }
+              - column: { name: fare_product_id, type: VARCHAR(255) }
+        - createIndex:
+            indexName: ix_fare_xfer_rule_rev
+            tableName: fare_transfer_rules
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: areas
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_area_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: area_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: area_name, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: areas, columnNames: "revision_id, area_id", constraintName: uq_area_rev_id }
+
+        - createTable:
+            tableName: stop_areas
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_area_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: area_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: stop_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: stop_areas, columnNames: "revision_id, area_id, stop_id", constraintName: uq_stop_area_rev }
+
+        - createTable:
+            tableName: networks
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_network_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: network_name, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: networks, columnNames: "revision_id, network_id", constraintName: uq_network_rev_id }
+
+        - createTable:
+            tableName: route_networks
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_route_network_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: network_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: route_networks, columnNames: "revision_id, route_id", constraintName: uq_route_network_rev }
+
+        - createTable:
+            tableName: pathways
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_pathway_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: pathway_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: from_stop_id, type: VARCHAR(255) }
+              - column: { name: to_stop_id, type: VARCHAR(255) }
+              - column: { name: pathway_mode, type: SMALLINT }
+              - column: { name: is_bidirectional, type: SMALLINT }
+              - column: { name: length, type: "DOUBLE PRECISION" }
+              - column: { name: traversal_time, type: INT }
+              - column: { name: stair_count, type: INT }
+              - column: { name: max_slope, type: "DOUBLE PRECISION" }
+              - column: { name: min_width, type: "DOUBLE PRECISION" }
+              - column: { name: signposted_as, type: VARCHAR(255) }
+              - column: { name: reversed_signposted_as, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: pathways, columnNames: "revision_id, pathway_id", constraintName: uq_pathway_rev_id }
+        - createIndex:
+            indexName: ix_pathway_rev
+            tableName: pathways
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: levels
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_level_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: level_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: level_index, type: "DOUBLE PRECISION" }
+              - column: { name: level_name, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: levels, columnNames: "revision_id, level_id", constraintName: uq_level_rev_id }
+
+        - createTable:
+            tableName: location_groups
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_locgroup_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: location_group_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: location_group_name, type: VARCHAR(255) }
+        - addUniqueConstraint: { tableName: location_groups, columnNames: "revision_id, location_group_id", constraintName: uq_locgroup_rev_id }
+
+        - createTable:
+            tableName: location_group_stops
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_locgroupstop_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: location_group_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: stop_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: location_group_stops, columnNames: "revision_id, location_group_id, stop_id", constraintName: uq_locgroupstop_rev }
+
+        - createTable:
+            tableName: locations
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_location_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: location_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: stop_name, type: VARCHAR(500) }
+              - column: { name: stop_desc, type: TEXT }
+              - column: { name: geometry, type: JSONB, constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: locations, columnNames: "revision_id, location_id", constraintName: uq_location_rev_id }
+
+        - createTable:
+            tableName: booking_rules
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_booking_rule_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: booking_rule_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: booking_type, type: SMALLINT }
+              - column: { name: prior_notice_duration_min, type: INT }
+              - column: { name: prior_notice_duration_max, type: INT }
+              - column: { name: prior_notice_last_day, type: INT }
+              - column: { name: prior_notice_last_time, type: INT }
+              - column: { name: prior_notice_start_day, type: INT }
+              - column: { name: prior_notice_start_time, type: INT }
+              - column: { name: prior_notice_service_id, type: VARCHAR(255) }
+              - column: { name: message, type: TEXT }
+              - column: { name: pickup_message, type: TEXT }
+              - column: { name: drop_off_message, type: TEXT }
+              - column: { name: phone_number, type: VARCHAR(64) }
+              - column: { name: info_url, type: TEXT }
+              - column: { name: booking_url, type: TEXT }
+        - addUniqueConstraint: { tableName: booking_rules, columnNames: "revision_id, booking_rule_id", constraintName: uq_booking_rule_rev_id }
+
+        - createTable:
+            tableName: frequencies
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_frequency_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: start_time, type: INT, constraints: { nullable: false } }
+              - column: { name: end_time, type: INT }
+              - column: { name: headway_secs, type: INT }
+              - column: { name: exact_times, type: SMALLINT }
+        - addUniqueConstraint: { tableName: frequencies, columnNames: "revision_id, trip_id, start_time", constraintName: uq_frequency_rev_trip_start }
+        - createIndex:
+            indexName: ix_frequency_rev_trip
+            tableName: frequencies
+            columns: [ { column: { name: revision_id } }, { column: { name: trip_id } } ]
+
+        - createTable:
+            tableName: transfers
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_transfer_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: from_stop_id, type: VARCHAR(255) }
+              - column: { name: to_stop_id, type: VARCHAR(255) }
+              - column: { name: from_route_id, type: VARCHAR(255) }
+              - column: { name: to_route_id, type: VARCHAR(255) }
+              - column: { name: from_trip_id, type: VARCHAR(255) }
+              - column: { name: to_trip_id, type: VARCHAR(255) }
+              - column: { name: transfer_type, type: SMALLINT }
+              - column: { name: min_transfer_time, type: INT }
+        - createIndex:
+            indexName: ix_transfer_rev
+            tableName: transfers
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: translations
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_translation_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: table_name, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: field_name, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: language, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: translation, type: TEXT }
+              - column: { name: record_id, type: VARCHAR(255) }
+              - column: { name: record_sub_id, type: VARCHAR(255) }
+              - column: { name: field_value, type: TEXT }
+        - createIndex:
+            indexName: ix_translation_rev
+            tableName: translations
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: attributions
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_attribution_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: attribution_id, type: VARCHAR(255) }
+              - column: { name: agency_id, type: VARCHAR(255) }
+              - column: { name: route_id, type: VARCHAR(255) }
+              - column: { name: trip_id, type: VARCHAR(255) }
+              - column: { name: organization_name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: is_producer, type: SMALLINT }
+              - column: { name: is_operator, type: SMALLINT }
+              - column: { name: is_authority, type: SMALLINT }
+              - column: { name: attribution_url, type: TEXT }
+              - column: { name: attribution_email, type: VARCHAR(255) }
+              - column: { name: attribution_phone, type: VARCHAR(64) }
+        - createIndex:
+            indexName: ix_attribution_rev
+            tableName: attributions
+            columns: [ { column: { name: revision_id } } ]
+
+        - createTable:
+            tableName: trip_patterns
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_trip_pattern_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: pattern_key, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_short_name, type: VARCHAR(80) }
+              - column: { name: direction_id, type: SMALLINT }
+              - column: { name: headsign, type: VARCHAR(500) }
+              - column: { name: shape_id, type: VARCHAR(255) }
+              - column: { name: min_lat, type: "DOUBLE PRECISION" }
+              - column: { name: min_lon, type: "DOUBLE PRECISION" }
+              - column: { name: max_lat, type: "DOUBLE PRECISION" }
+              - column: { name: max_lon, type: "DOUBLE PRECISION" }
+
+              - column: { name: stop_count, type: INT, constraints: { nullable: false } }
+              - column: { name: length_m, type: "DOUBLE PRECISION" }
+              - column: { name: trip_count, type: INT, constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: trip_patterns, columnNames: "revision_id, pattern_key", constraintName: uq_trip_pattern_rev_key }
+        - createIndex:
+            indexName: ix_trip_pattern_rev_route
+            tableName: trip_patterns
+            columns: [ { column: { name: revision_id } }, { column: { name: route_id } } ]
+
+        - createTable:
+            tableName: stop_path
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_path_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_pattern_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_stop_path_pattern, references: "trip_patterns(id)", deleteCascade: true } }
+              - column: { name: stop_path_index, type: INT, constraints: { nullable: false } }
+              - column: { name: stop_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255) }
+              - column: { name: gtfs_stop_seq, type: INT, constraints: { nullable: false } }
+              - column: { name: length_m, type: "DOUBLE PRECISION", constraints: { nullable: false } }
+              - column: { name: path_geometry, type: JSONB }
+              - column: { name: pickup_type, type: SMALLINT }
+              - column: { name: drop_off_type, type: SMALLINT }
+              - column: { name: wait_stop, type: BOOLEAN, constraints: { nullable: false } }
+              - column: { name: schedule_adherence_stop, type: BOOLEAN, constraints: { nullable: false } }
+              - column: { name: layover_stop, type: BOOLEAN, constraints: { nullable: false } }
+              - column: { name: break_time_sec, type: INT }
+              - column: { name: typical_travel_time_sec, type: INT }
+              - column: { name: typical_dwell_time_sec, type: INT }
+        - addUniqueConstraint: { tableName: stop_path, columnNames: "revision_id, trip_pattern_id, stop_path_index", constraintName: uq_stop_path_rev_pattern_idx }
+        - createIndex:
+            indexName: ix_stop_path_rev_stop
+            tableName: stop_path
+            columns: [ { column: { name: revision_id } }, { column: { name: stop_id } } ]
+
+        - createTable:
+            tableName: sched_trip
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_sched_trip_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_pattern_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_sched_trip_pattern, references: "trip_patterns(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: direction_id, type: SMALLINT }
+              - column: { name: headsign, type: VARCHAR(500) }
+              - column: { name: trip_short_name, type: VARCHAR(255) }
+              - column: { name: start_time_sec, type: INT, constraints: { nullable: false } }
+              - column: { name: end_time_sec, type: INT, constraints: { nullable: false } }
+              - column: { name: frequency_based, type: BOOLEAN, constraints: { nullable: false } }
+              - column: { name: exact_times, type: SMALLINT }
+        - addUniqueConstraint: { tableName: sched_trip, columnNames: "revision_id, trip_id", constraintName: uq_sched_trip_rev_trip }
+        - createIndex:
+            indexName: ix_sched_trip_rev_pattern
+            tableName: sched_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: trip_pattern_id } } ]
+        - createIndex:
+            indexName: ix_sched_trip_rev_service
+            tableName: sched_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: service_id } } ]
+        - createIndex:
+            indexName: ix_sched_trip_rev_route
+            tableName: sched_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: route_id } } ]
+
+        - createTable:
+            tableName: schedule_time
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_schedule_time_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: sched_trip_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_schedule_time_trip, references: "sched_trip(id)", deleteCascade: true } }
+              - column: { name: stop_path_index, type: INT, constraints: { nullable: false } }
+              - column: { name: arrival_sec, type: INT }
+              - column: { name: departure_sec, type: INT }
+              - column: { name: interpolated, type: BOOLEAN, constraints: { nullable: false } }
+              - column: { name: sched_travel_time_sec, type: INT }
+              - column: { name: sched_dwell_time_sec, type: INT }
+        - addUniqueConstraint: { tableName: schedule_time, columnNames: "revision_id, sched_trip_id, stop_path_index", constraintName: uq_schedule_time_rev_trip_idx }
+
+        - createTable:
+            tableName: block
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: block_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: start_time_sec, type: INT, constraints: { nullable: false } }
+              - column: { name: end_time_sec, type: INT, constraints: { nullable: false } }
+              - column: { name: trip_count, type: INT, constraints: { nullable: false } }
+              - column: { name: route_ids, type: JSONB, constraints: { nullable: false } }
+        - addUniqueConstraint: { tableName: block, columnNames: "revision_id, block_id, service_id", constraintName: uq_block_rev_block_service }
+        - createIndex:
+            indexName: ix_block_rev_block
+            tableName: block
+            columns: [ { column: { name: revision_id } }, { column: { name: block_id } } ]
+        - createTable:
+            tableName: block_trip
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: block_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_block, references: "block(id)", deleteCascade: true } }
+              - column: { name: sched_trip_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_trip, references: "sched_trip(id)", deleteCascade: true } }
+              - column: { name: list_index, type: INT, constraints: { nullable: false } }
+              - column: { name: layover_after_sec, type: INT }
+              - column: { name: deadhead_after, type: BOOLEAN }
+        - addUniqueConstraint: { tableName: block_trip, columnNames: "revision_id, block_id, list_index", constraintName: uq_block_trip_rev_block_idx }
+        - addUniqueConstraint: { tableName: block_trip, columnNames: "revision_id, sched_trip_id", constraintName: uq_block_trip_rev_trip }
+        - createIndex:
+            indexName: ix_block_trip_rev_trip
+            tableName: block_trip
+            columns: [ { column: { name: revision_id } }, { column: { name: sched_trip_id } } ]
+        - addForeignKeyConstraint:
+            constraintName: fk_trip_trip_pattern
+            baseTableName: trips
+            baseColumnNames: trip_pattern_id
+            referencedTableName: trip_patterns
+            referencedColumnNames: id
+            onDelete: SET NULL

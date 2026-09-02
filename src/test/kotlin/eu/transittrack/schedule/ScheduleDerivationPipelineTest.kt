@@ -44,7 +44,7 @@ class ScheduleDerivationPipelineTest(
         assertEquals(4, patterns.findByRevisionId(rev.id!!).size)
         assertEquals(2, blocks.findByRevisionId(rev.id!!).size)
         val counts = revisionService.revision(rev.id!!).rowCounts
-        assertEquals(4L, counts["trip_pattern"])
+        assertEquals(4L, counts["trip_patterns"])
         assertTrue(counts.containsKey("gtfs_trip"))   // gtfs counts preserved
     }
 }

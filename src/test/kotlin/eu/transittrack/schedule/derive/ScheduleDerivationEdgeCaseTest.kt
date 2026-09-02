@@ -28,6 +28,7 @@ import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
+import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
@@ -69,7 +70,7 @@ import tools.jackson.databind.json.JsonMapper
 @PostgresSliceTest
 @AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
-@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class, ScheduleWriter::class)
+@Import(StatelessSessionRevisionWriter::class, RevisionService::class, GtfsFeedService::class, ScheduleWriter::class, DerivedGtfsWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ScheduleDerivationEdgeCaseTest(
     @Autowired val feeds: GtfsFeedRepository,
@@ -80,6 +81,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val scheduleProps: ScheduleProperties,
     @Autowired val scheduleWriter: ScheduleWriter,
+    @Autowired val derivedGtfsWriter: DerivedGtfsWriter,
     @Autowired val stops: StopRepository,
     @Autowired val routes: RouteRepository,
     @Autowired val trips: TripRepository,
@@ -92,6 +94,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val schedTrips: SchedTripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
+    @Autowired val blockTrips: BlockTripRepository,
     @Autowired val dataSource: DataSource,
     @Autowired val jsonMapper: JsonMapper,
     @Autowired val calendars: CalendarRepository,
@@ -122,7 +125,7 @@ class ScheduleDerivationEdgeCaseTest(
     }
 
     private fun service() = ScheduleDerivationService(
-        stops, routes, trips, stopTimes, shapePoints, frequencies, scheduleWriter, scheduleProps, jsonMapper,
+        stops, routes, trips, stopTimes, shapePoints, frequencies, scheduleWriter, derivedGtfsWriter, scheduleProps, jsonMapper,
     )
 
     private fun rowCount(table: String): Int =
@@ -153,8 +156,8 @@ class ScheduleDerivationEdgeCaseTest(
 
         // No (0,0) coordinate leaked into any geometry or extent.
         for (p in patterns.findByRevisionId(rev)) {
-            assertTrue(p.minLat!! > 50.0, "pattern ${p.patternKey} minLat=${p.minLat}")
-            assertTrue(p.minLon!! > 16.0, "pattern ${p.patternKey} minLon=${p.minLon}")
+            assertTrue(p.extent.minLat > 50.0, "pattern ${p.patternKey} minLat=${p.extent.minLat}")
+            assertTrue(p.extent.minLon > 16.0, "pattern ${p.patternKey} minLon=${p.extent.minLon}")
             assertTrue(p.lengthM!! < 100_000.0, "pattern ${p.patternKey} lengthM=${p.lengthM}")
         }
     }
@@ -191,14 +194,15 @@ class ScheduleDerivationEdgeCaseTest(
 
         val ef = schedTrips.findByTripId(rev, "EF")!!
         assertTrue(ef.frequencyBased)
-        assertNull(ef.blockSeq)
-        assertNull(ef.layoverAfterSec)
+        assertNull(blockTrips.findBySchedTripId(rev, ef.id!!))
 
         // E1 -> E2 layover is measured against E2, not against the frequency trip.
         val e1 = schedTrips.findByTripId(rev, "E1")!!
-        assertEquals(0, e1.blockSeq)
-        assertEquals(32400 - 30600, e1.layoverAfterSec)   // E2 09:00 - E1 08:30
-        assertEquals(1, schedTrips.findByTripId(rev, "E2")!!.blockSeq)
+        val e1bt = blockTrips.findBySchedTripId(rev, e1.id!!)!!
+        assertEquals(0, e1bt.listIndex)
+        assertEquals(32400 - 30600, e1bt.layoverAfterSec)   // E2 09:00 - E1 08:30
+        val e2 = schedTrips.findByTripId(rev, "E2")!!
+        assertEquals(1, blockTrips.findBySchedTripId(rev, e2.id!!)!!.listIndex)
     }
 
     // --- FIX 8: shapeless and off-shape stop paths fall back to straight lines ---
@@ -292,7 +296,7 @@ class ScheduleDerivationEdgeCaseTest(
         assertTrue(e.message!!.contains("trip X1 (route RX)"), "message was: ${e.message}")
         assertTrue(e.message!!.contains("first and last stop must have a time"), "message was: ${e.message}")
 
-        assertEquals(0, rowCount("trip_pattern"))
+        assertEquals(0, rowCount("trip_patterns"))
         assertEquals(0, rowCount("stop_path"))
         assertEquals(0, rowCount("sched_trip"))
         assertEquals(0, rowCount("schedule_time"))
@@ -307,7 +311,7 @@ class ScheduleDerivationEdgeCaseTest(
         assertEquals(GtfsRevisionStatus.FAILED, loaded.status)
         assertTrue(loaded.errorMessage!!.contains("trip X1"), "errorMessage was: ${loaded.errorMessage}")
 
-        assertEquals(0, rowCount("trip_pattern"))
+        assertEquals(0, rowCount("trip_patterns"))
         assertEquals(0, rowCount("stop_path"))
         assertEquals(0, rowCount("sched_trip"))
         assertEquals(0, rowCount("schedule_time"))
@@ -332,13 +336,17 @@ class ScheduleDerivationEdgeCaseTest(
                 listOf(
                     eu.transittrack.schedule.model.TripPattern(
                         revisionId = id, patternKey = "RA|-|S1_to_S2|000000000000", routeId = "RA",
+                        routeShortName = null,
                         directionId = 0, headsign = null, shapeId = null, stopCount = 2,
-                        lengthM = 10.0, minLat = 51.0, minLon = 17.0, maxLat = 51.1, maxLon = 17.1,
+                        lengthM = 10.0,
+                        extent = eu.transittrack.Extent.of(
+                            listOf(eu.transittrack.Point(51.0, 17.0), eu.transittrack.Point(51.1, 17.1)),
+                        ),
                         tripCount = 0,
                     ),
                 ),
             )
-            mapOf("trip_pattern" to 1L)
+            mapOf("trip_patterns" to 1L)
         }
         // ...and the very next pipeline step (READY) blows up.
         val brittle = FailAtReady(revisions, gtfsWriter, gtfsProps, calendars, calendarDates, feedInfos)
@@ -351,7 +359,7 @@ class ScheduleDerivationEdgeCaseTest(
         rev = ingestion.ingestBlocking("edge").id!!
 
         assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev).get().status)
-        assertEquals(0, rowCount("trip_pattern"), "schedule rows must not survive on a FAILED revision")
+        assertEquals(0, rowCount("trip_patterns"), "schedule rows must not survive on a FAILED revision")
     }
 
     /** A [RevisionService] that fails the pipeline step immediately after `DERIVING`. */

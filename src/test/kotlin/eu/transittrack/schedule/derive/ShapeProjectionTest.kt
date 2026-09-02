@@ -1,5 +1,7 @@
 package eu.transittrack.schedule.derive
 
+import eu.transittrack.Point
+import eu.transittrack.Polyline
 import eu.transittrack.haversineMeters
 import kotlin.math.abs
 import kotlin.test.Test
