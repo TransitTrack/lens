@@ -19,7 +19,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsFeedValidator
+import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
@@ -77,7 +77,7 @@ class ScheduleDerivationServiceTest(
         feedId = f.id!!
         val ingestion = IngestionService(
             FixtureDownloader("schedule-sample"), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsFeedValidator(JsonMapper.builder().build()), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedLoader(JsonMapper.builder().build()), SyncTaskExecutor(),
             org.mockito.kotlin.mock<ScheduleDerivationService>(),
             ScheduleProperties(enabled = false),
             scheduleWriter,

@@ -9,24 +9,27 @@ import eu.transittrack.gtfs.model.GtfsShape
 import eu.transittrack.gtfs.model.GtfsShapePoint
 import eu.transittrack.gtfs.model.GtfsShapeRepository
 import eu.transittrack.gtfs.model.RevisionScoped
-import eu.transittrack.gtfs.parse.GtfsCsvReader
 import eu.transittrack.gtfs.parse.GtfsFileDef
 import eu.transittrack.gtfs.parse.GtfsFileRegistry
 import eu.transittrack.gtfs.parse.GtfsGeoJsonReader
 import eu.transittrack.gtfs.parse.GtfsParseException
-import eu.transittrack.gtfs.parse.mapper.mapShapePoint
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
-import eu.transittrack.gtfs.validate.GtfsFeedValidator
+import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.haversineMeters
+import org.mobilitydata.gtfsvalidator.table.GtfsEntity
+import org.mobilitydata.gtfsvalidator.table.GtfsTableContainer
+import org.mobilitydata.gtfsvalidator.table.GtfsTableDescriptor
+import org.mobilitydata.gtfsvalidator.table.TableStatus
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.createTempDirectory
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import kotlin.jvm.optionals.getOrDefault
 
 /**
  * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check ->
@@ -50,7 +53,7 @@ class IngestionService(
     private val feedService: GtfsFeedService,
     private val props: GtfsProperties,
     private val shapes: GtfsShapeRepository,
-    private val feedValidator: GtfsFeedValidator,
+    private val feedLoader: GtfsFeedLoader,
     private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
     private val scheduleDerivation: eu.transittrack.schedule.derive.ScheduleDerivationService,
     private val scheduleProps: eu.transittrack.schedule.config.ScheduleProperties,
@@ -117,32 +120,36 @@ class IngestionService(
                 it.byteSize = dl.byteSize
             }
 
-            val report = feedValidator.validate(zipPath, tempDir)
+            val loadReport = feedLoader.load(zipPath)
             revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
-                it.validationReport = report.toJson()
+                it.validationReport = loadReport.toJson()
             }
-            if (props.ingest.strictValidation && report.errorCount > 0) {
-                throw GtfsValidationException(report)
+            if (loadReport.gtfsFeedContainer == null ||
+                !loadReport.gtfsFeedContainer.isParsedSuccessfully ||
+                props.ingest.strictValidation && loadReport.errorCount > 0) {
+                throw GtfsValidationException(loadReport)
             }
 
             log.info("Starting processing of ${feed.code}")
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING)
 
-            val present = GtfsArchive.extract(zipPath, tempDir).toSet()
-            requirePresent(present)
-
             val rowCounts = LinkedHashMap<String, Long>()
             for (def in GtfsFileRegistry.orderedForParsing) {
-                if (def.fileName !in present) continue
+                val entities = loadReport.gtfsFeedContainer
+                        .getTableForFilename<GtfsTableContainer<GtfsEntity, GtfsTableDescriptor<GtfsEntity>>>(def.fileName)
+                        .filter { t -> t.isParsedSuccessfully && t.tableStatus == TableStatus.PARSABLE_HEADERS_AND_ROWS }
+                        .map { it.entities }
+                        .getOrDefault(emptyList())
+
                 rowCounts[def.entityType] = when (def.kind) {
-                    GtfsFileDef.Kind.CSV -> loadCsv(revisionId, tempDir, def)
-                    GtfsFileDef.Kind.SHAPES -> loadShapes(revisionId, tempDir)
+                    GtfsFileDef.Kind.CSV -> loadCsv(revisionId, entities, def)
+                    GtfsFileDef.Kind.SHAPES -> loadShapes(revisionId, entities, def)
                     GtfsFileDef.Kind.GEOJSON -> loadGeoJson(revisionId, tempDir)
                 }
             }
 
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING) {
-                it.filesPresent = present.sorted()
+                it.filesPresent = loadReport.filesPresent
                 it.rowCounts = rowCounts
             }
 
@@ -193,43 +200,56 @@ class IngestionService(
             Path.of(props.ingest.tempDir).also { Files.createDirectories(it) }
         }
 
-    private fun loadCsv(revisionId: Long, dir: Path, def: GtfsFileDef): Long {
+    private fun loadCsv(revisionId: Long, entities: List<GtfsEntity>, def: GtfsFileDef): Long {
         log.info("Loading CSV ${def.entityType} from file ${def.fileName}")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         var total = 0L
-        GtfsArchive.openFile(dir, def.fileName)!!.use { input ->
-            GtfsCsvReader.read(input) { row -> def.map(revisionId, row) }.forEach { entity ->
-                batch += entity
-                if (batch.size >= props.ingest.batchSize) {
-                    writer.write(batch); total += batch.size; batch.clear()
-                }
+
+        entities.map { row ->
+            def.map(revisionId, row)
+        }.forEach { entity ->
+            batch += entity
+            if (batch.size >= props.ingest.batchSize) {
+                writer.write(batch)
+                total += batch.size
+                batch.clear()
             }
         }
-        if (batch.isNotEmpty()) { writer.write(batch); total += batch.size }
+        if (batch.isNotEmpty()) {
+            writer.write(batch); total += batch.size
+        }
+
         return total
     }
 
-    private fun loadShapes(revisionId: Long, dir: Path): Long {
-        log.info("Loading shapes")
+    private fun loadShapes(revisionId: Long, entities: List<GtfsEntity>, def: GtfsFileDef): Long {
+        log.info("Loading CSV ${def.entityType} from file ${def.fileName}")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         val perShape = LinkedHashMap<String, MutableList<GtfsShapePoint>>()
         var total = 0L
-        GtfsArchive.openFile(dir, "shapes.txt")!!.use { input ->
-            GtfsCsvReader.read(input) { row -> mapShapePoint(revisionId, row) }.forEach { pt ->
-                batch += pt
-                perShape.getOrPut(pt.shapeId) { mutableListOf() }.add(pt)
-                if (batch.size >= props.ingest.batchSize) {
-                    writer.write(batch); total += batch.size; batch.clear()
-                }
+
+        entities.map { row ->
+            val pt = def.map(revisionId, row) as GtfsShapePoint
+            perShape.getOrPut(pt.shapeId) { mutableListOf() }.add(pt)
+            pt
+        }.forEach { entity ->
+            batch += entity
+            if (batch.size >= props.ingest.batchSize) {
+                writer.write(batch)
+                total += batch.size
+                batch.clear()
             }
         }
-        if (batch.isNotEmpty()) { writer.write(batch); total += batch.size }
+        if (batch.isNotEmpty()) {
+            writer.write(batch); total += batch.size
+        }
 
         val aggregates = perShape.map { (shapeId, pts) ->
             val ordered = pts.sortedBy { it.shapePtSequence }
             GtfsShape(revisionId, shapeId, ordered.size, polylineLengthMeters(ordered))
         }
         writer.write(aggregates)
+
         return total
     }
 

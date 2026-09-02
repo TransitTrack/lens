@@ -16,7 +16,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsFeedValidator
+import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.derive.ScheduleWriter
 import java.time.Instant
 import java.time.LocalDate
@@ -58,7 +58,7 @@ class IngestionServiceTest(
     @Autowired val scheduleWriter: ScheduleWriter,
 ) {
     private val createdFeeds = mutableListOf<Long>()
-    private val validator = GtfsFeedValidator(tools.jackson.databind.json.JsonMapper.builder().build())
+    private val validator = GtfsFeedLoader(tools.jackson.databind.json.JsonMapper.builder().build())
 
     private fun feed(): GtfsFeed {
         val f = feeds.save(

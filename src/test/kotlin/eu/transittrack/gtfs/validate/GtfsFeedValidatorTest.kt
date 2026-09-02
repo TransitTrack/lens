@@ -17,12 +17,12 @@ import kotlin.test.assertTrue
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * Plain JUnit (no Spring context, no database): exercises [GtfsFeedValidator]
+ * Plain JUnit (no Spring context, no database): exercises [GtfsFeedLoader]
  * against the checked-in GTFS fixture folders zipped on the fly.
  */
 class GtfsFeedValidatorTest {
 
-    private val validator = GtfsFeedValidator(JsonMapper.builder().build())
+    private val validator = GtfsFeedLoader(JsonMapper.builder().build())
     private val workDirs = mutableListOf<Path>()
 
     @AfterTest
@@ -48,7 +48,7 @@ class GtfsFeedValidatorTest {
     fun `flags foreign key violations in the dangling-refs fixture`() {
         val (zip, work) = zipFixture("dangling-refs")
 
-        val report = validator.validate(zip, work)
+        val report = validator.load(zip)
 
         val fk = report.issues.find { it.rule == "foreign_key_violation" }
         assertNotNull(fk, "expected a foreign_key_violation issue, got ${report.issues.map { it.rule }}")
@@ -61,7 +61,7 @@ class GtfsFeedValidatorTest {
     fun `minimal-valid fixture produces no errors`() {
         val (zip, work) = zipFixture("minimal-valid")
 
-        val report = validator.validate(zip, work)
+        val report = validator.load(zip)
 
         assertEquals(0L, report.errorCount, "unexpected errors: ${report.issues.filter { it.severity == Severity.ERROR }}")
     }
@@ -70,7 +70,7 @@ class GtfsFeedValidatorTest {
     fun `report round-trips through toJson`() {
         val (zip, work) = zipFixture("minimal-valid")
 
-        val json = validator.validate(zip, work).toJson()
+        val json = validator.load(zip).toJson()
 
         assertTrue(json.startsWith("{"))
         assertTrue(json.contains("\"issues\""))

@@ -45,8 +45,14 @@ data class GtfsAgencyDto(
     companion object {
         fun of(e: GtfsAgency, revisionId: Long, feedCode: String) = GtfsAgencyDto(
             revisionId, feedCode,
-            e.agencyId, e.agencyName, e.agencyUrl, e.agencyTimezone,
-            e.agencyLang, e.agencyPhone, e.agencyFareUrl, e.agencyEmail,
+            e.agencyId,
+            e.agencyName,
+            e.agencyUrl,
+            e.agencyTimezone?.id,
+            e.agencyLang?.toLanguageTag(),
+            e.agencyPhone,
+            e.agencyFareUrl,
+            e.agencyEmail,
         )
     }
 }

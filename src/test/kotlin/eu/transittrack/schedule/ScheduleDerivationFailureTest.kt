@@ -14,7 +14,7 @@ import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.model.GtfsShapeRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.gtfs.validate.GtfsFeedValidator
+import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.config.ScheduleProperties
 import eu.transittrack.schedule.derive.ScheduleDerivationService
 import eu.transittrack.schedule.derive.ScheduleWriter
@@ -67,7 +67,7 @@ class ScheduleDerivationFailureTest(
     private fun ingestion(derivation: ScheduleDerivationService, props: ScheduleProperties) =
         IngestionService(
             FixtureDownloader("minimal-valid"), revisionService, gtfsWriter, feeds, feedService,
-            gtfsProps, shapes, GtfsFeedValidator(tools.jackson.databind.json.JsonMapper.builder().build()), SyncTaskExecutor(),
+            gtfsProps, shapes, GtfsFeedLoader(tools.jackson.databind.json.JsonMapper.builder().build()), SyncTaskExecutor(),
             derivation, props, scheduleWriter,
         )
 

@@ -26,18 +26,24 @@ extra["springCloudVersion"] = "2025.1.3"
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.apache.commons:commons-csv:1.11.0")
-    implementation("com.graphql-java:graphql-java-extended-scalars:22.0")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
+    implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
+
+    implementation("com.graphql-java:graphql-java-extended-scalars:24.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
-    implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
     implementation("tools.jackson.module:jackson-module-kotlin")
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:8.0.1")
 
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:8.0.1")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:8.0.1")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-core:8.0.1")
+    implementation("com.google.code.gson:gson:2.14.0")
+    implementation("com.google.flogger:flogger-slf4j-backend:0.8")
+    implementation("com.google.guava:guava:33.6.0-jre")
+
+    // developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.15.0")
 

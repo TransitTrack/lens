@@ -1,112 +1,130 @@
 package eu.transittrack.gtfs.parse.mapper
 
 import eu.transittrack.gtfs.model.*
-import eu.transittrack.gtfs.parse.GtfsRow
+import org.mobilitydata.gtfsvalidator.table.GtfsArea as VArea
+import org.mobilitydata.gtfsvalidator.table.GtfsFareAttribute as VFareAttribute
+import org.mobilitydata.gtfsvalidator.table.GtfsFareLegJoinRule as VFareLegJoinRule
+import org.mobilitydata.gtfsvalidator.table.GtfsFareLegRule as VFareLegRule
+import org.mobilitydata.gtfsvalidator.table.GtfsFareMedia as VFareMedia
+import org.mobilitydata.gtfsvalidator.table.GtfsFareProduct as VFareProduct
+import org.mobilitydata.gtfsvalidator.table.GtfsFareRule as VFareRule
+import org.mobilitydata.gtfsvalidator.table.GtfsFareTransferRule as VFareTransferRule
+import org.mobilitydata.gtfsvalidator.table.GtfsNetwork as VNetwork
+import org.mobilitydata.gtfsvalidator.table.GtfsRiderCategories as VRiderCategories
+import org.mobilitydata.gtfsvalidator.table.GtfsRouteNetwork as VRouteNetwork
+import org.mobilitydata.gtfsvalidator.table.GtfsStopArea as VStopArea
+import org.mobilitydata.gtfsvalidator.table.GtfsTimeframe as VTimeframe
 
-fun mapFareAttribute(rev: Long, r: GtfsRow) = GtfsFareAttribute(
+fun mapFareAttribute(rev: Long, r: VFareAttribute) = GtfsFareAttribute(
     revisionId = rev,
-    fareId = r.str("fare_id") ?: error("fare_attributes.txt row missing fare_id"),
-    price = r.double("price"),
-    currencyType = r.str("currency_type"),
-    paymentMethod = r.int("payment_method"),
-    transfers = r.int("transfers"),
-    agencyId = r.str("agency_id"),
-    transferDuration = r.int("transfer_duration"),
+    fareId = r.fareId().takeIf { r.hasFareId() } ?: error("fare_attributes.txt row missing fare_id"),
+    price = r.price().takeIf { r.hasPrice() }?.toDouble(),
+    currencyType = r.currencyType().takeIf { r.hasCurrencyType() }.codeOrNull(),
+    paymentMethod = r.paymentMethodValue().takeIf { r.hasPaymentMethod() },
+    transfers = r.transfersValue().takeIf { r.hasTransfers() },
+    agencyId = r.agencyId().takeIf { r.hasAgencyId() },
+    transferDuration = r.transferDuration().takeIf { r.hasTransferDuration() },
 )
 
-fun mapFareRule(rev: Long, r: GtfsRow) = GtfsFareRule(
+fun mapFareRule(rev: Long, r: VFareRule) = GtfsFareRule(
     revisionId = rev,
-    fareId = r.str("fare_id") ?: error("fare_rules.txt row missing fare_id"),
-    routeId = r.str("route_id"),
-    originId = r.str("origin_id"),
-    destinationId = r.str("destination_id"),
-    containsId = r.str("contains_id"),
+    fareId = r.fareId().takeIf { r.hasFareId() } ?: error("fare_rules.txt row missing fare_id"),
+    routeId = r.routeId().takeIf { r.hasRouteId() },
+    originId = r.originId().takeIf { r.hasOriginId() },
+    destinationId = r.destinationId().takeIf { r.hasDestinationId() },
+    containsId = r.containsId().takeIf { r.hasContainsId() },
 )
 
-fun mapTimeframe(rev: Long, r: GtfsRow) = GtfsTimeframe(
+fun mapTimeframe(rev: Long, r: VTimeframe) = GtfsTimeframe(
     revisionId = rev,
-    timeframeGroupId = r.str("timeframe_group_id") ?: error("timeframes.txt row missing timeframe_group_id"),
-    startTime = r.seconds("start_time"),
-    endTime = r.seconds("end_time"),
-    serviceId = r.str("service_id") ?: error("timeframes.txt row missing service_id"),
+    timeframeGroupId = r.timeframeGroupId().takeIf { r.hasTimeframeGroupId() }
+        ?: error("timeframes.txt row missing timeframe_group_id"),
+    startTime = r.startTime().takeIf { r.hasStartTime() }.toSeconds(),
+    endTime = r.endTime().takeIf { r.hasEndTime() }.toSeconds(),
+    serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("timeframes.txt row missing service_id"),
 )
 
-fun mapRiderCategory(rev: Long, r: GtfsRow) = GtfsRiderCategory(
+fun mapRiderCategory(rev: Long, r: VRiderCategories) = GtfsRiderCategory(
     revisionId = rev,
-    riderCategoryId = r.str("rider_category_id") ?: error("rider_categories.txt row missing rider_category_id"),
-    riderCategoryName = r.str("rider_category_name"),
-    isDefaultFareCategory = r.int("is_default_fare_category"),
-    eligibilityUrl = r.str("eligibility_url"),
+    riderCategoryId = r.riderCategoryId().takeIf { r.hasRiderCategoryId() }
+        ?: error("rider_categories.txt row missing rider_category_id"),
+    riderCategoryName = r.riderCategoryName().takeIf { r.hasRiderCategoryName() },
+    isDefaultFareCategory = r.isDefaultFareCategoryValue().takeIf { r.hasIsDefaultFareCategory() },
+    eligibilityUrl = r.eligibilityUrl().takeIf { r.hasEligibilityUrl() },
 )
 
-fun mapFareMedia(rev: Long, r: GtfsRow) = GtfsFareMedia(
+fun mapFareMedia(rev: Long, r: VFareMedia) = GtfsFareMedia(
     revisionId = rev,
-    fareMediaId = r.str("fare_media_id") ?: error("fare_media.txt row missing fare_media_id"),
-    fareMediaName = r.str("fare_media_name"),
-    fareMediaType = r.int("fare_media_type"),
+    fareMediaId = r.fareMediaId().takeIf { r.hasFareMediaId() } ?: error("fare_media.txt row missing fare_media_id"),
+    fareMediaName = r.fareMediaName().takeIf { r.hasFareMediaName() },
+    fareMediaType = r.fareMediaTypeValue().takeIf { r.hasFareMediaType() },
 )
 
-fun mapFareProduct(rev: Long, r: GtfsRow) = GtfsFareProduct(
+fun mapFareProduct(rev: Long, r: VFareProduct) = GtfsFareProduct(
     revisionId = rev,
-    fareProductId = r.str("fare_product_id") ?: error("fare_products.txt row missing fare_product_id"),
-    fareProductName = r.str("fare_product_name"),
-    riderCategoryId = r.str("rider_category_id"),
-    fareMediaId = r.str("fare_media_id"),
-    amount = r.double("amount"),
-    currency = r.str("currency"),
+    fareProductId = r.fareProductId().takeIf { r.hasFareProductId() }
+        ?: error("fare_products.txt row missing fare_product_id"),
+    fareProductName = r.fareProductName().takeIf { r.hasFareProductName() },
+    riderCategoryId = r.riderCategoryId().takeIf { r.hasRiderCategoryId() },
+    fareMediaId = r.fareMediaId().takeIf { r.hasFareMediaId() },
+    amount = r.amount().takeIf { r.hasAmount() }?.toDouble(),
+    currency = r.currency().takeIf { r.hasCurrency() }.codeOrNull(),
 )
 
-fun mapFareLegRule(rev: Long, r: GtfsRow) = GtfsFareLegRule(
+fun mapFareLegRule(rev: Long, r: VFareLegRule) = GtfsFareLegRule(
     revisionId = rev,
-    legGroupId = r.str("leg_group_id"),
-    networkId = r.str("network_id"),
-    fromAreaId = r.str("from_area_id"),
-    toAreaId = r.str("to_area_id"),
-    fromTimeframeGroupId = r.str("from_timeframe_group_id"),
-    toTimeframeGroupId = r.str("to_timeframe_group_id"),
-    fareProductId = r.str("fare_product_id") ?: error("fare_leg_rules.txt row missing fare_product_id"),
-    rulePriority = r.int("rule_priority"),
+    legGroupId = r.legGroupId().takeIf { r.hasLegGroupId() },
+    networkId = r.networkId().takeIf { r.hasNetworkId() },
+    fromAreaId = r.fromAreaId().takeIf { r.hasFromAreaId() },
+    toAreaId = r.toAreaId().takeIf { r.hasToAreaId() },
+    fromTimeframeGroupId = r.fromTimeframeGroupId().takeIf { r.hasFromTimeframeGroupId() },
+    toTimeframeGroupId = r.toTimeframeGroupId().takeIf { r.hasToTimeframeGroupId() },
+    fareProductId = r.fareProductId().takeIf { r.hasFareProductId() }
+        ?: error("fare_leg_rules.txt row missing fare_product_id"),
+    rulePriority = r.rulePriority().takeIf { r.hasRulePriority() },
 )
 
-fun mapFareLegJoinRule(rev: Long, r: GtfsRow) = GtfsFareLegJoinRule(
+fun mapFareLegJoinRule(rev: Long, r: VFareLegJoinRule) = GtfsFareLegJoinRule(
     revisionId = rev,
-    fromNetworkId = r.str("from_network_id") ?: error("fare_leg_join_rules.txt row missing from_network_id"),
-    toNetworkId = r.str("to_network_id") ?: error("fare_leg_join_rules.txt row missing to_network_id"),
-    fromStopId = r.str("from_stop_id"),
-    toStopId = r.str("to_stop_id"),
+    fromNetworkId = r.fromNetworkId().takeIf { r.hasFromNetworkId() }
+        ?: error("fare_leg_join_rules.txt row missing from_network_id"),
+    toNetworkId = r.toNetworkId().takeIf { r.hasToNetworkId() }
+        ?: error("fare_leg_join_rules.txt row missing to_network_id"),
+    fromStopId = r.fromStopId().takeIf { r.hasFromStopId() },
+    toStopId = r.toStopId().takeIf { r.hasToStopId() },
 )
 
-fun mapFareTransferRule(rev: Long, r: GtfsRow) = GtfsFareTransferRule(
+fun mapFareTransferRule(rev: Long, r: VFareTransferRule) = GtfsFareTransferRule(
     revisionId = rev,
-    fromLegGroupId = r.str("from_leg_group_id"),
-    toLegGroupId = r.str("to_leg_group_id"),
-    transferCount = r.int("transfer_count"),
-    durationLimit = r.int("duration_limit"),
-    durationLimitType = r.int("duration_limit_type"),
-    fareTransferType = r.int("fare_transfer_type"),
-    fareProductId = r.str("fare_product_id"),
+    fromLegGroupId = r.fromLegGroupId().takeIf { r.hasFromLegGroupId() },
+    toLegGroupId = r.toLegGroupId().takeIf { r.hasToLegGroupId() },
+    transferCount = r.transferCount().takeIf { r.hasTransferCount() },
+    durationLimit = r.durationLimit().takeIf { r.hasDurationLimit() },
+    durationLimitType = r.durationLimitTypeValue().takeIf { r.hasDurationLimitType() },
+    fareTransferType = r.fareTransferTypeValue().takeIf { r.hasFareTransferType() },
+    fareProductId = r.fareProductId().takeIf { r.hasFareProductId() },
 )
 
-fun mapArea(rev: Long, r: GtfsRow) = GtfsArea(
+fun mapArea(rev: Long, r: VArea) = GtfsArea(
     revisionId = rev,
-    areaId = r.str("area_id") ?: error("areas.txt row missing area_id"),
-    areaName = r.str("area_name"),
+    areaId = r.areaId().takeIf { r.hasAreaId() } ?: error("areas.txt row missing area_id"),
+    areaName = r.areaName().takeIf { r.hasAreaName() },
 )
 
-fun mapStopArea(rev: Long, r: GtfsRow) = GtfsStopArea(
+fun mapStopArea(rev: Long, r: VStopArea) = GtfsStopArea(
     revisionId = rev,
-    areaId = r.str("area_id") ?: error("stop_areas.txt row missing area_id"),
-    stopId = r.str("stop_id") ?: error("stop_areas.txt row missing stop_id"),
+    areaId = r.areaId().takeIf { r.hasAreaId() } ?: error("stop_areas.txt row missing area_id"),
+    stopId = r.stopId().takeIf { r.hasStopId() } ?: error("stop_areas.txt row missing stop_id"),
 )
 
-fun mapNetwork(rev: Long, r: GtfsRow) = GtfsNetwork(
+fun mapNetwork(rev: Long, r: VNetwork) = GtfsNetwork(
     revisionId = rev,
-    networkId = r.str("network_id") ?: error("networks.txt row missing network_id"),
-    networkName = r.str("network_name"),
+    networkId = r.networkId().takeIf { r.hasNetworkId() } ?: error("networks.txt row missing network_id"),
+    networkName = r.networkName().takeIf { r.hasNetworkName() },
 )
 
-fun mapRouteNetwork(rev: Long, r: GtfsRow) = GtfsRouteNetwork(
+fun mapRouteNetwork(rev: Long, r: VRouteNetwork) = GtfsRouteNetwork(
     revisionId = rev,
-    networkId = r.str("network_id") ?: error("route_networks.txt row missing network_id"),
-    routeId = r.str("route_id") ?: error("route_networks.txt row missing route_id"),
+    networkId = r.networkId().takeIf { r.hasNetworkId() } ?: error("route_networks.txt row missing network_id"),
+    routeId = r.routeId().takeIf { r.hasRouteId() } ?: error("route_networks.txt row missing route_id"),
 )

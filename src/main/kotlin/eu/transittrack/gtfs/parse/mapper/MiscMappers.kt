@@ -1,51 +1,57 @@
 package eu.transittrack.gtfs.parse.mapper
 
 import eu.transittrack.gtfs.model.*
-import eu.transittrack.gtfs.parse.GtfsRow
+import org.mobilitydata.gtfsvalidator.table.GtfsAttribution as VAttribution
+import org.mobilitydata.gtfsvalidator.table.GtfsFrequency as VFrequency
+import org.mobilitydata.gtfsvalidator.table.GtfsTransfer as VTransfer
+import org.mobilitydata.gtfsvalidator.table.GtfsTranslation as VTranslation
 
-fun mapFrequency(rev: Long, r: GtfsRow) = GtfsFrequency(
+fun mapFrequency(rev: Long, r: VFrequency) = GtfsFrequency(
     revisionId = rev,
-    tripId = r.str("trip_id") ?: error("frequencies.txt row missing trip_id"),
-    startTime = r.seconds("start_time") ?: error("frequencies.txt row missing start_time"),
-    endTime = r.seconds("end_time"),
-    headwaySecs = r.int("headway_secs"),
-    exactTimes = r.int("exact_times"),
+    tripId = r.tripId().takeIf { r.hasTripId() } ?: error("frequencies.txt row missing trip_id"),
+    startTime = r.startTime().takeIf { r.hasStartTime() }.toSeconds()
+        ?: error("frequencies.txt row missing start_time"),
+    endTime = r.endTime().takeIf { r.hasEndTime() }.toSeconds(),
+    headwaySecs = r.headwaySecs().takeIf { r.hasHeadwaySecs() },
+    exactTimes = r.exactTimesValue().takeIf { r.hasExactTimes() },
 )
 
-fun mapTransfer(rev: Long, r: GtfsRow) = GtfsTransfer(
+fun mapTransfer(rev: Long, r: VTransfer) = GtfsTransfer(
     revisionId = rev,
-    fromStopId = r.str("from_stop_id"),
-    toStopId = r.str("to_stop_id"),
-    fromRouteId = r.str("from_route_id"),
-    toRouteId = r.str("to_route_id"),
-    fromTripId = r.str("from_trip_id"),
-    toTripId = r.str("to_trip_id"),
-    transferType = r.int("transfer_type"),
-    minTransferTime = r.int("min_transfer_time"),
+    fromStopId = r.fromStopId().takeIf { r.hasFromStopId() },
+    toStopId = r.toStopId().takeIf { r.hasToStopId() },
+    fromRouteId = r.fromRouteId().takeIf { r.hasFromRouteId() },
+    toRouteId = r.toRouteId().takeIf { r.hasToRouteId() },
+    fromTripId = r.fromTripId().takeIf { r.hasFromTripId() },
+    toTripId = r.toTripId().takeIf { r.hasToTripId() },
+    transferType = r.transferTypeValue().takeIf { r.hasTransferType() },
+    minTransferTime = r.minTransferTime().takeIf { r.hasMinTransferTime() },
 )
 
-fun mapTranslation(rev: Long, r: GtfsRow) = GtfsTranslation(
+fun mapTranslation(rev: Long, r: VTranslation) = GtfsTranslation(
     revisionId = rev,
-    tableName = r.str("table_name") ?: error("translations.txt row missing table_name"),
-    fieldName = r.str("field_name") ?: error("translations.txt row missing field_name"),
-    language = r.str("language") ?: error("translations.txt row missing language"),
-    translation = r.str("translation"),
-    recordId = r.str("record_id"),
-    recordSubId = r.str("record_sub_id"),
-    fieldValue = r.str("field_value"),
+    tableName = r.tableName().takeIf { r.hasTableName() } ?: error("translations.txt row missing table_name"),
+    fieldName = r.fieldName().takeIf { r.hasFieldName() } ?: error("translations.txt row missing field_name"),
+    language = r.language().takeIf { r.hasLanguage() }.toLanguageTagOrNull()
+        ?: error("translations.txt row missing language"),
+    translation = r.translation().takeIf { r.hasTranslation() },
+    recordId = r.recordId().takeIf { r.hasRecordId() },
+    recordSubId = r.recordSubId().takeIf { r.hasRecordSubId() },
+    fieldValue = r.fieldValue().takeIf { r.hasFieldValue() },
 )
 
-fun mapAttribution(rev: Long, r: GtfsRow) = GtfsAttribution(
+fun mapAttribution(rev: Long, r: VAttribution) = GtfsAttribution(
     revisionId = rev,
-    attributionId = r.str("attribution_id"),
-    agencyId = r.str("agency_id"),
-    routeId = r.str("route_id"),
-    tripId = r.str("trip_id"),
-    organizationName = r.str("organization_name") ?: error("attributions.txt row missing organization_name"),
-    isProducer = r.int("is_producer"),
-    isOperator = r.int("is_operator"),
-    isAuthority = r.int("is_authority"),
-    attributionUrl = r.str("attribution_url"),
-    attributionEmail = r.str("attribution_email"),
-    attributionPhone = r.str("attribution_phone"),
+    attributionId = r.attributionId().takeIf { r.hasAttributionId() },
+    agencyId = r.agencyId().takeIf { r.hasAgencyId() },
+    routeId = r.routeId().takeIf { r.hasRouteId() },
+    tripId = r.tripId().takeIf { r.hasTripId() },
+    organizationName = r.organizationName().takeIf { r.hasOrganizationName() }
+        ?: error("attributions.txt row missing organization_name"),
+    isProducer = r.isProducerValue().takeIf { r.hasIsProducer() },
+    isOperator = r.isOperatorValue().takeIf { r.hasIsOperator() },
+    isAuthority = r.isAuthorityValue().takeIf { r.hasIsAuthority() },
+    attributionUrl = r.attributionUrl().takeIf { r.hasAttributionUrl() },
+    attributionEmail = r.attributionEmail().takeIf { r.hasAttributionEmail() },
+    attributionPhone = r.attributionPhone().takeIf { r.hasAttributionPhone() },
 )

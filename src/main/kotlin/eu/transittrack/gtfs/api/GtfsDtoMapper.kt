@@ -5,7 +5,7 @@ import eu.transittrack.gtfs.api.dto.GtfsRevisionDto
 import eu.transittrack.gtfs.api.dto.GtfsValidationSummaryDto
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.revision.GtfsRevision
-import eu.transittrack.gtfs.validate.ValidationReport
+import eu.transittrack.gtfs.validate.LoadValidationReport
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
@@ -13,7 +13,7 @@ import tools.jackson.databind.json.JsonMapper
  * Maps GTFS domain entities to their GraphQL DTOs.
  *
  * The revision's `validationReport` is a raw JSON string; deserializing it into
- * [ValidationReport] (a `data class` with no no-arg constructor) requires the
+ * [LoadValidationReport] (a `data class` with no no-arg constructor) requires the
  * Spring-configured [JsonMapper] bean, which Boot 4 wires with `jackson-module-kotlin`.
  */
 @Component
@@ -32,7 +32,7 @@ class GtfsDtoMapper(private val jsonMapper: JsonMapper) {
 
     fun toDto(revision: GtfsRevision, feedCode: String): GtfsRevisionDto {
         val summary = revision.validationReport?.let { json ->
-            val report = jsonMapper.readValue(json, ValidationReport::class.java)
+            val report = jsonMapper.readValue(json, LoadValidationReport::class.java)
             GtfsValidationSummaryDto(report.errorCount, report.warningCount)
         }
         return GtfsRevisionDto(

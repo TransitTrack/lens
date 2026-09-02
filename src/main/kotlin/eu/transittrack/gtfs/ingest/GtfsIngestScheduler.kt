@@ -28,7 +28,6 @@ class GtfsIngestScheduler(
 
     @Scheduled(cron = "\${transittrack.gtfs.polling.sweep-cron}")
     fun sweep() {
-        //if (!props.polling.enabled) return
         val zone = ZoneId.systemDefault()
         val now = LocalDateTime.now(zone)
         for (feed in feeds.findAllEnabled()) {

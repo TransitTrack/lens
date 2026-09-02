@@ -64,8 +64,8 @@ databaseChangeLog:
               - column: { name: route_desc, type: TEXT }
               - column: { name: route_type, type: SMALLINT }
               - column: { name: route_url, type: TEXT }
-              - column: { name: route_color, type: VARCHAR(6) }
-              - column: { name: route_text_color, type: VARCHAR(6) }
+              - column: { name: route_color, type: VARCHAR(7) }
+              - column: { name: route_text_color, type: VARCHAR(7) }
               - column: { name: route_sort_order, type: INT }
               - column: { name: continuous_pickup, type: SMALLINT }
               - column: { name: continuous_drop_off, type: SMALLINT }

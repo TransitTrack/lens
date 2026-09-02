@@ -3,12 +3,15 @@ package eu.transittrack.gtfs.parse
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.parse.GtfsFileDef.Kind
 import eu.transittrack.gtfs.parse.mapper.*
+import org.mobilitydata.gtfsvalidator.table.GtfsEntity
+import org.mobilitydata.gtfsvalidator.table.GtfsShape
 
 object GtfsFileRegistry {
 
-    private fun csv(file: String, type: String, required: Boolean, order: Int,
-                    map: (Long, GtfsRow) -> RevisionScoped) =
-        GtfsFileDef(file, type, required, order, Kind.CSV, map)
+    private inline fun <reified T : GtfsEntity> csv(
+        file: String, type: String, required: Boolean, order: Int,
+        crossinline map: (Long, T) -> RevisionScoped,
+    ) = GtfsFileDef(file, type, required, order, Kind.CSV) { rev, e -> map(rev, e as T) }
 
     val defs: List<GtfsFileDef> = listOf(
         csv("agency.txt", "gtfs_agency", true, 10, ::mapAgency),
@@ -22,7 +25,9 @@ object GtfsFileRegistry {
         csv("areas.txt", "gtfs_area", false, 33, ::mapArea),
         csv("stop_areas.txt", "gtfs_stop_area", false, 34, ::mapStopArea),
         csv("trips.txt", "gtfs_trip", true, 40, ::mapTrip),
-        GtfsFileDef("shapes.txt", "gtfs_shape_point", false, 45, Kind.SHAPES, ::mapShapePoint),
+        GtfsFileDef("shapes.txt", "gtfs_shape_point", false, 45, Kind.SHAPES) { rev, e ->
+            mapShapePoint(rev, e as GtfsShape)
+        },
         csv("stop_times.txt", "gtfs_stop_time", true, 50, ::mapStopTime),
         csv("frequencies.txt", "gtfs_frequency", false, 55, ::mapFrequency),
         csv("transfers.txt", "gtfs_transfer", false, 56, ::mapTransfer),

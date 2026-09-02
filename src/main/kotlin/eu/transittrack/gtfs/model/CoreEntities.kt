@@ -8,6 +8,8 @@ import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import java.time.ZoneId
+import java.util.Locale
 
 /**
  * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes,
@@ -25,8 +27,8 @@ class GtfsAgency(
     var agencyId: String?,
     var agencyName: String?,
     var agencyUrl: String?,
-    var agencyTimezone: String?,
-    var agencyLang: String?,
+    var agencyTimezone: ZoneId?,
+    var agencyLang: Locale?,
     var agencyPhone: String?,
     var agencyFareUrl: String?,
     var agencyEmail: String?,
@@ -47,7 +49,7 @@ class GtfsStop(
     var stopUrl: String?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var locationType: Int?,
     var parentStation: String?,
-    var stopTimezone: String?,
+    var stopTimezone: ZoneId?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairBoarding: Int?,
     var levelId: String?,
     var platformCode: String?,
