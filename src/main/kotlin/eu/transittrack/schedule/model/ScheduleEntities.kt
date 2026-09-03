@@ -68,6 +68,7 @@ class SchedTrip(
     @Column(name = "end_time_sec", nullable = false) var endTimeSec: Int,
     @Column(name = "frequency_based", nullable = false) var frequencyBased: Boolean,
     @JdbcTypeCode(SqlTypes.SMALLINT) var exactTimes: Int?,
+    @Column(name = "no_schedule", nullable = false) var noSchedule: Boolean = false,
 ) : RevisionScoped(revisionId)
 
 @Entity

@@ -649,6 +649,7 @@ databaseChangeLog:
               - column: { name: end_time_sec, type: INT, constraints: { nullable: false } }
               - column: { name: frequency_based, type: BOOLEAN, constraints: { nullable: false } }
               - column: { name: exact_times, type: SMALLINT }
+              - column: { name: no_schedule, type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: false }
         - addUniqueConstraint: { tableName: sched_trip, columnNames: "revision_id, trip_id", constraintName: uq_sched_trip_rev_trip }
         - createIndex:
             indexName: ix_sched_trip_rev_pattern
@@ -709,6 +710,21 @@ databaseChangeLog:
             indexName: ix_block_trip_rev_trip
             tableName: block_trip
             columns: [ { column: { name: revision_id } }, { column: { name: sched_trip_id } } ]
+        - createTable:
+            tableName: travel_times_for_stop_path
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_tt_stop_path_rev, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: trip_pattern_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_tt_stop_path_pattern, references: "trip_patterns(id)", deleteCascade: true } }
+              - column: { name: stop_path_index, type: INT, constraints: { nullable: false } }
+              - column: { name: travel_time_sec, type: INT }
+              - column: { name: dwell_time_sec, type: INT }
+              - column: { name: how_set, type: SMALLINT, constraints: { nullable: false }, defaultValueNumeric: 0 }
+        - addUniqueConstraint: { tableName: travel_times_for_stop_path, columnNames: "revision_id, trip_pattern_id, stop_path_index", constraintName: uq_tt_stop_path_rev_pattern_idx }
+        - createIndex:
+            indexName: ix_tt_stop_path_rev_pattern
+            tableName: travel_times_for_stop_path
+            columns: [ { column: { name: revision_id } }, { column: { name: trip_pattern_id } } ]
         - addForeignKeyConstraint:
             constraintName: fk_trip_trip_pattern
             baseTableName: trips
