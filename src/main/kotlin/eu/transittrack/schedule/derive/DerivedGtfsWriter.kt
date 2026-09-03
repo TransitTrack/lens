@@ -69,4 +69,25 @@ class DerivedGtfsWriter(
                 }
             }
     }
+
+    fun clearTripPatternLinks(revisionId: Long) {
+        sessionFactory.inStatelessTransaction { session ->
+            session
+                .createNativeMutationQuery("update trips set trip_pattern_id = null where revision_id = :r")
+                .setParameter("r", revisionId)
+                .executeUpdate()
+        }
+    }
+
+    fun clearExtents(revisionId: Long) {
+        sessionFactory.inStatelessTransaction { session ->
+            for (t in listOf("routes", "agencies")) {
+                session
+                    .createNativeMutationQuery(
+                        "update $t set min_lat = null, min_lon = null, max_lat = null, max_lon = null where revision_id = :r",
+                    ).setParameter("r", revisionId)
+                    .executeUpdate()
+            }
+        }
+    }
 }
