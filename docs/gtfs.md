@@ -125,9 +125,11 @@ Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `DERIVING`, `RE
 6. **Derive dates** — `feed_start_date` / `feed_end_date` from `feed_info.txt`
    if present, else min/max over `calendar` and `calendar_dates`.
 7. **Derive schedule model** — when `transittrack.schedule.enabled`, the revision
-   transitions to `DERIVING` and `ScheduleDerivationService` builds `trip_pattern`
-   / `stop_path` / `sched_trip` / `schedule_time` / `block` for the revision and
-   merges their counts into `row_counts`. Any failure funnels to `FAILED` like
+   transitions to `DERIVING` and the six `@Order`ed `IngestionPostProcessor` beans
+   in `eu.transittrack.schedule.derive` (`TripPatternProcessor` 10 →
+   `DerivationFinalizeProcessor` 60) build `trip_pattern` / `stop_path` /
+   `sched_trip` / `schedule_time` / `travel_times_for_stop_path` / `block` for the
+   revision and merge their counts into `row_counts`. Any failure funnels to `FAILED` like
    every other step. See [docs/schedule.md](schedule.md).
 8. **Ready → Activate** — status becomes `READY`. If the effective
    `auto-activate` (feed override, else `ingest.auto-activate`, default `true`)

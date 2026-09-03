@@ -66,7 +66,7 @@ import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 
 /**
- * Derivation edge cases that the happy-path `schedule-sample` fixture cannot reach, kept on their own fixtures so the count/value assertions in [ScheduleDerivationServiceTest] stay untouched:
+ * Derivation edge cases that the happy-path `schedule-sample` fixture cannot reach, kept on their own fixtures so the count/value assertions in the per-processor slice tests and [runAllStages] here stay untouched:
  *
  * - `schedule-edge`: a trip with a dangling `stop_times.stop_id`, a frequency trip carrying a `block_id`, a shapeless trip, a stop far off its shape, two routes sharing one shape + stop list, and no `timepoint` column at all.
  * - `schedule-broken-times`: a trip whose last stop has neither arrival nor departure, which makes a real derivation throw partway through.
