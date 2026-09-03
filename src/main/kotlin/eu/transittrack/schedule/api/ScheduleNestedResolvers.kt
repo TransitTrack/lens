@@ -58,14 +58,6 @@ class ScheduleNestedResolvers(
             StopDto.of(it, sp.revisionId, sp.feedCode)
         }
 
-    @SchemaMapping(typeName = "StopPath")
-    fun typicalTravelTimeSec(sp: StopPathDto): Int? =
-        read.travelTimesOf(sp.revisionId, sp.tripPatternId).getOrNull(sp.stopPathIndex)?.travelTimeSec
-
-    @SchemaMapping(typeName = "StopPath")
-    fun typicalDwellTimeSec(sp: StopPathDto): Int? =
-        read.travelTimesOf(sp.revisionId, sp.tripPatternId).getOrNull(sp.stopPathIndex)?.dwellTimeSec
-
     @SchemaMapping(typeName = "SchedTrip")
     fun pattern(t: SchedTripDto): TripPatternDto? =
         patterns.findById(t.tripPatternId).orElse(null)?.let {

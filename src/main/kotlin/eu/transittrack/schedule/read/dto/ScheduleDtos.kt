@@ -58,6 +58,8 @@ data class StopPathDto(
     val scheduleAdherenceStop: Boolean,
     val layoverStop: Boolean,
     val breakTimeSec: Int?,
+    val typicalTravelTimeSec: Int?,
+    val typicalDwellTimeSec: Int?,
 ) {
     companion object {
         fun of(
@@ -65,6 +67,8 @@ data class StopPathDto(
             revisionId: Long,
             feedCode: String,
             geometry: Any?,
+            typicalTravelTimeSec: Int?,
+            typicalDwellTimeSec: Int?,
         ) = StopPathDto(
             revisionId,
             feedCode,
@@ -80,6 +84,8 @@ data class StopPathDto(
             e.scheduleAdherenceStop,
             e.layoverStop,
             e.breakTimeSec,
+            typicalTravelTimeSec,
+            typicalDwellTimeSec,
         )
     }
 }

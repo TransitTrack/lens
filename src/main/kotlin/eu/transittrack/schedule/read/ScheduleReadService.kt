@@ -120,8 +120,18 @@ class ScheduleReadService(
         feedCode: String,
         tripPatternId: Long,
     ): List<StopPathDto> =
-        stopPaths.findByTripPatternOrdered(rev, tripPatternId).map {
-            StopPathDto.of(it, rev, feedCode, parseGeometry(it.pathGeometry))
+        stopPaths.findByTripPatternOrdered(rev, tripPatternId).let { paths ->
+            val tt = travelTimesOf(rev, tripPatternId)
+            paths.map {
+                StopPathDto.of(
+                    it,
+                    rev,
+                    feedCode,
+                    parseGeometry(it.pathGeometry),
+                    tt.getOrNull(it.stopPathIndex)?.travelTimeSec,
+                    tt.getOrNull(it.stopPathIndex)?.dwellTimeSec,
+                )
+            }
         }
 
     fun travelTimesOf(

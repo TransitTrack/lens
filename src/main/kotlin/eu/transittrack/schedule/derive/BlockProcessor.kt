@@ -152,6 +152,12 @@ class BlockProcessor(
         totalBlockTrips += freqBlockTripRows.size
 
         // --- 3. Unscheduled blocks ------------------------------------------------------
+        // NOTE (accepted limitation): with `tolerateNoScheduleTrips = true`, if a single
+        // `block_id` has BOTH timed trips and timeless (no-schedule) trips under the same
+        // service, this branch emits an unscheduled `Block` while section 1 emits a scheduled
+        // `Block` for the same `(revision_id, block_id, service_id)`. That collides with
+        // `uq_block_rev_block_service` and fails the ingest. Merging/skipping such mixed
+        // blocks is intentionally not implemented here.
         if (props.tolerateNoScheduleTrips) {
             val groups =
                 state.derivedTrips
@@ -187,7 +193,12 @@ class BlockProcessor(
                             blockId = blockPk,
                             schedTripId = t.schedTripId,
                             listIndex = i,
-                            layoverAfterSec = next?.let { it.startSec - t.endSec },
+                            // Both trips are synthesised with startSec=0/endSec=86_400, so a
+                            // real layover gap is meaningless between two no-schedule trips.
+                            layoverAfterSec =
+                                next?.let {
+                                    if (t.noSchedule && it.noSchedule) null else it.startSec - t.endSec
+                                },
                             deadheadAfter = next?.let { it.firstStopId != t.lastStopId },
                         )
                     }
