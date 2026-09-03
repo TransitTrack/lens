@@ -625,8 +625,6 @@ databaseChangeLog:
               - column: { name: schedule_adherence_stop, type: BOOLEAN, constraints: { nullable: false } }
               - column: { name: layover_stop, type: BOOLEAN, constraints: { nullable: false } }
               - column: { name: break_time_sec, type: INT }
-              - column: { name: typical_travel_time_sec, type: INT }
-              - column: { name: typical_dwell_time_sec, type: INT }
         - addUniqueConstraint: { tableName: stop_path, columnNames: "revision_id, trip_pattern_id, stop_path_index", constraintName: uq_stop_path_rev_pattern_idx }
         - createIndex:
             indexName: ix_stop_path_rev_stop

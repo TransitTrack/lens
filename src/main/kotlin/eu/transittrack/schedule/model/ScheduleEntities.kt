@@ -49,8 +49,6 @@ class StopPath(
     @Column(name = "schedule_adherence_stop", nullable = false) var scheduleAdherenceStop: Boolean,
     @Column(name = "layover_stop", nullable = false) var layoverStop: Boolean,
     var breakTimeSec: Int?,
-    var typicalTravelTimeSec: Int?,
-    var typicalDwellTimeSec: Int?,
 ) : RevisionScoped(revisionId)
 
 @Entity

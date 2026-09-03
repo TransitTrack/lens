@@ -90,8 +90,6 @@ class ScheduleEntitiesTest(
                 scheduleAdherenceStop = true,
                 layoverStop = true,
                 breakTimeSec = null,
-                typicalTravelTimeSec = null,
-                typicalDwellTimeSec = null,
             ),
         )
         val st =

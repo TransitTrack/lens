@@ -124,8 +124,6 @@ fun buildPattern(
                 scheduleAdherenceStop = timed,
                 layoverStop = i == 0,
                 breakTimeSec = null,
-                typicalTravelTimeSec = null,
-                typicalDwellTimeSec = null,
             ),
         )
     }

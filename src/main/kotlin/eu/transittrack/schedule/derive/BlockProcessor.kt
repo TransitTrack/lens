@@ -1,5 +1,9 @@
 package eu.transittrack.schedule.derive
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.core.annotation.Order
+import org.springframework.stereotype.Component
+
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.median
@@ -19,6 +23,9 @@ import eu.transittrack.schedule.model.BlockTrip
  *  3. Unscheduled blocks — only when [ScheduleProperties.tolerateNoScheduleTrips]: one block per
  *     `(block_id, service_id)` of no-schedule trips, spanning the whole service day.
  */
+@Component
+@Order(BlockProcessor.ORDER)
+@ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
 class BlockProcessor(
     private val context: DerivationContext,
     private val writer: ScheduleWriter,

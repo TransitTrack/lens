@@ -97,22 +97,16 @@ class ScheduleWriterTest(
                 false,
                 false,
                 null,
-                null,
-                null,
             )
         writer.write(listOf(sp))
 
         writer.applyTripPatternTripCount(mapOf(savedTp.id!! to 3))
         val spId = stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).single().id!!
-        writer.applyStopPathAggregates(listOf(StopPathAggregateUpdate(spId, 42, 10, true, 300)))
-        // null bindings must also work (see the NOTE in Step 4)
-        writer.applyStopPathAggregates(
-            listOf(StopPathAggregateUpdate(spId, null, null, true, null)),
-        )
+        writer.applyStopPathLayover(listOf(StopPathLayoverUpdate(spId, true, 300)))
 
         assertThat(patterns.findByPatternKey(rev, "K")!!.tripCount).isEqualTo(3)
         val reloaded = stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).single()
-        assertThat(reloaded.typicalTravelTimeSec).isNull()
+        assertThat(reloaded.breakTimeSec).isEqualTo(300)
         assertThat(reloaded.layoverStop).isEqualTo(true)
 
         writer.deleteForRevision(rev)

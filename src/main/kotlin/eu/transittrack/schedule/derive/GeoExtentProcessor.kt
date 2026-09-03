@@ -1,5 +1,9 @@
 package eu.transittrack.schedule.derive
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.core.annotation.Order
+import org.springframework.stereotype.Component
+
 import eu.transittrack.Extent
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
@@ -9,6 +13,9 @@ import eu.transittrack.gtfs.model.RouteRepository
  * stage 1) onto the raw `routes` table, then derives per-agency extents (union of each agency's
  * routes) and writes them onto the raw `agencies` table.
  */
+@Component
+@Order(GeoExtentProcessor.ORDER)
+@ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
 class GeoExtentProcessor(
     private val context: DerivationContext,
     private val derivedGtfsWriter: DerivedGtfsWriter,

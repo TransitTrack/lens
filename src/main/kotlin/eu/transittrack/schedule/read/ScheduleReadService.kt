@@ -9,6 +9,8 @@ import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
+import eu.transittrack.schedule.model.TravelTimesForStopPath
+import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.dto.BlockDto
 import eu.transittrack.schedule.read.dto.SchedTripDto
@@ -21,6 +23,7 @@ class ScheduleReadService(
     private val stopPaths: StopPathRepository,
     private val schedTrips: SchedTripRepository,
     private val blocks: BlockRepository,
+    private val travelTimes: TravelTimesForStopPathRepository,
     private val serviceDates: ServiceDateResolver,
     private val resolver: RevisionResolver,
     private val json: JsonMapper,
@@ -120,4 +123,9 @@ class ScheduleReadService(
         stopPaths.findByTripPatternOrdered(rev, tripPatternId).map {
             StopPathDto.of(it, rev, feedCode, parseGeometry(it.pathGeometry))
         }
+
+    fun travelTimesOf(
+        rev: Long,
+        tripPatternId: Long,
+    ): List<TravelTimesForStopPath> = travelTimes.findByTripPatternOrdered(rev, tripPatternId)
 }

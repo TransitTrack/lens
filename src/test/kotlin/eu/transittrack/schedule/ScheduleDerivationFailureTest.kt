@@ -23,6 +23,7 @@ import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
+import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.ShapeRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
@@ -33,7 +34,6 @@ import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
-import eu.transittrack.schedule.derive.ScheduleDerivationService
 import eu.transittrack.schedule.derive.ScheduleWriter
 
 @PostgresSliceTest
@@ -87,7 +87,7 @@ class ScheduleDerivationFailureTest(
             ).also { created += it.id!! }
 
     private fun ingestion(
-        derivation: ScheduleDerivationService,
+        derivation: IngestionPostProcessor,
         props: ScheduleProperties,
     ) = IngestionService(
         FixtureDownloader("minimal-valid"),
@@ -108,7 +108,7 @@ class ScheduleDerivationFailureTest(
     @Test
     fun `derivation exception fails the revision`() {
         feed()
-        val boom = mock<ScheduleDerivationService>()
+        val boom = mock<IngestionPostProcessor>()
         whenever(boom.postProcess(org.mockito.kotlin.any())).doThrow(RuntimeException("boom"))
         val rev = ingestion(boom, ScheduleProperties(enabled = true)).ingestBlocking("sf")
         val loaded = revisions.findById(rev.id!!).get()
@@ -119,7 +119,7 @@ class ScheduleDerivationFailureTest(
     @Test
     fun `disabled schedule derivation activates without calling derive`() {
         feed()
-        val never = mock<ScheduleDerivationService>()
+        val never = mock<IngestionPostProcessor>()
         val rev = ingestion(never, ScheduleProperties(enabled = false)).ingestBlocking("sf")
         assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         org.mockito.kotlin

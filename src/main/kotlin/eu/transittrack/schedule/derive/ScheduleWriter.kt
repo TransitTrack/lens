@@ -8,14 +8,6 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.gtfs.model.RevisionScoped
 
-data class StopPathAggregateUpdate(
-    val stopPathId: Long,
-    val typicalTravelTimeSec: Int?,
-    val typicalDwellTimeSec: Int?,
-    val layoverStop: Boolean,
-    val breakTimeSec: Int?,
-)
-
 data class StopPathLayoverUpdate(
     val stopPathId: Long,
     val layoverStop: Boolean,
@@ -89,30 +81,6 @@ class ScheduleWriter(
                 .createNativeMutationQuery("update trip_patterns set trip_count = 0 where revision_id = :r")
                 .setParameter("r", revisionId)
                 .executeUpdate()
-        }
-    }
-
-    fun applyStopPathAggregates(updates: List<StopPathAggregateUpdate>) {
-        if (updates.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for (u in updates) {
-                session
-                    .createNativeMutationQuery(
-                        """
-                        update stop_path
-                           set typical_travel_time_sec = :tt,
-                               typical_dwell_time_sec = :td,
-                               layover_stop = :lo,
-                               break_time_sec = :bt
-                         where id = :id
-                        """.trimIndent(),
-                    ).setParameter("tt", u.typicalTravelTimeSec)
-                    .setParameter("td", u.typicalDwellTimeSec)
-                    .setParameter("lo", u.layoverStop)
-                    .setParameter("bt", u.breakTimeSec)
-                    .setParameter("id", u.stopPathId)
-                    .executeUpdate()
-            }
         }
     }
 

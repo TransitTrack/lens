@@ -95,6 +95,25 @@ class SchedTripProcessorTest(
     }
 
     @Test
+    fun `a frequency trip is 0-based`() {
+        val rev = newRevision(feeds, revisions)
+        seedRoute(rev)
+        gtfsWriter.write(
+            listOf(
+                eu.transittrack.gtfs.model
+                    .Frequency(rev, "T", 3600, 7200, 900, 0),
+            ),
+        )
+        stage1().postProcess(rev)
+        stage2().postProcess(rev)
+
+        val st = schedTrips.findByTripId(rev, "T")!!
+        assertThat(st.frequencyBased).isTrue()
+        assertThat(st.startTimeSec).isEqualTo(0)
+        assertThat(scheduleTimes.findBySchedTripOrdered(rev, st.id!!)[0].departureSec).isEqualTo(0)
+    }
+
+    @Test
     fun `timeless trip fails when tolerate is off`() {
         val rev = newRevision(feeds, revisions)
         gtfsWriter.write(

@@ -6,6 +6,7 @@ import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isNotNull
 import assertk.assertions.isTrue
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -105,6 +106,12 @@ class BlockProcessorTest(
         assertThat(bts.map { it.schedTripId }).isEqualTo(listOf(t1.id, schedTrips.findByTripId(rev, "T2")!!.id))
         assertThat(bts[0].layoverAfterSec).isEqualTo(600)
         assertThat(bts[0].deadheadAfter).isEqualTo(false)
+
+        // layover write-back: T1's pattern ends on a >= 60s block gap, so its last
+        // stop path is marked a layover stop with a break time.
+        val t1Paths = stopPaths.findByTripPatternOrdered(rev, t1.tripPatternId)
+        assertThat(t1Paths.last().layoverStop).isTrue()
+        assertThat(t1Paths.last().breakTimeSec).isNotNull()
     }
 
     @Test

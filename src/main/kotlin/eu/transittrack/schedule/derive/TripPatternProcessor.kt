@@ -1,6 +1,9 @@
 package eu.transittrack.schedule.derive
 
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.core.annotation.Order
+import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Extent
@@ -22,6 +25,9 @@ import eu.transittrack.schedule.model.TripPattern
  * wait-stop reconstruction), then build `trip_patterns` + `stop_path` keyed route|shape|stops.
  * Opens the shared [DerivationContext] and pre-cleans the revision's derived schedule tables.
  */
+@Component
+@Order(TripPatternProcessor.ORDER)
+@ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
 class TripPatternProcessor(
     private val context: DerivationContext,
     private val writer: ScheduleWriter,

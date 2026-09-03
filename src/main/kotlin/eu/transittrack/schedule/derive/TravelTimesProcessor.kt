@@ -1,5 +1,9 @@
 package eu.transittrack.schedule.derive
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.core.annotation.Order
+import org.springframework.stereotype.Component
+
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.median
 import eu.transittrack.schedule.model.TravelTimesForStopPath
@@ -12,6 +16,9 @@ import eu.transittrack.schedule.model.TravelTimesForStopPath
  * Port of the former `ScheduleDerivationService.aggregatePass`, redirected from the dropped
  * `stop_path.typical_*` columns to `travel_times_for_stop_path`.
  */
+@Component
+@Order(TravelTimesProcessor.ORDER)
+@ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
 class TravelTimesProcessor(
     private val context: DerivationContext,
     private val writer: ScheduleWriter,

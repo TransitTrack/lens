@@ -1,6 +1,9 @@
 package eu.transittrack.schedule.derive
 
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.core.annotation.Order
+import org.springframework.stereotype.Component
 
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.Frequency
@@ -21,6 +24,9 @@ import eu.transittrack.schedule.model.ScheduleTime
  * throws) unless [ScheduleProperties.tolerateNoScheduleTrips], in which case it becomes a
  * `sched_trip` with `no_schedule = true`, a 0..86400 span and null `schedule_time` arr/dep.
  */
+@Component
+@Order(SchedTripProcessor.ORDER)
+@ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
 class SchedTripProcessor(
     private val context: DerivationContext,
     private val writer: ScheduleWriter,

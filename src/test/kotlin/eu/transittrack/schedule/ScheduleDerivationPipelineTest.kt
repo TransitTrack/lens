@@ -21,6 +21,7 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.schedule.derive.DerivationContext
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 
@@ -33,6 +34,7 @@ class ScheduleDerivationPipelineTest(
     @Autowired val revisionService: RevisionService,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val blocks: BlockRepository,
+    @Autowired val context: DerivationContext,
 ) {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -50,6 +52,8 @@ class ScheduleDerivationPipelineTest(
         assertThat(blocks.findByRevisionId(rev.id!!)).hasSize(2)
         val counts = revisionService.revision(rev.id!!).rowCounts
         assertThat(counts).key("trip_patterns").isEqualTo(4L)
+        assertThat(counts).key("travel_times_for_stop_path")
         assertThat(counts).key("gtfs_trip") // gtfs counts preserved
+        assertThat(context.size()).isEqualTo(0)
     }
 }

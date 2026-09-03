@@ -150,26 +150,36 @@ class ScheduleDerivationEdgeCaseTest(
                 SyncTaskExecutor(),
                 mock<org.springframework.context.ApplicationEventPublisher>(),
                 eu.transittrack.gtfs.support.postProcessors(
-                    *(if (deriveDuringPipeline) arrayOf(service()) else emptyArray()),
+                    *(if (deriveDuringPipeline) stages().toTypedArray() else emptyArray()),
                 ),
             )
         rev = ingestion.ingestBlocking("edge").id!!
         return rev
     }
 
-    private fun service() =
-        ScheduleDerivationService(
-            stops,
-            routes,
-            trips,
-            stopTimes,
-            shapePoints,
-            frequencies,
-            scheduleWriter,
-            derivedGtfsWriter,
-            scheduleProps,
-            jsonMapper,
+    private val context = DerivationContext()
+
+    private fun stages(props: ScheduleProperties = scheduleProps): List<eu.transittrack.gtfs.ingest.IngestionPostProcessor> =
+        listOf(
+            TripPatternProcessor(
+                context, scheduleWriter, props, jsonMapper, routes, trips, stopTimes, stops, shapePoints,
+            ),
+            SchedTripProcessor(context, scheduleWriter, derivedGtfsWriter, props, routes, trips, frequencies),
+            TravelTimesProcessor(context, scheduleWriter),
+            BlockProcessor(context, scheduleWriter, props, frequencies),
+            GeoExtentProcessor(context, derivedGtfsWriter, routes),
+            DerivationFinalizeProcessor(context, scheduleWriter),
         )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun runAllStages(
+        rev: Long,
+        props: ScheduleProperties = scheduleProps,
+    ): Map<String, Long> {
+        val counts = HashMap<String, Long>()
+        stages(props).forEach { counts.putAll(it.postProcess(rev) as Map<String, Long>) }
+        return counts
+    }
 
     private fun rowCount(table: String): Int =
         jdbc.queryForObject(
@@ -197,7 +207,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Test
     fun `a trip with a dangling stop reference is skipped, its siblings are not`() {
         ingest("schedule-edge")
-        service().postProcess(rev)
+        runAllStages(rev)
 
         // E4 visits GHOST, which is not in stops.txt -> no sched_trip, no pattern from it.
         assertThat(schedTrips.findByTripId(rev, "E4")).isNull()
@@ -233,19 +243,23 @@ class ScheduleDerivationEdgeCaseTest(
     // --- FIX 5: frequency trips are not placed in blocks ---
 
     @Test
-    fun `a frequency trip carrying a block_id is excluded from the block`() {
+    fun `a frequency trip carrying a block_id gets its own synthetic block`() {
         ingest("schedule-edge")
-        service().postProcess(rev)
+        runAllStages(rev)
 
         val blk = blocks.findByBlockAndService(rev, "BLK", "WK")!!
-        assertThat(blk.tripCount).isEqualTo(2) // EF is frequency-based and must not be blocked
+        assertThat(blk.tripCount).isEqualTo(2) // EF is frequency-based: not in the scheduled block
         // a 0-based frequency trip must not drag the block start to 0
         assertThat(blk.startTimeSec).isEqualTo(28800)
         assertThat(blk.endTimeSec).isEqualTo(34200)
 
+        // EF now gets its own synthetic frequency block.
+        val efBlk = blocks.findByBlockAndService(rev, "BLK|EF", "WK")!!
+        assertThat(efBlk.tripCount).isEqualTo(1)
+
         val ef = schedTrips.findByTripId(rev, "EF")!!
         assertThat(ef.frequencyBased).isTrue()
-        assertThat(blockTrips.findBySchedTripId(rev, ef.id!!)).isNull()
+        assertThat(blockTrips.findBySchedTripId(rev, ef.id!!)).isNotNull()
 
         // E1 -> E2 layover is measured against E2, not against the frequency trip.
         val e1 = schedTrips.findByTripId(rev, "E1")!!
@@ -261,7 +275,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Test
     fun `a trip with no shape gets straight-line stop paths`() {
         ingest("schedule-edge")
-        service().postProcess(rev)
+        runAllStages(rev)
 
         val e3 = schedTrips.findByTripId(rev, "E3")!!
         val pattern = patterns.findById(e3.tripPatternId).get()
@@ -280,7 +294,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Test
     fun `a stop too far off its shape falls back to a straight line`() {
         ingest("schedule-edge")
-        service().postProcess(rev)
+        runAllStages(rev)
 
         val e6 = schedTrips.findByTripId(rev, "E6")!!
         val pattern = patterns.findById(e6.tripPatternId).get()
@@ -302,7 +316,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Test
     fun `without a timepoint column every timed stop is a wait stop`() {
         ingest("schedule-edge")
-        service().postProcess(rev)
+        runAllStages(rev)
 
         // schedule-edge's stop_times.txt has no `timepoint` column at all, so the
         // fallback "has a time -> it is a timed stop" branch decides wait_stop.
@@ -316,7 +330,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Test
     fun `two routes sharing a shape and stop list get separate patterns`() {
         ingest("schedule-edge")
-        service().postProcess(rev)
+        runAllStages(rev)
 
         // RA/E1 and RC/E5 both run SHP_OUT over exactly [S1, S4].
         val ra = patterns.findByRouteId(rev, "RA")
@@ -331,24 +345,87 @@ class ScheduleDerivationEdgeCaseTest(
         assertThat(rc.single().tripCount).isEqualTo(1) // E5 (E4 skipped)
     }
 
+    // --- Step 7 fixtures: dup stops / headsign fallbacks / no-schedule trips ---
+
+    @Test
+    fun `consecutive duplicate stops are collapsed into one stop path`() {
+        ingest("schedule-dup-stops")
+        runAllStages(rev)
+
+        val t1 = schedTrips.findByTripId(rev, "T1")!!
+        val pattern = patterns.findById(t1.tripPatternId).get()
+        // stop_times visits S1,S2,S2,S3 -> the consecutive S2 dup is removed.
+        assertThat(pattern.stopCount).isEqualTo(3)
+        assertThat(stopPaths.findByTripPatternOrdered(rev, pattern.id!!).map { it.stopId })
+            .isEqualTo(listOf("S1", "S2", "S3"))
+    }
+
+    @Test
+    fun `a trip with no headsign anywhere falls back to Loop`() {
+        ingest("schedule-no-headsign")
+        runAllStages(rev)
+
+        val t1 = schedTrips.findByTripId(rev, "T1")!!
+        assertThat(t1.headsign).isEqualTo("Loop")
+        assertThat(patterns.findById(t1.tripPatternId).get().headsign).isEqualTo("Loop")
+    }
+
+    @Test
+    fun `a blank trip headsign falls back to the first stop headsign`() {
+        ingest("schedule-stop-headsign")
+        runAllStages(rev)
+
+        val t1 = schedTrips.findByTripId(rev, "T1")!!
+        assertThat(t1.headsign).isEqualTo("Downtown")
+    }
+
+    @Test
+    fun `a no-schedule trip is rejected unless tolerated`() {
+        ingest("schedule-noschedule")
+
+        val failure = assertFailure { runAllStages(rev) }
+        failure.isInstanceOf<IllegalStateException>()
+        stages().forEach { runCatching { it.onIngestionFailure(rev) } }
+        assertThat(schedTrips.findByTripId(rev, "T1")).isNull()
+    }
+
+    @Test
+    fun `a tolerated no-schedule trip becomes a no_schedule sched_trip with a full-day block`() {
+        ingest("schedule-noschedule")
+        runAllStages(rev, scheduleProps.copy(tolerateNoScheduleTrips = true))
+
+        val t1 = schedTrips.findByTripId(rev, "T1")!!
+        assertThat(t1.noSchedule).isTrue()
+        assertThat(t1.startTimeSec).isEqualTo(0)
+        assertThat(t1.endTimeSec).isEqualTo(86400)
+
+        val blk = blocks.findByBlockAndService(rev, "BLK", "WK")!!
+        assertThat(blk.startTimeSec).isEqualTo(0)
+        assertThat(blk.endTimeSec).isEqualTo(86400)
+    }
+
     // --- FIX 2 / FIX 4: a real mid-derivation failure wipes every derived row ---
 
     @Test
-    fun `a derivation that throws partway leaves zero rows in all five tables`() {
+    fun `a derivation that throws partway leaves zero rows in all derived tables`() {
         ingest("schedule-broken-times")
 
         // Pass 1 writes and commits both of route RX's patterns and their stop paths
         // before pass 2 reaches X1, whose last stop has neither arrival nor departure.
-        val failure = assertFailure { service().postProcess(rev) }
+        val failure = assertFailure { runAllStages(rev) }
         failure.isInstanceOf<IllegalStateException>()
         failure.messageContains("trip X1 (route RX)")
         failure.messageContains("first and last stop must have a time")
 
-        assertThat(rowCount("trip_patterns")).isEqualTo(0)
-        assertThat(rowCount("stop_path")).isEqualTo(0)
-        assertThat(rowCount("sched_trip")).isEqualTo(0)
-        assertThat(rowCount("schedule_time")).isEqualTo(0)
-        assertThat(rowCount("block")).isEqualTo(0)
+        stages().forEach { runCatching { it.onIngestionFailure(rev) } }
+
+        for (table in listOf(
+            "trip_patterns", "stop_path", "sched_trip", "schedule_time",
+            "block", "block_trip", "travel_times_for_stop_path",
+        )) {
+            assertThat(rowCount(table)).isEqualTo(0)
+        }
+        assertThat(context.size()).isEqualTo(0)
     }
 
     @Test
