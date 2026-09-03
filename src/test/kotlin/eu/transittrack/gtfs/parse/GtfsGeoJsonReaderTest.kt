@@ -1,8 +1,14 @@
 package eu.transittrack.gtfs.parse
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
+
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNull
 
 class GtfsGeoJsonReaderTest {
     private val fc =
@@ -19,28 +25,28 @@ class GtfsGeoJsonReaderTest {
     @Test
     fun `reads features`() {
         val locs = GtfsGeoJsonReader.read(fc.byteInputStream())
-        assertEquals(2, locs.size)
-        assertEquals("area_1", locs[0].locationId)
-        assertEquals("Flex Zone", locs[0].stopName)
-        assertEquals("North", locs[0].stopDesc)
-        assert(locs[0].geometryJson.contains("\"Polygon\""))
-        assert(locs[1].geometryJson.contains("\"MultiPolygon\""))
-        assertEquals(null, locs[1].stopName)
+        assertThat(locs).hasSize(2)
+        assertThat(locs[0].locationId).isEqualTo("area_1")
+        assertThat(locs[0].stopName).isEqualTo("Flex Zone")
+        assertThat(locs[0].stopDesc).isEqualTo("North")
+        assertThat(locs[0].geometryJson).contains("\"Polygon\"")
+        assertThat(locs[1].geometryJson).contains("\"MultiPolygon\"")
+        assertThat(locs[1].stopName).isNull()
     }
 
     @Test
     fun `rejects non-FeatureCollection`() {
-        assertFailsWith<GtfsParseException> {
+        assertFailure {
             GtfsGeoJsonReader.read("""{"type":"Feature"}""".byteInputStream())
-        }
+        }.isInstanceOf<GtfsParseException>()
     }
 
     @Test
     fun `rejects feature without id`() {
-        assertFailsWith<GtfsParseException> {
+        assertFailure {
             GtfsGeoJsonReader.read(
                 """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":null}]}""".byteInputStream(),
             )
-        }
+        }.isInstanceOf<GtfsParseException>()
     }
 }

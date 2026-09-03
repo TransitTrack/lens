@@ -2,8 +2,10 @@ package eu.transittrack.gtfs.model
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
 import eu.transittrack.gtfs.feed.FeedSource
@@ -54,11 +56,11 @@ class MiscEntitiesTest(
         val rev = seedRevisionId()
 
         frequencies.save(Frequency(rev, "T1", 21600, 36000, 600, 0))
-        assertEquals(1, frequencies.findByTripId(rev, "T1").size)
+        assertThat(frequencies.findByTripId(rev, "T1")).hasSize(1)
 
         translations.save(
             Translation(rev, "stops", "stop_name", "de", "Hauptbahnhof", "S1", null, null),
         )
-        assertEquals("Hauptbahnhof", translations.findByRevisionId(rev)[0].translation)
+        assertThat(translations.findByRevisionId(rev)[0].translation).isEqualTo("Hauptbahnhof")
     }
 }

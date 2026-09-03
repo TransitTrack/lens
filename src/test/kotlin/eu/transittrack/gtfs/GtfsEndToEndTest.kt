@@ -1,7 +1,7 @@
 package eu.transittrack.gtfs
 
-import kotlin.test.assertEquals
-
+import assertk.assertThat
+import assertk.assertions.isEqualTo
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
@@ -22,7 +22,7 @@ import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
 
 /**
- * Whole-subsystem acceptance test: a real [eu.transittrack.explorer.Application] context (pinned via `classes` so the `GtfsSliceTestApplication` is not picked up first), Testcontainers Postgres + LGTM, a stubbed [FeedDownloader] serving the
+ * Whole-subsystem acceptance test: a real [eu.transittrack.Application] context (pinned via `classes` so the `GtfsSliceTestApplication` is not picked up first), Testcontainers Postgres + LGTM, a stubbed [FeedDownloader] serving the
  * `full-spec-sample` fixture (~32 files). The `e2e` feed is defined purely through `transittrack.gtfs.feeds[0]` config — `GtfsFeedConfigSynchronizer` upserts it into `gtfs_feed` with `source = CONFIG` at startup. The test then ingests it, reads it back over
  * HTTP GraphQL, and confirms a byte-identical re-ingest is `UNCHANGED`.
  */
@@ -93,6 +93,6 @@ class GtfsEndToEndTest(
             .isEqualTo("First")
 
         val second = ingestion.ingestBlocking("e2e")
-        assertEquals(GtfsRevisionStatus.UNCHANGED, second.status)
+        assertThat(second.status).isEqualTo(GtfsRevisionStatus.UNCHANGED)
     }
 }

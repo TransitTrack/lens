@@ -1,10 +1,12 @@
 package eu.transittrack.gtfs.feed
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
@@ -21,14 +23,14 @@ class GtfsFeedServiceTest(
     @Test
     fun `register creates an API feed`() {
         val f = service.register(input)
-        assertEquals(FeedSource.API, f.source)
-        assertNotNull(repo.findByCode("w"))
+        assertThat(f.source).isEqualTo(FeedSource.API)
+        assertThat(repo.findByCode("w")).isNotNull()
     }
 
     @Test
     fun `register rejects duplicate code`() {
         service.register(input)
-        assertFailsWith<FeedConflictException> { service.register(input) }
+        assertFailure { service.register(input) }.isInstanceOf<FeedConflictException>()
     }
 
     @Test
@@ -47,7 +49,7 @@ class GtfsFeedServiceTest(
                 java.time.Instant.now(),
             ),
         )
-        assertFailsWith<FeedProtectedException> { service.update("c", input.copy(code = "c")) }
-        assertFailsWith<FeedProtectedException> { service.delete("c") }
+        assertFailure { service.update("c", input.copy(code = "c")) }.isInstanceOf<FeedProtectedException>()
+        assertFailure { service.delete("c") }.isInstanceOf<FeedProtectedException>()
     }
 }

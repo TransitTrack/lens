@@ -2,9 +2,10 @@ package eu.transittrack.gtfs.parse.mapper
 
 import java.time.LocalDate
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import org.mobilitydata.gtfsvalidator.table.GtfsAgency
 import org.mobilitydata.gtfsvalidator.table.GtfsCalendar
 import org.mobilitydata.gtfsvalidator.table.GtfsStopTime
@@ -32,12 +33,12 @@ class CoreMappersTest {
                     .setShapeDistTraveled(1234.5)
                     .build(),
             )
-        assertEquals(7L, st.revisionId)
-        assertEquals("T1", st.tripId)
-        assertEquals(3, st.stopSequence)
-        assertEquals(90_000, st.arrivalTime)
-        assertEquals(1, st.pickupType)
-        assertEquals(1234.5, st.shapeDistTraveled)
+        assertThat(st.revisionId).isEqualTo(7L)
+        assertThat(st.tripId).isEqualTo("T1")
+        assertThat(st.stopSequence).isEqualTo(3)
+        assertThat(st.arrivalTime).isEqualTo(90_000)
+        assertThat(st.pickupType).isEqualTo(1)
+        assertThat(st.shapeDistTraveled).isEqualTo(1234.5)
     }
 
     @Test
@@ -51,11 +52,11 @@ class CoreMappersTest {
                     .setStopSequence(1)
                     .build(),
             )
-        assertNull(st.arrivalTime)
-        assertNull(st.departureTime)
-        assertNull(st.stopId)
-        assertNull(st.pickupType)
-        assertNull(st.shapeDistTraveled)
+        assertThat(st.arrivalTime).isNull()
+        assertThat(st.departureTime).isNull()
+        assertThat(st.stopId).isNull()
+        assertThat(st.pickupType).isNull()
+        assertThat(st.shapeDistTraveled).isNull()
     }
 
     @Test
@@ -73,11 +74,11 @@ class CoreMappersTest {
                     .setEndDate(GtfsDate.fromString("20261231"))
                     .build(),
             )
-        assertEquals(true, c.monday)
-        assertEquals(false, c.sunday)
-        assertNull(c.tuesday)
-        assertEquals(LocalDate.of(2026, 1, 1), c.startDate)
-        assertEquals(LocalDate.of(2026, 12, 31), c.endDate)
+        assertThat(c.monday).isEqualTo(true)
+        assertThat(c.sunday).isEqualTo(false)
+        assertThat(c.tuesday).isNull()
+        assertThat(c.startDate).isEqualTo(LocalDate.of(2026, 1, 1))
+        assertThat(c.endDate).isEqualTo(LocalDate.of(2026, 12, 31))
     }
 
     @Test
@@ -91,7 +92,7 @@ class CoreMappersTest {
                     .setAgencyUrl("https://example.test")
                     .build(),
             )
-        assertNull(a.agencyId)
-        assertEquals("Metro", a.agencyName)
+        assertThat(a.agencyId).isNull()
+        assertThat(a.agencyName).isEqualTo("Metro")
     }
 }

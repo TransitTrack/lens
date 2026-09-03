@@ -11,9 +11,13 @@ import kotlin.io.path.name
 import kotlin.io.path.readBytes
 import kotlin.test.AfterTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+
+import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThanOrEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.startsWith
 
 /** Plain JUnit (no Spring context, no database): exercises [GtfsFeedLoader] against the checked-in GTFS fixture folders zipped on the fly. */
 class GtfsFeedValidatorTest {
@@ -50,13 +54,10 @@ class GtfsFeedValidatorTest {
         val report = validator.load(zip)
 
         val fk = report.issues.find { it.rule == "foreign_key_violation" }
-        assertNotNull(
-            fk,
-            "expected a foreign_key_violation issue, got ${report.issues.map { it.rule }}",
-        )
-        assertEquals(Severity.ERROR, fk.severity)
-        assertTrue(fk.count >= 1)
-        assertTrue(report.errorCount >= 1)
+        assertThat(fk).isNotNull()
+        assertThat(fk!!.severity).isEqualTo(Severity.ERROR)
+        assertThat(fk.count).isGreaterThanOrEqualTo(1)
+        assertThat(report.errorCount).isGreaterThanOrEqualTo(1L)
     }
 
     @Test
@@ -65,11 +66,7 @@ class GtfsFeedValidatorTest {
 
         val report = validator.load(zip)
 
-        assertEquals(
-            0L,
-            report.errorCount,
-            "unexpected errors: ${report.issues.filter { it.severity == Severity.ERROR }}",
-        )
+        assertThat(report.errorCount).isEqualTo(0L)
     }
 
     @Test
@@ -78,7 +75,7 @@ class GtfsFeedValidatorTest {
 
         val json = validator.load(zip).toJson()
 
-        assertTrue(json.startsWith("{"))
-        assertTrue(json.contains("\"issues\""))
+        assertThat(json).startsWith("{")
+        assertThat(json).contains("\"issues\"")
     }
 }

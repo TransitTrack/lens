@@ -5,10 +5,13 @@ import java.nio.file.Path
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.hasLength
+import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
@@ -50,10 +53,10 @@ class RestClientFeedDownloaderTest {
         server.enqueue(MockResponse().setBody("PK-fake-zip-bytes"))
         val out = tmp.resolve("a.zip")
         val res = downloader().download(server.url("/g.zip").toString(), out)
-        assertEquals(17, res.byteSize)
-        assertEquals(Files.size(out), res.byteSize)
-        assertEquals(64, res.sha256.length)
-        assertEquals(res.sha256, res.sha256.lowercase())
+        assertThat(res.byteSize).isEqualTo(17L)
+        assertThat(res.byteSize).isEqualTo(Files.size(out))
+        assertThat(res.sha256).hasLength(64)
+        assertThat(res.sha256).isEqualTo(res.sha256.lowercase())
     }
 
     @Test
@@ -61,19 +64,19 @@ class RestClientFeedDownloaderTest {
         val big = Buffer().apply { write(ByteArray(5000)) }
         server.enqueue(MockResponse().setBody(big))
         val out = tmp.resolve("b.zip")
-        assertFailsWith<FeedDownloadException> {
+        assertFailure {
             downloader(maxBytes = 1000).download(server.url("/g.zip").toString(), out)
-        }
-        assertFalse(Files.exists(out))
+        }.isInstanceOf<FeedDownloadException>()
+        assertThat(Files.exists(out)).isFalse()
     }
 
     @Test
     fun `rejects non-2xx`() {
         server.enqueue(MockResponse().setResponseCode(404))
         val out = tmp.resolve("c.zip")
-        assertFailsWith<FeedDownloadException> {
+        assertFailure {
             downloader().download(server.url("/missing.zip").toString(), out)
-        }
-        assertFalse(Files.exists(out))
+        }.isInstanceOf<FeedDownloadException>()
+        assertThat(Files.exists(out)).isFalse()
     }
 }

@@ -4,8 +4,10 @@ import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
@@ -98,35 +100,26 @@ class ServiceDateResolverTest(
 
     @Test
     fun `weekday resolves calendar`() {
-        assertEquals(
-            setOf("WK"),
-            resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 5)),
-        ) // Monday
+        assertThat(resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 5))).isEqualTo(setOf("WK")) // Monday
     }
 
     @Test
     fun `saturday resolves SAT`() {
-        assertEquals(setOf("SAT"), resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 3)))
+        assertThat(resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 3))).isEqualTo(setOf("SAT"))
     }
 
     @Test
     fun `removal exception drops the service`() {
-        assertEquals(
-            emptySet(),
-            resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 6)),
-        ) // Tue, WK removed
+        assertThat(resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 6))).isEmpty() // Tue, WK removed
     }
 
     @Test
     fun `add exception injects the service`() {
-        assertEquals(
-            setOf("SAT"),
-            resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 4)),
-        ) // Sun, SAT added
+        assertThat(resolver.activeServiceIds(rev, LocalDate.of(2026, 1, 4))).isEqualTo(setOf("SAT")) // Sun, SAT added
     }
 
     @Test
     fun `date outside the calendar window is inactive`() {
-        assertEquals(emptySet(), resolver.activeServiceIds(rev, LocalDate.of(2025, 12, 31)))
+        assertThat(resolver.activeServiceIds(rev, LocalDate.of(2025, 12, 31))).isEmpty()
     }
 }

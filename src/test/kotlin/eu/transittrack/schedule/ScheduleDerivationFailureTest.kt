@@ -2,9 +2,11 @@ package eu.transittrack.schedule
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
+import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
 import org.junit.jupiter.api.AfterEach
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
@@ -110,8 +112,8 @@ class ScheduleDerivationFailureTest(
         whenever(boom.postProcess(org.mockito.kotlin.any())).doThrow(RuntimeException("boom"))
         val rev = ingestion(boom, ScheduleProperties(enabled = true)).ingestBlocking("sf")
         val loaded = revisions.findById(rev.id!!).get()
-        assertEquals(GtfsRevisionStatus.FAILED, loaded.status)
-        assertTrue(loaded.errorMessage!!.contains("boom"))
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(loaded.errorMessage).isNotNull().contains("boom")
     }
 
     @Test
@@ -119,7 +121,7 @@ class ScheduleDerivationFailureTest(
         feed()
         val never = mock<ScheduleDerivationService>()
         val rev = ingestion(never, ScheduleProperties(enabled = false)).ingestBlocking("sf")
-        assertEquals(GtfsRevisionStatus.ACTIVE, revisions.findById(rev.id!!).get().status)
+        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         org.mockito.kotlin
             .verify(never, org.mockito.kotlin.never())
             .postProcess(org.mockito.kotlin.any())

@@ -3,11 +3,16 @@ package eu.transittrack.gtfs.ingest
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -117,13 +122,13 @@ class IngestionServiceTest(
         val rev = service("minimal-valid").ingestBlocking("f")
 
         val loaded = revisions.findById(rev.id!!).get()
-        assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
-        assertEquals(1, routes.findByRevisionId(rev.id!!).size)
-        assertEquals(2, stopTimes.findByTripId(rev.id!!, "T1").size)
-        assertEquals(2, shapePoints.findByShapeId(rev.id!!, "SH1").size)
-        assertEquals(2, shapes.findByShapeId(rev.id!!, "SH1")!!.pointCount)
-        assertEquals(LocalDate.of(2026, 1, 1), loaded.feedStartDate)
-        assertNotNull(feeds.findByCode("f")!!.lastIngestAt)
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(routes.findByRevisionId(rev.id!!)).hasSize(1)
+        assertThat(stopTimes.findByTripId(rev.id!!, "T1")).hasSize(2)
+        assertThat(shapePoints.findByShapeId(rev.id!!, "SH1")).hasSize(2)
+        assertThat(shapes.findByShapeId(rev.id!!, "SH1")!!.pointCount).isEqualTo(2)
+        assertThat(loaded.feedStartDate).isEqualTo(LocalDate.of(2026, 1, 1))
+        assertThat(feeds.findByCode("f")!!.lastIngestAt).isNotNull()
     }
 
     @Test
@@ -132,9 +137,9 @@ class IngestionServiceTest(
         val rev = service("missing-required-file").ingestBlocking("f")
 
         val loaded = revisions.findById(rev.id!!).get()
-        assertEquals(GtfsRevisionStatus.FAILED, loaded.status)
-        assertTrue(loaded.errorMessage!!.contains("1 error"))
-        assertEquals(0, routes.findByRevisionId(rev.id!!).size)
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(loaded.errorMessage).isNotNull().contains("1 error")
+        assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
     }
 
     @Test
@@ -142,8 +147,8 @@ class IngestionServiceTest(
         feed()
         val rev = service("malformed-csv").ingestBlocking("f")
 
-        assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)
-        assertEquals(0, routes.findByRevisionId(rev.id!!).size)
+        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
     }
 
     @Test
@@ -153,7 +158,7 @@ class IngestionServiceTest(
         svc.ingestBlocking("f")
         val second = svc.ingestBlocking("f")
 
-        assertEquals(GtfsRevisionStatus.UNCHANGED, revisions.findById(second.id!!).get().status)
+        assertThat(revisions.findById(second.id!!).get().status).isEqualTo(GtfsRevisionStatus.UNCHANGED)
     }
 
     @Test
@@ -161,7 +166,7 @@ class IngestionServiceTest(
         val f = feed()
         revisionService.createPending(f.id!!, "u")
 
-        assertFailsWith<IllegalStateException> { service("minimal-valid").ingestBlocking("f") }
+        assertFailure { service("minimal-valid").ingestBlocking("f") }.isInstanceOf<IllegalStateException>()
     }
 
     @Test
@@ -170,8 +175,8 @@ class IngestionServiceTest(
         val rev = service("dangling-refs").ingestBlocking("f")
 
         val loaded = revisions.findById(rev.id!!).get()
-        assertEquals(GtfsRevisionStatus.ACTIVE, loaded.status)
-        assertTrue(loaded.validationReport!!.contains("foreign_key_violation"))
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(loaded.validationReport).isNotNull().contains("foreign_key_violation")
     }
 
     @Test
@@ -194,9 +199,9 @@ class IngestionServiceTest(
             )
         val rev = strict.ingestBlocking("f")
 
-        assertEquals(GtfsRevisionStatus.FAILED, revisions.findById(rev.id!!).get().status)
-        assertEquals(0, routes.findByRevisionId(rev.id!!).size)
-        assertEquals(0, stopTimes.findByRevisionId(rev.id!!).size)
+        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
+        assertThat(stopTimes.findByRevisionId(rev.id!!)).isEmpty()
     }
 
     @Test
@@ -205,10 +210,10 @@ class IngestionServiceTest(
         val first = service("minimal-valid").ingestBlocking("f")
         val second = service("minimal-valid-v2").ingestBlocking("f")
 
-        assertEquals(GtfsRevisionStatus.SUPERSEDED, revisions.findById(first.id!!).get().status)
-        assertEquals(GtfsRevisionStatus.ACTIVE, revisions.findById(second.id!!).get().status)
-        assertTrue(revisions.findById(first.id!!).isPresent)
-        assertTrue(revisions.findById(second.id!!).isPresent)
-        assertEquals(2, routes.findByRevisionId(second.id!!).size)
+        assertThat(revisions.findById(first.id!!).get().status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
+        assertThat(revisions.findById(second.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(first.id!!).isPresent).isTrue()
+        assertThat(revisions.findById(second.id!!).isPresent).isTrue()
+        assertThat(routes.findByRevisionId(second.id!!)).hasSize(2)
     }
 }

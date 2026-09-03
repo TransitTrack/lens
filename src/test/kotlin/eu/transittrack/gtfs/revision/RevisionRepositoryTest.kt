@@ -2,9 +2,13 @@ package eu.transittrack.gtfs.revision
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isTrue
+import assertk.assertions.key
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.jpa.test.autoconfigure.AutoConfigureTestEntityManager
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
@@ -61,20 +65,19 @@ class RevisionRepositoryTest(
         em.clear()
 
         val loaded = revisions.findById(r.id!!).get()
-        assertEquals(listOf("agency.txt"), loaded.filesPresent)
-        assertEquals(1L, loaded.rowCounts["gtfs_agency"])
+        assertThat(loaded.filesPresent).isEqualTo(listOf("agency.txt"))
+        assertThat(loaded.rowCounts).key("gtfs_agency").isEqualTo(1L)
 
-        assertFailsWith<DataIntegrityViolationException> {
+        assertFailure {
             revisions.saveAndFlush(newRev(f.id!!, GtfsRevisionStatus.ACTIVE))
-        }
+        }.isInstanceOf<DataIntegrityViolationException>()
     }
 
     @Test
     fun `finds non-terminal revision`() {
         val f = feed()
         revisions.save(newRev(f.id!!, GtfsRevisionStatus.PARSING))
-        assertEquals(
-            true,
+        assertThat(
             revisions.existsByFeedAndStatusIn(
                 f.id!!,
                 listOf(
@@ -84,6 +87,6 @@ class RevisionRepositoryTest(
                     GtfsRevisionStatus.VALIDATING,
                 ),
             ),
-        )
+        ).isTrue()
     }
 }

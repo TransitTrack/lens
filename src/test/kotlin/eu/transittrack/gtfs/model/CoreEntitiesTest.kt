@@ -4,8 +4,10 @@ import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
 import eu.transittrack.gtfs.feed.FeedSource
@@ -106,8 +108,8 @@ class CoreEntitiesTest(
             ),
         )
 
-        assertEquals(1, routes.findByRevisionId(rev1).size)
-        assertEquals("Line 1", routes.findByRouteId(rev1, "R1")!!.routeLongName)
+        assertThat(routes.findByRevisionId(rev1)).hasSize(1)
+        assertThat(routes.findByRouteId(rev1, "R1")!!.routeLongName).isEqualTo("Line 1")
 
         stopTimes.save(
             StopTime(
@@ -132,7 +134,7 @@ class CoreEntitiesTest(
                 dropOffBookingRuleId = null,
             ),
         )
-        assertEquals(3600, stopTimes.findByTripId(rev1, "T1")[0].arrivalTime)
+        assertThat(stopTimes.findByTripId(rev1, "T1")[0].arrivalTime).isEqualTo(3600)
 
         calendars.save(
             Calendar(
@@ -149,6 +151,6 @@ class CoreEntitiesTest(
                 endDate = LocalDate.of(2026, 12, 31),
             ),
         )
-        assertEquals(true, calendars.findByServiceId(rev1, "WK")!!.monday)
+        assertThat(calendars.findByServiceId(rev1, "WK")!!.monday).isEqualTo(true)
     }
 }

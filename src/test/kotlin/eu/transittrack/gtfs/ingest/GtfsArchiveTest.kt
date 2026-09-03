@@ -4,9 +4,12 @@ import java.nio.file.Files
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
+
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 
 import eu.transittrack.gtfs.parse.GtfsParseException
 
@@ -33,22 +36,22 @@ class GtfsArchiveTest {
                 zip("agency.txt" to "agency_id\nA", "stops.txt" to "stop_id\nS"),
                 dest,
             )
-        assertEquals(setOf("agency.txt", "stops.txt"), names.toSet())
-        assertNotNull(GtfsArchive.openFile(dest, "agency.txt"))
+        assertThat(names.toSet()).isEqualTo(setOf("agency.txt", "stops.txt"))
+        assertThat(GtfsArchive.openFile(dest, "agency.txt")).isNotNull()
     }
 
     @Test
     fun `flattens single wrapper directory`() {
         val dest = Files.createTempDirectory("d2")
         val names = GtfsArchive.extract(zip("gtfs/agency.txt" to "x", "gtfs/routes.txt" to "y"), dest)
-        assertEquals(setOf("agency.txt", "routes.txt"), names.toSet())
+        assertThat(names.toSet()).isEqualTo(setOf("agency.txt", "routes.txt"))
     }
 
     @Test
     fun `rejects zip slip`() {
         val dest = Files.createTempDirectory("d3")
-        assertFailsWith<GtfsParseException> {
+        assertFailure {
             GtfsArchive.extract(zip("../evil.txt" to "x"), dest)
-        }
+        }.isInstanceOf<GtfsParseException>()
     }
 }

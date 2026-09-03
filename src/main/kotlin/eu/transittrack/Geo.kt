@@ -1,7 +1,9 @@
 package eu.transittrack
 
+import java.io.Serializable
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -13,7 +15,29 @@ private const val EARTH_RADIUS_M = 6_371_000.0
 data class Point(
     val lat: Double,
     val lon: Double,
-)
+) {
+    /**
+     * Straight-line ground distance from this point to [other], in metres.
+     *
+     * Uses the fast equirectangular approximation (see the file-private `distance`), so it is only
+     * accurate over short, city-scale spans.
+     */
+    fun distance(other: Point): Double = distance(this, other)
+
+    /**
+     * Shortest ground distance, in metres, from this point to the segment [v] — i.e. the length of
+     * the perpendicular dropped onto the segment, or the distance to the nearer endpoint when the
+     * foot of that perpendicular falls outside the segment.
+     */
+    fun distance(v: Vector): Double = distance(this, v)
+
+    /**
+     * Distance, in metres, measured **along** [v] from its start ([Vector.l1]) to the point on [v]
+     * that lies closest to this point. Clamped to `[0, v.length()]`. Useful for turning a raw GPS
+     * fix into a "how far along this shape am I" scalar.
+     */
+    fun matchDistanceAlongVector(v: Vector): Double = matchDistanceAlongVector(this, v)
+}
 
 data class Projection(
     val distanceAlong: Double,
@@ -190,4 +214,267 @@ class Extent {
         /** Union of [extents]; empty ones are ignored. */
         fun ofExtents(extents: Iterable<Extent>): Extent = Extent().apply { extents.forEach(::add) }
     }
+}
+
+/**
+ * A directed segment between two WGS-84 points, treated as a straight line on an equirectangular
+ * projection. All lengths and distances are in metres.
+ *
+ * The projection error is negligible at the scale this is used for (a single shape segment / stop
+ * spacing within one transit network) but grows with distance, so a `Vector` should span at most a
+ * few kilometres. Endpoints are mutable so callers can walk a polyline by reusing one instance.
+ *
+ * Geometry helpers come in two flavours:
+ *  - [length], [distance], [matchDistanceAlongVector] — point-to-segment queries used for map matching.
+ *  - [beginning], [end], [middle], [locAlongVector] — sub-segment extraction by distance along the vector.
+ *  - [angle], [heading] — orientation, in radians from the equator and in degrees clockwise from north.
+ */
+class Vector(
+    var l1: Point,
+    var l2: Point,
+) : Serializable {
+    /** Length of the segment, in metres. */
+    fun length(): Double = l1.distance(l2)
+
+    /**
+     * Shortest ground distance, in metres, from [l] to this segment.
+     *
+     * Drops a perpendicular from [l] onto the infinite line through the segment. If its foot lands
+     * within the segment, the length of that perpendicular is returned; otherwise the distance to
+     * the nearer endpoint ([l1] or [l2]) is returned. A zero-length vector returns the distance to
+     * [l1].
+     */
+    fun distance(l: Point): Double = distance(l, this)
+
+    /**
+     * Distance, in metres, from [l1] along this segment to the point closest to [l]. Clamped to
+     * `[0, length()]`; a zero-length vector returns `0.0`.
+     */
+    fun matchDistanceAlongVector(l: Point): Double = matchDistanceAlongVector(l, this)
+
+    /**
+     * Orientation of the segment.
+     *
+     * @param headingInsteadOfAngle when `true`, returns the compass heading (radians clockwise from
+     *   north); when `false`, the mathematical angle (radians counterclockwise from due east).
+     */
+    private fun orientation(headingInsteadOfAngle: Boolean): Double {
+        val vx = Vector(l1, Point(l1.lat, l2.lon))
+        var xLength = vx.length()
+        if (l2.lon < l1.lon) xLength = -xLength
+
+        val vy = Vector(Point(l1.lat, l2.lon), l2)
+        var yLength = vy.length()
+        if (l2.lat < l1.lat) yLength = -yLength
+
+        // Return either the heading or the angle
+        if (headingInsteadOfAngle) {
+            return atan2(xLength, yLength) // heading
+        } else {
+            return atan2(yLength, xLength) // angle
+        }
+    }
+
+    /**
+     * Mathematical angle of the segment in radians, counterclockwise from due east (the equator).
+     * Very different from [heading]; range `(-π, π]`.
+     */
+    fun angle(): Double {
+        val headingInsteadOfAngle = false
+        return orientation(headingInsteadOfAngle)
+    }
+
+    /**
+     * Compass heading of the segment in **degrees** clockwise from due north. Very different from
+     * [angle]; range `(-180, 180]`.
+     */
+    fun heading(): Double {
+        val headingInsteadOfAngle = true
+        return Math.toDegrees(orientation(headingInsteadOfAngle))
+    }
+
+    /**
+     * The point [length] metres along the segment from [l1]. Linearly interpolates (and extrapolates
+     * for values outside `[0, length()]`).
+     */
+    fun locAlongVector(length: Double): Point {
+        val beginningVector = beginning(length)
+        return beginningVector.l2
+    }
+
+    /**
+     * The leading sub-segment `[l1 .. l1 + beginningLength]`, i.e. this vector truncated to
+     * [beginningLength] metres. A zero-length vector yields a copy of itself.
+     *
+     * @param beginningLength length, in metres, of the sub-segment to return
+     */
+    fun beginning(beginningLength: Double): Vector {
+        val l = length()
+        val ratio = if (l == 0.0) 0.0 else beginningLength / length()
+        val newL2 = Point(
+            l1.lat + ratio * (l2.lat - l1.lat), l1.lon + ratio * (l2.lon - l1.lon),
+        )
+        return Vector(l1, newL2)
+    }
+
+    /**
+     * The trailing sub-segment `[l1 + beginningLength .. l2]`, i.e. this vector with its first
+     * [beginningLength] metres dropped. A zero-length vector yields a copy of itself.
+     *
+     * @param beginningLength length, in metres, to skip from the start
+     */
+    fun end(beginningLength: Double): Vector {
+        val l = length()
+        val ratio = if (l == 0.0) 0.0 else beginningLength / length()
+        val newL1 = Point(
+            l1.lat + ratio * (l2.lat - l1.lat), l1.lon + ratio * (l2.lon - l1.lon),
+        )
+        return Vector(newL1, l2)
+    }
+
+    /**
+     * The sub-segment between [length1] and [length2] metres along this vector. The result has
+     * length `length2 - length1`.
+     *
+     * @param length1 start offset from [l1], in metres
+     * @param length2 end offset from [l1], in metres (must be `>= length1`)
+     */
+    fun middle(
+        length1: Double,
+        length2: Double,
+    ): Vector {
+        val beginningVector = beginning(length2)
+        return beginningVector.end(length1)
+    }
+
+    override fun toString(): String = "Vector [" + "l1=" + l1 + ", l2=" + l2 + ", length=" + length() + "]"
+}
+
+/**
+ * Ground distance between two points, in metres, via the equirectangular ("flat Earth") approximation:
+ * project longitude differences with `cos(mean latitude)` and apply Pythagoras. Cheaper than
+ * [haversineMeters] and accurate to well under 1% at city scale, but the error grows with distance
+ * and near the poles.
+ */
+private fun distance(
+    l1: Point,
+    l2: Point,
+): Double {
+    val lat1 = toRadians(l1.lat)
+    val lon1 = toRadians(l1.lon)
+    val lat2 = toRadians(l2.lat)
+    val lon2 = toRadians(l2.lon)
+
+    val x = (lon2 - lon1) * cos((lat1 + lat2) / 2)
+    val y = (lat2 - lat1)
+    val d: Double = sqrt(x * x + y * y) * EARTH_RADIUS_M
+
+    return d
+}
+
+/**
+ * Shortest distance, in metres, from [loc] to [vector]. Backs [Vector.distance] and [Point.distance];
+ * see those for the contract. The middle case is solved with the law of cosines to locate the foot
+ * of the perpendicular ([v1]), then Pythagoras for the perpendicular's length.
+ */
+private fun distance(
+    loc: Point,
+    vector: Vector,
+): Double {
+    // d1 is distance from the location l to the first location of the vector v
+    val d1: Double = distance(loc, vector.l1)
+    // d2 is distance from the location l to the second location of the vector v
+    val d2: Double = distance(loc, vector.l2)
+    // v is length of the vector
+    val v: Double = distance(vector.l1, vector.l2)
+
+    // Handle v==0 where we have a zero length vector as a special case
+    // so that don't divide by zero and end up with a NaN.
+    if (v == 0.0) return d1
+
+    // v1 is the distance from the vector to where the
+    // distance to the location is the shortest. It is where a line to
+    // the location will be at a right angle to the vector.
+    // we get two right angle triangles that split the vector into two
+    // distances, v1 and v2. Because these are right angle triangles we know that
+    // a^2 + b^2 = c^2, where c is the longer diagonal side of the triangle.
+    // This means that we have the following formulas:
+    //   v1^2 + d^2 = d1^2
+    //   v2^2 + d^2 = d2^2
+    //   v1 + v2 = v;
+    // If you solve for v1 you will find that it is
+    val v1: Double = (sqrd(v) + sqrd(d1) - sqrd(d2)) / (2 * v)
+
+    // We can now determine if the shortest distance
+    // from the Location to the Vector is d1, d2, or a right angle line
+    // intersecting middle of the Vector. If v1 is negative then the
+    // intersection is before the Vector starts and the shortest distance
+    // is d1. If v1 is greater than length of v then intersection is
+    // beyond the vector and the shortest distance is d2. Otherwise
+    // the intersection is in the middle of the vector and can use
+    // Pythagorean theorem that a^2 + b^2 = c^2.
+    if (v1 <= 0.0) return d1
+    if (v1 > v) return d2
+
+    // The shortest distance isn't to one of the end points of the vector.
+    // This means that the shortest distance, let's call it d, is a right
+    // angle line to somewhere in the middle of the vector. For this situation
+    // we get two right angle triangles and can use a^2 + b^2 = c^2.
+    var dSquared: Double = sqrd(d1) - sqrd(v1)
+    // If started out with a right angle then sqrd(d1) - sqrd(v1) can
+    // be slightly negative due to rounding error. If take sqrt() of
+    // negative number get NaN when actually want 0.0. Therefore make
+    // sure that dSquared not negative.
+    if (dSquared < 0.0) dSquared = 0.0
+
+    // Determine and return the shortest distance
+    val d = sqrt(dSquared)
+    return d
+}
+
+/**
+ * Distance, in metres, measured along [vector] from its start to the point closest to [loc],
+ * clamped to `[0, vector.length()]`. Backs [Vector.matchDistanceAlongVector] and
+ * [Point.matchDistanceAlongVector]. Shares the law-of-cosines step with [distance] but returns the
+ * offset [v1] instead of the perpendicular distance.
+ */
+private fun matchDistanceAlongVector(
+    loc: Point,
+    vector: Vector,
+): Double {
+    // d1 is distance from the location l to the first location of the vector v
+    val d1: Double = distance(loc, vector.l1)
+    // d2 is distance from the location l to the second location of the vector v
+    val d2: Double = distance(loc, vector.l2)
+    // v is length of the vector
+    val v: Double = distance(vector.l1, vector.l2)
+
+    // Handle v==0 where we have a zero length vector as a special case
+    // so that don't divide by zero and end up with a NaN.
+    if (v == 0.0) return 0.0
+
+    // v1 is the distance from the vector to where the
+    // distance to the location is the shortest. It is where a line to
+    // the location will be at a right angle to the vector.
+    // we get two right angle triangles that split the vector into two
+    // distances, v1 and v2. Because these are right angle triangles we know that
+    // a^2 + b^2 = c^2, where c is the longer diagonal side of the triangle.
+    // This means that we have the following formulas:
+    //   v1^2 + d^2 = d1^2
+    //   v2^2 + d^2 = d2^2
+    //   v1 + v2 = v;
+    // If you solve for v1 you will find that it is
+    val v1: Double = (sqrd(v) + sqrd(d1) - sqrd(d2)) / (2 * v)
+
+    // We can now determine if the shortest distance
+    // from the Location to the Vector is d1, d2, or a right angle line
+    // intersecting middle of the Vector. If v1 is negative then the
+    // intersection is before the Vector starts and the shortest distance
+    // is d1. If v1 is greater than length of v then intersection is
+    // beyond the vector and the shortest distance is d2. Otherwise
+    // the intersection is in the middle of the vector and can use
+    // v1 which was already calculated.
+    if (v1 <= 0.0) return 0.0
+    if (v1 > v) return v
+    return v1
 }

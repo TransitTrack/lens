@@ -1,11 +1,13 @@
 package eu.transittrack.gtfs.feed
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
+import assertk.assertFailure
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import org.mockito.Mockito.mock
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
@@ -33,10 +35,10 @@ class GtfsFeedConfigSynchronizerTest(
     @Test
     fun `inserts new config feeds and updates existing`() {
         sync(feeds = arrayOf(feed("a", "http://a/1.zip")))
-        assertEquals("http://a/1.zip", repo.findByCode("a")!!.url)
+        assertThat(repo.findByCode("a")!!.url).isEqualTo("http://a/1.zip")
         sync(feeds = arrayOf(feed("a", "http://a/2.zip")))
-        assertEquals("http://a/2.zip", repo.findByCode("a")!!.url)
-        assertEquals(FeedSource.CONFIG, repo.findByCode("a")!!.source)
+        assertThat(repo.findByCode("a")!!.url).isEqualTo("http://a/2.zip")
+        assertThat(repo.findByCode("a")!!.source).isEqualTo(FeedSource.CONFIG)
     }
 
     @Test
@@ -55,18 +57,18 @@ class GtfsFeedConfigSynchronizerTest(
                 java.time.Instant.now(),
             ),
         )
-        assertFailsWith<FeedConflictException> {
+        assertFailure {
             sync(feeds = arrayOf(feed("a", "http://a/1.zip")))
-        }
+        }.isInstanceOf<FeedConflictException>()
     }
 
     @Test
     fun `prunes removed config feeds only when enabled`() {
         sync(feeds = arrayOf(feed("a", "http://a/1.zip"), feed("b", "http://b/1.zip")))
         sync(feeds = arrayOf(feed("a", "http://a/1.zip"))) // b still present
-        assertNotNull(repo.findByCode("b"))
+        assertThat(repo.findByCode("b")).isNotNull()
         sync(pruneConfigFeeds = true, feeds = arrayOf(feed("a", "http://a/1.zip")))
-        assertNull(repo.findByCode("b"))
+        assertThat(repo.findByCode("b")).isNull()
     }
 
     private fun feed(

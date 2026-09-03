@@ -4,9 +4,15 @@ package eu.transittrack.schedule.derive
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isBetween
+import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThan
+import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
+import assertk.assertions.startsWith
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -154,69 +160,69 @@ class ScheduleDerivationServiceTest(
         ingest()
         val counts = service().postProcess(rev) as Map<String, Long>
 
-        assertEquals(4L, counts["trip_patterns"]) // A(T1,T2), B(T3), C(T4), D(T5)
-        assertEquals(5L, counts["sched_trip"])
-        assertEquals(4L + 3L + 4L + 4L + 2L, counts["schedule_time"])
+        assertThat(counts["trip_patterns"]).isEqualTo(4L) // A(T1,T2), B(T3), C(T4), D(T5)
+        assertThat(counts["sched_trip"]).isEqualTo(5L)
+        assertThat(counts["schedule_time"]).isEqualTo(4L + 3L + 4L + 4L + 2L)
 
         val all = patterns.findByRevisionId(rev)
         val patternA =
             all.first {
                 it.stopCount == 4 && it.shapeId == "SHP_OUT" && it.directionId == 0
             }
-        assertEquals(2, schedTrips.findByTripPattern(rev, patternA.id!!).size)
+        assertThat(schedTrips.findByTripPattern(rev, patternA.id!!)).hasSize(2)
 
         // T2 / S2 arrival is interpolated between 09:00:00 and 09:20:00
         val t2 = schedTrips.findByTripId(rev, "T2")!!
         val t2times = scheduleTimes.findBySchedTripOrdered(rev, t2.id!!)
-        assertTrue(t2times[1].interpolated)
-        assertTrue(t2times[1].arrivalSec!! in 32401..33599, "was ${t2times[1].arrivalSec}")
+        assertThat(t2times[1].interpolated).isTrue()
+        assertThat(t2times[1].arrivalSec!!).isBetween(32401, 33599)
 
         // frequency-based T5: offset schedule, flagged
         val t5 = schedTrips.findByTripId(rev, "T5")!!
-        assertTrue(t5.frequencyBased)
-        assertEquals(0, t5.exactTimes)
-        assertEquals(0, scheduleTimes.findBySchedTripOrdered(rev, t5.id!!)[0].departureSec)
+        assertThat(t5.frequencyBased).isTrue()
+        assertThat(t5.exactTimes).isEqualTo(0)
+        assertThat(scheduleTimes.findBySchedTripOrdered(rev, t5.id!!)[0].departureSec).isEqualTo(0)
 
         // geometry present on a shaped segment
         val paths = stopPaths.findByTripPatternOrdered(rev, patternA.id!!)
-        assertEquals(0.0, paths[0].lengthM)
-        assertTrue(paths[1].lengthM > 0.0)
-        assertTrue(paths[1].pathGeometry!!.startsWith("[["))
+        assertThat(paths[0].lengthM).isEqualTo(0.0)
+        assertThat(paths[1].lengthM).isGreaterThan(0.0)
+        assertThat(paths[1].pathGeometry!!).startsWith("[[")
 
         // idempotent
         val again = service().postProcess(rev) as Map<String, Long>
-        assertEquals(counts, again)
-        assertEquals(4, patterns.findByRevisionId(rev).size)
+        assertThat(again).isEqualTo(counts)
+        assertThat(patterns.findByRevisionId(rev)).hasSize(4)
     }
 
     @Test
     fun `derives blocks, block ordering, and pattern aggregates`() {
         ingest()
         val counts = service().postProcess(rev) as Map<String, Long>
-        assertEquals(2L, counts["block"]) // B1 (T1,T4), B2 (T2)
+        assertThat(counts["block"]).isEqualTo(2L) // B1 (T1,T4), B2 (T2)
 
         val b1 = blocks.findByBlockAndService(rev, "B1", "WK")!!
-        assertEquals(2, b1.tripCount)
-        assertEquals(28800, b1.startTimeSec)
-        assertEquals(33000, b1.endTimeSec)
+        assertThat(b1.tripCount).isEqualTo(2)
+        assertThat(b1.startTimeSec).isEqualTo(28800)
+        assertThat(b1.endTimeSec).isEqualTo(33000)
 
         val t1bt = blockTrips.findBySchedTripId(rev, schedTrips.findByTripId(rev, "T1")!!.id!!)!!
-        assertEquals(0, t1bt.listIndex)
-        assertEquals(600, t1bt.layoverAfterSec) // T4 08:40 - T1 08:30
-        assertEquals(false, t1bt.deadheadAfter) // both at S4
+        assertThat(t1bt.listIndex).isEqualTo(0)
+        assertThat(t1bt.layoverAfterSec).isEqualTo(600) // T4 08:40 - T1 08:30
+        assertThat(t1bt.deadheadAfter).isEqualTo(false) // both at S4
         val t4bt = blockTrips.findBySchedTripId(rev, schedTrips.findByTripId(rev, "T4")!!.id!!)!!
-        assertEquals(1, t4bt.listIndex)
+        assertThat(t4bt.listIndex).isEqualTo(1)
 
         // Pattern A trip_count and typical times
         val patternA =
             patterns.findByRevisionId(rev).first {
                 it.stopCount == 4 && it.shapeId == "SHP_OUT" && it.directionId == 0
             }
-        assertEquals(2, patternA.tripCount)
+        assertThat(patternA.tripCount).isEqualTo(2)
         val paths = stopPaths.findByTripPatternOrdered(rev, patternA.id!!)
-        assertTrue(paths[1].typicalTravelTimeSec != null && paths[1].typicalTravelTimeSec!! > 0)
+        assertThat(paths[1].typicalTravelTimeSec).isNotNull().isGreaterThan(0)
         // T1 is in block B1 with a 600 s layover -> last stop of Pattern A is a layover stop
-        assertEquals(true, paths.last().layoverStop)
-        assertTrue(paths.last().breakTimeSec != null)
+        assertThat(paths.last().layoverStop).isEqualTo(true)
+        assertThat(paths.last().breakTimeSec).isNotNull()
     }
 }

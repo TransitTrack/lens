@@ -1,8 +1,9 @@
 package eu.transittrack.schedule
 
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
-
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
+import assertk.assertions.key
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -44,11 +45,11 @@ class ScheduleDerivationPipelineTest(
     fun `ingest runs the DERIVING step and activates with derived rows`() {
         feedService.register(FeedInput("p1", "P1", null, "http://x/g.zip", null))
         val rev = ingestion.ingestBlocking("p1")
-        assertEquals(GtfsRevisionStatus.ACTIVE, rev.status)
-        assertEquals(4, patterns.findByRevisionId(rev.id!!).size)
-        assertEquals(2, blocks.findByRevisionId(rev.id!!).size)
+        assertThat(rev.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(patterns.findByRevisionId(rev.id!!)).hasSize(4)
+        assertThat(blocks.findByRevisionId(rev.id!!)).hasSize(2)
         val counts = revisionService.revision(rev.id!!).rowCounts
-        assertEquals(4L, counts["trip_patterns"])
-        assertTrue(counts.containsKey("gtfs_trip")) // gtfs counts preserved
+        assertThat(counts).key("trip_patterns").isEqualTo(4L)
+        assertThat(counts).key("gtfs_trip") // gtfs counts preserved
     }
 }

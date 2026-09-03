@@ -1,9 +1,12 @@
 package eu.transittrack.gtfs.parse
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
+
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isLessThan
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 
 class GtfsFileRegistryTest {
     @Test
@@ -43,20 +46,20 @@ class GtfsFileRegistryTest {
                 "translations.txt",
                 "attributions.txt",
             )
-        assertEquals(expected, GtfsFileRegistry.defs.map { it.fileName }.toSet())
+        assertThat(GtfsFileRegistry.defs.map { it.fileName }.toSet()).isEqualTo(expected)
     }
 
     @Test
     fun `parsing order puts agency before routes before trips before stop_times`() {
         val order = GtfsFileRegistry.orderedForParsing.map { it.fileName }
-        assertTrue(order.indexOf("agency.txt") < order.indexOf("routes.txt"))
-        assertTrue(order.indexOf("routes.txt") < order.indexOf("trips.txt"))
-        assertTrue(order.indexOf("trips.txt") < order.indexOf("stop_times.txt"))
+        assertThat(order.indexOf("agency.txt")).isLessThan(order.indexOf("routes.txt"))
+        assertThat(order.indexOf("routes.txt")).isLessThan(order.indexOf("trips.txt"))
+        assertThat(order.indexOf("trips.txt")).isLessThan(order.indexOf("stop_times.txt"))
     }
 
     @Test
     fun `forFile resolves`() {
-        assertNotNull(GtfsFileRegistry.forFile("stops.txt"))
-        assertEquals(null, GtfsFileRegistry.forFile("unknown.txt"))
+        assertThat(GtfsFileRegistry.forFile("stops.txt")).isNotNull()
+        assertThat(GtfsFileRegistry.forFile("unknown.txt")).isNull()
     }
 }

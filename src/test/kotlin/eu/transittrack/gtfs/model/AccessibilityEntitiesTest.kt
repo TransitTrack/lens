@@ -2,8 +2,10 @@ package eu.transittrack.gtfs.model
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 import tools.jackson.databind.json.JsonMapper
 
@@ -63,8 +65,7 @@ class AccessibilityEntitiesTest(
                 """{"type":"Polygon","coordinates":[[[17.0,51.0],[17.1,51.0],[17.1,51.1],[17.0,51.0]]]}""",
             ),
         )
-        assertEquals(
-            "Polygon",
+        assertThat(
             locations.findByRevisionId(rev)[0].geometry.let {
                 JsonMapper
                     .builder()
@@ -73,9 +74,9 @@ class AccessibilityEntitiesTest(
                     .get("type")
                     .asString()
             },
-        )
+        ).isEqualTo("Polygon")
 
         pathways.save(Pathway(rev, "PW1", "S1", "S2", 1, 1, null, 30, null, null, null, null, null))
-        assertEquals(1, pathways.findByRevisionId(rev).size)
+        assertThat(pathways.findByRevisionId(rev)).hasSize(1)
     }
 }

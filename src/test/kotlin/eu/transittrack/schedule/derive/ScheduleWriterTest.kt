@@ -2,8 +2,11 @@ package eu.transittrack.schedule.derive
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
@@ -107,13 +110,13 @@ class ScheduleWriterTest(
             listOf(StopPathAggregateUpdate(spId, null, null, true, null)),
         )
 
-        assertEquals(3, patterns.findByPatternKey(rev, "K")!!.tripCount)
+        assertThat(patterns.findByPatternKey(rev, "K")!!.tripCount).isEqualTo(3)
         val reloaded = stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).single()
-        assertEquals(null, reloaded.typicalTravelTimeSec)
-        assertEquals(true, reloaded.layoverStop)
+        assertThat(reloaded.typicalTravelTimeSec).isNull()
+        assertThat(reloaded.layoverStop).isEqualTo(true)
 
         writer.deleteForRevision(rev)
-        assertEquals(0, patterns.findByRevisionId(rev).size)
-        assertEquals(0, stopPaths.findByTripPatternOrdered(rev, savedTp.id!!).size)
+        assertThat(patterns.findByRevisionId(rev)).isEmpty()
+        assertThat(stopPaths.findByTripPatternOrdered(rev, savedTp.id!!)).isEmpty()
     }
 }

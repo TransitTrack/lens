@@ -3,8 +3,10 @@ package eu.transittrack.schedule.model
 import java.time.Instant
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
 import eu.transittrack.gtfs.feed.FeedSource
@@ -133,11 +135,11 @@ class ScheduleEntitiesTest(
             ),
         )
 
-        assertEquals(1, patterns.findByRevisionId(rev).size)
-        assertEquals("RA", patterns.findByPatternKey(rev, "SHP|S1_to_S4|abc123")!!.routeId)
-        assertEquals(1, stopPaths.findByTripPatternOrdered(rev, tp.id!!).size)
-        assertEquals("T1", schedTrips.findByTripId(rev, "T1")!!.tripId)
-        assertEquals(1, scheduleTimes.findBySchedTripOrdered(rev, st.id!!).size)
-        assertEquals(listOf("RA"), blocks.findByBlockId(rev, "B1").single().routeIds)
+        assertThat(patterns.findByRevisionId(rev)).hasSize(1)
+        assertThat(patterns.findByPatternKey(rev, "SHP|S1_to_S4|abc123")!!.routeId).isEqualTo("RA")
+        assertThat(stopPaths.findByTripPatternOrdered(rev, tp.id!!)).hasSize(1)
+        assertThat(schedTrips.findByTripId(rev, "T1")!!.tripId).isEqualTo("T1")
+        assertThat(scheduleTimes.findBySchedTripOrdered(rev, st.id!!)).hasSize(1)
+        assertThat(blocks.findByBlockId(rev, "B1").single().routeIds).isEqualTo(listOf("RA"))
     }
 }

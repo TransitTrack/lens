@@ -1,7 +1,9 @@
 package eu.transittrack.schedule.read
 
-import kotlin.test.assertEquals
-
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -42,19 +44,17 @@ class ScheduleReadServiceTest(
 
     @Test
     fun `reads patterns, trip, block, and blocks-on-date`() {
-        assertEquals(4, read.tripPatterns("sd", null, null).size)
-        assertEquals(
-            1,
+        assertThat(read.tripPatterns("sd", null, null)).hasSize(4)
+        assertThat(
             read
                 .tripPatterns("sd", "RA", null)
                 .map { it.routeId }
-                .distinct()
-                .size,
-        )
-        assertEquals("RA", read.schedTrip("sd", "T2", null)!!.routeId)
-        assertEquals(2, read.block("sd", "B1", "WK", null)!!.tripCount)
-        assertEquals(2, read.blocksOnDate("sd", "2026-01-05", null).size) // Monday, WK
-        assertEquals(0, read.blocksOnDate("sd", "2026-01-06", null).size) // WK removed
-        assertEquals(5, read.tripsOnDate("sd", "2026-01-05", null, null).size)
+                .distinct(),
+        ).hasSize(1)
+        assertThat(read.schedTrip("sd", "T2", null)!!.routeId).isEqualTo("RA")
+        assertThat(read.block("sd", "B1", "WK", null)!!.tripCount).isEqualTo(2)
+        assertThat(read.blocksOnDate("sd", "2026-01-05", null)).hasSize(2) // Monday, WK
+        assertThat(read.blocksOnDate("sd", "2026-01-06", null)).isEmpty() // WK removed
+        assertThat(read.tripsOnDate("sd", "2026-01-05", null, null)).hasSize(5)
     }
 }

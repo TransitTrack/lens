@@ -2,8 +2,10 @@ package eu.transittrack.gtfs.store
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
@@ -108,12 +110,12 @@ class StatelessSessionRevisionWriterTest(
     @Test
     fun `writes a batch and deletes by revision`() {
         writer.write((1..250).map { route(rev1, "R$it") })
-        assertEquals(250, routes.findByRevisionId(rev1).size)
+        assertThat(routes.findByRevisionId(rev1)).hasSize(250)
 
         writer.write(listOf(route(rev2, "X")))
         writer.deleteAllForRevision(rev1)
 
-        assertEquals(0, routes.findByRevisionId(rev1).size)
-        assertEquals(1, routes.findByRevisionId(rev2).size)
+        assertThat(routes.findByRevisionId(rev1)).isEmpty()
+        assertThat(routes.findByRevisionId(rev2)).hasSize(1)
     }
 }

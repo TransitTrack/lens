@@ -2,8 +2,10 @@ package eu.transittrack.gtfs.model
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
 import eu.transittrack.gtfs.feed.FeedSource
@@ -58,7 +60,7 @@ class ShapeEntitiesTest(
         points.save(ShapePoint(rev, "SH1", 51.0, 17.0, 1, 0.0))
 
         val ordered = points.findByShapeId(rev, "SH1")
-        assertEquals(listOf(1, 2), ordered.map { it.shapePtSequence })
-        assertEquals(2, shapes.findByShapeId(rev, "SH1")!!.pointCount)
+        assertThat(ordered.map { it.shapePtSequence }).containsExactly(1, 2)
+        assertThat(shapes.findByShapeId(rev, "SH1")!!.pointCount).isEqualTo(2)
     }
 }

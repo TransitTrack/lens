@@ -1,8 +1,11 @@
 package eu.transittrack.schedule.derive
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
+
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 
 class BlockBuilderTest {
     @Test
@@ -10,21 +13,21 @@ class BlockBuilderTest {
         val t1 = BlockTripInput(1, "B1", "WK", "RA", 28800, 30600, "S1", "S4") // 08:00-08:30
         val t4 = BlockTripInput(2, "B1", "WK", "RA", 31200, 33000, "S4", "S1") // 08:40-09:10
         val res = BlockBuilder.build(listOf(t4, t1))
-        assertEquals(1, res.size)
+        assertThat(res).hasSize(1)
         val b = res.single()
-        assertEquals("B1", b.blockId)
-        assertEquals(2, b.tripCount)
-        assertEquals(28800, b.startTimeSec)
-        assertEquals(33000, b.endTimeSec)
-        assertEquals(listOf("RA"), b.routeIds)
+        assertThat(b.blockId).isEqualTo("B1")
+        assertThat(b.tripCount).isEqualTo(2)
+        assertThat(b.startTimeSec).isEqualTo(28800)
+        assertThat(b.endTimeSec).isEqualTo(33000)
+        assertThat(b.routeIds).isEqualTo(listOf("RA"))
         val u1 = b.tripUpdates.first { it.schedTripId == 1L }
-        assertEquals(0, u1.listIndex)
-        assertEquals(600, u1.layoverAfterSec) // 31200 - 30600
-        assertEquals(false, u1.deadheadAfter) // S4 == S4
+        assertThat(u1.listIndex).isEqualTo(0)
+        assertThat(u1.layoverAfterSec).isEqualTo(600) // 31200 - 30600
+        assertThat(u1.deadheadAfter).isEqualTo(false) // S4 == S4
         val u4 = b.tripUpdates.first { it.schedTripId == 2L }
-        assertEquals(1, u4.listIndex)
-        assertNull(u4.layoverAfterSec)
-        assertNull(u4.deadheadAfter)
+        assertThat(u4.listIndex).isEqualTo(1)
+        assertThat(u4.layoverAfterSec).isNull()
+        assertThat(u4.deadheadAfter).isNull()
     }
 
     @Test
@@ -37,14 +40,14 @@ class BlockBuilderTest {
                 .single()
                 .tripUpdates
                 .first { it.schedTripId == 1L }
-        assertEquals(true, u.deadheadAfter)
+        assertThat(u.deadheadAfter).isEqualTo(true)
     }
 
     @Test
     fun `same block id under two services is two blocks`() {
         val a = BlockTripInput(1, "B", "WK", "R", 0, 100, "X", "Y")
         val b = BlockTripInput(2, "B", "SAT", "R", 0, 100, "X", "Y")
-        assertEquals(2, BlockBuilder.build(listOf(a, b)).size)
+        assertThat(BlockBuilder.build(listOf(a, b))).hasSize(2)
     }
 
     @Test
@@ -56,8 +59,8 @@ class BlockBuilderTest {
                 .single()
                 .tripUpdates
                 .single()
-        assertEquals(0, u.listIndex)
-        assertNull(u.layoverAfterSec)
+        assertThat(u.listIndex).isEqualTo(0)
+        assertThat(u.layoverAfterSec).isNull()
     }
 
     @Test
@@ -65,6 +68,6 @@ class BlockBuilderTest {
         val a = BlockTripInput(1, "B", "WK", "R2", 0, 100, "X", "Y")
         val b = BlockTripInput(2, "B", "WK", "R1", 200, 300, "Y", "Z")
         val c = BlockTripInput(3, "B", "WK", "R2", 400, 500, "Z", "W")
-        assertEquals(listOf("R2", "R1"), BlockBuilder.build(listOf(a, b, c)).single().routeIds)
+        assertThat(BlockBuilder.build(listOf(a, b, c)).single().routeIds).isEqualTo(listOf("R2", "R1"))
     }
 }

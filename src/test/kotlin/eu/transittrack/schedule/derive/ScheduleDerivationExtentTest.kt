@@ -1,9 +1,10 @@
 package eu.transittrack.schedule.derive
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
@@ -87,19 +88,19 @@ class ScheduleDerivationExtentTest(
         service().postProcess(rev)
 
         val p1 = patterns.findByRouteId(rev, "R1").single()
-        assertEquals(10.0, p1.extent.minLat)
-        assertEquals(11.0, p1.extent.maxLat)
+        assertThat(p1.extent.minLat).isEqualTo(10.0)
+        assertThat(p1.extent.maxLat).isEqualTo(11.0)
 
         val r2 = routes.findByRouteId(rev, "R2")!!
-        assertEquals(9.0, r2.extent!!.minLat)
-        assertEquals(15.0, r2.extent!!.maxLat)
+        assertThat(r2.extent!!.minLat).isEqualTo(9.0)
+        assertThat(r2.extent!!.maxLat).isEqualTo(15.0)
 
         val a = agencies.findByAgencyId(rev, "A")!!
-        assertEquals(9.0, a.extent!!.minLat)
-        assertEquals(30.0, a.extent!!.maxLon)
+        assertThat(a.extent!!.minLat).isEqualTo(9.0)
+        assertThat(a.extent!!.maxLon).isEqualTo(30.0)
 
         // trips are back-linked to their pattern
-        assertEquals(p1.id, trips.findByTripId(rev, "T1")!!.tripPatternId)
+        assertThat(trips.findByTripId(rev, "T1")!!.tripPatternId).isEqualTo(p1.id)
     }
 
     @Test
@@ -116,7 +117,7 @@ class ScheduleDerivationExtentTest(
         )
         service().postProcess(rev)
 
-        assertNull(routes.findByRouteId(rev, "R")!!.extent)
-        assertNull(trips.findByTripId(rev, "T")!!.tripPatternId)
+        assertThat(routes.findByRouteId(rev, "R")!!.extent).isNull()
+        assertThat(trips.findByTripId(rev, "T")!!.tripPatternId).isNull()
     }
 }

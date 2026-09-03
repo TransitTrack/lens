@@ -2,8 +2,10 @@ package eu.transittrack.gtfs.model
 
 import java.time.Instant
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
 import eu.transittrack.gtfs.feed.FeedSource
@@ -56,9 +58,9 @@ class FaresEntitiesTest(
 
         products.save(FareProduct(rev1, "P1", "Single", null, null, 3.40, "PLN"))
         products.save(FareProduct(rev2, "P1", "Single", null, null, 3.60, "PLN"))
-        assertEquals(1, products.findByRevisionId(rev1).size)
+        assertThat(products.findByRevisionId(rev1)).hasSize(1)
 
         areas.save(Area(rev1, "AREA1", "Centre"))
-        assertEquals("Centre", areas.findByRevisionId(rev1)[0].areaName)
+        assertThat(areas.findByRevisionId(rev1)[0].areaName).isEqualTo("Centre")
     }
 }
