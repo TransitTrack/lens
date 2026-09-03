@@ -4,6 +4,8 @@ import java.io.InputStream
 
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.exception.ParseException
+
 data class ParsedLocation(
     val locationId: String,
     val stopName: String?,
@@ -17,14 +19,14 @@ object GtfsGeoJsonReader {
     fun read(input: InputStream): List<ParsedLocation> {
         val root = mapper.readTree(input)
         if (root.get("type")?.asString() != "FeatureCollection") {
-            throw GtfsParseException("locations.geojson root must be a FeatureCollection")
+            throw ParseException("locations.geojson root must be a FeatureCollection")
         }
         val features = root.get("features") ?: return emptyList()
         return buildList {
             for (f in features) {
                 val id =
                     f.get("id")?.takeIf { !it.isNull }?.asString()
-                        ?: throw GtfsParseException("locations.geojson feature missing 'id'")
+                        ?: throw ParseException("locations.geojson feature missing 'id'")
                 val props = f.get("properties")
                 add(
                     ParsedLocation(

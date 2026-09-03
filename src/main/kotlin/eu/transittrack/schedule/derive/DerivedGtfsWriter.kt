@@ -38,35 +38,35 @@ class DerivedGtfsWriter(
     ) {
         val entries = byKey.filterValues { !it.isEmpty }
         if (entries.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for ((key, e) in entries) {
-                session
-                    .createNativeMutationQuery(
-                        "update $table set min_lat = :mnla, min_lon = :mnlo, max_lat = :mxla, max_lon = :mxlo " +
-                            "where revision_id = :r and $keyCol = :k",
-                    ).setParameter("mnla", e.minLat)
-                    .setParameter("mnlo", e.minLon)
-                    .setParameter("mxla", e.maxLat)
-                    .setParameter("mxlo", e.maxLon)
-                    .setParameter("r", revisionId)
-                    .setParameter("k", key)
-                    .executeUpdate()
+        sessionFactory
+            .inStatelessTransaction { session ->
+                for ((key, e) in entries) {
+                    session
+                        .createNativeMutationQuery(
+                            """update $table set min_lat = :mnla, min_lon = :mnlo, max_lat = :mxla, max_lon = :mxlo where revision_id = :r and $keyCol = :k""",
+                        ).setParameter("mnla", e.minLat)
+                        .setParameter("mnlo", e.minLon)
+                        .setParameter("mxla", e.maxLat)
+                        .setParameter("mxlo", e.maxLon)
+                        .setParameter("r", revisionId)
+                        .setParameter("k", key)
+                        .executeUpdate()
+                }
             }
-        }
     }
 
     /** [links] maps `trips.id` -> `trip_patterns.id`. */
     fun applyTripPatternLinks(links: Map<Long, Long>) {
         if (links.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for ((tripId, patternId) in links) {
-                session
-                    .createNativeMutationQuery(
-                        "update trips set trip_pattern_id = :pid where id = :tid",
-                    ).setParameter("pid", patternId)
-                    .setParameter("tid", tripId)
-                    .executeUpdate()
+        sessionFactory
+            .inStatelessTransaction { session ->
+                for ((tripId, patternId) in links) {
+                    session
+                        .createNativeMutationQuery("update trips set trip_pattern_id = :pid where id = :tid")
+                        .setParameter("pid", patternId)
+                        .setParameter("tid", tripId)
+                        .executeUpdate()
+                }
             }
-        }
     }
 }

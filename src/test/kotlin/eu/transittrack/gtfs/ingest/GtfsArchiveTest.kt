@@ -11,7 +11,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 
-import eu.transittrack.gtfs.parse.GtfsParseException
+import eu.transittrack.exception.ParseException
 
 class GtfsArchiveTest {
     private val tmp = Files.createTempDirectory("arch")
@@ -52,6 +52,6 @@ class GtfsArchiveTest {
         val dest = Files.createTempDirectory("d3")
         assertFailure {
             GtfsArchive.extract(zip("../evil.txt" to "x"), dest)
-        }.isInstanceOf<GtfsParseException>()
+        }.isInstanceOf<ParseException>()
     }
 }

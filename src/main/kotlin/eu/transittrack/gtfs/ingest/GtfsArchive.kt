@@ -5,7 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipInputStream
 
-import eu.transittrack.gtfs.parse.GtfsParseException
+import eu.transittrack.exception.ParseException
 
 object GtfsArchive {
     fun extract(
@@ -20,12 +20,12 @@ object GtfsArchive {
             while (entry != null) {
                 if (!entry.isDirectory) {
                     if (entry.name.contains("..")) {
-                        throw GtfsParseException("unsafe zip entry '${entry.name}'")
+                        throw ParseException("unsafe zip entry '${entry.name}'")
                     }
                     val cleanName = entry.name.substringAfterLast('/').ifEmpty { entry.name }
                     val target = normalizedDest.resolve(cleanName).normalize()
                     if (!target.startsWith(normalizedDest)) {
-                        throw GtfsParseException("unsafe zip entry '${entry.name}'")
+                        throw ParseException("unsafe zip entry '${entry.name}'")
                     }
                     Files.newOutputStream(target).use { zin.copyTo(it) }
                     extracted += cleanName

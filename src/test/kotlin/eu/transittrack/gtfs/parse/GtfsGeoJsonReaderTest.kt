@@ -10,6 +10,8 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 
+import eu.transittrack.exception.ParseException
+
 class GtfsGeoJsonReaderTest {
     private val fc =
         """
@@ -38,7 +40,7 @@ class GtfsGeoJsonReaderTest {
     fun `rejects non-FeatureCollection`() {
         assertFailure {
             GtfsGeoJsonReader.read("""{"type":"Feature"}""".byteInputStream())
-        }.isInstanceOf<GtfsParseException>()
+        }.isInstanceOf<ParseException>()
     }
 
     @Test
@@ -47,6 +49,6 @@ class GtfsGeoJsonReaderTest {
             GtfsGeoJsonReader.read(
                 """{"type":"FeatureCollection","features":[{"type":"Feature","geometry":null}]}""".byteInputStream(),
             )
-        }.isInstanceOf<GtfsParseException>()
+        }.isInstanceOf<ParseException>()
     }
 }
