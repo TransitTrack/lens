@@ -119,4 +119,25 @@ class ScheduleWriterTest(
         assertThat(patterns.findByRevisionId(rev)).isEmpty()
         assertThat(stopPaths.findByTripPatternOrdered(rev, savedTp.id!!)).isEmpty()
     }
+
+    @Test
+    fun `deleteTables removes only the named tables`() {
+        seed()
+        val tp = TripPattern(rev, "K2", "RA", null, 0, "H", "SHP", 1, null, tripCount = 0)
+        writer.write(listOf(tp))
+        val savedTp = patterns.findByPatternKey(rev, "K2")!!
+        writer.deleteTables(rev, "trip_patterns")
+        assertThat(patterns.findByRevisionId(rev)).isEmpty()
+    }
+
+    @Test
+    fun `resetTripPatternTripCount zeroes the column`() {
+        seed()
+        writer.write(listOf(TripPattern(rev, "K3", "RA", null, 0, "H", "SHP", 1, null, tripCount = 0)))
+        val id = patterns.findByPatternKey(rev, "K3")!!.id!!
+        writer.applyTripPatternTripCount(mapOf(id to 5))
+        assertThat(patterns.findById(id).get().tripCount).isEqualTo(5)
+        writer.resetTripPatternTripCount(rev)
+        assertThat(patterns.findById(id).get().tripCount).isEqualTo(0)
+    }
 }
