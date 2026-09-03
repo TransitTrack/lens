@@ -135,3 +135,16 @@ fun stopTime(
     pickupBookingRuleId = null,
     dropOffBookingRuleId = null,
 )
+
+fun stopTimeNoTimes(
+    rev: Long,
+    tripId: String,
+    seq: Int,
+    stopId: String,
+) = StopTime(
+    rev, tripId = tripId, stopSequence = seq, stopId = stopId, arrivalTime = null, departureTime = null,
+    locationGroupId = null, locationId = null, stopHeadsign = null, startPickupDropOffWindow = null,
+    endPickupDropOffWindow = null, pickupType = null, dropOffType = null, continuousPickup = null,
+    continuousDropOff = null, shapeDistTraveled = null, timepoint = null, pickupBookingRuleId = null,
+    dropOffBookingRuleId = null,
+)
