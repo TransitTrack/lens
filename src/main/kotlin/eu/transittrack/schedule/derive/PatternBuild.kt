@@ -25,7 +25,7 @@ fun cumulativeFromPaths(paths: List<StopPath>): DoubleArray {
  * True when every stop the trip visits has a resolvable `(lat, lon)`. A dangling or coordinate-less
  * `stop_times.stop_id` would otherwise silently become `(0, 0)` and feed a ~5,700 km leg into
  * `length_m`, the bbox and the interpolation weighting, so such a trip is skipped: it simply
- * produces no `sched_trip` row.
+ * produces no derived schedule (no `trip_pattern_id`, no `schedule_time` rows).
  */
 fun hasResolvableCoords(
     tripId: String,

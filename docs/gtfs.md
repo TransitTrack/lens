@@ -227,7 +227,8 @@ transittrack:
 
 ## 6. Read API
 
-All types are `Gtfs`-prefixed; every entity query resolves against a revision —
+Types and query fields use bare names — `Route`, `Trip`, `Stop`, `routes`,
+`trip`, `stopTimes`, … Every entity query resolves against a revision —
 optional `revisionId` argument, defaulting to the feed's `ACTIVE` revision (an
 error is raised if the feed has none).
 

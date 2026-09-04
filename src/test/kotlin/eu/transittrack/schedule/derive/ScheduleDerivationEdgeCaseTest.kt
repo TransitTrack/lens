@@ -444,8 +444,8 @@ class ScheduleDerivationEdgeCaseTest(
         assertThat(rowCount("stop_path")).isEqualTo(0)
         assertThat(rowCount("schedule_time")).isEqualTo(0)
         assertThat(rowCount("block")).isEqualTo(0)
-        // derived columns on the surviving raw trips are NULL on a FAILED revision
-        assertThat(trips.findByRevisionId(rev).all { it.tripPatternId == null }).isTrue()
+        // a FAILED revision is wiped whole — raw trips included
+        assertThat(rowCount("trips")).isEqualTo(0)
     }
 
     // --- FIX 1: a pipeline failure AFTER a successful derivation still wipes schedule rows ---

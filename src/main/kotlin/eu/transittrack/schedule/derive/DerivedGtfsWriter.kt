@@ -21,7 +21,7 @@ data class TripDerivation(
 /**
  * Writes derivation results back onto raw GTFS tables:
  *  - route / agency extents (`applyRouteExtents` / `applyAgencyExtents`, undone by `clearExtents`);
- *  - the four derived schedule columns on `trips` (`trip_pattern_id`, `start_time_sec`,
+ *  - the five derived schedule columns on `trips` (`trip_pattern_id`, `start_time_sec`,
  *    `end_time_sec`, `frequency_based`, `no_schedule`) plus a blank `trip_headsign` filled from the
  *    resolved headsign (`applyTripDerivation`, undone by `clearTripDerivation`).
  *
