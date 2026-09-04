@@ -25,13 +25,6 @@ class ScheduleQueryController(
     ) = read.tripPattern(feedCode, patternKey, revisionId)
 
     @QueryMapping
-    fun schedTrip(
-        @Argument feedCode: String,
-        @Argument tripId: String,
-        @Argument revisionId: String?,
-    ) = read.schedTrip(feedCode, tripId, revisionId)
-
-    @QueryMapping
     fun blocks(
         @Argument feedCode: String,
         @Argument revisionId: String?,

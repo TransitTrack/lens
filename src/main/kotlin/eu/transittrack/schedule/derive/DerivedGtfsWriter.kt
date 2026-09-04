@@ -8,6 +8,16 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.Extent
 
+data class TripDerivation(
+    val tripRowId: Long,
+    val tripPatternId: Long,
+    val startTimeSec: Int,
+    val endTimeSec: Int,
+    val frequencyBased: Boolean,
+    val noSchedule: Boolean,
+    val resolvedHeadsign: String,
+)
+
 /**
  * Writes derivation results back onto raw GTFS tables — route / agency extents and the
  * `trips.trip_pattern_id` link. Kept separate from [ScheduleWriter], which owns the derived tables
@@ -55,26 +65,41 @@ class DerivedGtfsWriter(
             }
     }
 
-    /** [links] maps `trips.id` -> `trip_patterns.id`. */
-    fun applyTripPatternLinks(links: Map<Long, Long>) {
-        if (links.isEmpty()) return
-        sessionFactory
-            .inStatelessTransaction { session ->
-                for ((tripId, patternId) in links) {
-                    session
-                        .createNativeMutationQuery("update trips set trip_pattern_id = :pid where id = :tid")
-                        .setParameter("pid", patternId)
-                        .setParameter("tid", tripId)
-                        .executeUpdate()
-                }
+    fun applyTripDerivation(updates: List<TripDerivation>) {
+        if (updates.isEmpty()) return
+        sessionFactory.inStatelessTransaction { session ->
+            for (u in updates) {
+                session
+                    .createNativeMutationQuery(
+                        """
+                        update trips
+                           set trip_pattern_id = :tpid, start_time_sec = :st, end_time_sec = :et,
+                               frequency_based = :fb, no_schedule = :ns,
+                               trip_headsign = coalesce(nullif(trim(trip_headsign), ''), :hs)
+                         where id = :id
+                        """.trimIndent(),
+                    ).setParameter("tpid", u.tripPatternId)
+                    .setParameter("st", u.startTimeSec)
+                    .setParameter("et", u.endTimeSec)
+                    .setParameter("fb", u.frequencyBased)
+                    .setParameter("ns", u.noSchedule)
+                    .setParameter("hs", u.resolvedHeadsign)
+                    .setParameter("id", u.tripRowId)
+                    .executeUpdate()
             }
+        }
     }
 
-    fun clearTripPatternLinks(revisionId: Long) {
+    fun clearTripDerivation(revisionId: Long) {
         sessionFactory.inStatelessTransaction { session ->
             session
-                .createNativeMutationQuery("update trips set trip_pattern_id = null where revision_id = :r")
-                .setParameter("r", revisionId)
+                .createNativeMutationQuery(
+                    """
+                    update trips set trip_pattern_id = null, start_time_sec = null, end_time_sec = null,
+                           frequency_based = null, no_schedule = null
+                     where revision_id = :r
+                    """.trimIndent(),
+                ).setParameter("r", revisionId)
                 .executeUpdate()
         }
     }

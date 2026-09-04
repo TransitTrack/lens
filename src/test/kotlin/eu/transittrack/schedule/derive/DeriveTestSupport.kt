@@ -78,7 +78,8 @@ fun trip(
     routeId: String,
     tripId: String,
     blockId: String? = null,
-) = Trip(rev, routeId, "S", tripId, null, null, null, blockId, null, null, null)
+    headsign: String? = null,
+) = Trip(rev, routeId, "S", tripId, headsign, null, null, blockId, null, null, null)
 
 fun stop(
     rev: Long,

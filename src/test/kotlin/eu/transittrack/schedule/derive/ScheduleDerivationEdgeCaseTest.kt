@@ -60,7 +60,6 @@ import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
-import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
@@ -101,7 +100,6 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val frequencies: FrequencyRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
-    @Autowired val schedTrips: SchedTripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
     @Autowired val blockTrips: BlockTripRepository,
@@ -209,9 +207,9 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-edge")
         runAllStages(rev)
 
-        // E4 visits GHOST, which is not in stops.txt -> no sched_trip, no pattern from it.
-        assertThat(schedTrips.findByTripId(rev, "E4")).isNull()
-        assertThat(schedTrips.findByTripId(rev, "E5")).isNotNull()
+        // E4 visits GHOST, which is not in stops.txt -> not derived, no pattern from it.
+        assertThat(trips.findByTripId(rev, "E4")!!.tripPatternId).isNull()
+        assertThat(trips.findByTripId(rev, "E5")!!.tripPatternId).isNotNull()
         assertThat(patterns.findByRouteId(rev, "RC")).hasSize(1)
 
         // No (0,0) coordinate leaked into any geometry or extent.
@@ -257,17 +255,17 @@ class ScheduleDerivationEdgeCaseTest(
         val efBlk = blocks.findByBlockAndService(rev, "BLK|EF", "WK")!!
         assertThat(efBlk.tripCount).isEqualTo(1)
 
-        val ef = schedTrips.findByTripId(rev, "EF")!!
-        assertThat(ef.frequencyBased).isTrue()
-        assertThat(blockTrips.findBySchedTripId(rev, ef.id!!)).isNotNull()
+        val ef = trips.findByTripId(rev, "EF")!!
+        assertThat(ef.frequencyBased).isEqualTo(true)
+        assertThat(blockTrips.findByTripId(rev, ef.id!!)).isNotNull()
 
         // E1 -> E2 layover is measured against E2, not against the frequency trip.
-        val e1 = schedTrips.findByTripId(rev, "E1")!!
-        val e1bt = blockTrips.findBySchedTripId(rev, e1.id!!)!!
+        val e1 = trips.findByTripId(rev, "E1")!!
+        val e1bt = blockTrips.findByTripId(rev, e1.id!!)!!
         assertThat(e1bt.listIndex).isEqualTo(0)
         assertThat(e1bt.layoverAfterSec).isEqualTo(32400 - 30600) // E2 09:00 - E1 08:30
-        val e2 = schedTrips.findByTripId(rev, "E2")!!
-        assertThat(blockTrips.findBySchedTripId(rev, e2.id!!)!!.listIndex).isEqualTo(1)
+        val e2 = trips.findByTripId(rev, "E2")!!
+        assertThat(blockTrips.findByTripId(rev, e2.id!!)!!.listIndex).isEqualTo(1)
     }
 
     // --- FIX 8: shapeless and off-shape stop paths fall back to straight lines ---
@@ -277,8 +275,8 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-edge")
         runAllStages(rev)
 
-        val e3 = schedTrips.findByTripId(rev, "E3")!!
-        val pattern = patterns.findById(e3.tripPatternId).get()
+        val e3 = trips.findByTripId(rev, "E3")!!
+        val pattern = patterns.findById(e3.tripPatternId!!).get()
         assertThat(pattern.shapeId).isNull()
 
         val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
@@ -296,8 +294,8 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-edge")
         runAllStages(rev)
 
-        val e6 = schedTrips.findByTripId(rev, "E6")!!
-        val pattern = patterns.findById(e6.tripPatternId).get()
+        val e6 = trips.findByTripId(rev, "E6")!!
+        val pattern = patterns.findById(e6.tripPatternId!!).get()
         assertThat(pattern.shapeId).isEqualTo("SHP_OUT")
 
         val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
@@ -320,8 +318,8 @@ class ScheduleDerivationEdgeCaseTest(
 
         // schedule-edge's stop_times.txt has no `timepoint` column at all, so the
         // fallback "has a time -> it is a timed stop" branch decides wait_stop.
-        val e1 = schedTrips.findByTripId(rev, "E1")!!
-        val paths = stopPaths.findByTripPatternOrdered(rev, e1.tripPatternId)
+        val e1 = trips.findByTripId(rev, "E1")!!
+        val paths = stopPaths.findByTripPatternOrdered(rev, e1.tripPatternId!!)
         assertThat(paths.all { it.waitStop == true && it.scheduleAdherenceStop == true }).isTrue()
     }
 
@@ -352,8 +350,8 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-dup-stops")
         runAllStages(rev)
 
-        val t1 = schedTrips.findByTripId(rev, "T1")!!
-        val pattern = patterns.findById(t1.tripPatternId).get()
+        val t1 = trips.findByTripId(rev, "T1")!!
+        val pattern = patterns.findById(t1.tripPatternId!!).get()
         // stop_times visits S1,S2,S2,S3 -> the consecutive S2 dup is removed.
         assertThat(pattern.stopCount).isEqualTo(3)
         assertThat(stopPaths.findByTripPatternOrdered(rev, pattern.id!!).map { it.stopId })
@@ -365,9 +363,9 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-no-headsign")
         runAllStages(rev)
 
-        val t1 = schedTrips.findByTripId(rev, "T1")!!
-        assertThat(t1.headsign).isEqualTo("Loop")
-        assertThat(patterns.findById(t1.tripPatternId).get().headsign).isEqualTo("Loop")
+        val t1 = trips.findByTripId(rev, "T1")!!
+        assertThat(t1.tripHeadsign).isEqualTo("Loop")
+        assertThat(patterns.findById(t1.tripPatternId!!).get().headsign).isEqualTo("Loop")
     }
 
     @Test
@@ -375,8 +373,8 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-stop-headsign")
         runAllStages(rev)
 
-        val t1 = schedTrips.findByTripId(rev, "T1")!!
-        assertThat(t1.headsign).isEqualTo("Downtown")
+        val t1 = trips.findByTripId(rev, "T1")!!
+        assertThat(t1.tripHeadsign).isEqualTo("Downtown")
     }
 
     @Test
@@ -386,7 +384,7 @@ class ScheduleDerivationEdgeCaseTest(
         val failure = assertFailure { runAllStages(rev) }
         failure.isInstanceOf<IllegalStateException>()
         stages().forEach { runCatching { it.onIngestionFailure(rev) } }
-        assertThat(schedTrips.findByTripId(rev, "T1")).isNull()
+        assertThat(trips.findByTripId(rev, "T1")!!.tripPatternId).isNull()
     }
 
     @Test
@@ -394,8 +392,8 @@ class ScheduleDerivationEdgeCaseTest(
         ingest("schedule-noschedule")
         runAllStages(rev, scheduleProps.copy(tolerateNoScheduleTrips = true))
 
-        val t1 = schedTrips.findByTripId(rev, "T1")!!
-        assertThat(t1.noSchedule).isTrue()
+        val t1 = trips.findByTripId(rev, "T1")!!
+        assertThat(t1.noSchedule).isEqualTo(true)
         assertThat(t1.startTimeSec).isEqualTo(0)
         assertThat(t1.endTimeSec).isEqualTo(86400)
 
@@ -420,11 +418,13 @@ class ScheduleDerivationEdgeCaseTest(
         stages().forEach { runCatching { it.onIngestionFailure(rev) } }
 
         for (table in listOf(
-            "trip_patterns", "stop_path", "sched_trip", "schedule_time",
+            "trip_patterns", "stop_path", "schedule_time",
             "block", "block_trip", "travel_times_for_stop_path",
         )) {
             assertThat(rowCount(table)).isEqualTo(0)
         }
+        // the raw trips survive, but their derived columns are NULL'd
+        assertThat(trips.findByRevisionId(rev).all { it.tripPatternId == null }).isTrue()
         assertThat(context.size()).isEqualTo(0)
     }
 
@@ -438,7 +438,6 @@ class ScheduleDerivationEdgeCaseTest(
 
         assertThat(rowCount("trip_patterns")).isEqualTo(0)
         assertThat(rowCount("stop_path")).isEqualTo(0)
-        assertThat(rowCount("sched_trip")).isEqualTo(0)
         assertThat(rowCount("schedule_time")).isEqualTo(0)
         assertThat(rowCount("block")).isEqualTo(0)
     }

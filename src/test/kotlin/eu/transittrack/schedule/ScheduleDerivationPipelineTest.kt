@@ -52,6 +52,7 @@ class ScheduleDerivationPipelineTest(
         assertThat(blocks.findByRevisionId(rev.id!!)).hasSize(2)
         val counts = revisionService.revision(rev.id!!).rowCounts
         assertThat(counts).key("trip_patterns").isEqualTo(4L)
+        assertThat(counts).key("derived_trip").isEqualTo(5L)
         assertThat(counts).key("travel_times_for_stop_path").isEqualTo(13L) // one per stop_path row
         assertThat(counts).key("gtfs_trip") // gtfs counts preserved
         assertThat(context.size()).isEqualTo(0)

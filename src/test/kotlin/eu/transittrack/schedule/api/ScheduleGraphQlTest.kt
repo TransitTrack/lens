@@ -59,15 +59,18 @@ class ScheduleGraphQlTest(
     }
 
     @Test
-    fun `sched trip resolves pattern, block, and schedule times`() {
+    fun `trip resolves pattern, block, and schedule times`() {
         tester
             .document(
-                """{ schedTrip(feedCode:"g", tripId:"T1"){ tripId frequencyBased block { blockId tripCount } pattern { patternKey } scheduleTimes { stopPathIndex arrivalSec } } }""",
+                """{ trip(feedCode:"g", tripId:"T1"){ tripId startTimeSec frequencyBased block { blockId tripCount } pattern { patternKey } scheduleTimes { stopPathIndex arrivalSec } } }""",
             ).execute()
-            .path("schedTrip.block.blockId")
+            .path("trip.startTimeSec")
+            .entity(Int::class.java)
+            .isEqualTo(28800)
+            .path("trip.block.blockId")
             .entity(String::class.java)
             .isEqualTo("B1")
-            .path("schedTrip.scheduleTimes")
+            .path("trip.scheduleTimes")
             .entityList(Any::class.java)
             .hasSizeGreaterThan(0)
     }
@@ -111,7 +114,7 @@ class ScheduleGraphQlTest(
     }
 
     @Test
-    fun `gtfs route exposes trip patterns and gtfs trip exposes sched trip`() {
+    fun `gtfs route exposes trip patterns and gtfs trip exposes derived fields`() {
         tester
             .document(
                 """{ route(feedCode:"g", routeId:"RA"){ routeId tripPatterns { patternKey } } }""",
@@ -121,9 +124,9 @@ class ScheduleGraphQlTest(
             .hasSizeGreaterThan(0)
         tester
             .document(
-                """{ trip(feedCode:"g", tripId:"T1"){ tripId schedTrip { startTimeSec } } }""",
+                """{ trip(feedCode:"g", tripId:"T1"){ tripId startTimeSec pattern { patternKey } } }""",
             ).execute()
-            .path("trip.schedTrip.startTimeSec")
+            .path("trip.startTimeSec")
             .entity(Int::class.java)
             .isEqualTo(28800)
     }

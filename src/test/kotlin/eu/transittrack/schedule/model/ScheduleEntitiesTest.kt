@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.model.Trip
+import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
@@ -23,7 +25,7 @@ class ScheduleEntitiesTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
-    @Autowired val schedTrips: SchedTripRepository,
+    @Autowired val trips: TripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
 ) {
@@ -93,26 +95,30 @@ class ScheduleEntitiesTest(
             ),
         )
         val st =
-            schedTrips.save(
-                SchedTrip(
+            trips.save(
+                Trip(
                     revisionId = rev,
-                    tripPatternId = tp.id!!,
-                    tripId = "T1",
                     routeId = "RA",
                     serviceId = "WK",
-                    directionId = 0,
-                    headsign = "To S4",
+                    tripId = "T1",
+                    tripHeadsign = "To S4",
                     tripShortName = null,
+                    directionId = 0,
+                    blockId = null,
+                    shapeId = "SHP",
+                    wheelchairAccessible = null,
+                    bikesAllowed = null,
+                    tripPatternId = tp.id!!,
                     startTimeSec = 28800,
                     endTimeSec = 30600,
                     frequencyBased = false,
-                    exactTimes = null,
+                    noSchedule = false,
                 ),
             )
         scheduleTimes.save(
             ScheduleTime(
                 revisionId = rev,
-                schedTripId = st.id!!,
+                tripId = st.id!!,
                 stopPathIndex = 0,
                 arrivalSec = 28800,
                 departureSec = 28800,
@@ -136,8 +142,12 @@ class ScheduleEntitiesTest(
         assertThat(patterns.findByRevisionId(rev)).hasSize(1)
         assertThat(patterns.findByPatternKey(rev, "SHP|S1_to_S4|abc123")!!.routeId).isEqualTo("RA")
         assertThat(stopPaths.findByTripPatternOrdered(rev, tp.id!!)).hasSize(1)
-        assertThat(schedTrips.findByTripId(rev, "T1")!!.tripId).isEqualTo("T1")
-        assertThat(scheduleTimes.findBySchedTripOrdered(rev, st.id!!)).hasSize(1)
+        val reloaded = trips.findByTripId(rev, "T1")!!
+        assertThat(reloaded.tripId).isEqualTo("T1")
+        assertThat(reloaded.tripPatternId).isEqualTo(tp.id!!)
+        assertThat(reloaded.startTimeSec).isEqualTo(28800)
+        assertThat(reloaded.endTimeSec).isEqualTo(30600)
+        assertThat(scheduleTimes.findByTripOrdered(rev, st.id!!)).hasSize(1)
         assertThat(blocks.findByBlockId(rev, "B1").single().routeIds).isEqualTo(listOf("RA"))
     }
 }

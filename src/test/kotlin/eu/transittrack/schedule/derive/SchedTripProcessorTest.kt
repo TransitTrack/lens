@@ -4,8 +4,11 @@ import kotlin.test.Test
 
 import assertk.assertFailure
 import assertk.assertThat
+import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import org.springframework.beans.factory.annotation.Autowired
@@ -29,7 +32,6 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.ScheduleProperties
-import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
@@ -54,7 +56,6 @@ class SchedTripProcessorTest(
     @Autowired val frequencies: FrequencyRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
-    @Autowired val schedTrips: SchedTripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
 ) {
     private val context = DerivationContext()
@@ -74,24 +75,58 @@ class SchedTripProcessorTest(
         )
 
     @Test
-    fun `builds sched_trip + schedule_time and links the raw trip`() {
+    fun `derives trips + schedule_time and links the raw trip`() {
         val rev = newRevision(feeds, revisions)
         seedRoute(rev)
         stage1().postProcess(rev)
         val counts = stage2().postProcess(rev)
 
-        assertThat(counts["sched_trip"]).isEqualTo(1L)
+        assertThat(counts["derived_trip"]).isEqualTo(1L)
         assertThat(counts["schedule_time"]).isEqualTo(2L)
-        val st = schedTrips.findByTripId(rev, "T")!!
-        assertThat(st.startTimeSec).isEqualTo(3600)
-        assertThat(trips.findByTripId(rev, "T")!!.tripPatternId).isEqualTo(st.tripPatternId)
+        val t = trips.findByTripId(rev, "T")!!
+        assertThat(t.startTimeSec).isEqualTo(3600)
+        assertThat(t.endTimeSec).isEqualTo(4200)
+        assertThat(t.tripPatternId).isNotNull()
+        assertThat(t.frequencyBased).isEqualTo(false)
+        assertThat(t.noSchedule).isEqualTo(false)
         assertThat(
             context
                 .get(rev)
                 .derivedTrips
                 .single()
-                .schedTripId,
-        ).isEqualTo(st.id)
+                .tripRowId,
+        ).isEqualTo(t.id)
+        assertThat(scheduleTimes.findByTripOrdered(rev, t.id!!)).hasSize(2)
+    }
+
+    @Test
+    fun `a blank trip_headsign is filled with the resolved value`() {
+        val rev = newRevision(feeds, revisions)
+        gtfsWriter.write(
+            listOf(
+                route(rev, "R", "A"), trip(rev, "R", "T", headsign = "  "),
+                stop(rev, "a", 51.10, 17.00), stop(rev, "b", 51.11, 17.00),
+                stopTime(rev, "T", 1, "a", 3600), stopTime(rev, "T", 2, "b", 4200),
+            ),
+        )
+        stage1().postProcess(rev)
+        stage2().postProcess(rev)
+        assertThat(trips.findByTripId(rev, "T")!!.tripHeadsign).isEqualTo("Loop")
+    }
+
+    @Test
+    fun `an existing trip_headsign is kept after derivation`() {
+        val rev = newRevision(feeds, revisions)
+        gtfsWriter.write(
+            listOf(
+                route(rev, "R", "A"), trip(rev, "R", "T", headsign = "Downtown"),
+                stop(rev, "a", 51.10, 17.00), stop(rev, "b", 51.11, 17.00),
+                stopTime(rev, "T", 1, "a", 3600), stopTime(rev, "T", 2, "b", 4200),
+            ),
+        )
+        stage1().postProcess(rev)
+        stage2().postProcess(rev)
+        assertThat(trips.findByTripId(rev, "T")!!.tripHeadsign).isEqualTo("Downtown")
     }
 
     @Test
@@ -107,10 +142,10 @@ class SchedTripProcessorTest(
         stage1().postProcess(rev)
         stage2().postProcess(rev)
 
-        val st = schedTrips.findByTripId(rev, "T")!!
-        assertThat(st.frequencyBased).isTrue()
-        assertThat(st.startTimeSec).isEqualTo(0)
-        assertThat(scheduleTimes.findBySchedTripOrdered(rev, st.id!!)[0].departureSec).isEqualTo(0)
+        val t = trips.findByTripId(rev, "T")!!
+        assertThat(t.frequencyBased).isEqualTo(true)
+        assertThat(t.startTimeSec).isEqualTo(0)
+        assertThat(scheduleTimes.findByTripOrdered(rev, t.id!!)[0].departureSec).isEqualTo(0)
     }
 
     @Test
@@ -140,10 +175,10 @@ class SchedTripProcessorTest(
         )
         stage1().postProcess(rev)
         stage2(ScheduleProperties(tolerateNoScheduleTrips = true)).postProcess(rev)
-        val st = schedTrips.findByTripId(rev, "T")!!
-        assertThat(st.noSchedule).isTrue()
-        assertThat(st.startTimeSec).isEqualTo(0)
-        assertThat(st.endTimeSec).isEqualTo(86_400)
-        assertThat(scheduleTimes.findBySchedTripOrdered(rev, st.id!!)[0].arrivalSec).isNull()
+        val t = trips.findByTripId(rev, "T")!!
+        assertThat(t.noSchedule).isEqualTo(true)
+        assertThat(t.startTimeSec).isEqualTo(0)
+        assertThat(t.endTimeSec).isEqualTo(86_400)
+        assertThat(scheduleTimes.findByTripOrdered(rev, t.id!!)[0].arrivalSec).isNull()
     }
 }

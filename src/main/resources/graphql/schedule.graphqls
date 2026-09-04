@@ -1,11 +1,10 @@
 extend type Query {
     tripPatterns(feedCode: String!, routeId: String, revisionId: ID): [TripPattern!]!
     tripPattern(feedCode: String!, patternKey: String!, revisionId: ID): TripPattern
-    schedTrip(feedCode: String!, tripId: String!, revisionId: ID): SchedTrip
     blocks(feedCode: String!, revisionId: ID): [Block!]!
     block(feedCode: String!, blockId: String!, serviceId: String!, revisionId: ID): Block
     blocksOnDate(feedCode: String!, date: String!, revisionId: ID): [Block!]!
-    tripsOnDate(feedCode: String!, date: String!, routeId: String, revisionId: ID): [SchedTrip!]!
+    tripsOnDate(feedCode: String!, date: String!, routeId: String, revisionId: ID): [Trip!]!
 }
 
 type TripPattern {
@@ -20,7 +19,7 @@ type TripPattern {
     extent: Extent
     route: Route
     stopPaths: [StopPath!]!
-    trips: [SchedTrip!]!
+    trips: [Trip!]!
 }
 
 type StopPath {
@@ -40,23 +39,6 @@ type StopPath {
     stop: Stop
 }
 
-type SchedTrip {
-    tripId: String!
-    routeId: String!
-    serviceId: String!
-    directionId: Int
-    headsign: String
-    tripShortName: String
-    startTimeSec: Int!
-    endTimeSec: Int!
-    frequencyBased: Boolean!
-    exactTimes: Int
-    pattern: TripPattern
-    route: Route
-    block: Block
-    scheduleTimes: [ScheduleTime!]!
-}
-
 type ScheduleTime {
     stopPathIndex: Int!
     arrivalSec: Int
@@ -74,7 +56,7 @@ type Block {
     endTimeSec: Int!
     tripCount: Int!
     routeIds: [String!]!
-    trips: [SchedTrip!]!
+    trips: [Trip!]!
     blockTrips: [BlockTrip!]!
 }
 
@@ -82,8 +64,16 @@ type BlockTrip {
     listIndex: Int!
     layoverAfterSec: Int
     deadheadAfter: Boolean
-    trip: SchedTrip!
+    trip: Trip!
 }
 
 extend type Route { tripPatterns: [TripPattern!]! }
-extend type Trip { schedTrip: SchedTrip, tripPattern: TripPattern }
+extend type Trip {
+    startTimeSec: Int
+    endTimeSec: Int
+    frequencyBased: Boolean
+    noSchedule: Boolean
+    pattern: TripPattern
+    block: Block
+    scheduleTimes: [ScheduleTime!]!
+}

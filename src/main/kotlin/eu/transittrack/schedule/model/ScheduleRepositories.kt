@@ -35,43 +35,14 @@ interface StopPathRepository : RevisionScopedRepository<StopPath, Long> {
     ): List<StopPath>
 }
 
-interface SchedTripRepository : RevisionScopedRepository<SchedTrip, Long> {
-    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.tripId = :tripId")
-    fun findByTripId(
-        revisionId: Long,
-        tripId: String,
-    ): SchedTrip?
-
-    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.tripPatternId = :tripPatternId")
-    fun findByTripPattern(
-        revisionId: Long,
-        tripPatternId: Long,
-    ): List<SchedTrip>
-
-    @Query("select t from SchedTrip t where t.revisionId = :revisionId and t.serviceId in :serviceIds")
-    fun findByServices(
-        revisionId: Long,
-        serviceIds: Collection<String>,
-    ): List<SchedTrip>
-
-    @Query(
-        "select t from SchedTrip t where t.revisionId = :revisionId and t.routeId = :routeId and t.serviceId in :serviceIds",
-    )
-    fun findByRouteAndServices(
-        revisionId: Long,
-        routeId: String,
-        serviceIds: Collection<String>,
-    ): List<SchedTrip>
-}
-
 interface ScheduleTimeRepository : RevisionScopedRepository<ScheduleTime, Long> {
     @Query(
         "select st from ScheduleTime st " +
-            "where st.revisionId = :revisionId and st.schedTripId = :schedTripId order by st.stopPathIndex",
+            "where st.revisionId = :revisionId and st.tripId = :tripId order by st.stopPathIndex",
     )
-    fun findBySchedTripOrdered(
+    fun findByTripOrdered(
         revisionId: Long,
-        schedTripId: Long,
+        tripId: Long,
     ): List<ScheduleTime>
 }
 
@@ -109,9 +80,9 @@ interface BlockTripRepository : RevisionScopedRepository<BlockTrip, Long> {
         blockId: Long,
     ): List<BlockTrip>
 
-    @Query("select bt from BlockTrip bt where bt.revisionId = :revisionId and bt.schedTripId = :schedTripId")
-    fun findBySchedTripId(
+    @Query("select bt from BlockTrip bt where bt.revisionId = :revisionId and bt.tripId = :tripId")
+    fun findByTripId(
         revisionId: Long,
-        schedTripId: Long,
+        tripId: Long,
     ): BlockTrip?
 }

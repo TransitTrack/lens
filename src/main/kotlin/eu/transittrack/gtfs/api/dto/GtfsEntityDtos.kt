@@ -145,6 +145,7 @@ data class StopDto(
 data class TripDto(
     val revisionId: Long,
     val feedCode: String,
+    val id: Long,
     val tripId: String,
     val routeId: String,
     val serviceId: String,
@@ -156,6 +157,10 @@ data class TripDto(
     val wheelchairAccessible: Int?,
     val bikesAllowed: Int?,
     val tripPatternId: Long?,
+    val startTimeSec: Int?,
+    val endTimeSec: Int?,
+    val frequencyBased: Boolean?,
+    val noSchedule: Boolean?,
 ) {
     companion object {
         fun of(
@@ -165,6 +170,7 @@ data class TripDto(
         ) = TripDto(
             revisionId,
             feedCode,
+            e.id!!,
             e.tripId,
             e.routeId,
             e.serviceId,
@@ -176,6 +182,10 @@ data class TripDto(
             e.wheelchairAccessible,
             e.bikesAllowed,
             e.tripPatternId,
+            e.startTimeSec,
+            e.endTimeSec,
+            e.frequencyBased,
+            e.noSchedule,
         )
     }
 }

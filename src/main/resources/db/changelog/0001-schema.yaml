@@ -150,6 +150,10 @@ databaseChangeLog:
               - column: { name: wheelchair_accessible, type: SMALLINT }
               - column: { name: bikes_allowed, type: SMALLINT }
               - column: { name: trip_pattern_id, type: BIGINT }
+              - column: { name: start_time_sec,  type: INT }
+              - column: { name: end_time_sec,    type: INT }
+              - column: { name: frequency_based, type: BOOLEAN }
+              - column: { name: no_schedule,     type: BOOLEAN }
         - addUniqueConstraint: { tableName: trips, columnNames: "revision_id, trip_id", constraintName: uq_trip_rev_id }
         - createIndex:
             indexName: ix_trip_rev_route
@@ -632,49 +636,18 @@ databaseChangeLog:
             columns: [ { column: { name: revision_id } }, { column: { name: stop_id } } ]
 
         - createTable:
-            tableName: sched_trip
-            columns:
-              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
-              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_sched_trip_rev, references: "gtfs_revision(id)", deleteCascade: true } }
-              - column: { name: trip_pattern_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_sched_trip_pattern, references: "trip_patterns(id)", deleteCascade: true } }
-              - column: { name: trip_id, type: VARCHAR(255), constraints: { nullable: false } }
-              - column: { name: route_id, type: VARCHAR(255), constraints: { nullable: false } }
-              - column: { name: service_id, type: VARCHAR(255), constraints: { nullable: false } }
-              - column: { name: direction_id, type: SMALLINT }
-              - column: { name: headsign, type: VARCHAR(500) }
-              - column: { name: trip_short_name, type: VARCHAR(255) }
-              - column: { name: start_time_sec, type: INT, constraints: { nullable: false } }
-              - column: { name: end_time_sec, type: INT, constraints: { nullable: false } }
-              - column: { name: frequency_based, type: BOOLEAN, constraints: { nullable: false } }
-              - column: { name: exact_times, type: SMALLINT }
-              - column: { name: no_schedule, type: BOOLEAN, constraints: { nullable: false }, defaultValueBoolean: false }
-        - addUniqueConstraint: { tableName: sched_trip, columnNames: "revision_id, trip_id", constraintName: uq_sched_trip_rev_trip }
-        - createIndex:
-            indexName: ix_sched_trip_rev_pattern
-            tableName: sched_trip
-            columns: [ { column: { name: revision_id } }, { column: { name: trip_pattern_id } } ]
-        - createIndex:
-            indexName: ix_sched_trip_rev_service
-            tableName: sched_trip
-            columns: [ { column: { name: revision_id } }, { column: { name: service_id } } ]
-        - createIndex:
-            indexName: ix_sched_trip_rev_route
-            tableName: sched_trip
-            columns: [ { column: { name: revision_id } }, { column: { name: route_id } } ]
-
-        - createTable:
             tableName: schedule_time
             columns:
               - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
               - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_schedule_time_rev, references: "gtfs_revision(id)", deleteCascade: true } }
-              - column: { name: sched_trip_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_schedule_time_trip, references: "sched_trip(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_schedule_time_trip, references: "trips(id)", deleteCascade: true } }
               - column: { name: stop_path_index, type: INT, constraints: { nullable: false } }
               - column: { name: arrival_sec, type: INT }
               - column: { name: departure_sec, type: INT }
               - column: { name: interpolated, type: BOOLEAN, constraints: { nullable: false } }
               - column: { name: sched_travel_time_sec, type: INT }
               - column: { name: sched_dwell_time_sec, type: INT }
-        - addUniqueConstraint: { tableName: schedule_time, columnNames: "revision_id, sched_trip_id, stop_path_index", constraintName: uq_schedule_time_rev_trip_idx }
+        - addUniqueConstraint: { tableName: schedule_time, columnNames: "revision_id, trip_id, stop_path_index", constraintName: uq_schedule_time_rev_trip_idx }
 
         - createTable:
             tableName: block
@@ -698,16 +671,16 @@ databaseChangeLog:
               - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
               - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_rev, references: "gtfs_revision(id)", deleteCascade: true } }
               - column: { name: block_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_block, references: "block(id)", deleteCascade: true } }
-              - column: { name: sched_trip_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_trip, references: "sched_trip(id)", deleteCascade: true } }
+              - column: { name: trip_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_block_trip_trip, references: "trips(id)", deleteCascade: true } }
               - column: { name: list_index, type: INT, constraints: { nullable: false } }
               - column: { name: layover_after_sec, type: INT }
               - column: { name: deadhead_after, type: BOOLEAN }
         - addUniqueConstraint: { tableName: block_trip, columnNames: "revision_id, block_id, list_index", constraintName: uq_block_trip_rev_block_idx }
-        - addUniqueConstraint: { tableName: block_trip, columnNames: "revision_id, sched_trip_id", constraintName: uq_block_trip_rev_trip }
+        - addUniqueConstraint: { tableName: block_trip, columnNames: "revision_id, trip_id", constraintName: uq_block_trip_rev_trip }
         - createIndex:
             indexName: ix_block_trip_rev_trip
             tableName: block_trip
-            columns: [ { column: { name: revision_id } }, { column: { name: sched_trip_id } } ]
+            columns: [ { column: { name: revision_id } }, { column: { name: trip_id } } ]
         - createTable:
             tableName: travel_times_for_stop_path
             columns:

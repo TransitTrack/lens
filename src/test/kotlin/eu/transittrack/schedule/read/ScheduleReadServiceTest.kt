@@ -51,10 +51,15 @@ class ScheduleReadServiceTest(
                 .map { it.routeId }
                 .distinct(),
         ).hasSize(1)
-        assertThat(read.schedTrip("sd", "T2", null)!!.routeId).isEqualTo("RA")
         assertThat(read.block("sd", "B1", "WK", null)!!.tripCount).isEqualTo(2)
         assertThat(read.blocksOnDate("sd", "2026-01-05", null)).hasSize(2) // Monday, WK
         assertThat(read.blocksOnDate("sd", "2026-01-06", null)).isEmpty() // WK removed
         assertThat(read.tripsOnDate("sd", "2026-01-05", null, null)).hasSize(5)
+        assertThat(
+            read
+                .tripsOnDate("sd", "2026-01-05", "RA", null)
+                .map { it.routeId }
+                .distinct(),
+        ).isEqualTo(listOf("RA"))
     }
 }

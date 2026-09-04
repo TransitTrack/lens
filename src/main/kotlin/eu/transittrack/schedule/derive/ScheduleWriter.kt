@@ -99,6 +99,6 @@ class ScheduleWriter(
 
     companion object {
         val DELETE_ORDER =
-            listOf("schedule_time", "block_trip", "travel_times_for_stop_path", "stop_path", "sched_trip", "block", "trip_patterns")
+            listOf("schedule_time", "block_trip", "travel_times_for_stop_path", "stop_path", "block", "trip_patterns")
     }
 }

@@ -2,7 +2,6 @@ package eu.transittrack.schedule.read.dto
 
 import eu.transittrack.gtfs.api.dto.ExtentDto
 import eu.transittrack.schedule.model.Block
-import eu.transittrack.schedule.model.SchedTrip
 import eu.transittrack.schedule.model.ScheduleTime
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
@@ -90,46 +89,6 @@ data class StopPathDto(
     }
 }
 
-data class SchedTripDto(
-    val revisionId: Long,
-    val feedCode: String,
-    val tripId: String,
-    val routeId: String,
-    val serviceId: String,
-    val directionId: Int?,
-    val headsign: String?,
-    val tripShortName: String?,
-    val startTimeSec: Int,
-    val endTimeSec: Int,
-    val frequencyBased: Boolean,
-    val exactTimes: Int?,
-    val tripPatternId: Long,
-    val id: Long,
-) {
-    companion object {
-        fun of(
-            e: SchedTrip,
-            revisionId: Long,
-            feedCode: String,
-        ) = SchedTripDto(
-            revisionId,
-            feedCode,
-            e.tripId,
-            e.routeId,
-            e.serviceId,
-            e.directionId,
-            e.headsign,
-            e.tripShortName,
-            e.startTimeSec,
-            e.endTimeSec,
-            e.frequencyBased,
-            e.exactTimes,
-            e.tripPatternId,
-            e.id!!,
-        )
-    }
-}
-
 data class ScheduleTimeDto(
     val revisionId: Long,
     val feedCode: String,
@@ -194,7 +153,7 @@ data class BlockTripDto(
     val listIndex: Int,
     val layoverAfterSec: Int?,
     val deadheadAfter: Boolean?,
-    val schedTripId: Long,
+    val tripId: Long,
 ) {
     companion object {
         fun of(
@@ -207,7 +166,7 @@ data class BlockTripDto(
             e.listIndex,
             e.layoverAfterSec,
             e.deadheadAfter,
-            e.schedTripId,
+            e.tripId,
         )
     }
 }

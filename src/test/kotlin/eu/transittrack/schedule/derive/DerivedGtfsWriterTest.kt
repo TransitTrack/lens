@@ -24,10 +24,17 @@ class DerivedGtfsWriterTest(
     @Autowired val derived: DerivedGtfsWriter,
 ) {
     @Test
-    fun `clearTripPatternLinks nulls trips trip_pattern_id`() {
+    fun `clearTripDerivation nulls trips derived columns`() {
         val rev = newRevision(feeds, revisions)
         gtfsWriter.write(listOf(route(rev, "R", "A"), trip(rev, "R", "T")))
-        derived.clearTripPatternLinks(rev)
-        assertThat(trips.findByTripId(rev, "T")!!.tripPatternId).isNull()
+        val id = trips.findByTripId(rev, "T")!!.id!!
+        derived.applyTripDerivation(
+            listOf(TripDerivation(id, 1L, 100, 200, false, false, "Loop")),
+        )
+        derived.clearTripDerivation(rev)
+        val t = trips.findByTripId(rev, "T")!!
+        assertThat(t.tripPatternId).isNull()
+        assertThat(t.startTimeSec).isNull()
+        assertThat(t.endTimeSec).isNull()
     }
 }

@@ -5,15 +5,15 @@ import java.time.LocalDate
 import org.springframework.stereotype.Service
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.gtfs.api.dto.TripDto
+import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.schedule.model.BlockRepository
-import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPath
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.dto.BlockDto
-import eu.transittrack.schedule.read.dto.SchedTripDto
 import eu.transittrack.schedule.read.dto.StopPathDto
 import eu.transittrack.schedule.read.dto.TripPatternDto
 
@@ -21,7 +21,7 @@ import eu.transittrack.schedule.read.dto.TripPatternDto
 class ScheduleReadService(
     private val patterns: TripPatternRepository,
     private val stopPaths: StopPathRepository,
-    private val schedTrips: SchedTripRepository,
+    private val trips: TripRepository,
     private val blocks: BlockRepository,
     private val travelTimes: TravelTimesForStopPathRepository,
     private val serviceDates: ServiceDateResolver,
@@ -52,15 +52,6 @@ class ScheduleReadService(
         return patterns.findByPatternKey(rev, patternKey)?.let {
             TripPatternDto.of(it, rev, feedCode)
         }
-    }
-
-    fun schedTrip(
-        feedCode: String,
-        tripId: String,
-        revisionId: String?,
-    ): SchedTripDto? {
-        val rev = resolver.resolve(feedCode, revisionId)
-        return schedTrips.findByTripId(rev, tripId)?.let { SchedTripDto.of(it, rev, feedCode) }
     }
 
     fun blocks(
@@ -99,17 +90,17 @@ class ScheduleReadService(
         date: String,
         routeId: String?,
         revisionId: String?,
-    ): List<SchedTripDto> {
+    ): List<TripDto> {
         val rev = resolver.resolve(feedCode, revisionId)
         val services = serviceDates.activeServiceIds(rev, LocalDate.parse(date))
         if (services.isEmpty()) return emptyList()
         val list =
             if (routeId != null) {
-                schedTrips.findByRouteAndServices(rev, routeId, services)
+                trips.findDerivedByRouteAndServices(rev, routeId, services)
             } else {
-                schedTrips.findByServices(rev, services)
+                trips.findDerivedByServices(rev, services)
             }
-        return list.map { SchedTripDto.of(it, rev, feedCode) }
+        return list.map { TripDto.of(it, rev, feedCode) }
     }
 
     /** Parses a stored `path_geometry` JSON string into a List for the `JSON` scalar. */

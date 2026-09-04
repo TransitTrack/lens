@@ -12,7 +12,6 @@ import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.schedule.ScheduleProperties
-import eu.transittrack.schedule.model.SchedTrip
 import eu.transittrack.schedule.model.ScheduleTime
 
 /**
@@ -52,17 +51,14 @@ class SchedTripProcessor(
                 .groupBy { it.tripId }
                 .mapValues { it.value.first() }
 
-        var schedTripCount = 0L
         var scheduleTimeCount = 0L
-        val tripPatternLinks = HashMap<Long, Long>() // trips.id -> trip_patterns.id
+        val tripDerivations = ArrayList<TripDerivation>()
 
         for (route in routes.findByRevisionId(revisionId)) {
             val routeTrips = trips.findByRouteId(revisionId, route.routeId)
             if (routeTrips.isEmpty()) continue
 
-            val newTrips = ArrayList<SchedTrip>()
-            val pendingTimes = ArrayList<PendingTimes>() // parallel to newTrips
-            val derivedBase = state.derivedTrips.size
+            val pendingTimes = ArrayList<Pair<Long, PendingTimes>>() // trips.id -> resolved times
 
             for (trip in routeTrips) {
                 val cleaned = state.cleanedRows[trip.tripId] ?: continue
@@ -102,34 +98,32 @@ class SchedTripProcessor(
                     resolved = r
                 }
 
-                val st =
-                    SchedTrip(
-                        revisionId = revisionId,
+                val startSec = if (noSchedule) 0 else resolved.first().departureSec
+                val endSec = if (noSchedule) 86_400 else resolved.last().arrivalSec
+                val tripRowId = trip.id!!
+
+                tripDerivations.add(
+                    TripDerivation(
+                        tripRowId = tripRowId,
                         tripPatternId = patternId,
-                        tripId = trip.tripId,
-                        routeId = trip.routeId,
-                        serviceId = trip.serviceId,
-                        directionId = trip.directionId,
-                        headsign = Headsigns.resolve(trip.tripHeadsign, cleaned.first().stopHeadsign),
-                        tripShortName = trip.tripShortName,
-                        startTimeSec = if (noSchedule) 0 else resolved.first().departureSec,
-                        endTimeSec = if (noSchedule) 86_400 else resolved.last().arrivalSec,
+                        startTimeSec = startSec,
+                        endTimeSec = endSec,
                         frequencyBased = freq != null,
-                        exactTimes = freq?.exactTimes,
                         noSchedule = noSchedule,
-                    )
-                newTrips.add(st)
-                pendingTimes.add(PendingTimes(resolved, noSchedule))
+                        resolvedHeadsign = Headsigns.resolve(trip.tripHeadsign, cleaned.first().stopHeadsign),
+                    ),
+                )
+                pendingTimes.add(tripRowId to PendingTimes(resolved, noSchedule))
                 state.derivedTrips.add(
                     DerivedTrip(
-                        schedTripId = -1,
+                        tripRowId = tripRowId,
                         tripId = trip.tripId,
                         patternId = patternId,
                         blockId = trip.blockId?.ifBlank { null },
                         serviceId = trip.serviceId,
                         routeId = trip.routeId,
-                        startSec = st.startTimeSec,
-                        endSec = st.endTimeSec,
+                        startSec = startSec,
+                        endSec = endSec,
                         firstStopId = stopIds.first(),
                         lastStopId = stopIds.last(),
                         frequencyBased = freq != null,
@@ -137,21 +131,15 @@ class SchedTripProcessor(
                         resolved = resolved,
                     ),
                 )
-                tripPatternLinks[trip.id!!] = patternId
             }
 
-            writer.write(newTrips) // assigns sched_trip ids
-            schedTripCount += newTrips.size
-            newTrips.forEachIndexed { i, st -> state.derivedTrips[derivedBase + i].schedTripId = st.id!! }
-
             val times = ArrayList<ScheduleTime>()
-            newTrips.forEachIndexed { i, st ->
-                val p = pendingTimes[i]
+            for ((tripRowId, p) in pendingTimes) {
                 for (r in p.resolved) {
                     times.add(
                         ScheduleTime(
                             revisionId = revisionId,
-                            schedTripId = st.id!!,
+                            tripId = tripRowId,
                             stopPathIndex = r.stopPathIndex,
                             arrivalSec = if (p.noSchedule) null else r.arrivalSec,
                             departureSec = if (p.noSchedule) null else r.departureSec,
@@ -166,13 +154,13 @@ class SchedTripProcessor(
             scheduleTimeCount += times.size
         }
 
-        derivedGtfsWriter.applyTripPatternLinks(tripPatternLinks)
-        return mapOf("sched_trip" to schedTripCount, "schedule_time" to scheduleTimeCount)
+        derivedGtfsWriter.applyTripDerivation(tripDerivations)
+        return mapOf("derived_trip" to tripDerivations.size.toLong(), "schedule_time" to scheduleTimeCount)
     }
 
     override fun onIngestionFailure(revisionId: Long) {
-        runCatching { writer.deleteTables(revisionId, "schedule_time", "sched_trip") }
-        runCatching { derivedGtfsWriter.clearTripPatternLinks(revisionId) }
+        runCatching { writer.deleteTables(revisionId, "schedule_time") }
+        runCatching { derivedGtfsWriter.clearTripDerivation(revisionId) }
         runCatching { context.close(revisionId) }
     }
 

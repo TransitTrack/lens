@@ -52,28 +52,10 @@ class StopPath(
 ) : RevisionScoped(revisionId)
 
 @Entity
-@Table(name = "sched_trip")
-class SchedTrip(
-    revisionId: Long,
-    @Column(name = "trip_pattern_id", nullable = false) var tripPatternId: Long,
-    @Column(name = "trip_id", nullable = false) var tripId: String,
-    @Column(name = "route_id", nullable = false) var routeId: String,
-    @Column(name = "service_id", nullable = false) var serviceId: String,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var directionId: Int?,
-    @Column(length = 500) var headsign: String?,
-    var tripShortName: String?,
-    @Column(name = "start_time_sec", nullable = false) var startTimeSec: Int,
-    @Column(name = "end_time_sec", nullable = false) var endTimeSec: Int,
-    @Column(name = "frequency_based", nullable = false) var frequencyBased: Boolean,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var exactTimes: Int?,
-    @Column(name = "no_schedule", nullable = false) var noSchedule: Boolean = false,
-) : RevisionScoped(revisionId)
-
-@Entity
 @Table(name = "schedule_time")
 class ScheduleTime(
     revisionId: Long,
-    @Column(name = "sched_trip_id", nullable = false) var schedTripId: Long,
+    @Column(name = "trip_id", nullable = false) var tripId: Long,
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
     var arrivalSec: Int?,
     var departureSec: Int?,
@@ -99,7 +81,7 @@ class Block(
 class BlockTrip(
     revisionId: Long,
     @Column(name = "block_id", nullable = false) var blockId: Long,
-    @Column(name = "sched_trip_id", nullable = false) var schedTripId: Long,
+    @Column(name = "trip_id", nullable = false) var tripId: Long,
     @Column(name = "list_index", nullable = false) var listIndex: Int,
     var layoverAfterSec: Int?,
     var deadheadAfter: Boolean?,

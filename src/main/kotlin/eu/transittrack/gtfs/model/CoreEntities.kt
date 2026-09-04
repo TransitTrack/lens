@@ -104,6 +104,10 @@ class Trip(
     @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairAccessible: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var bikesAllowed: Int?,
     @Column(name = "trip_pattern_id") var tripPatternId: Long? = null,
+    @Column(name = "start_time_sec") var startTimeSec: Int? = null,
+    @Column(name = "end_time_sec") var endTimeSec: Int? = null,
+    @Column(name = "frequency_based") var frequencyBased: Boolean? = null,
+    @Column(name = "no_schedule") var noSchedule: Boolean? = null,
 ) : RevisionScoped(revisionId)
 
 @Entity
@@ -230,6 +234,30 @@ interface TripRepository : RevisionScopedRepository<Trip, Long> {
     fun findByServiceId(
         revisionId: Long,
         serviceId: String,
+    ): List<Trip>
+
+    @Query("select t from Trip t where t.revisionId = :revisionId and t.tripPatternId = :tripPatternId")
+    fun findByTripPattern(
+        revisionId: Long,
+        tripPatternId: Long,
+    ): List<Trip>
+
+    @Query(
+        "select t from Trip t where t.revisionId = :revisionId and t.tripPatternId is not null and t.serviceId in :serviceIds",
+    )
+    fun findDerivedByServices(
+        revisionId: Long,
+        serviceIds: Collection<String>,
+    ): List<Trip>
+
+    @Query(
+        "select t from Trip t where t.revisionId = :revisionId and t.tripPatternId is not null " +
+            "and t.routeId = :routeId and t.serviceId in :serviceIds",
+    )
+    fun findDerivedByRouteAndServices(
+        revisionId: Long,
+        routeId: String,
+        serviceIds: Collection<String>,
     ): List<Trip>
 }
 

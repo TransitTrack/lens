@@ -32,7 +32,6 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
-import eu.transittrack.schedule.model.SchedTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 
@@ -55,7 +54,6 @@ class BlockProcessorTest(
     @Autowired val shapePoints: ShapePointRepository,
     @Autowired val frequencies: FrequencyRepository,
     @Autowired val patterns: TripPatternRepository,
-    @Autowired val schedTrips: SchedTripRepository,
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val blocks: BlockRepository,
     @Autowired val blockTrips: BlockTripRepository,
@@ -102,14 +100,14 @@ class BlockProcessorTest(
         assertThat(block.endTimeSec).isEqualTo(33000)
         assertThat(block.tripCount).isEqualTo(2)
         val bts = blockTrips.findByBlockIdOrdered(rev, block.id!!)
-        val t1 = schedTrips.findByTripId(rev, "T1")!!
-        assertThat(bts.map { it.schedTripId }).isEqualTo(listOf(t1.id, schedTrips.findByTripId(rev, "T2")!!.id))
+        val t1 = trips.findByTripId(rev, "T1")!!
+        assertThat(bts.map { it.tripId }).isEqualTo(listOf(t1.id, trips.findByTripId(rev, "T2")!!.id))
         assertThat(bts[0].layoverAfterSec).isEqualTo(600)
         assertThat(bts[0].deadheadAfter).isEqualTo(false)
 
         // layover write-back: T1's pattern ends on a >= 60s block gap, so its last
         // stop path is marked a layover stop with a break time.
-        val t1Paths = stopPaths.findByTripPatternOrdered(rev, t1.tripPatternId)
+        val t1Paths = stopPaths.findByTripPatternOrdered(rev, t1.tripPatternId!!)
         assertThat(t1Paths.last().layoverStop).isTrue()
         assertThat(t1Paths.last().breakTimeSec).isNotNull()
     }

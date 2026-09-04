@@ -18,7 +18,7 @@ class DerivationState {
 }
 
 class DerivedTrip(
-    var schedTripId: Long,
+    val tripRowId: Long,
     val tripId: String,
     val patternId: Long,
     val blockId: String?,

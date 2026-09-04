@@ -48,7 +48,7 @@ class BlockProcessor(
                 .filter { it.blockId != null && !it.frequencyBased && !it.noSchedule }
                 .map {
                     BlockTripInput(
-                        schedTripId = it.schedTripId,
+                        schedTripId = it.tripRowId,
                         blockId = it.blockId!!,
                         serviceId = it.serviceId,
                         routeId = it.routeId,
@@ -82,7 +82,7 @@ class BlockProcessor(
                     BlockTrip(
                         revisionId = revisionId,
                         blockId = blockPk,
-                        schedTripId = u.schedTripId,
+                        tripId = u.schedTripId,
                         listIndex = u.listIndex,
                         layoverAfterSec = u.layoverAfterSec,
                         deadheadAfter = u.deadheadAfter,
@@ -98,9 +98,10 @@ class BlockProcessor(
                 .flatMap { it.tripUpdates }
                 .filter { (it.layoverAfterSec ?: -1) >= props.layoverThresholdSec }
                 .associate { it.schedTripId to it.layoverAfterSec!! }
+        // NOTE: layoverByTrip is keyed by trips.id (BlockBuilder carries it through `schedTripId`).
         val layoverUpdates = ArrayList<StopPathLayoverUpdate>()
         for ((patternId, tripsOfPattern) in state.derivedTrips.groupBy { it.patternId }) {
-            val gaps = tripsOfPattern.mapNotNull { layoverByTrip[it.schedTripId] }
+            val gaps = tripsOfPattern.mapNotNull { layoverByTrip[it.tripRowId] }
             if (gaps.isEmpty()) continue
             val pathIds = state.patternStopPathIds[patternId] ?: continue
             layoverUpdates.add(
@@ -142,7 +143,7 @@ class BlockProcessor(
                 BlockTrip(
                     revisionId = revisionId,
                     blockId = freqPk.getValue(bid to dt.serviceId),
-                    schedTripId = dt.schedTripId,
+                    tripId = dt.tripRowId,
                     listIndex = 0,
                     layoverAfterSec = null,
                     deadheadAfter = null,
@@ -191,7 +192,7 @@ class BlockProcessor(
                         BlockTrip(
                             revisionId = revisionId,
                             blockId = blockPk,
-                            schedTripId = t.schedTripId,
+                            tripId = t.tripRowId,
                             listIndex = i,
                             // Both trips are synthesised with startSec=0/endSec=86_400, so a
                             // real layover gap is meaningless between two no-schedule trips.
