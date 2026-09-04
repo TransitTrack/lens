@@ -18,6 +18,8 @@ import org.springframework.stereotype.Repository
 
 import eu.transittrack.avl.AvlAssignmentMode
 import eu.transittrack.avl.AvlFormat
+import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.PredictionMode
 
 enum class AvlFeedSourceKind { CONFIG, API }
 
@@ -33,6 +35,12 @@ class AvlFeed(
     @JdbcTypeCode(SqlTypes.SMALLINT)
     @Column(name = "assignment_mode", nullable = false)
     var assignmentMode: AvlAssignmentMode,
+    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Column(name = "prediction_algorithm", nullable = false)
+    var predictionAlgorithm: PredictionAlgorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE,
+    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Column(name = "prediction_mode", nullable = false)
+    var predictionMode: PredictionMode = PredictionMode.SINGLE,
     @Column(nullable = false) var enabled: Boolean,
     @JdbcTypeCode(SqlTypes.JSON) @Column var headers: Map<String, String>?,
     @Enumerated(EnumType.STRING) @Column(nullable = false) var source: AvlFeedSourceKind,

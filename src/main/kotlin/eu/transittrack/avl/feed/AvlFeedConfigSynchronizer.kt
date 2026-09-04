@@ -50,6 +50,8 @@ class AvlFeedConfigSynchronizer(
                             format = def.format,
                             pollIntervalSec = def.pollIntervalSec,
                             assignmentMode = def.assignmentMode,
+                            predictionAlgorithm = def.predictionAlgorithm,
+                            predictionMode = def.predictionMode,
                             enabled = def.enabled,
                             headers = def.headers.ifEmpty { null },
                             source = AvlFeedSourceKind.CONFIG,
@@ -72,6 +74,8 @@ class AvlFeedConfigSynchronizer(
                     existing.format = def.format
                     existing.pollIntervalSec = def.pollIntervalSec
                     existing.assignmentMode = def.assignmentMode
+                    existing.predictionAlgorithm = def.predictionAlgorithm
+                    existing.predictionMode = def.predictionMode
                     existing.enabled = def.enabled
                     existing.headers = def.headers.ifEmpty { null }
                     existing.updatedAt = now

@@ -72,6 +72,18 @@ transittrack:
         code: stpt-vehicle-positions-rt
         url: https://live.stpt.ro/gtfs-vehicles.php
         gtfs-feed-code: stpt
+        predictionAlgorithm: SCHEDULE_ADHERENCE
+        predictionMode: SINGLE
+  predict:
+    enabled: false
+    learn:
+      max-plausible-travel-time-sec: 1800
+      kalman-measurement-noise-sec2: 400.0
+      kalman-initial-variance-sec2: 3600.0
+    retention:
+      prediction-hours: 6
+      accuracy-days: 30
+      sweep-cron: "0 15 * * * *"
 
 logging:
   pattern:

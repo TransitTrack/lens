@@ -3,6 +3,9 @@ package eu.transittrack.avl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
+import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.PredictionMode
+
 enum class AvlFormat { GTFS_RT, STPT }
 
 enum class AvlAssignmentMode { TRUST_DESCRIPTOR, DESCRIPTOR_THEN_INFER, FULL_INFERENCE }
@@ -59,5 +62,7 @@ data class AvlProperties(
         val assignmentMode: AvlAssignmentMode = AvlAssignmentMode.FULL_INFERENCE,
         val enabled: Boolean = true,
         val headers: Map<String, String> = emptyMap(),
+        val predictionAlgorithm: PredictionAlgorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE,
+        val predictionMode: PredictionMode = PredictionMode.SINGLE,
     )
 }
