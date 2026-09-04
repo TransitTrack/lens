@@ -3,7 +3,7 @@ package eu.transittrack.avl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
-enum class AvlFormat { GTFS_RT }
+enum class AvlFormat { GTFS_RT, STPT }
 
 enum class AvlAssignmentMode { TRUST_DESCRIPTOR, DESCRIPTOR_THEN_INFER, FULL_INFERENCE }
 

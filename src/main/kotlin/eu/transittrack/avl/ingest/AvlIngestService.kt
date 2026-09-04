@@ -30,6 +30,7 @@ class AvlIngestService(
     private val log = LoggerFactory.getLogger(javaClass)
     private val decoders: Map<AvlFormat, AvlFeedDecoder> = decoders.associateBy { it.format }
 
+    @Transactional
     fun pollOnce(feed: AvlFeed): Int {
         val decoder =
             decoders[feed.format]

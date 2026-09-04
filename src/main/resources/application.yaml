@@ -51,7 +51,7 @@ transittrack:
     layover-threshold-sec: 60
     stop-projection-max-deviation-m: 100
   avl:
-    enabled: false
+    enabled: true
     http:
       connect-timeout-ms: 5000
       read-timeout-ms: 15000
@@ -66,7 +66,12 @@ transittrack:
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0
       unmatch-after-failures: 3
-    feeds: []
+    feeds:
+      - format: stpt
+        name: STPT vehicle positions rt
+        code: stpt-vehicle-positions-rt
+        url: https://live.stpt.ro/gtfs-vehicles.php
+        gtfs-feed-code: stpt
 
 logging:
   pattern:
