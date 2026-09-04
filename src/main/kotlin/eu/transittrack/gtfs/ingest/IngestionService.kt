@@ -142,10 +142,11 @@ class IngestionService(
                 it.validationReport = loadReport.toJson()
             }
             if (!loadReport.loaded || (props.ingest.strictValidation && loadReport.errorCount > 0)) {
+                log.warn("Validation failed! ${loadReport.errorCount} errors found")
                 throw GtfsValidationException(loadReport)
             }
 
-            log.info("Starting processing of ${feed.code}")
+            log.info("Validation successful -> Starting processing of ${feed.code}")
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING)
 
             val rowCounts = LinkedHashMap<String, Long>()
