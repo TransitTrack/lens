@@ -70,7 +70,7 @@ class AvlPoller(
         val feed = feeds.findById(feedId).orElse(null) ?: return
         if (!feed.enabled) return
         runCatching { ingest.pollOnce(feed) }
-            .onFailure { log.warn("avl poll for feed '{}' failed: {}", feed.code, it.message) }
+            .onFailure { log.warn("avl poll for feed '{}' failed", feed.code, it) }
     }
 
     /** test hook */
