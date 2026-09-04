@@ -208,7 +208,11 @@ class ScheduleDerivationEdgeCaseTest(
         runAllStages(rev)
 
         // E4 visits GHOST, which is not in stops.txt -> not derived, no pattern from it.
-        assertThat(trips.findByTripId(rev, "E4")!!.tripPatternId).isNull()
+        // The skipped trip keeps every derived column NULL (mirrors the GraphQL
+        // `trip(...){ startTimeSec pattern }` contract: both come back null).
+        val e4 = trips.findByTripId(rev, "E4")!!
+        assertThat(e4.tripPatternId).isNull()
+        assertThat(e4.startTimeSec).isNull()
         assertThat(trips.findByTripId(rev, "E5")!!.tripPatternId).isNotNull()
         assertThat(patterns.findByRouteId(rev, "RC")).hasSize(1)
 
@@ -440,6 +444,8 @@ class ScheduleDerivationEdgeCaseTest(
         assertThat(rowCount("stop_path")).isEqualTo(0)
         assertThat(rowCount("schedule_time")).isEqualTo(0)
         assertThat(rowCount("block")).isEqualTo(0)
+        // derived columns on the surviving raw trips are NULL on a FAILED revision
+        assertThat(trips.findByRevisionId(rev).all { it.tripPatternId == null }).isTrue()
     }
 
     // --- FIX 1: a pipeline failure AFTER a successful derivation still wipes schedule rows ---

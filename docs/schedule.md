@@ -10,7 +10,9 @@ Design specs:
 (original model) and
 [`2026-09-03-schedule-derivation-processors-design.md`](superpowers/specs/2026-09-03-schedule-derivation-processors-design.md)
 (current build: six `@Order`ed `IngestionPostProcessor` beans in
-`schedule.derive`, travel times moved to `travel_times_for_stop_path`).
+`schedule.derive`, travel times moved to `travel_times_for_stop_path`) and
+[`2026-09-03-graphql-deprefix-schedtrip-merge-design.md`](superpowers/specs/2026-09-03-graphql-deprefix-schedtrip-merge-design.md)
+(de-prefixed GraphQL names; `SchedTrip` merged into `Trip` as derived columns on `trips`).
 This is sub-project #1 of 3 toward AVL-based arrival/departure prediction
 (the others: AVL ingestion, prediction engine).
 
@@ -29,9 +31,13 @@ step entirely.
 | `trip_pattern` | distinct `(routeId, shapeId, ordered stop-id list)` | `pattern_key`, `route_id`, `direction_id`, `shape_id`, extent bbox |
 | `stop_path` | stop in a pattern (segment prev-stop -> this-stop) | `stop_path_index`, `length_m`, `path_geometry`, `wait_stop`, `layover_stop` |
 | `travel_times_for_stop_path` | `(trip_pattern_id, stop_path_index)` | `travel_time_sec`, `dwell_time_sec`, `how_set` (median scheduled travel/dwell for the pattern) |
-| `sched_trip` | GTFS trip | `trip_id`, `trip_pattern_id`, `block_id`, `block_seq`, `start_time_sec`, `frequency_based` |
-| `schedule_time` | stop in a trip | `arrival_sec`, `departure_sec`, `interpolated`, `sched_travel_time_sec` |
+| `schedule_time` | stop in a trip (keyed by `trips.id`) | `arrival_sec`, `departure_sec`, `interpolated`, `sched_travel_time_sec` |
 | `block` | `(block_id, service_id)` | `start_time_sec`, `end_time_sec`, `route_ids` |
+| `block_trip` | trip in a block | `block_id` (→ `block.id`), `trip_id` (→ `trips.id`), `list_index`, `layover_after_sec`, `deadhead_after` |
+
+There is no separate `sched_trip` table: derivation back-fills the per-trip
+results onto the raw **`trips`** row — `trip_pattern_id`, `start_time_sec`,
+`end_time_sec`, `frequency_based`, `no_schedule` (and a blank `trip_headsign`).
 
 All times are **seconds into the service day** (may exceed 86400). All tables
 are revision-scoped and cascade-delete with `gtfs_revision`.
@@ -49,8 +55,9 @@ trip's shape and slicing the polyline between consecutive projections; a stop
 that projects more than `stop-projection-max-deviation-m` (default 100 m) from
 the shape, or a trip with no shape, falls back to a straight line between stop
 coordinates. A trip that references a stop with no resolvable `(lat, lon)` is
-skipped with a warning naming the trip, route and stop — it produces no
-`sched_trip` row rather than a pattern measured against `(0, 0)`.
+skipped with a warning naming the trip, route and stop — its `trips` row keeps
+every derived column NULL (`trip_pattern_id`, `start_time_sec`, …) rather than
+producing a pattern measured against `(0, 0)`.
 
 ## Schedule times
 
@@ -66,8 +73,8 @@ later be layered in.
 ## Blocks and layovers
 
 Trips sharing `(block_id, service_id)` are ordered by start time into a block;
-`sched_trip.layover_after_sec` / `deadhead_after` describe the gap to the next
-trip. A pattern's last `stop_path` is flagged `layover_stop` with a
+each `block_trip.layover_after_sec` / `deadhead_after` describes the gap to the
+next trip. A pattern's last `stop_path` is flagged `layover_stop` with a
 `break_time_sec` when **any** trip on that pattern lays over at least
 `layover-threshold-sec` (default 60 s) — this is a pattern-level heuristic,
 not a per-trip guarantee.
@@ -76,7 +83,7 @@ not a per-trip guarantee.
 
 Trips listed in `frequencies.txt` get a pattern, stop paths and
 `schedule_time` rows expressed as **offsets from 0** (first departure).
-`sched_trip.frequency_based = true` and `exact_times` is carried through; the
+`trips.frequency_based = true` and `exact_times` is carried through; the
 concrete departure times come from `gtfs_frequency` windows at read /
 prediction time. Frequency trips are **not placed in blocks** even when they
 carry a `block_id`, because their 0-based start times would sort to the front
@@ -88,16 +95,20 @@ deferred to the prediction sub-project.
 ```
 tripPatterns(feedCode, routeId, revisionId): [TripPattern!]!
 tripPattern(feedCode, patternKey, revisionId): TripPattern
-schedTrip(feedCode, tripId, revisionId): SchedTrip
 blocks(feedCode, revisionId): [Block!]!
 block(feedCode, blockId, serviceId, revisionId): Block
 blocksOnDate(feedCode, date, revisionId): [Block!]!
-tripsOnDate(feedCode, date, routeId, revisionId): [SchedTrip!]!
+tripsOnDate(feedCode, date, routeId, revisionId): [Trip!]!
 ```
 
+The derived per-trip fields live on the GTFS `Trip` type itself — query them via
+`trip(feedCode, tripId, revisionId)`: `startTimeSec`, `endTimeSec`,
+`frequencyBased`, `noSchedule`, plus nested `pattern`, `block` and
+`scheduleTimes`. A trip that derivation skipped returns these as `null`.
+
 Nested: `TripPattern.route/stopPaths/trips`, `StopPath.stop`,
-`SchedTrip.pattern/route/block/scheduleTimes`, `Block.trips` (ordered by
-`block_seq`), plus `GtfsRoute.tripPatterns` and `GtfsTrip.schedTrip`.
+`Block.trips` / `Block.blockTrips` (ordered by `list_index`),
+`BlockTrip.trip`, plus `Route.tripPatterns`.
 `blocksOnDate` / `tripsOnDate` resolve active `service_id`s via
 `ServiceDateResolver` (calendar windows + `calendar_dates` exceptions);
 `date` is ISO-8601 and interpreted as a service day (no timezone math).

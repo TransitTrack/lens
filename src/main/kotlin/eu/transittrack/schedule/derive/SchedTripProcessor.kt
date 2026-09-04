@@ -16,12 +16,14 @@ import eu.transittrack.schedule.model.ScheduleTime
 
 /**
  * Stage 2 of schedule derivation. Per route, per trip: interpolate the cleaned stop_times into a
- * dense schedule, 0-base frequency trips, build `sched_trip` + `schedule_time`, link the raw
- * `trips.trip_pattern_id`, and append a [DerivedTrip] to the shared context for later stages.
+ * dense schedule, 0-base frequency trips, back-fill the derived columns on `trips`
+ * (`trip_pattern_id`, `start_time_sec`, `end_time_sec`, `frequency_based`, `no_schedule`, blank
+ * `trip_headsign`) via [DerivedGtfsWriter.applyTripDerivation], write `schedule_time` rows keyed by
+ * `trips.id`, and append a [DerivedTrip] to the shared context for later stages.
  *
  * A trip whose stop_times carry no arrival/departure at all is "no-schedule": rejected (interpolation
- * throws) unless [ScheduleProperties.tolerateNoScheduleTrips], in which case it becomes a
- * `sched_trip` with `no_schedule = true`, a 0..86400 span and null `schedule_time` arr/dep.
+ * throws) unless [ScheduleProperties.tolerateNoScheduleTrips], in which case its `trips` row gets
+ * `no_schedule = true` and a 0..86400 span, with null `schedule_time` arr/dep.
  */
 @Component
 @Order(SchedTripProcessor.ORDER)

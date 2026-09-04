@@ -19,9 +19,14 @@ data class TripDerivation(
 )
 
 /**
- * Writes derivation results back onto raw GTFS tables — route / agency extents and the
- * `trips.trip_pattern_id` link. Kept separate from [ScheduleWriter], which owns the derived tables
- * and whose `deleteForRevision` must not touch GTFS tables.
+ * Writes derivation results back onto raw GTFS tables:
+ *  - route / agency extents (`applyRouteExtents` / `applyAgencyExtents`, undone by `clearExtents`);
+ *  - the four derived schedule columns on `trips` (`trip_pattern_id`, `start_time_sec`,
+ *    `end_time_sec`, `frequency_based`, `no_schedule`) plus a blank `trip_headsign` filled from the
+ *    resolved headsign (`applyTripDerivation`, undone by `clearTripDerivation`).
+ *
+ * Kept separate from [ScheduleWriter], which owns the derived tables and whose `deleteForRevision`
+ * must not touch GTFS tables.
  */
 @Component
 @ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")

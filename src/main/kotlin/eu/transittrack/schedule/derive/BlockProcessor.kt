@@ -48,7 +48,7 @@ class BlockProcessor(
                 .filter { it.blockId != null && !it.frequencyBased && !it.noSchedule }
                 .map {
                     BlockTripInput(
-                        schedTripId = it.tripRowId,
+                        tripRowId = it.tripRowId,
                         blockId = it.blockId!!,
                         serviceId = it.serviceId,
                         routeId = it.routeId,
@@ -82,7 +82,7 @@ class BlockProcessor(
                     BlockTrip(
                         revisionId = revisionId,
                         blockId = blockPk,
-                        tripId = u.schedTripId,
+                        tripId = u.tripRowId,
                         listIndex = u.listIndex,
                         layoverAfterSec = u.layoverAfterSec,
                         deadheadAfter = u.deadheadAfter,
@@ -97,8 +97,7 @@ class BlockProcessor(
             results
                 .flatMap { it.tripUpdates }
                 .filter { (it.layoverAfterSec ?: -1) >= props.layoverThresholdSec }
-                .associate { it.schedTripId to it.layoverAfterSec!! }
-        // NOTE: layoverByTrip is keyed by trips.id (BlockBuilder carries it through `schedTripId`).
+                .associate { it.tripRowId to it.layoverAfterSec!! }
         val layoverUpdates = ArrayList<StopPathLayoverUpdate>()
         for ((patternId, tripsOfPattern) in state.derivedTrips.groupBy { it.patternId }) {
             val gaps = tripsOfPattern.mapNotNull { layoverByTrip[it.tripRowId] }

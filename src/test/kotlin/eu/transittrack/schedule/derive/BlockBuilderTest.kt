@@ -20,11 +20,11 @@ class BlockBuilderTest {
         assertThat(b.startTimeSec).isEqualTo(28800)
         assertThat(b.endTimeSec).isEqualTo(33000)
         assertThat(b.routeIds).isEqualTo(listOf("RA"))
-        val u1 = b.tripUpdates.first { it.schedTripId == 1L }
+        val u1 = b.tripUpdates.first { it.tripRowId == 1L }
         assertThat(u1.listIndex).isEqualTo(0)
         assertThat(u1.layoverAfterSec).isEqualTo(600) // 31200 - 30600
         assertThat(u1.deadheadAfter).isEqualTo(false) // S4 == S4
-        val u4 = b.tripUpdates.first { it.schedTripId == 2L }
+        val u4 = b.tripUpdates.first { it.tripRowId == 2L }
         assertThat(u4.listIndex).isEqualTo(1)
         assertThat(u4.layoverAfterSec).isNull()
         assertThat(u4.deadheadAfter).isNull()
@@ -39,7 +39,7 @@ class BlockBuilderTest {
                 .build(listOf(a, b))
                 .single()
                 .tripUpdates
-                .first { it.schedTripId == 1L }
+                .first { it.tripRowId == 1L }
         assertThat(u.deadheadAfter).isEqualTo(true)
     }
 

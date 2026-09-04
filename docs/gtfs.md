@@ -46,13 +46,13 @@ transittrack:
 
 The list may be empty — feeds can then be created purely via the mutation below.
 
-### 1b. GraphQL mutation (`registerGtfsFeed`)
+### 1b. GraphQL mutation (`registerFeed`)
 
 Creates a feed with `source = API`:
 
 ```graphql
 mutation {
-  registerGtfsFeed(input: {
+  registerFeed(input: {
     code: "wroclaw"
     name: "Wrocław"
     url: "https://przystanek.wroclaw.pl/feed/gtfs.zip"
@@ -67,9 +67,9 @@ Feed CRUD:
 
 | Mutation | Notes |
 | --- | --- |
-| `registerGtfsFeed(input: RegisterGtfsFeedInput!): GtfsFeed!` | `code`, `name`, `url` required; `description`, `pollingCron`, `enabled`, `autoActivate` optional |
-| `updateGtfsFeed(code: String!, input: UpdateGtfsFeedInput!): GtfsFeed!` | `name` and `url` required in the input |
-| `deleteGtfsFeed(code: String!): Boolean!` | deletes the feed and its revisions |
+| `registerFeed(input: RegisterFeedInput!): Feed!` | `code`, `name`, `url` required; `description`, `pollingCron`, `enabled`, `autoActivate` optional |
+| `updateFeed(code: String!, input: UpdateFeedInput!): Feed!` | `name` and `url` required in the input |
+| `deleteFeed(code: String!): Boolean!` | deletes the feed and its revisions |
 
 ---
 
@@ -128,8 +128,9 @@ Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `DERIVING`, `RE
    transitions to `DERIVING` and the six `@Order`ed `IngestionPostProcessor` beans
    in `eu.transittrack.schedule.derive` (`TripPatternProcessor` 10 →
    `DerivationFinalizeProcessor` 60) build `trip_pattern` / `stop_path` /
-   `sched_trip` / `schedule_time` / `travel_times_for_stop_path` / `block` for the
-   revision and merge their counts into `row_counts`. Any failure funnels to `FAILED` like
+   `schedule_time` / `travel_times_for_stop_path` / `block` / `block_trip`, back-fill
+   the derived columns on `trips` (`trip_pattern_id`, `start_time_sec`, …), and
+   merge their counts into `row_counts`. Any failure funnels to `FAILED` like
    every other step. See [docs/schedule.md](schedule.md).
 8. **Ready → Activate** — status becomes `READY`. If the effective
    `auto-activate` (feed override, else `ingest.auto-activate`, default `true`)
@@ -159,8 +160,8 @@ size.
 
 | Mutation | Notes |
 | --- | --- |
-| `ingestFeed(feedCode: String!): GtfsRevision!` | starts a new ingest, returns the `PENDING` revision |
-| `activateRevision(revisionId: ID!): GtfsRevision!` | sets the given revision to `ACTIVE` and demotes the feed's current `ACTIVE` to `SUPERSEDED`. No status precondition is enforced — any revision id is accepted, so callers are responsible for passing a sensible one (normally a `READY` revision). |
+| `ingestFeed(feedCode: String!): Revision!` | starts a new ingest, returns the `PENDING` revision |
+| `activateRevision(revisionId: ID!): Revision!` | sets the given revision to `ACTIVE` and demotes the feed's current `ACTIVE` to `SUPERSEDED`. No status precondition is enforced — any revision id is accepted, so callers are responsible for passing a sensible one (normally a `READY` revision). |
 | `deleteRevision(revisionId: ID!): Boolean!` | deletes the revision and its rows; **refuses the `ACTIVE` revision** |
 
 ---
@@ -233,29 +234,31 @@ error is raised if the feed has none).
 ### Feed / revision queries
 
 ```
-gtfsFeeds: [GtfsFeed!]!
-gtfsFeed(code: String!): GtfsFeed
-gtfsRevisions(feedCode: String!, status: GtfsRevisionStatus): [GtfsRevision!]!
-gtfsRevision(id: ID!): GtfsRevision
+feeds: [Feed!]!
+feed(code: String!): Feed
+revisions(feedCode: String!, status: RevisionStatus): [Revision!]!
+revision(id: ID!): Revision
 ```
 
 ### Typed entity queries
 
 ```
-gtfsAgencies / gtfsRoutes / gtfsRoute / gtfsStops / gtfsStop /
-gtfsTrips / gtfsTrip / gtfsStopTimes / gtfsCalendars / gtfsCalendarDates /
-gtfsShape / gtfsFrequencies / gtfsTransfers / gtfsFeedInfo / gtfsPathways / gtfsLevels
+agencies / routes / route / stops / stop /
+trips / trip / stopTimes / calendars / calendarDates /
+shape / frequencies / transfers / feedInfo / pathways / levels
 ```
 
-Nested resolvers: `GtfsRoute.agency`, `GtfsRoute.trips`, `GtfsTrip.route`,
-`GtfsTrip.stopTimes`, `GtfsTrip.shape`, `GtfsStopTime.stop`, `GtfsStop.childStops`,
-`GtfsStop.level` — all scoped to the parent's `revision_id`.
+Nested resolvers: `Route.agency`, `Route.trips`, `Trip.route`,
+`Trip.stopTimes`, `Trip.shape`, `StopTime.stop`, `Stop.childStops`,
+`Stop.level` — all scoped to the parent's `revision_id`. `Trip` also carries the
+derived schedule fields and resolvers (`startTimeSec`, `pattern`, `block`, …);
+see [docs/schedule.md](schedule.md).
 
 ### Worked example
 
 ```graphql
 {
-  gtfsFeed(code: "wroclaw") {
+  feed(code: "wroclaw") {
     source
     activeRevision {
       status
@@ -263,7 +266,7 @@ Nested resolvers: `GtfsRoute.agency`, `GtfsRoute.trips`, `GtfsTrip.route`,
       validationSummary { errorCount warningCount }
     }
   }
-  gtfsStopTimes(feedCode: "wroclaw", tripId: "T1") {
+  stopTimes(feedCode: "wroclaw", tripId: "T1") {
     stopSequence
     arrivalTime
     stop { stopName }
@@ -273,7 +276,7 @@ Nested resolvers: `GtfsRoute.agency`, `GtfsRoute.trips`, `GtfsTrip.route`,
 
 ```json
 {
-  "gtfsFeed": {
+  "feed": {
     "source": "CONFIG",
     "activeRevision": {
       "status": "ACTIVE",
@@ -281,24 +284,24 @@ Nested resolvers: `GtfsRoute.agency`, `GtfsRoute.trips`, `GtfsTrip.route`,
       "validationSummary": { "errorCount": 0, "warningCount": 0 }
     }
   },
-  "gtfsStopTimes": [
+  "stopTimes": [
     { "stopSequence": 1, "arrivalTime": "08:00:00", "stop": { "stopName": "First" } },
     { "stopSequence": 2, "arrivalTime": "08:10:00", "stop": { "stopName": "Second" } }
   ]
 }
 ```
 
-### `gtfsRecords` — long-tail escape hatch
+### `records` — long-tail escape hatch
 
 The Fares v2 graph, areas/networks, translations, attributions, location groups
 and `locations.geojson` are stored and validated but not yet exposed as typed
 GraphQL. They are readable as raw JSON rows via:
 
 ```
-gtfsRecords(feedCode: String!, table: GtfsTable!, revisionId: ID): [JSON!]!
+records(feedCode: String!, table: Table!, revisionId: ID): [JSON!]!
 ```
 
-`GtfsTable` enum values (GTFS *file* names, plural):
+`Table` enum values (GTFS *file* names, plural):
 
 ```
 FARE_ATTRIBUTES  FARE_RULES  TIMEFRAMES  RIDER_CATEGORIES  FARE_MEDIA  FARE_PRODUCTS
@@ -308,7 +311,7 @@ TRANSLATIONS  ATTRIBUTIONS
 ```
 
 ```graphql
-{ gtfsRecords(feedCode: "wroclaw", table: FARE_PRODUCTS) }
+{ records(feedCode: "wroclaw", table: FARE_PRODUCTS) }
 ```
 
 Typed GraphQL for these entities is a documented follow-up.
