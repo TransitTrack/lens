@@ -48,6 +48,7 @@ dependencies {
     implementation("com.google.flogger:flogger-slf4j-backend:0.8")
     implementation("com.google.guava:guava:33.6.0-jre")
     implementation("io.github.classgraph:classgraph:4.8.194")
+    implementation("org.mobilitydata:gtfs-realtime-bindings:0.0.8")
 
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")

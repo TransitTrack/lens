@@ -50,6 +50,23 @@ transittrack:
     enabled: true
     layover-threshold-sec: 60
     stop-projection-max-deviation-m: 100
+  avl:
+    enabled: false
+    http:
+      connect-timeout-ms: 5000
+      read-timeout-ms: 15000
+      max-size-bytes: 33554432
+      user-agent: "transittrack/0.0.1"
+    retention:
+      report-hours: 24
+      match-hours: 72
+      stale-vehicle-hours: 12
+      sweep-cron: "0 0 * * * *"
+    match:
+      backtrack-tolerance-m: 30.0
+      max-deviation-m: 60.0
+      unmatch-after-failures: 3
+    feeds: []
 
 logging:
   pattern:
