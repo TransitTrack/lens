@@ -17,39 +17,39 @@ class GtfsQueryController(
     private val recordsService: GtfsRecordsService,
 ) {
     @QueryMapping
-    fun gtfsAgencies(
+    fun agencies(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.agencies(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsRoutes(
+    fun routes(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.routes(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsRoute(
+    fun route(
         @Argument feedCode: String,
         @Argument routeId: String,
         @Argument revisionId: String?,
     ) = read.route(feedCode, routeId, revisionId)
 
     @QueryMapping
-    fun gtfsStops(
+    fun stops(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.stops(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsStop(
+    fun stop(
         @Argument feedCode: String,
         @Argument stopId: String,
         @Argument revisionId: String?,
     ) = read.stop(feedCode, stopId, revisionId)
 
     @QueryMapping
-    fun gtfsTrips(
+    fun trips(
         @Argument feedCode: String,
         @Argument routeId: String?,
         @Argument serviceId: String?,
@@ -57,72 +57,72 @@ class GtfsQueryController(
     ) = read.trips(feedCode, routeId, serviceId, revisionId)
 
     @QueryMapping
-    fun gtfsTrip(
+    fun trip(
         @Argument feedCode: String,
         @Argument tripId: String,
         @Argument revisionId: String?,
     ) = read.trip(feedCode, tripId, revisionId)
 
     @QueryMapping
-    fun gtfsStopTimes(
+    fun stopTimes(
         @Argument feedCode: String,
         @Argument tripId: String,
         @Argument revisionId: String?,
     ) = read.stopTimes(feedCode, tripId, revisionId)
 
     @QueryMapping
-    fun gtfsCalendars(
+    fun calendars(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.calendars(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsCalendarDates(
+    fun calendarDates(
         @Argument feedCode: String,
         @Argument serviceId: String?,
         @Argument revisionId: String?,
     ) = read.calendarDates(feedCode, serviceId, revisionId)
 
     @QueryMapping
-    fun gtfsShape(
+    fun shape(
         @Argument feedCode: String,
         @Argument shapeId: String,
         @Argument revisionId: String?,
     ) = read.shape(feedCode, shapeId, revisionId)
 
     @QueryMapping
-    fun gtfsFrequencies(
+    fun frequencies(
         @Argument feedCode: String,
         @Argument tripId: String?,
         @Argument revisionId: String?,
     ) = read.frequencies(feedCode, tripId, revisionId)
 
     @QueryMapping
-    fun gtfsTransfers(
+    fun transfers(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.transfers(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsFeedInfo(
+    fun feedInfo(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.feedInfo(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsPathways(
+    fun pathways(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.pathways(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsLevels(
+    fun levels(
         @Argument feedCode: String,
         @Argument revisionId: String?,
     ) = read.levels(feedCode, revisionId)
 
     @QueryMapping
-    fun gtfsRecords(
+    fun records(
         @Argument feedCode: String,
         @Argument table: String,
         @Argument revisionId: String?,

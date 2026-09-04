@@ -40,7 +40,7 @@ class StopPath(
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
     @Column(name = "stop_id", nullable = false) var stopId: String,
     @Column(name = "route_id") var routeId: String? = null,
-    @Column(name = "gtfs_stop_seq", nullable = false) var gtfsStopSeq: Int,
+    @Column(name = "gtfs_stop_seq", nullable = false) var stopSeq: Int,
     @Column(name = "length_m", nullable = false) var lengthM: Double,
     @JdbcTypeCode(SqlTypes.JSON) @Column(name = "path_geometry") var pathGeometry: String?,
     @JdbcTypeCode(SqlTypes.SMALLINT) var pickupType: Int?,

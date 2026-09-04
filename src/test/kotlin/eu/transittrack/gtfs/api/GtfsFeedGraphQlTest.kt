@@ -67,18 +67,18 @@ class GtfsFeedGraphQlTest(
         }
 
     @Test
-    fun `query gtfsFeed`() {
+    fun `query feed`() {
         whenever(feedService.get("w")).thenReturn(feed())
         whenever(revisions.findByFeedNewestFirst(any())).thenReturn(emptyList())
         tester
             .document(
-                "{ gtfsFeed(code:\"w\"){ code name enabled source } }",
+                "{ feed(code:\"w\"){ code name enabled source } }",
             ).execute()
             .path(
-                "gtfsFeed.code",
+                "feed.code",
             ).entity(String::class.java)
             .isEqualTo("w")
-            .path("gtfsFeed.source")
+            .path("feed.source")
             .entity(String::class.java)
             .isEqualTo("API")
     }
@@ -100,19 +100,19 @@ class GtfsFeedGraphQlTest(
     }
 
     @Test
-    fun `mutation registerGtfsFeed returns the created feed`() {
+    fun `mutation registerFeed returns the created feed`() {
         whenever(feedService.register(any<FeedInput>())).thenReturn(feed())
         tester
             .document(
-                "mutation { registerGtfsFeed(input:{code:\"w\",name:\"W\",url:\"http://x/z.zip\"}){ code enabled } }",
+                "mutation { registerFeed(input:{code:\"w\",name:\"W\",url:\"http://x/z.zip\"}){ code enabled } }",
             ).execute()
-            .path("registerGtfsFeed.code")
+            .path("registerFeed.code")
             .entity(String::class.java)
             .isEqualTo("w")
     }
 
     @Test
-    fun `query gtfsRevision maps rowCounts JSON and validationReport into a summary`() {
+    fun `query revision maps rowCounts JSON and validationReport into a summary`() {
         val feed = feed()
         val revision =
             GtfsRevision(feedId = 1, status = GtfsRevisionStatus.READY, sourceUrl = "u").apply {
@@ -126,15 +126,15 @@ class GtfsFeedGraphQlTest(
         whenever(feeds.findById(1L)).thenReturn(Optional.of(feed))
         tester
             .document(
-                "{ gtfsRevision(id:\"5\"){ rowCounts validationSummary { errorCount warningCount } } }",
+                "{ revision(id:\"5\"){ rowCounts validationSummary { errorCount warningCount } } }",
             ).execute()
-            .path("gtfsRevision.rowCounts.stop")
+            .path("revision.rowCounts.stop")
             .entity(Long::class.java)
             .isEqualTo(12L)
-            .path("gtfsRevision.validationSummary.errorCount")
+            .path("revision.validationSummary.errorCount")
             .entity(Long::class.java)
             .isEqualTo(2L)
-            .path("gtfsRevision.validationSummary.warningCount")
+            .path("revision.validationSummary.warningCount")
             .entity(Long::class.java)
             .isEqualTo(4L)
     }

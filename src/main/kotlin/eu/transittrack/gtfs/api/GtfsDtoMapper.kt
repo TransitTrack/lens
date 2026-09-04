@@ -3,9 +3,9 @@ package eu.transittrack.gtfs.api
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.gtfs.api.dto.GtfsFeedDto
-import eu.transittrack.gtfs.api.dto.GtfsRevisionDto
-import eu.transittrack.gtfs.api.dto.GtfsValidationSummaryDto
+import eu.transittrack.gtfs.api.dto.FeedDto
+import eu.transittrack.gtfs.api.dto.RevisionDto
+import eu.transittrack.gtfs.api.dto.ValidationSummaryDto
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.validate.LoadValidationReport
@@ -21,8 +21,8 @@ import eu.transittrack.gtfs.validate.LoadValidationReport
 class GtfsDtoMapper(
     private val jsonMapper: JsonMapper,
 ) {
-    fun toDto(feed: GtfsFeed): GtfsFeedDto =
-        GtfsFeedDto(
+    fun toDto(feed: GtfsFeed): FeedDto =
+        FeedDto(
             code = feed.code,
             name = feed.name,
             description = feed.description,
@@ -36,13 +36,13 @@ class GtfsDtoMapper(
     fun toDto(
         revision: GtfsRevision,
         feedCode: String,
-    ): GtfsRevisionDto {
+    ): RevisionDto {
         val summary =
             revision.validationReport?.let { json ->
                 val report = jsonMapper.readValue(json, LoadValidationReport::class.java)
-                GtfsValidationSummaryDto(report.errorCount, report.warningCount)
+                ValidationSummaryDto(report.errorCount, report.warningCount)
             }
-        return GtfsRevisionDto(
+        return RevisionDto(
             id = revision.id.toString(),
             feedCode = feedCode,
             status = revision.status,

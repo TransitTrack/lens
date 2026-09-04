@@ -20,7 +20,7 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
 
 /**
- * Full-stack exercise of the Task 23 nested `@SchemaMapping` resolvers and the generic `gtfsRecords` long-tail query. Real `Application` context + Testcontainers, a stubbed downloader serving the `full-spec-sample` fixture (minimal-valid plus one row in
+ * Full-stack exercise of the Task 23 nested `@SchemaMapping` resolvers and the generic `records` long-tail query. Real `Application` context + Testcontainers, a stubbed downloader serving the `full-spec-sample` fixture (minimal-valid plus one row in
  * every long-tail file), one ingest in `@BeforeAll`.
  */
 @SpringBootTest(
@@ -53,25 +53,25 @@ class GtfsNestedGraphQlTest(
         tester
             .document(
                 """
-            { gtfsRoute(feedCode:"w", routeId:"R1"){
+            { route(feedCode:"w", routeId:"R1"){
                 agency { agencyId }
                 trips { tripId stopTimes { stopSequence stop { stopName } } shape { pointCount } }
             } }
             """,
             ).execute()
-            .path("gtfsRoute.agency.agencyId")
+            .path("route.agency.agencyId")
             .entity(String::class.java)
             .isEqualTo("A1")
-            .path("gtfsRoute.trips[0].tripId")
+            .path("route.trips[0].tripId")
             .entity(String::class.java)
             .isEqualTo("T1")
-            .path("gtfsRoute.trips[0].stopTimes[0].stop.stopName")
+            .path("route.trips[0].stopTimes[0].stop.stopName")
             .entity(String::class.java)
             .isEqualTo("First")
-            .path("gtfsRoute.trips[0].stopTimes[1].stop.stopName")
+            .path("route.trips[0].stopTimes[1].stop.stopName")
             .entity(String::class.java)
             .isEqualTo("Second")
-            .path("gtfsRoute.trips[0].shape.pointCount")
+            .path("route.trips[0].shape.pointCount")
             .entity(Int::class.java)
             .isEqualTo(2)
     }
@@ -80,12 +80,12 @@ class GtfsNestedGraphQlTest(
     fun `trip route resolver round-trips back to the route`() {
         tester
             .document(
-                """{ gtfsTrip(feedCode:"w", tripId:"T1"){ tripId route { routeId routeLongName } } }""",
+                """{ trip(feedCode:"w", tripId:"T1"){ tripId route { routeId routeLongName } } }""",
             ).execute()
-            .path("gtfsTrip.route.routeId")
+            .path("trip.route.routeId")
             .entity(String::class.java)
             .isEqualTo("R1")
-            .path("gtfsTrip.route.routeLongName")
+            .path("trip.route.routeLongName")
             .entity(String::class.java)
             .isEqualTo("Line One")
     }
@@ -95,53 +95,53 @@ class GtfsNestedGraphQlTest(
         tester
             .document(
                 """
-            { gtfsStop(feedCode:"w", stopId:"S1"){
+            { stop(feedCode:"w", stopId:"S1"){
                 stopId
                 level { levelId levelName }
                 childStops { stopId parentStation }
             } }
             """,
             ).execute()
-            .path("gtfsStop.level.levelId")
+            .path("stop.level.levelId")
             .entity(String::class.java)
             .isEqualTo("L1")
-            .path("gtfsStop.childStops[0].stopId")
+            .path("stop.childStops[0].stopId")
             .entity(String::class.java)
             .isEqualTo("S3")
-            .path("gtfsStop.childStops[0].parentStation")
+            .path("stop.childStops[0].parentStation")
             .entity(String::class.java)
             .isEqualTo("S1")
     }
 
     @Test
-    fun `gtfsRecords returns long-tail rows as JSON`() {
+    fun `records returns long-tail rows as JSON`() {
         tester
             .document(
-                """{ gtfsRecords(feedCode:"w", table: FARE_PRODUCTS) }""",
+                """{ records(feedCode:"w", table: FARE_PRODUCTS) }""",
             ).execute()
-            .path("gtfsRecords")
+            .path("records")
             .entityList(Map::class.java)
             .hasSizeGreaterThan(0)
     }
 
     @Test
-    fun `gtfsRecords works for a second long-tail table`() {
+    fun `records works for a second long-tail table`() {
         tester
             .document(
-                """{ gtfsRecords(feedCode:"w", table: TRANSLATIONS) }""",
+                """{ records(feedCode:"w", table: TRANSLATIONS) }""",
             ).execute()
-            .path("gtfsRecords")
+            .path("records")
             .entityList(Map::class.java)
             .hasSizeGreaterThan(0)
     }
 
     @Test
-    fun `gtfsRecords maps the plural enum to the singular table`() {
+    fun `records maps the plural enum to the singular table`() {
         tester
             .document(
-                """{ gtfsRecords(feedCode:"w", table: ROUTE_NETWORKS) }""",
+                """{ records(feedCode:"w", table: ROUTE_NETWORKS) }""",
             ).execute()
-            .path("gtfsRecords[0].route_id")
+            .path("records[0].route_id")
             .entity(String::class.java)
             .isEqualTo("R1")
     }

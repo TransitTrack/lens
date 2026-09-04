@@ -37,13 +37,13 @@ class GtfsNestedResolvers(
     private val shapePoints: ShapePointRepository,
     private val levels: LevelRepository,
 ) {
-    @SchemaMapping(typeName = "GtfsRoute")
+    @SchemaMapping(typeName = "Route")
     fun agency(r: RouteDto): AgencyDto? =
         r.agencyId
             ?.let { agencies.findByAgencyId(r.revisionId, it) }
             ?.let { AgencyDto.of(it, r.revisionId, r.feedCode) }
 
-    @SchemaMapping(typeName = "GtfsRoute")
+    @SchemaMapping(typeName = "Route")
     fun trips(r: RouteDto): List<TripDto> =
         trips
             .findByRouteId(r.revisionId, r.routeId)
@@ -51,7 +51,7 @@ class GtfsNestedResolvers(
                 TripDto.of(it, r.revisionId, r.feedCode)
             }
 
-    @SchemaMapping(typeName = "GtfsTrip")
+    @SchemaMapping(typeName = "Trip")
     fun route(t: TripDto): RouteDto? =
         routes
             .findByRouteId(t.revisionId, t.routeId)
@@ -59,7 +59,7 @@ class GtfsNestedResolvers(
                 RouteDto.of(it, t.revisionId, t.feedCode)
             }
 
-    @SchemaMapping(typeName = "GtfsTrip")
+    @SchemaMapping(typeName = "Trip")
     fun stopTimes(t: TripDto): List<StopTimeDto> =
         stopTimes
             .findByTripId(t.revisionId, t.tripId)
@@ -67,7 +67,7 @@ class GtfsNestedResolvers(
                 StopTimeDto.of(it, t.revisionId, t.feedCode)
             }
 
-    @SchemaMapping(typeName = "GtfsTrip")
+    @SchemaMapping(typeName = "Trip")
     fun shape(t: TripDto): ShapeDto? {
         val sid = t.shapeId ?: return null
         val shape = shapes.findByShapeId(t.revisionId, sid) ?: return null
@@ -75,20 +75,20 @@ class GtfsNestedResolvers(
         return ShapeDto.of(shape, pts, t.revisionId, t.feedCode)
     }
 
-    @SchemaMapping(typeName = "GtfsStopTime")
+    @SchemaMapping(typeName = "StopTime")
     fun stop(st: StopTimeDto): StopDto? =
         st.stopId
             ?.let {
                 stops.findByStopId(st.revisionId, it)
             }?.let { StopDto.of(it, st.revisionId, st.feedCode) }
 
-    @SchemaMapping(typeName = "GtfsStop")
+    @SchemaMapping(typeName = "Stop")
     fun childStops(s: StopDto): List<StopDto> =
         stops.findByParentStation(s.revisionId, s.stopId).map {
             StopDto.of(it, s.revisionId, s.feedCode)
         }
 
-    @SchemaMapping(typeName = "GtfsStop")
+    @SchemaMapping(typeName = "Stop")
     fun level(s: StopDto): LevelDto? =
         s.levelId
             ?.let {

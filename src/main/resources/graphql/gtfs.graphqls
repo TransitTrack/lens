@@ -1,22 +1,22 @@
 scalar JSON
 
 type Query {
-    gtfsFeeds: [GtfsFeed!]!
-    gtfsFeed(code: String!): GtfsFeed
-    gtfsRevisions(feedCode: String!, status: GtfsRevisionStatus): [GtfsRevision!]!
-    gtfsRevision(id: ID!): GtfsRevision
+    feeds: [Feed!]!
+    feed(code: String!): Feed
+    revisions(feedCode: String!, status: RevisionStatus): [Revision!]!
+    revision(id: ID!): Revision
 }
 
 type Mutation {
-    registerGtfsFeed(input: RegisterGtfsFeedInput!): GtfsFeed!
-    updateGtfsFeed(code: String!, input: UpdateGtfsFeedInput!): GtfsFeed!
-    deleteGtfsFeed(code: String!): Boolean!
-    ingestFeed(feedCode: String!): GtfsRevision!
-    activateRevision(revisionId: ID!): GtfsRevision!
+    registerFeed(input: RegisterFeedInput!): Feed!
+    updateFeed(code: String!, input: UpdateFeedInput!): Feed!
+    deleteFeed(code: String!): Boolean!
+    ingestFeed(feedCode: String!): Revision!
+    activateRevision(revisionId: ID!): Revision!
     deleteRevision(revisionId: ID!): Boolean!
 }
 
-enum GtfsRevisionStatus {
+enum RevisionStatus {
     PENDING
     DOWNLOADING
     VALIDATING
@@ -29,7 +29,7 @@ enum GtfsRevisionStatus {
     UNCHANGED
 }
 
-type GtfsFeed {
+type Feed {
     code: String!
     name: String!
     description: String
@@ -37,14 +37,14 @@ type GtfsFeed {
     pollingCron: String
     enabled: Boolean!
     source: String!
-    activeRevision: GtfsRevision
-    revisions: [GtfsRevision!]!
+    activeRevision: Revision
+    revisions: [Revision!]!
 }
 
-type GtfsRevision {
+type Revision {
     id: ID!
     feedCode: String!
-    status: GtfsRevisionStatus!
+    status: RevisionStatus!
     createdAt: String!
     activatedAt: String
     supersededAt: String
@@ -54,16 +54,16 @@ type GtfsRevision {
     rowCounts: JSON
     feedStartDate: String
     feedEndDate: String
-    validationSummary: GtfsValidationSummary
+    validationSummary: ValidationSummary
     errorMessage: String
 }
 
-type GtfsValidationSummary {
+type ValidationSummary {
     errorCount: Int!
     warningCount: Int!
 }
 
-input RegisterGtfsFeedInput {
+input RegisterFeedInput {
     code: String!
     name: String!
     description: String
@@ -73,7 +73,7 @@ input RegisterGtfsFeedInput {
     autoActivate: Boolean
 }
 
-input UpdateGtfsFeedInput {
+input UpdateFeedInput {
     name: String!
     description: String
     url: String!
@@ -83,50 +83,50 @@ input UpdateGtfsFeedInput {
 }
 
 extend type Query {
-    gtfsAgencies(feedCode: String!, revisionId: ID): [GtfsAgency!]!
-    gtfsRoutes(feedCode: String!, revisionId: ID): [GtfsRoute!]!
-    gtfsRoute(feedCode: String!, routeId: String!, revisionId: ID): GtfsRoute
-    gtfsStops(feedCode: String!, revisionId: ID): [GtfsStop!]!
-    gtfsStop(feedCode: String!, stopId: String!, revisionId: ID): GtfsStop
-    gtfsTrips(feedCode: String!, routeId: String, serviceId: String, revisionId: ID): [GtfsTrip!]!
-    gtfsTrip(feedCode: String!, tripId: String!, revisionId: ID): GtfsTrip
-    gtfsStopTimes(feedCode: String!, tripId: String!, revisionId: ID): [GtfsStopTime!]!
-    gtfsCalendars(feedCode: String!, revisionId: ID): [GtfsCalendar!]!
-    gtfsCalendarDates(feedCode: String!, serviceId: String, revisionId: ID): [GtfsCalendarDate!]!
-    gtfsShape(feedCode: String!, shapeId: String!, revisionId: ID): GtfsShape
-    gtfsFrequencies(feedCode: String!, tripId: String, revisionId: ID): [GtfsFrequency!]!
-    gtfsTransfers(feedCode: String!, revisionId: ID): [GtfsTransfer!]!
-    gtfsFeedInfo(feedCode: String!, revisionId: ID): GtfsFeedInfo
-    gtfsPathways(feedCode: String!, revisionId: ID): [GtfsPathway!]!
-    gtfsLevels(feedCode: String!, revisionId: ID): [GtfsLevel!]!
+    agencies(feedCode: String!, revisionId: ID): [Agency!]!
+    routes(feedCode: String!, revisionId: ID): [Route!]!
+    route(feedCode: String!, routeId: String!, revisionId: ID): Route
+    stops(feedCode: String!, revisionId: ID): [Stop!]!
+    stop(feedCode: String!, stopId: String!, revisionId: ID): Stop
+    trips(feedCode: String!, routeId: String, serviceId: String, revisionId: ID): [Trip!]!
+    trip(feedCode: String!, tripId: String!, revisionId: ID): Trip
+    stopTimes(feedCode: String!, tripId: String!, revisionId: ID): [StopTime!]!
+    calendars(feedCode: String!, revisionId: ID): [Calendar!]!
+    calendarDates(feedCode: String!, serviceId: String, revisionId: ID): [CalendarDate!]!
+    shape(feedCode: String!, shapeId: String!, revisionId: ID): Shape
+    frequencies(feedCode: String!, tripId: String, revisionId: ID): [Frequency!]!
+    transfers(feedCode: String!, revisionId: ID): [Transfer!]!
+    feedInfo(feedCode: String!, revisionId: ID): FeedInfo
+    pathways(feedCode: String!, revisionId: ID): [Pathway!]!
+    levels(feedCode: String!, revisionId: ID): [Level!]!
 }
 
 type Extent { minLat: Float!, minLon: Float!, maxLat: Float!, maxLon: Float! }
-type GtfsAgency { agencyId: String, agencyName: String, agencyUrl: String, agencyTimezone: String, agencyLang: String, agencyPhone: String, agencyFareUrl: String, agencyEmail: String, extent: Extent }
-type GtfsRoute { routeId: String!, agencyId: String, routeShortName: String, routeLongName: String, routeDesc: String, routeType: Int, routeUrl: String, routeColor: String, routeTextColor: String, routeSortOrder: Int, networkId: String, extent: Extent }
-type GtfsStop { stopId: String!, stopCode: String, stopName: String, stopDesc: String, stopLat: Float, stopLon: Float, zoneId: String, locationType: Int, parentStation: String, wheelchairBoarding: Int, levelId: String, platformCode: String }
-type GtfsTrip { tripId: String!, routeId: String!, serviceId: String!, tripHeadsign: String, tripShortName: String, directionId: Int, blockId: String, shapeId: String, wheelchairAccessible: Int, bikesAllowed: Int, tripPatternId: ID }
-type GtfsStopTime { tripId: String!, stopSequence: Int!, stopId: String, arrivalTime: String, arrivalTimeSeconds: Int, departureTime: String, departureTimeSeconds: Int, stopHeadsign: String, pickupType: Int, dropOffType: Int, shapeDistTraveled: Float, timepoint: Int }
-type GtfsCalendar { serviceId: String!, monday: Boolean, tuesday: Boolean, wednesday: Boolean, thursday: Boolean, friday: Boolean, saturday: Boolean, sunday: Boolean, startDate: String, endDate: String }
-type GtfsCalendarDate { serviceId: String!, date: String!, exceptionType: Int }
-type GtfsShapePoint { lat: Float, lon: Float, sequence: Int!, distTraveled: Float }
-type GtfsShape { shapeId: String!, pointCount: Int!, lengthM: Float, points: [GtfsShapePoint!]! }
-type GtfsFrequency { tripId: String!, startTime: String!, endTime: String, headwaySecs: Int, exactTimes: Int }
-type GtfsTransfer { fromStopId: String, toStopId: String, fromRouteId: String, toRouteId: String, fromTripId: String, toTripId: String, transferType: Int, minTransferTime: Int }
-type GtfsFeedInfo { feedPublisherName: String, feedPublisherUrl: String, feedLang: String, defaultLang: String, feedStartDate: String, feedEndDate: String, feedVersion: String, feedContactEmail: String, feedContactUrl: String }
-type GtfsPathway { pathwayId: String!, fromStopId: String, toStopId: String, pathwayMode: Int, isBidirectional: Int, length: Float, traversalTime: Int, stairCount: Int, maxSlope: Float, minWidth: Float, signpostedAs: String, reversedSignpostedAs: String }
-type GtfsLevel { levelId: String!, levelIndex: Float, levelName: String }
+type Agency { agencyId: String, agencyName: String, agencyUrl: String, agencyTimezone: String, agencyLang: String, agencyPhone: String, agencyFareUrl: String, agencyEmail: String, extent: Extent }
+type Route { routeId: String!, agencyId: String, routeShortName: String, routeLongName: String, routeDesc: String, routeType: Int, routeUrl: String, routeColor: String, routeTextColor: String, routeSortOrder: Int, networkId: String, extent: Extent }
+type Stop { stopId: String!, stopCode: String, stopName: String, stopDesc: String, stopLat: Float, stopLon: Float, zoneId: String, locationType: Int, parentStation: String, wheelchairBoarding: Int, levelId: String, platformCode: String }
+type Trip { tripId: String!, routeId: String!, serviceId: String!, tripHeadsign: String, tripShortName: String, directionId: Int, blockId: String, shapeId: String, wheelchairAccessible: Int, bikesAllowed: Int, tripPatternId: ID }
+type StopTime { tripId: String!, stopSequence: Int!, stopId: String, arrivalTime: String, arrivalTimeSeconds: Int, departureTime: String, departureTimeSeconds: Int, stopHeadsign: String, pickupType: Int, dropOffType: Int, shapeDistTraveled: Float, timepoint: Int }
+type Calendar { serviceId: String!, monday: Boolean, tuesday: Boolean, wednesday: Boolean, thursday: Boolean, friday: Boolean, saturday: Boolean, sunday: Boolean, startDate: String, endDate: String }
+type CalendarDate { serviceId: String!, date: String!, exceptionType: Int }
+type ShapePoint { lat: Float, lon: Float, sequence: Int!, distTraveled: Float }
+type Shape { shapeId: String!, pointCount: Int!, lengthM: Float, points: [ShapePoint!]! }
+type Frequency { tripId: String!, startTime: String!, endTime: String, headwaySecs: Int, exactTimes: Int }
+type Transfer { fromStopId: String, toStopId: String, fromRouteId: String, toRouteId: String, fromTripId: String, toTripId: String, transferType: Int, minTransferTime: Int }
+type FeedInfo { feedPublisherName: String, feedPublisherUrl: String, feedLang: String, defaultLang: String, feedStartDate: String, feedEndDate: String, feedVersion: String, feedContactEmail: String, feedContactUrl: String }
+type Pathway { pathwayId: String!, fromStopId: String, toStopId: String, pathwayMode: Int, isBidirectional: Int, length: Float, traversalTime: Int, stairCount: Int, maxSlope: Float, minWidth: Float, signpostedAs: String, reversedSignpostedAs: String }
+type Level { levelId: String!, levelIndex: Float, levelName: String }
 
-extend type GtfsRoute { agency: GtfsAgency, trips: [GtfsTrip!]! }
-extend type GtfsTrip { route: GtfsRoute, stopTimes: [GtfsStopTime!]!, shape: GtfsShape }
-extend type GtfsStopTime { stop: GtfsStop }
-extend type GtfsStop { childStops: [GtfsStop!]!, level: GtfsLevel }
+extend type Route { agency: Agency, trips: [Trip!]! }
+extend type Trip { route: Route, stopTimes: [StopTime!]!, shape: Shape }
+extend type StopTime { stop: Stop }
+extend type Stop { childStops: [Stop!]!, level: Level }
 
 extend type Query {
-    gtfsRecords(feedCode: String!, table: GtfsTable!, revisionId: ID): [JSON!]!
+    records(feedCode: String!, table: Table!, revisionId: ID): [JSON!]!
 }
 
-enum GtfsTable {
+enum Table {
     FARE_ATTRIBUTES FARE_RULES TIMEFRAMES RIDER_CATEGORIES FARE_MEDIA FARE_PRODUCTS
     FARE_LEG_RULES FARE_LEG_JOIN_RULES FARE_TRANSFER_RULES AREAS STOP_AREAS NETWORKS
     ROUTE_NETWORKS LOCATION_GROUPS LOCATION_GROUP_STOPS LOCATIONS BOOKING_RULES

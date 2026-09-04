@@ -56,13 +56,13 @@ class GtfsQueryGraphQlTest(
     fun `routes resolve against the active revision by default`() {
         tester
             .document(
-                "{ gtfsRoutes(feedCode:\"w\"){ routeId routeShortName routeType } }",
+                "{ routes(feedCode:\"w\"){ routeId routeShortName routeType } }",
             ).execute()
             .path(
-                "gtfsRoutes[0].routeId",
+                "routes[0].routeId",
             ).entity(String::class.java)
             .isEqualTo("R1")
-            .path("gtfsRoutes[0].routeType")
+            .path("routes[0].routeType")
             .entity(Int::class.java)
             .isEqualTo(3)
     }
@@ -71,9 +71,9 @@ class GtfsQueryGraphQlTest(
     fun `single route lookup by id`() {
         tester
             .document(
-                "{ gtfsRoute(feedCode:\"w\", routeId:\"R1\"){ routeId routeLongName } }",
+                "{ route(feedCode:\"w\", routeId:\"R1\"){ routeId routeLongName } }",
             ).execute()
-            .path("gtfsRoute.routeLongName")
+            .path("route.routeLongName")
             .entity(String::class.java)
             .isEqualTo("Line One")
     }
@@ -82,12 +82,12 @@ class GtfsQueryGraphQlTest(
     fun `stop_times expose seconds and formatted time`() {
         tester
             .document(
-                "{ gtfsStopTimes(feedCode:\"w\", tripId:\"T1\"){ stopSequence arrivalTime arrivalTimeSeconds } }",
+                "{ stopTimes(feedCode:\"w\", tripId:\"T1\"){ stopSequence arrivalTime arrivalTimeSeconds } }",
             ).execute()
-            .path("gtfsStopTimes[0].arrivalTimeSeconds")
+            .path("stopTimes[0].arrivalTimeSeconds")
             .entity(Int::class.java)
             .isEqualTo(28800)
-            .path("gtfsStopTimes[0].arrivalTime")
+            .path("stopTimes[0].arrivalTime")
             .entity(String::class.java)
             .isEqualTo("08:00:00")
     }
@@ -96,13 +96,13 @@ class GtfsQueryGraphQlTest(
     fun `trips filter by route`() {
         tester
             .document(
-                "{ gtfsTrips(feedCode:\"w\", routeId:\"R1\"){ tripId serviceId shapeId } }",
+                "{ trips(feedCode:\"w\", routeId:\"R1\"){ tripId serviceId shapeId } }",
             ).execute()
             .path(
-                "gtfsTrips[0].tripId",
+                "trips[0].tripId",
             ).entity(String::class.java)
             .isEqualTo("T1")
-            .path("gtfsTrips[0].shapeId")
+            .path("trips[0].shapeId")
             .entity(String::class.java)
             .isEqualTo("SH1")
     }
@@ -111,12 +111,12 @@ class GtfsQueryGraphQlTest(
     fun `shape returns aggregated points`() {
         tester
             .document(
-                "{ gtfsShape(feedCode:\"w\", shapeId:\"SH1\"){ shapeId pointCount points { lat lon sequence } } }",
+                "{ shape(feedCode:\"w\", shapeId:\"SH1\"){ shapeId pointCount points { lat lon sequence } } }",
             ).execute()
-            .path("gtfsShape.pointCount")
+            .path("shape.pointCount")
             .entity(Int::class.java)
             .isEqualTo(2)
-            .path("gtfsShape.points[1].sequence")
+            .path("shape.points[1].sequence")
             .entity(Int::class.java)
             .isEqualTo(2)
     }
@@ -125,9 +125,9 @@ class GtfsQueryGraphQlTest(
     fun `feed info is exposed`() {
         tester
             .document(
-                "{ gtfsFeedInfo(feedCode:\"w\"){ feedPublisherName feedLang } }",
+                "{ feedInfo(feedCode:\"w\"){ feedPublisherName feedLang } }",
             ).execute()
-            .path("gtfsFeedInfo.feedPublisherName")
+            .path("feedInfo.feedPublisherName")
             .entity(String::class.java)
             .isEqualTo("Test")
     }
@@ -138,10 +138,10 @@ class GtfsQueryGraphQlTest(
         val rev = revisionService.activeRevisionId(feedId).toString()
         tester
             .document(
-                "query(\$r: ID){ gtfsRoutes(feedCode:\"w\", revisionId:\$r){ routeId } }",
+                "query(\$r: ID){ routes(feedCode:\"w\", revisionId:\$r){ routeId } }",
             ).variable("r", rev)
             .execute()
-            .path("gtfsRoutes[0].routeId")
+            .path("routes[0].routeId")
             .entity(String::class.java)
             .isEqualTo("R1")
     }
@@ -149,7 +149,7 @@ class GtfsQueryGraphQlTest(
     @Test
     fun `feed with no active revision errors`() {
         feedService.register(FeedInput("empty", "E", null, "http://x/g.zip", null))
-        tester.document("{ gtfsRoutes(feedCode:\"empty\"){ routeId } }").execute().errors().satisfy {
+        tester.document("{ routes(feedCode:\"empty\"){ routeId } }").execute().errors().satisfy {
             assert(it.isNotEmpty())
         }
     }

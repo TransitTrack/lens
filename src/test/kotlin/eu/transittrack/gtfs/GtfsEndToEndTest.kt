@@ -71,24 +71,24 @@ class GtfsEndToEndTest(
         ingestion.ingestBlocking("e2e")
 
         tester
-            .document("{ gtfsFeed(code:\"e2e\"){ source activeRevision { status rowCounts } } }")
+            .document("{ feed(code:\"e2e\"){ source activeRevision { status rowCounts } } }")
             .execute()
             .path(
-                "gtfsFeed.source",
+                "feed.source",
             ).entity<String>()
             .isEqualTo("CONFIG")
-            .path("gtfsFeed.activeRevision.status")
+            .path("feed.activeRevision.status")
             .entity<String>()
             .isEqualTo("ACTIVE")
 
         tester
             .document(
-                "{ gtfsStopTimes(feedCode:\"e2e\", tripId:\"T1\"){ arrivalTime stop { stopName } } }",
+                "{ stopTimes(feedCode:\"e2e\", tripId:\"T1\"){ arrivalTime stop { stopName } } }",
             ).execute()
-            .path("gtfsStopTimes[0].arrivalTime")
+            .path("stopTimes[0].arrivalTime")
             .entity(String::class.java)
             .isEqualTo("08:00:00")
-            .path("gtfsStopTimes[0].stop.stopName")
+            .path("stopTimes[0].stop.stopName")
             .entity(String::class.java)
             .isEqualTo("First")
 

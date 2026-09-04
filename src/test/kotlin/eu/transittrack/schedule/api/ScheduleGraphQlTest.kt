@@ -114,16 +114,16 @@ class ScheduleGraphQlTest(
     fun `gtfs route exposes trip patterns and gtfs trip exposes sched trip`() {
         tester
             .document(
-                """{ gtfsRoute(feedCode:"g", routeId:"RA"){ routeId tripPatterns { patternKey } } }""",
+                """{ route(feedCode:"g", routeId:"RA"){ routeId tripPatterns { patternKey } } }""",
             ).execute()
-            .path("gtfsRoute.tripPatterns")
+            .path("route.tripPatterns")
             .entityList(Any::class.java)
             .hasSizeGreaterThan(0)
         tester
             .document(
-                """{ gtfsTrip(feedCode:"g", tripId:"T1"){ tripId schedTrip { startTimeSec } } }""",
+                """{ trip(feedCode:"g", tripId:"T1"){ tripId schedTrip { startTimeSec } } }""",
             ).execute()
-            .path("gtfsTrip.schedTrip.startTimeSec")
+            .path("trip.schedTrip.startTimeSec")
             .entity(Int::class.java)
             .isEqualTo(28800)
     }

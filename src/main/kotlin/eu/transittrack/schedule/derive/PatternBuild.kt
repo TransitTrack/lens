@@ -115,7 +115,7 @@ fun buildPattern(
                 stopPathIndex = i,
                 stopId = stopIds[i],
                 routeId = routeId,
-                gtfsStopSeq = r.stopSequence,
+                stopSeq = r.stopSequence,
                 lengthM = segLen,
                 pathGeometry = json.writeValueAsString(geom.map { listOf(it.lon, it.lat) }),
                 pickupType = r.pickupType,

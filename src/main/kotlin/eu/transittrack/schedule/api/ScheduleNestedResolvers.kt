@@ -103,19 +103,19 @@ class ScheduleNestedResolvers(
             SchedTripDto.of(it, bt.revisionId, bt.feedCode)
         }
 
-    @SchemaMapping(typeName = "GtfsRoute")
+    @SchemaMapping(typeName = "Route")
     fun tripPatterns(r: RouteDto): List<TripPatternDto> =
         patterns.findByRouteId(r.revisionId, r.routeId).map {
             TripPatternDto.of(it, r.revisionId, r.feedCode)
         }
 
-    @SchemaMapping(typeName = "GtfsTrip")
+    @SchemaMapping(typeName = "Trip")
     fun schedTrip(t: TripDto): SchedTripDto? =
         schedTrips.findByTripId(t.revisionId, t.tripId)?.let {
             SchedTripDto.of(it, t.revisionId, t.feedCode)
         }
 
-    @SchemaMapping(typeName = "GtfsTrip")
+    @SchemaMapping(typeName = "Trip")
     fun tripPattern(t: TripDto): TripPatternDto? =
         t.tripPatternId
             ?.let {

@@ -1,7 +1,7 @@
 package eu.transittrack.gtfs.api.dto
 
 /** GraphQL projection of `eu.transittrack.gtfs.feed.GtfsFeed`. */
-data class GtfsFeedDto(
+data class FeedDto(
     val code: String,
     val name: String,
     val description: String?,
@@ -14,7 +14,7 @@ data class GtfsFeedDto(
 )
 
 /** GraphQL projection of `eu.transittrack.gtfs.revision.GtfsRevision`. */
-data class GtfsRevisionDto(
+data class RevisionDto(
     val id: String,
     val feedCode: String,
     val status: eu.transittrack.gtfs.revision.GtfsRevisionStatus,
@@ -27,16 +27,16 @@ data class GtfsRevisionDto(
     val rowCounts: Map<String, Long>,
     val feedStartDate: String?,
     val feedEndDate: String?,
-    val validationSummary: GtfsValidationSummaryDto?,
+    val validationSummary: ValidationSummaryDto?,
     val errorMessage: String?,
 )
 
-data class GtfsValidationSummaryDto(
+data class ValidationSummaryDto(
     val errorCount: Long,
     val warningCount: Long,
 )
 
-data class RegisterGtfsFeedInput(
+data class RegisterFeedInput(
     val code: String,
     val name: String,
     val description: String?,
@@ -46,7 +46,7 @@ data class RegisterGtfsFeedInput(
     val autoActivate: Boolean?,
 )
 
-data class UpdateGtfsFeedInput(
+data class UpdateFeedInput(
     val name: String,
     val description: String?,
     val url: String,

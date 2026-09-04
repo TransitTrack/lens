@@ -18,7 +18,7 @@ type TripPattern {
     lengthM: Float
     tripCount: Int!
     extent: Extent
-    route: GtfsRoute
+    route: Route
     stopPaths: [StopPath!]!
     trips: [SchedTrip!]!
 }
@@ -26,7 +26,7 @@ type TripPattern {
 type StopPath {
     stopPathIndex: Int!
     stopId: String!
-    gtfsStopSeq: Int!
+    stopSeq: Int!
     lengthM: Float!
     pathGeometry: JSON
     pickupType: Int
@@ -37,7 +37,7 @@ type StopPath {
     breakTimeSec: Int
     typicalTravelTimeSec: Int
     typicalDwellTimeSec: Int
-    stop: GtfsStop
+    stop: Stop
 }
 
 type SchedTrip {
@@ -52,7 +52,7 @@ type SchedTrip {
     frequencyBased: Boolean!
     exactTimes: Int
     pattern: TripPattern
-    route: GtfsRoute
+    route: Route
     block: Block
     scheduleTimes: [ScheduleTime!]!
 }
@@ -85,5 +85,5 @@ type BlockTrip {
     trip: SchedTrip!
 }
 
-extend type GtfsRoute { tripPatterns: [TripPattern!]! }
-extend type GtfsTrip { schedTrip: SchedTrip, tripPattern: TripPattern }
+extend type Route { tripPatterns: [TripPattern!]! }
+extend type Trip { schedTrip: SchedTrip, tripPattern: TripPattern }

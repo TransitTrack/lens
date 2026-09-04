@@ -81,7 +81,7 @@ class ScheduleEntitiesTest(
                 tripPatternId = tp.id!!,
                 stopPathIndex = 0,
                 stopId = "S1",
-                gtfsStopSeq = 1,
+                stopSeq = 1,
                 lengthM = 0.0,
                 pathGeometry = "[[17.0,51.1]]",
                 pickupType = null,

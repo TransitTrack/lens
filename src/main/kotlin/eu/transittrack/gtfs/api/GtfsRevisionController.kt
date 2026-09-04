@@ -4,7 +4,7 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
-import eu.transittrack.gtfs.api.dto.GtfsRevisionDto
+import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
@@ -16,10 +16,10 @@ class GtfsRevisionController(
     private val mapper: GtfsDtoMapper,
 ) {
     @QueryMapping
-    fun gtfsRevisions(
+    fun revisions(
         @Argument feedCode: String,
         @Argument status: GtfsRevisionStatus?,
-    ): List<GtfsRevisionDto> {
+    ): List<RevisionDto> {
         val feed = feeds.findByCode(feedCode) ?: return emptyList()
         return revisions
             .findByFeedNewestFirst(feed.id!!)
@@ -29,9 +29,9 @@ class GtfsRevisionController(
     }
 
     @QueryMapping
-    fun gtfsRevision(
+    fun revision(
         @Argument id: String,
-    ): GtfsRevisionDto? {
+    ): RevisionDto? {
         val revision = revisions.findById(id.toLong()).orElse(null) ?: return null
         val code = feeds.findById(revision.feedId).map { it.code }.orElse("")
         return mapper.toDto(revision, code)
