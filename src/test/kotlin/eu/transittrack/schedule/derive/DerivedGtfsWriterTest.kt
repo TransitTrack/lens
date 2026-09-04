@@ -29,12 +29,15 @@ class DerivedGtfsWriterTest(
         gtfsWriter.write(listOf(route(rev, "R", "A"), trip(rev, "R", "T")))
         val id = trips.findByTripId(rev, "T")!!.id!!
         derived.applyTripDerivation(
-            listOf(TripDerivation(id, 1L, 100, 200, false, false, "Loop")),
+            rev,
+            listOf(TripDerivation(id, 1L, 100, 200, true, true, "Loop")),
         )
         derived.clearTripDerivation(rev)
         val t = trips.findByTripId(rev, "T")!!
         assertThat(t.tripPatternId).isNull()
         assertThat(t.startTimeSec).isNull()
         assertThat(t.endTimeSec).isNull()
+        assertThat(t.frequencyBased).isNull()
+        assertThat(t.noSchedule).isNull()
     }
 }

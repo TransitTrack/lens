@@ -70,7 +70,16 @@ class DerivedGtfsWriter(
             }
     }
 
-    fun applyTripDerivation(updates: List<TripDerivation>) {
+    /**
+     * Back-fills the derived schedule columns on `trips`. Runs one `UPDATE` per row within a single
+     * stateless-session transaction (Hibernate does not batch native mutation queries — same idiom
+     * as [applyRouteExtents]). Each row is matched by its global PK `id`, additionally guarded by
+     * `revision_id` so a stale [revisionId] can never touch another revision's rows.
+     */
+    fun applyTripDerivation(
+        revisionId: Long,
+        updates: List<TripDerivation>,
+    ) {
         if (updates.isEmpty()) return
         sessionFactory.inStatelessTransaction { session ->
             for (u in updates) {
@@ -81,9 +90,10 @@ class DerivedGtfsWriter(
                            set trip_pattern_id = :tpid, start_time_sec = :st, end_time_sec = :et,
                                frequency_based = :fb, no_schedule = :ns,
                                trip_headsign = coalesce(nullif(trim(trip_headsign), ''), :hs)
-                         where id = :id
+                         where id = :id and revision_id = :r
                         """.trimIndent(),
-                    ).setParameter("tpid", u.tripPatternId)
+                    ).setParameter("r", revisionId)
+                    .setParameter("tpid", u.tripPatternId)
                     .setParameter("st", u.startTimeSec)
                     .setParameter("et", u.endTimeSec)
                     .setParameter("fb", u.frequencyBased)

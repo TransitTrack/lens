@@ -392,7 +392,7 @@ class ScheduleDerivationEdgeCaseTest(
     }
 
     @Test
-    fun `a tolerated no-schedule trip becomes a no_schedule sched_trip with a full-day block`() {
+    fun `a tolerated no-schedule trip becomes a no_schedule trip on trips with a full-day block`() {
         ingest("schedule-noschedule")
         runAllStages(rev, scheduleProps.copy(tolerateNoScheduleTrips = true))
 

@@ -83,9 +83,10 @@ not a per-trip guarantee.
 
 Trips listed in `frequencies.txt` get a pattern, stop paths and
 `schedule_time` rows expressed as **offsets from 0** (first departure).
-`trips.frequency_based = true` and `exact_times` is carried through; the
-concrete departure times come from `gtfs_frequency` windows at read /
-prediction time. Frequency trips are **not placed in blocks** even when they
+`trips.frequency_based` is set `true` for such a trip; the raw
+`frequencies.exact_times` flag is **not** copied onto `trips` (query the
+`frequencies(tripId:)` GraphQL field for it). The concrete departure times come
+from `gtfs_frequency` windows at read / prediction time. Frequency trips are **not placed in blocks** even when they
 carry a `block_id`, because their 0-based start times would sort to the front
 of every block and corrupt the layover gaps. Full frequency handling is
 deferred to the prediction sub-project.

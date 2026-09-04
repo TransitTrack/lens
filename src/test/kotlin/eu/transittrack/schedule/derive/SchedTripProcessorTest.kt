@@ -164,7 +164,7 @@ class SchedTripProcessorTest(
     }
 
     @Test
-    fun `timeless trip tolerated becomes a no_schedule sched_trip`() {
+    fun `timeless trip tolerated becomes a no_schedule trip`() {
         val rev = newRevision(feeds, revisions)
         gtfsWriter.write(
             listOf(

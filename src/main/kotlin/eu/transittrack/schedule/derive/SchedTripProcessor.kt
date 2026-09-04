@@ -156,7 +156,7 @@ class SchedTripProcessor(
             scheduleTimeCount += times.size
         }
 
-        derivedGtfsWriter.applyTripDerivation(tripDerivations)
+        derivedGtfsWriter.applyTripDerivation(revisionId, tripDerivations)
         return mapOf("derived_trip" to tripDerivations.size.toLong(), "schedule_time" to scheduleTimeCount)
     }
 
