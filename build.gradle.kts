@@ -127,6 +127,10 @@ allOpen {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // The AVL suite added several @SpringBootTest classes with distinct property combinations,
+    // each caching its own Spring context (Testcontainers Postgres included); the default worker
+    // heap is too small to hold them all alive when the whole suite runs in one JVM.
+    maxHeapSize = "2g"
 }
 
 // Automatically apply styling whenever you run a Gradle build
