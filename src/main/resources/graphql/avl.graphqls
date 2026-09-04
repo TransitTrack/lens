@@ -1,0 +1,52 @@
+extend type Query {
+    avlFeeds: [AvlFeed!]!
+    vehicles(feedCode: String!, matchedOnly: Boolean = false): [Vehicle!]!
+    vehicle(feedCode: String!, vehicleId: String!): Vehicle
+    avlReports(feedCode: String!, vehicleId: String!, since: String, limit: Int = 200): [AvlReport!]!
+}
+
+type AvlFeed {
+    code: String!
+    name: String!
+    gtfsFeedCode: String!
+    format: String!
+    pollIntervalSec: Int!
+    assignmentMode: String!
+    enabled: Boolean!
+    lastPollAt: String
+    lastPollStatus: String
+    lastPollReportCount: Int
+}
+
+type LatLon { lat: Float!, lon: Float! }
+
+type Vehicle {
+    vehicleId: String!
+    label: String
+    reportTs: String!
+    position: LatLon!
+    snappedPosition: LatLon
+    bearing: Float
+    speedMps: Float
+    occupancyStatus: String
+    matched: Boolean!
+    stale: Boolean!
+    scheduleAdherenceSec: Int
+    stopPathIndex: Int
+    distanceAlongTripM: Float
+    trip: Trip
+    block: Block
+    pattern: TripPattern
+    currentStop: Stop
+}
+
+type AvlReport {
+    vehicleId: String!
+    ts: String!
+    position: LatLon!
+    bearing: Float
+    speedMps: Float
+    currentStatus: String
+    occupancyStatus: String
+    descTripId: String
+}

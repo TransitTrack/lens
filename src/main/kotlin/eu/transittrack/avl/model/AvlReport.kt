@@ -68,4 +68,17 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
             "where r.feedId = :feedId group by r.vehicleId",
     )
     fun latestTsByVehicle(feedId: Long): List<VehicleTsProjection>
+
+    fun findByFeedIdAndVehicleIdOrderByTsDesc(
+        feedId: Long,
+        vehicleId: String,
+        pageable: org.springframework.data.domain.Pageable,
+    ): List<AvlReportRow>
+
+    fun findByFeedIdAndVehicleIdAndTsGreaterThanEqualOrderByTsDesc(
+        feedId: Long,
+        vehicleId: String,
+        ts: Instant,
+        pageable: org.springframework.data.domain.Pageable,
+    ): List<AvlReportRow>
 }
