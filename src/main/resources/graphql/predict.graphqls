@@ -1,0 +1,24 @@
+extend type Query {
+    vehiclePredictions(feedCode: String!, vehicleId: String!): [StopPrediction!]!
+    predictionAccuracy(feedCode: String!, algorithm: String, sinceDays: Int = 7): [PredictionAccuracySummary!]!
+}
+
+type StopPrediction {
+    stopPathIndex: Int!
+    stop: Stop
+    scheduledArrival: String
+    scheduledDeparture: String
+    actualArrival: String
+    actualDeparture: String
+    predictedArrival: String
+    predictedDeparture: String
+    algorithm: String
+    confidenceSec: Int
+}
+
+type PredictionAccuracySummary {
+    algorithm: String!
+    sampleCount: Int!
+    meanErrorSec: Float!
+    meanAbsErrorSec: Float!
+}
