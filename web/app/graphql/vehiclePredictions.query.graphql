@@ -1,0 +1,14 @@
+query VehiclePredictions($feedCode: String!, $vehicleId: String!) {
+  vehiclePredictions(feedCode: $feedCode, vehicleId: $vehicleId) {
+    stopPathIndex
+    stop {
+      stopId
+      stopName
+    }
+    scheduledArrival
+    predictedArrival
+    actualArrival
+    algorithm
+    confidenceSec
+  }
+}

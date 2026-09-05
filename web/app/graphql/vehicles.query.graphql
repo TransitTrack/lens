@@ -1,0 +1,16 @@
+query Vehicles($feedCode: String!, $matchedOnly: Boolean) {
+  vehicles(feedCode: $feedCode, matchedOnly: $matchedOnly) {
+    vehicleId
+    label
+    reportTs
+    position {
+      lat
+      lon
+    }
+    matched
+    stale
+    scheduleAdherenceSec
+    stopPathIndex
+    speedMps
+  }
+}

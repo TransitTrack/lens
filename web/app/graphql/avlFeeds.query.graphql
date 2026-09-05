@@ -1,0 +1,10 @@
+query AvlFeeds {
+  avlFeeds {
+    code
+    name
+    gtfsFeedCode
+    enabled
+    lastPollAt
+    lastPollStatus
+  }
+}
