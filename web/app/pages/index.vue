@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import FeedPicker from '../components/FeedPicker.vue'
 import VehicleMap from '../components/VehicleMap.vue'
 import VehicleList from '../components/VehicleList.vue'
 import VehiclePredictionPanel from '../components/VehiclePredictionPanel.vue'
@@ -17,10 +16,7 @@ function onListSelect(vehicleId: string) {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col">
-    <div class="border-default border-b p-4">
-      <FeedPicker />
-    </div>
+  <div class="flex h-full flex-col">
     <UAlert
       v-if="error"
       color="error"

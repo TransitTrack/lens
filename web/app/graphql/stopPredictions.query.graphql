@@ -1,0 +1,15 @@
+query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int) {
+  stopPredictions(
+    feedCode: $feedCode
+    stopId: $stopId
+    routeId: $routeId
+    directionId: $directionId
+  ) {
+    stopPathIndex
+    scheduledArrival
+    predictedArrival
+    actualArrival
+    algorithm
+    confidenceSec
+  }
+}

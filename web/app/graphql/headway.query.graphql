@@ -1,0 +1,10 @@
+query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int) {
+  headway(feedCode: $feedCode, stopId: $stopId, routeId: $routeId, directionId: $directionId) {
+    stopId
+    routeId
+    directionId
+    waitSec
+    gapsSec
+    scheduledHeadwaySec
+  }
+}

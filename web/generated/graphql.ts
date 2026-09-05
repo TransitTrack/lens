@@ -1,11 +1,11 @@
 /** Internal type. DO NOT USE DIRECTLY. */
-import gql from 'graphql-tag'
-import * as VueApolloComposable from '@vue/apollo-composable'
-import type * as VueCompositionApi from '@vue/composition-api'
 type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] }
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> =
   T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never }
+import gql from 'graphql-tag'
+import * as VueApolloComposable from '@vue/apollo-composable'
+import * as VueCompositionApi from '@vue/composition-api'
 export type Maybe<T> = T | null
 export type InputMaybe<T> = Maybe<T>
 export type ReactiveFunction<TParam> = () => TParam
@@ -728,6 +728,58 @@ export type AvlFeedsQuery = {
   }>
 }
 
+export type HeadwayInfoQueryVariables = Exact<{
+  feedCode: string
+  stopId: string
+  routeId: string
+  directionId?: number | null | undefined
+}>
+
+export type HeadwayInfoQuery = {
+  headway: {
+    stopId: string
+    routeId: string
+    directionId: number | null
+    waitSec: number | null
+    gapsSec: Array<number>
+    scheduledHeadwaySec: number | null
+  }
+}
+
+export type RoutesQueryVariables = Exact<{
+  feedCode: string
+}>
+
+export type RoutesQuery = {
+  routes: Array<{ routeId: string; routeShortName: string | null; routeLongName: string | null }>
+}
+
+export type StopBoardQueryVariables = Exact<{
+  feedCode: string
+  stopId: string
+  routeId?: string | null | undefined
+  directionId?: number | null | undefined
+}>
+
+export type StopBoardQuery = {
+  stopPredictions: Array<{
+    stopPathIndex: number
+    scheduledArrival: string | null
+    predictedArrival: string | null
+    actualArrival: string | null
+    algorithm: string | null
+    confidenceSec: number | null
+  }>
+}
+
+export type StopsQueryVariables = Exact<{
+  feedCode: string
+}>
+
+export type StopsQuery = {
+  stops: Array<{ stopId: string; stopName: string | null; stopCode: string | null }>
+}
+
 export type VehiclePredictionsQueryVariables = Exact<{
   feedCode: string
   vehicleId: string
@@ -824,6 +876,283 @@ export function useAvlFeedsLazyQuery(
 export type AvlFeedsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<
   AvlFeedsQuery,
   AvlFeedsQueryVariables
+>
+export const HeadwayInfoDocument = gql`
+  query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int) {
+    headway(feedCode: $feedCode, stopId: $stopId, routeId: $routeId, directionId: $directionId) {
+      stopId
+      routeId
+      directionId
+      waitSec
+      gapsSec
+      scheduledHeadwaySec
+    }
+  }
+`
+
+/**
+ * __useHeadwayInfoQuery__
+ *
+ * To run a query within a Vue component, call `useHeadwayInfoQuery` and pass it any options that fit your needs.
+ * When your component renders, `useHeadwayInfoQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useHeadwayInfoQuery({
+ *   feedCode: // value for 'feedCode'
+ *   stopId: // value for 'stopId'
+ *   routeId: // value for 'routeId'
+ *   directionId: // value for 'directionId'
+ * });
+ */
+export function useHeadwayInfoQuery(
+  variables:
+    | HeadwayInfoQueryVariables
+    | VueCompositionApi.Ref<HeadwayInfoQueryVariables>
+    | ReactiveFunction<HeadwayInfoQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>
+    | VueCompositionApi.Ref<
+        VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>
+      >
+    | ReactiveFunction<
+        VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>
+      > = {},
+) {
+  return VueApolloComposable.useQuery<HeadwayInfoQuery, HeadwayInfoQueryVariables>(
+    HeadwayInfoDocument,
+    variables,
+    options,
+  )
+}
+export function useHeadwayInfoLazyQuery(
+  variables?:
+    | HeadwayInfoQueryVariables
+    | VueCompositionApi.Ref<HeadwayInfoQueryVariables>
+    | ReactiveFunction<HeadwayInfoQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>
+    | VueCompositionApi.Ref<
+        VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>
+      >
+    | ReactiveFunction<
+        VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>
+      > = {},
+) {
+  return VueApolloComposable.useLazyQuery<HeadwayInfoQuery, HeadwayInfoQueryVariables>(
+    HeadwayInfoDocument,
+    variables,
+    options,
+  )
+}
+export type HeadwayInfoQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<
+  HeadwayInfoQuery,
+  HeadwayInfoQueryVariables
+>
+export const RoutesDocument = gql`
+  query Routes($feedCode: String!) {
+    routes(feedCode: $feedCode) {
+      routeId
+      routeShortName
+      routeLongName
+    }
+  }
+`
+
+/**
+ * __useRoutesQuery__
+ *
+ * To run a query within a Vue component, call `useRoutesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useRoutesQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useRoutesQuery({
+ *   feedCode: // value for 'feedCode'
+ * });
+ */
+export function useRoutesQuery(
+  variables:
+    | RoutesQueryVariables
+    | VueCompositionApi.Ref<RoutesQueryVariables>
+    | ReactiveFunction<RoutesQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<RoutesQuery, RoutesQueryVariables>
+    | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<RoutesQuery, RoutesQueryVariables>>
+    | ReactiveFunction<VueApolloComposable.UseQueryOptions<RoutesQuery, RoutesQueryVariables>> = {},
+) {
+  return VueApolloComposable.useQuery<RoutesQuery, RoutesQueryVariables>(
+    RoutesDocument,
+    variables,
+    options,
+  )
+}
+export function useRoutesLazyQuery(
+  variables?:
+    | RoutesQueryVariables
+    | VueCompositionApi.Ref<RoutesQueryVariables>
+    | ReactiveFunction<RoutesQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<RoutesQuery, RoutesQueryVariables>
+    | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<RoutesQuery, RoutesQueryVariables>>
+    | ReactiveFunction<VueApolloComposable.UseQueryOptions<RoutesQuery, RoutesQueryVariables>> = {},
+) {
+  return VueApolloComposable.useLazyQuery<RoutesQuery, RoutesQueryVariables>(
+    RoutesDocument,
+    variables,
+    options,
+  )
+}
+export type RoutesQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<
+  RoutesQuery,
+  RoutesQueryVariables
+>
+export const StopBoardDocument = gql`
+  query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int) {
+    stopPredictions(
+      feedCode: $feedCode
+      stopId: $stopId
+      routeId: $routeId
+      directionId: $directionId
+    ) {
+      stopPathIndex
+      scheduledArrival
+      predictedArrival
+      actualArrival
+      algorithm
+      confidenceSec
+    }
+  }
+`
+
+/**
+ * __useStopBoardQuery__
+ *
+ * To run a query within a Vue component, call `useStopBoardQuery` and pass it any options that fit your needs.
+ * When your component renders, `useStopBoardQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useStopBoardQuery({
+ *   feedCode: // value for 'feedCode'
+ *   stopId: // value for 'stopId'
+ *   routeId: // value for 'routeId'
+ *   directionId: // value for 'directionId'
+ * });
+ */
+export function useStopBoardQuery(
+  variables:
+    | StopBoardQueryVariables
+    | VueCompositionApi.Ref<StopBoardQueryVariables>
+    | ReactiveFunction<StopBoardQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>
+    | VueCompositionApi.Ref<
+        VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>
+      >
+    | ReactiveFunction<
+        VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>
+      > = {},
+) {
+  return VueApolloComposable.useQuery<StopBoardQuery, StopBoardQueryVariables>(
+    StopBoardDocument,
+    variables,
+    options,
+  )
+}
+export function useStopBoardLazyQuery(
+  variables?:
+    | StopBoardQueryVariables
+    | VueCompositionApi.Ref<StopBoardQueryVariables>
+    | ReactiveFunction<StopBoardQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>
+    | VueCompositionApi.Ref<
+        VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>
+      >
+    | ReactiveFunction<
+        VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>
+      > = {},
+) {
+  return VueApolloComposable.useLazyQuery<StopBoardQuery, StopBoardQueryVariables>(
+    StopBoardDocument,
+    variables,
+    options,
+  )
+}
+export type StopBoardQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<
+  StopBoardQuery,
+  StopBoardQueryVariables
+>
+export const StopsDocument = gql`
+  query Stops($feedCode: String!) {
+    stops(feedCode: $feedCode) {
+      stopId
+      stopName
+      stopCode
+    }
+  }
+`
+
+/**
+ * __useStopsQuery__
+ *
+ * To run a query within a Vue component, call `useStopsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useStopsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useStopsQuery({
+ *   feedCode: // value for 'feedCode'
+ * });
+ */
+export function useStopsQuery(
+  variables:
+    | StopsQueryVariables
+    | VueCompositionApi.Ref<StopsQueryVariables>
+    | ReactiveFunction<StopsQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<StopsQuery, StopsQueryVariables>
+    | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<StopsQuery, StopsQueryVariables>>
+    | ReactiveFunction<VueApolloComposable.UseQueryOptions<StopsQuery, StopsQueryVariables>> = {},
+) {
+  return VueApolloComposable.useQuery<StopsQuery, StopsQueryVariables>(
+    StopsDocument,
+    variables,
+    options,
+  )
+}
+export function useStopsLazyQuery(
+  variables?:
+    | StopsQueryVariables
+    | VueCompositionApi.Ref<StopsQueryVariables>
+    | ReactiveFunction<StopsQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<StopsQuery, StopsQueryVariables>
+    | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<StopsQuery, StopsQueryVariables>>
+    | ReactiveFunction<VueApolloComposable.UseQueryOptions<StopsQuery, StopsQueryVariables>> = {},
+) {
+  return VueApolloComposable.useLazyQuery<StopsQuery, StopsQueryVariables>(
+    StopsDocument,
+    variables,
+    options,
+  )
+}
+export type StopsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<
+  StopsQuery,
+  StopsQueryVariables
 >
 export const VehiclePredictionsDocument = gql`
   query VehiclePredictions($feedCode: String!, $vehicleId: String!) {
