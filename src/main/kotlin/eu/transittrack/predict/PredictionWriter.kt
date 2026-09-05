@@ -145,8 +145,8 @@ class PredictionWriter(
                 trip_pattern_id = excluded.trip_pattern_id,
                 predicted_arrival_ts = excluded.predicted_arrival_ts,
                 predicted_departure_ts = excluded.predicted_departure_ts,
-                actual_arrival_ts = excluded.actual_arrival_ts,
-                actual_departure_ts = excluded.actual_departure_ts,
+                actual_arrival_ts = coalesce(excluded.actual_arrival_ts, vehicle_prediction.actual_arrival_ts),
+                actual_departure_ts = coalesce(excluded.actual_departure_ts, vehicle_prediction.actual_departure_ts),
                 confidence_sec = excluded.confidence_sec,
                 computed_at = excluded.computed_at
         """

@@ -3,6 +3,7 @@ package eu.transittrack.avl.match
 import java.time.Instant
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
@@ -20,6 +21,7 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.predict.PredictionService
 
 /**
  * Claims PENDING `avl_report` rows, dispatches each to the [VehicleMatcher] for its feed's assignment
@@ -36,6 +38,7 @@ class AvlMatchProcessor(
     private val contextFactory: AvlMatchContextFactory,
     matchers: List<VehicleMatcher>,
     private val writer: AvlWriter,
+    private val predictionService: ObjectProvider<PredictionService>,
     props: AvlProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -60,7 +63,7 @@ class AvlMatchProcessor(
             // oldest-first so the sequential constraint sees a vehicle's reports in order
             for (report in feedReports.sortedWith(compareBy({ it.vehicleId }, { it.ts }))) {
                 val prev = vehicleStates.findByFeedIdAndVehicleId(feedId, report.vehicleId)
-                persist(feed, report, matcher.match(report, prev, ctx), prev)
+                persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
                 processed++
             }
         }
@@ -72,6 +75,7 @@ class AvlMatchProcessor(
         report: AvlReportRow,
         outcome: MatchOutcome,
         prev: VehicleStateRow?,
+        ctx: AvlMatchContext,
     ) {
         val now = Instant.now()
         when (outcome) {
@@ -124,6 +128,7 @@ class AvlMatchProcessor(
                     ),
                 )
                 markReport(report.id!!, MatchStatus.MATCHED, now)
+                predictionService.ifAvailable { it.onMatched(feed, report, prev, outcome, ctx) }
             }
 
             MatchOutcome.Failed -> {
