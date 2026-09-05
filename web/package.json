@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "codegen": "graphql-codegen --config graphql-codegen.ts",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@apollo/client": "^3.14.1",
