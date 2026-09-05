@@ -13,7 +13,8 @@
     "codegen": "graphql-codegen --config graphql-codegen.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@apollo/client": "^3.14.1",
@@ -38,6 +39,8 @@
     "happy-dom": "^20.14.0",
     "msw": "^2.15.0",
     "prettier": "^3.9.6",
-    "vitest": "^4.1.11"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.11",
+    "vue-tsc": "^3.3.11"
   }
 }
