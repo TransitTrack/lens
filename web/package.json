@@ -1,0 +1,42 @@
+{
+  "name": "web",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "codegen": "graphql-codegen --config graphql-codegen.ts",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@apollo/client": "^3.14.1",
+    "@nuxt/ui": "^4.11.0",
+    "@nuxtjs/apollo": "^5.0.0-alpha.16",
+    "@vue/apollo-composable": "^4.2.2",
+    "graphql": "^16.14.2",
+    "maplibre-gl": "^6.7.0",
+    "nuxt": "^4.5.2",
+    "vue": "^3.5.42",
+    "vue-router": "^5.3.0"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^7.4.0",
+    "@graphql-codegen/typescript": "^6.1.0",
+    "@graphql-codegen/typescript-operations": "^6.1.6",
+    "@graphql-codegen/typescript-vue-apollo": "^5.0.1",
+    "@nuxt/test-utils": "^4.2.0",
+    "@playwright/test": "^1.63.0",
+    "@vue/test-utils": "^2.5.0",
+    "eslint": "^10.10.0",
+    "happy-dom": "^20.14.0",
+    "msw": "^2.15.0",
+    "prettier": "^3.9.6",
+    "vitest": "^4.1.11"
+  }
+}
