@@ -5,6 +5,7 @@ import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.read.HeadwayReadService
 import eu.transittrack.predict.read.PredictionReadService
 
 /**
@@ -14,6 +15,7 @@ import eu.transittrack.predict.read.PredictionReadService
 @Controller
 class PredictionQueryController(
     private val read: PredictionReadService,
+    private val headwayRead: HeadwayReadService,
 ) {
     @QueryMapping
     fun vehiclePredictions(
@@ -27,4 +29,20 @@ class PredictionQueryController(
         @Argument algorithm: String?,
         @Argument sinceDays: Int,
     ) = read.predictionAccuracy(feedCode, algorithm?.let { PredictionAlgorithm.valueOf(it) }, sinceDays)
+
+    @QueryMapping
+    fun stopPredictions(
+        @Argument feedCode: String,
+        @Argument stopId: String,
+        @Argument routeId: String?,
+        @Argument directionId: Int?,
+    ) = read.stopPredictions(feedCode, stopId, routeId, directionId)
+
+    @QueryMapping
+    fun headway(
+        @Argument feedCode: String,
+        @Argument stopId: String,
+        @Argument routeId: String,
+        @Argument directionId: Int?,
+    ) = headwayRead.headway(feedCode, stopId, routeId, directionId)
 }

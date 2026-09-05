@@ -22,3 +22,12 @@ data class PredictionAccuracySummaryDto(
     val meanErrorSec: Double,
     val meanAbsErrorSec: Double,
 )
+
+data class HeadwayDto(
+    val stopId: String,
+    val routeId: String,
+    val directionId: Int?,
+    val waitSec: Int?,
+    val gapsSec: List<Int>,
+    val scheduledHeadwaySec: Int?,
+)

@@ -1,6 +1,8 @@
 extend type Query {
     vehiclePredictions(feedCode: String!, vehicleId: String!): [StopPrediction!]!
     predictionAccuracy(feedCode: String!, algorithm: String, sinceDays: Int = 7): [PredictionAccuracySummary!]!
+    stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int): [StopPrediction!]!
+    headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int): Headway!
 }
 
 type StopPrediction {
@@ -21,4 +23,13 @@ type PredictionAccuracySummary {
     sampleCount: Int!
     meanErrorSec: Float!
     meanAbsErrorSec: Float!
+}
+
+type Headway {
+    stopId: String!
+    routeId: String!
+    directionId: Int
+    waitSec: Int
+    gapsSec: [Int!]!
+    scheduledHeadwaySec: Int
 }

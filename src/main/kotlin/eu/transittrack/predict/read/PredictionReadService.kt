@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service
 
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.generate.serviceSecToInstant
 import eu.transittrack.predict.model.PredictionAccuracyRepository
@@ -16,6 +17,7 @@ import eu.transittrack.predict.read.dto.PredictionAccuracySummaryDto
 import eu.transittrack.predict.read.dto.StopPredictionDto
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
+import eu.transittrack.schedule.model.TripPatternRepository
 
 @Service
 class PredictionReadService(
@@ -25,6 +27,8 @@ class PredictionReadService(
     private val accuracy: PredictionAccuracyRepository,
     private val scheduleTimes: ScheduleTimeRepository,
     private val stopPaths: StopPathRepository,
+    private val revisionResolver: RevisionResolver,
+    private val tripPatternsRepo: TripPatternRepository,
 ) {
     fun vehiclePredictions(
         feedCode: String,
@@ -64,6 +68,53 @@ class PredictionReadService(
                 stopId = stopId,
             )
         }
+    }
+
+    fun stopPredictions(
+        feedCode: String,
+        stopId: String,
+        routeId: String?,
+        directionId: Int?,
+    ): List<StopPredictionDto> {
+        val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
+        val revisionId = revisionResolver.resolve(feed.gtfsFeedCode, null)
+        val patternIds = tripPatterns(revisionId, routeId, directionId).map { it.id!! }.toSet()
+        val matchingStopPaths = stopPaths.findByStopId(revisionId, stopId).filter { it.tripPatternId in patternIds }
+        val zone = ZoneId.systemDefault()
+        return matchingStopPaths.flatMap { sp ->
+            predictions
+                .findByTripPatternIdAndStopPathIndexAndAlgorithm(sp.tripPatternId, sp.stopPathIndex, feed.predictionAlgorithm)
+                .filter { it.predictedArrivalTs != null && it.actualArrivalTs == null }
+                .map { r ->
+                    val sched = scheduleTimes.findByTripOrdered(revisionId, r.tripRowId).firstOrNull { it.stopPathIndex == r.stopPathIndex }
+                    val serviceDate = r.computedAt.atZone(zone).toLocalDate()
+                    StopPredictionDto(
+                        stopPathIndex = r.stopPathIndex,
+                        scheduledArrival = sched?.arrivalSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
+                        scheduledDeparture = sched?.departureSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
+                        actualArrival = null,
+                        actualDeparture = null,
+                        predictedArrival = r.predictedArrivalTs?.toString(),
+                        predictedDeparture = r.predictedDepartureTs?.toString(),
+                        algorithm = r.algorithm.name,
+                        confidenceSec = r.confidenceSec,
+                        revisionId = revisionId,
+                        gtfsFeedCode = feed.gtfsFeedCode,
+                        stopId = stopId,
+                    )
+                }
+        }
+    }
+
+    private fun tripPatterns(
+        revisionId: Long,
+        routeId: String?,
+        directionId: Int?,
+    ): List<eu.transittrack.schedule.model.TripPattern> {
+        // stopPredictions without a routeId has nothing to scope the pattern search to; return empty
+        // rather than scanning every pattern in the revision.
+        if (routeId == null) return emptyList()
+        return tripPatternsRepo.findByRouteId(revisionId, routeId).filter { directionId == null || it.directionId == directionId }
     }
 
     fun predictionAccuracy(
