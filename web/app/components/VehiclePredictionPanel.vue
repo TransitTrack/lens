@@ -30,7 +30,12 @@ const columns: TableColumn<PredictionRow>[] = [
   { accessorKey: 'predictedArrival', header: 'Predicted' },
   { accessorKey: 'actualArrival', header: 'Actual' },
   { accessorKey: 'algorithm', header: 'Algorithm' },
+  { accessorKey: 'confidenceSec', header: 'Confidence' },
 ]
+
+function formatConfidence(sec: number | null | undefined): string {
+  return sec == null ? '—' : `±${sec}s`
+}
 
 function formatTs(iso: string | null | undefined): string {
   if (!iso) return '—'
@@ -43,10 +48,7 @@ function formatTs(iso: string | null | undefined): string {
 </script>
 
 <template>
-  <USlideover v-model:open="isOpen" :portal="false">
-    <template #header>
-      <h3 class="text-lg font-semibold">Vehicle {{ selectedVehicleId }}</h3>
-    </template>
+  <USlideover v-model:open="isOpen" :title="`Vehicle ${selectedVehicleId}`" :portal="false">
     <template #body>
       <UTable :data="predictions" :columns="columns">
         <template #stopName-cell="{ row }">
@@ -60,6 +62,9 @@ function formatTs(iso: string | null | undefined): string {
         }}</template>
         <template #actualArrival-cell="{ row }">{{
           formatTs(row.original.actualArrival)
+        }}</template>
+        <template #confidenceSec-cell="{ row }">{{
+          formatConfidence(row.original.confidenceSec)
         }}</template>
       </UTable>
     </template>

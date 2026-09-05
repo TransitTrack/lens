@@ -19,4 +19,16 @@ describe('VehicleList', () => {
     expect(selectedVehicleId.value).toBe('bus-1')
     expect(wrapper.emitted('select')?.[0]).toEqual(['bus-1'])
   })
+
+  it('clicking the Vehicle column header reverses row order', async () => {
+    const wrapper = await mountSuspended(VehicleList, { props: { vehicles: fixtures.vehicles } })
+    const rowsBefore = wrapper.findAll('tbody tr')
+    expect(rowsBefore[0]!.text()).toContain('bus-1')
+
+    const header = wrapper.findAll('thead button').find((b) => b.text() === 'Vehicle')
+    await header!.trigger('click')
+
+    const rowsAfter = wrapper.findAll('tbody tr')
+    expect(rowsAfter[0]!.text()).toContain('bus-2')
+  })
 })

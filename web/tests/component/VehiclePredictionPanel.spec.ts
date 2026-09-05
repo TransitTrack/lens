@@ -19,13 +19,17 @@ describe('VehiclePredictionPanel', () => {
     expect(wrapper.text()).toContain('SCHEDULE_ADHERENCE')
   })
 
-  it('closing clears the selected vehicle', async () => {
+  it('closing the slideover clears the selected vehicle', async () => {
     const { selectFeed, selectVehicle, selectedVehicleId } = useDashboardSelection()
     selectFeed('feed-a')
     selectVehicle('bus-1')
-    await mountSuspended(VehiclePredictionPanel)
+    const wrapper = await mountSuspended(VehiclePredictionPanel)
     await new Promise((r) => setTimeout(r, 0))
-    selectVehicle(null)
+
+    const closeButton = wrapper.find('[data-slot="close"]')
+    expect(closeButton.exists()).toBe(true)
+    await closeButton.trigger('click')
+
     expect(selectedVehicleId.value).toBeNull()
   })
 })

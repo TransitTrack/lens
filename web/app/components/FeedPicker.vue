@@ -2,7 +2,7 @@
 import { useAvlFeedsQuery } from '../../generated/graphql'
 import { useDashboardSelection } from '../composables/useDashboardSelection'
 
-const { result } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
+const { result, error } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
 const feeds = computed(() => result.value?.avlFeeds ?? [])
 
 const { selectedFeedCode, selectFeed } = useDashboardSelection()
@@ -22,6 +22,15 @@ watch(
 const selectedFeed = computed(
   () => feeds.value.find((f) => f.code === selectedFeedCode.value) ?? null,
 )
+
+function formatLastPollAt(iso: string | null | undefined): string {
+  if (!iso) return 'n/a'
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(iso))
+}
 </script>
 
 <template>
@@ -33,8 +42,11 @@ const selectedFeed = computed(
       placeholder="Select a feed"
       @update:model-value="selectFeed"
     />
-    <span v-if="selectedFeed" class="text-sm text-gray-500">
-      {{ selectedFeed.name }} — last poll: {{ selectedFeed.lastPollStatus ?? 'n/a' }}
+    <span v-if="selectedFeed" class="text-sm text-muted">
+      {{ selectedFeed.name }} — last poll: {{ selectedFeed.lastPollStatus ?? 'n/a' }} ({{
+        formatLastPollAt(selectedFeed.lastPollAt)
+      }})
     </span>
+    <span v-if="error" class="text-sm text-error">Feed list unavailable: {{ error.message }}</span>
   </div>
 </template>
