@@ -289,6 +289,20 @@ predictionAccuracy(feedCode: String!, algorithm: String, sinceDays: Int = 7): [P
    and `kalman_travel_time_state` rows go orphaned and are reclaimed rather
    than migrated forward. Same accepted limitation `travel_times_for_stop_path`
    already has.
+4. **`HISTORICAL_AVERAGE`/`KALMAN` overestimate the arrival at the vehicle's
+   very next stop.** The horizon deliberately re-includes the vehicle's
+   current stop path (so it always carries a fresh prediction), and the walk
+   anchors `lastTs` at the vehicle's current timestamp — but the vehicle
+   already has a known `distanceAlongTripM` into that segment, and these two
+   algorithms add the *full* learned/seeded travel time for it anyway, rather
+   than pro-rating for the distance already covered. `SCHEDULE_ADHERENCE` is
+   unaffected (it's schedule-anchored, not accumulation-based). The result is
+   a small, systematic lateness bias at the very next stop specifically for
+   the two algorithms whose purpose is to be more accurate than schedule
+   adherence — a natural companion to limitation #1 above (both stem from not
+   using `distanceAlongTripM` for partial-segment math). Not fixed in this
+   plan; a future refinement could scale the first segment's travel time by
+   the fraction remaining.
 
 Deferred entirely (see the design spec, §1/§12): emitting GTFS-RT `TripUpdate`
 from these predictions, and a materialized headway snapshot table (only
