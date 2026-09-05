@@ -34,7 +34,7 @@ vi.mock('maplibre-gl', () => {
     }
     remove() {}
   }
-  return { default: { Map: FakeMap, Marker: FakeMarker } }
+  return { Map: FakeMap, Marker: FakeMarker }
 })
 
 describe('VehicleMap', () => {

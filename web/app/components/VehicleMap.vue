@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import maplibregl from 'maplibre-gl'
+import { Map as MaplibreMap, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { colorForVehicle } from '../utils/vehicleMarker'
@@ -8,8 +8,8 @@ import { useDashboardSelection } from '../composables/useDashboardSelection'
 const props = defineProps<{ vehicles: VehicleRow[] }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
-let map: InstanceType<typeof maplibregl.Map> | null = null
-const markers = new Map<string, InstanceType<typeof maplibregl.Marker>>()
+let map: InstanceType<typeof MaplibreMap> | null = null
+const markers = new Map<string, InstanceType<typeof Marker>>()
 
 const { selectVehicle } = useDashboardSelection()
 
@@ -28,7 +28,7 @@ function syncMarkers(vehicles: VehicleRow[]) {
       el.className = 'vehicle-marker'
       el.style.backgroundColor = colorForVehicle(v.matched, v.stale)
       el.addEventListener('click', () => selectVehicle(v.vehicleId))
-      const marker = new maplibregl.Marker({ element: el }).setLngLat(lngLat).addTo(map)
+      const marker = new Marker({ element: el }).setLngLat(lngLat).addTo(map)
       markers.set(v.vehicleId, marker)
     }
   }
@@ -42,7 +42,7 @@ function syncMarkers(vehicles: VehicleRow[]) {
 
 onMounted(() => {
   if (!mapContainer.value) return
-  map = new maplibregl.Map({
+  map = new MaplibreMap({
     container: mapContainer.value,
     style: 'https://demotiles.maplibre.org/style.json',
     center: [0, 0],

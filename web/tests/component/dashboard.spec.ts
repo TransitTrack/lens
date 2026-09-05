@@ -26,7 +26,7 @@ vi.mock('maplibre-gl', () => {
     flyTo() {}
     remove() {}
   }
-  return { default: { Map: FakeMap, Marker: FakeMarker } }
+  return { Map: FakeMap, Marker: FakeMarker }
 })
 
 beforeAll(() => server.listen())
