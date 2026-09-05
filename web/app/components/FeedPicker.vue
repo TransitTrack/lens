@@ -34,19 +34,20 @@ function formatLastPollAt(iso: string | null | undefined): string {
 </script>
 
 <template>
-  <div class="flex items-center gap-4">
+  <div class="flex flex-col gap-2">
     <USelectMenu
       :model-value="selectedFeedCode"
       :items="options"
       value-key="value"
       placeholder="Select a feed"
+      class="w-full"
       @update:model-value="selectFeed"
     />
-    <span v-if="selectedFeed" class="text-sm text-muted">
-      {{ selectedFeed.name }} — last poll: {{ selectedFeed.lastPollStatus ?? 'n/a' }} ({{
+    <p v-if="selectedFeed" class="text-xs text-muted">
+      Last poll: {{ selectedFeed.lastPollStatus ?? 'n/a' }} ({{
         formatLastPollAt(selectedFeed.lastPollAt)
       }})
-    </span>
-    <span v-if="error" class="text-sm text-error">Feed list unavailable: {{ error.message }}</span>
+    </p>
+    <p v-if="error" class="text-xs text-error">Feed list unavailable: {{ error.message }}</p>
   </div>
 </template>

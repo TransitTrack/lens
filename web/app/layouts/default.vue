@@ -1,20 +1,38 @@
 <script setup lang="ts">
+import type { NavigationMenuItem } from '@nuxt/ui'
 import FeedPicker from '../components/FeedPicker.vue'
+
+const navItems: NavigationMenuItem[] = [
+  { label: 'Vehicles', to: '/', icon: 'i-lucide-bus' },
+  { label: 'Headway', to: '/headway', icon: 'i-lucide-clock' },
+]
 </script>
 
 <template>
-  <div class="flex h-screen flex-col">
-    <div class="border-default flex items-center justify-between border-b p-4">
-      <nav class="flex gap-4 text-sm font-medium">
-        <NuxtLink to="/" class="hover:text-primary" active-class="text-primary">Vehicles</NuxtLink>
-        <NuxtLink to="/headway" class="hover:text-primary" active-class="text-primary"
-          >Headway</NuxtLink
-        >
-      </nav>
+  <div class="flex h-screen">
+    <USidebar collapsible="icon" title="Feed">
       <FeedPicker />
-    </div>
-    <div class="min-h-0 flex-1">
-      <slot />
+    </USidebar>
+
+    <div class="flex min-w-0 flex-1 flex-col">
+      <UHeader>
+        <template #left>
+          <NuxtLink to="/" class="flex items-center gap-2 font-semibold">
+            <UIcon name="i-lucide-map-pinned" class="size-5 text-primary" />
+            TransitTrack
+          </NuxtLink>
+        </template>
+
+        <UNavigationMenu :items="navItems" />
+
+        <template #right>
+          <UColorModeButton />
+        </template>
+      </UHeader>
+
+      <div class="min-h-0 flex-1">
+        <slot />
+      </div>
     </div>
   </div>
 </template>
