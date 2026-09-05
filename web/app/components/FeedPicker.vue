@@ -19,7 +19,9 @@ watch(
   { immediate: true },
 )
 
-const selectedFeed = computed(() => feeds.value.find((f) => f.code === selectedFeedCode.value) ?? null)
+const selectedFeed = computed(
+  () => feeds.value.find((f) => f.code === selectedFeedCode.value) ?? null,
+)
 </script>
 
 <template>

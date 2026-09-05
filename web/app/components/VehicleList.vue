@@ -25,8 +25,22 @@ function onSelect(_event: Event, row: TableRow<VehicleRow>) {
 <template>
   <UTable :data="props.vehicles" :columns="columns" @select="onSelect">
     <template #status-cell="{ row }">
-      <UBadge :color="row.original.matched && !row.original.stale ? 'success' : row.original.stale ? 'warning' : 'neutral'">
-        {{ row.original.matched && !row.original.stale ? 'Matched' : row.original.stale ? 'Stale' : 'Unmatched' }}
+      <UBadge
+        :color="
+          row.original.matched && !row.original.stale
+            ? 'success'
+            : row.original.stale
+              ? 'warning'
+              : 'neutral'
+        "
+      >
+        {{
+          row.original.matched && !row.original.stale
+            ? 'Matched'
+            : row.original.stale
+              ? 'Stale'
+              : 'Unmatched'
+        }}
       </UBadge>
     </template>
     <template #scheduleAdherenceSec-cell="{ row }">

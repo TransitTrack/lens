@@ -1,8 +1,22 @@
 import { graphql, HttpResponse } from 'msw'
 
 const feeds = [
-  { code: 'feed-a', name: 'Feed A', gtfsFeedCode: 'gtfs-a', enabled: true, lastPollAt: '2026-09-06T08:00:00Z', lastPollStatus: 'OK' },
-  { code: 'feed-b', name: 'Feed B', gtfsFeedCode: 'gtfs-b', enabled: true, lastPollAt: null, lastPollStatus: null },
+  {
+    code: 'feed-a',
+    name: 'Feed A',
+    gtfsFeedCode: 'gtfs-a',
+    enabled: true,
+    lastPollAt: '2026-09-06T08:00:00Z',
+    lastPollStatus: 'OK',
+  },
+  {
+    code: 'feed-b',
+    name: 'Feed B',
+    gtfsFeedCode: 'gtfs-b',
+    enabled: true,
+    lastPollAt: null,
+    lastPollStatus: null,
+  },
 ]
 
 const vehicles = [
@@ -54,7 +68,9 @@ const predictions = [
 export const handlers = [
   graphql.query('AvlFeeds', () => HttpResponse.json({ data: { avlFeeds: feeds } })),
   graphql.query('Vehicles', () => HttpResponse.json({ data: { vehicles } })),
-  graphql.query('VehiclePredictions', () => HttpResponse.json({ data: { vehiclePredictions: predictions } })),
+  graphql.query('VehiclePredictions', () =>
+    HttpResponse.json({ data: { vehiclePredictions: predictions } }),
+  ),
 ]
 
 export const fixtures = { feeds, vehicles, predictions }

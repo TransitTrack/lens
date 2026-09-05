@@ -3,7 +3,7 @@ import { mountSuspended } from '@nuxt/test-utils/runtime'
 import VehicleMap from '../../app/components/VehicleMap.vue'
 import { fixtures } from '../../mocks/handlers'
 
-const markerInstances: any[] = []
+const markerInstances: unknown[] = []
 
 vi.mock('maplibre-gl', () => {
   class FakeMarker {
@@ -46,7 +46,8 @@ describe('VehicleMap', () => {
 
   it('exposes flyTo', async () => {
     const wrapper = await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
-    expect(typeof (wrapper.vm as any).flyTo).toBe('function')
-    expect(() => (wrapper.vm as any).flyTo('bus-1')).not.toThrow()
+    const vm = wrapper.vm as unknown as { flyTo: (vehicleId: string) => void }
+    expect(typeof vm.flyTo).toBe('function')
+    expect(() => vm.flyTo('bus-1')).not.toThrow()
   })
 })

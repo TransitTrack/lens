@@ -52,9 +52,15 @@ function formatTs(iso: string | null | undefined): string {
         <template #stopName-cell="{ row }">
           {{ row.original.stop?.stopName ?? row.original.stop?.stopId ?? '—' }}
         </template>
-        <template #scheduledArrival-cell="{ row }">{{ formatTs(row.original.scheduledArrival) }}</template>
-        <template #predictedArrival-cell="{ row }">{{ formatTs(row.original.predictedArrival) }}</template>
-        <template #actualArrival-cell="{ row }">{{ formatTs(row.original.actualArrival) }}</template>
+        <template #scheduledArrival-cell="{ row }">{{
+          formatTs(row.original.scheduledArrival)
+        }}</template>
+        <template #predictedArrival-cell="{ row }">{{
+          formatTs(row.original.predictedArrival)
+        }}</template>
+        <template #actualArrival-cell="{ row }">{{
+          formatTs(row.original.actualArrival)
+        }}</template>
       </UTable>
     </template>
   </USlideover>

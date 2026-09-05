@@ -6,7 +6,7 @@ export default defineNuxtConfig({
   // universal code (e.g. the Apollo plugin) runs during server rendering with no
   // browser origin to resolve relative GraphQL URIs against.
   ssr: false,
-  modules: ['@nuxt/ui'],
+  modules: ['@nuxt/ui', '@nuxt/eslint'],
   css: [],
   devtools: { enabled: true },
   nitro: {

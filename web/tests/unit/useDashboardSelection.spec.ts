@@ -3,7 +3,8 @@ import { useDashboardSelection } from '../../app/composables/useDashboardSelecti
 
 describe('useDashboardSelection', () => {
   it('selecting a feed clears the selected vehicle', () => {
-    const { selectedFeedCode, selectedVehicleId, selectFeed, selectVehicle } = useDashboardSelection()
+    const { selectedFeedCode, selectedVehicleId, selectFeed, selectVehicle } =
+      useDashboardSelection()
     selectFeed('feed-a')
     selectVehicle('bus-1')
     expect(selectedVehicleId.value).toBe('bus-1')
