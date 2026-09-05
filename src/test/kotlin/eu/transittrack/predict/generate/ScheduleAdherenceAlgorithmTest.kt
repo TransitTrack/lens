@@ -112,7 +112,7 @@ class ScheduleAdherenceAlgorithmTest(
 
         val rawInstant = serviceSecToInstant(serviceDate, rawArrivalSec!!, ctx.zone)
 
-        val predictions = ScheduleAdherenceAlgorithm().predict(horizon, serviceDate, adherenceSec = 30, ctx)
+        val predictions = ScheduleAdherenceAlgorithm().predict(horizon, serviceDate, adherenceSec = 30, startTs = Instant.EPOCH, ctx)
         val prediction = predictions.first { it.tripRowId == trip.id && it.stopPathIndex == targetIndex }
 
         assertThat(prediction.predictedArrivalTs).isEqualTo(rawInstant.plusSeconds(30))

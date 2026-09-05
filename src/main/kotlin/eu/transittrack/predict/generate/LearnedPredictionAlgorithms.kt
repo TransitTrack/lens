@@ -42,23 +42,6 @@ private fun seedDwellTimeSec(
         ?.dwellTimeSec
 
 /**
- * Anchors the accumulation walk at the first horizon stop's own scheduled time, if one exists;
- * falls back to service-day start otherwise. The 4-arg `PredictionStrategy` interface has no room
- * for "the vehicle's current position timestamp" (that's threaded in by the caller in a later
- * task, via which horizon it passes), so this is the best available anchor from within `predict`.
- */
-private fun startTs(
-    horizon: List<HorizonStop>,
-    serviceDate: LocalDate,
-    ctx: AvlMatchContext,
-): Instant {
-    val first = horizon.firstOrNull() ?: return serviceDate.atStartOfDay(ctx.zone).toInstant()
-    val schedulePoint = ctx.scheduleOf(first.tripRowId).firstOrNull { it.stopPathIndex == first.stopPathIndex }
-    val sec = schedulePoint?.arrivalSec ?: schedulePoint?.departureSec
-    return if (sec != null) serviceSecToInstant(serviceDate, sec, ctx.zone) else serviceDate.atStartOfDay(ctx.zone).toInstant()
-}
-
-/**
  * Predicts arrival/departure by walking the horizon and accumulating each stop path's learned
  * mean travel time (falling back to the schedule-derived seed when no observation exists yet).
  */
@@ -73,9 +56,10 @@ class HistoricalAverageAlgorithm(
         horizon: List<HorizonStop>,
         serviceDate: LocalDate,
         adherenceSec: Int,
+        startTs: Instant,
         ctx: AvlMatchContext,
     ): List<GeneratedPrediction> {
-        var lastTs = startTs(horizon, serviceDate, ctx)
+        var lastTs = startTs
         var lastTripRowId: Long? = null
         val out = ArrayList<GeneratedPrediction>()
         for (stop in horizon) {
@@ -124,9 +108,10 @@ class KalmanAlgorithm(
         horizon: List<HorizonStop>,
         serviceDate: LocalDate,
         adherenceSec: Int,
+        startTs: Instant,
         ctx: AvlMatchContext,
     ): List<GeneratedPrediction> {
-        var lastTs = startTs(horizon, serviceDate, ctx)
+        var lastTs = startTs
         var lastTripRowId: Long? = null
         val out = ArrayList<GeneratedPrediction>()
         for (stop in horizon) {

@@ -11,10 +11,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNull
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.MethodOrderer
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.TestInstance
-import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -25,6 +22,7 @@ import org.springframework.context.annotation.Primary
 import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.AvlAssignmentMode
 import eu.transittrack.avl.AvlFormat
+import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -40,10 +38,23 @@ import eu.transittrack.predict.model.TravelTimeObservation
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 
+/**
+ * [schedule-sample]'s T1 has stop paths 0..3 (08:00/08:10/08:20/08:30). Stop path 0's
+ * `travel_times_for_stop_path.travelTimeSec` is always `null` (there is no "previous" stop to
+ * measure travel from — see `ScheduleInterpolator.resolve`), so every horizon in this test starts
+ * at `fromStopPathIndex = 1` to stay clear of that intentional gap; the horizon is then `[1, 2,
+ * 3]`.
+ *
+ * Each test targets a different stop-path index for its "this index carries a learned value"
+ * assertion (2 for `TravelTimeObservation`, 3 for `KalmanTravelTimeState`) so that no test's
+ * fallback assertion depends on another test *not yet* having seeded a row — the two learned-value
+ * tables are independent of each other, and within a table each test either writes to an index no
+ * other test asserts a fallback on, or only asserts fallback behavior for an index no test ever
+ * writes to. This makes the whole class independent of method execution order.
+ */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
 @Import(TestcontainersConfiguration::class, LearnedPredictionAlgorithmsTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
 class LearnedPredictionAlgorithmsTest(
     @Autowired val factory: AvlMatchContextFactory,
     @Autowired val feedService: GtfsFeedService,
@@ -84,19 +95,25 @@ class LearnedPredictionAlgorithmsTest(
 
     private val serviceDate: LocalDate = LocalDate.of(2026, 9, 7)
 
+    /** A fixed, easy-to-hand-verify stand-in for "the vehicle's current position timestamp". */
+    private fun fixedStartTs(ctx: AvlMatchContext): Instant = serviceDate.atStartOfDay(ctx.zone).toInstant()
+
+    private fun t1Horizon(ctx: AvlMatchContext): List<HorizonStop> {
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        return buildHorizon(trip.id!!, trip.tripPatternId!!, fromStopPathIndex = 1, ctx).filter { it.tripRowId == trip.id }
+    }
+
     /**
-     * Recomputes, straight from the seed repository, the same accumulation the algorithms
-     * perform under the schedule-seed fallback: anchor at the first horizon stop's own scheduled
-     * time, then walk forward adding each stop's seeded travel + dwell time.
+     * Recomputes, straight from the seed repository, the same accumulation the schedule-seed
+     * fallback performs: starting from [startTs], walk forward adding each stop's seeded travel +
+     * dwell time. Used to independently verify the schedule-seed fallback path.
      */
     private fun expectedSeedArrivals(
         horizon: List<HorizonStop>,
-        ctx: eu.transittrack.avl.match.AvlMatchContext,
+        ctx: AvlMatchContext,
+        startTs: Instant,
     ): Map<Int, Instant> {
-        val first = horizon.first()
-        val anchorSchedule = ctx.scheduleOf(first.tripRowId).first { it.stopPathIndex == first.stopPathIndex }
-        val anchorSec = anchorSchedule.arrivalSec ?: anchorSchedule.departureSec!!
-        var lastTs = serviceSecToInstant(serviceDate, anchorSec, ctx.zone)
+        var lastTs = startTs
         val result = LinkedHashMap<Int, Instant>()
         for (stop in horizon) {
             val row =
@@ -111,31 +128,28 @@ class LearnedPredictionAlgorithmsTest(
     }
 
     @Test
-    @Order(1)
     fun `HistoricalAverageAlgorithm falls back to schedule seed with no observations`() {
         val ctx = factory.open(avlFeed)!!
-        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
-        val horizon = buildHorizon(trip.id!!, trip.tripPatternId!!, fromStopPathIndex = 1, ctx).filter { it.tripRowId == trip.id }
+        val horizon = t1Horizon(ctx)
         assertThat(horizon.size).isGreaterThan(0)
-        val expected = expectedSeedArrivals(horizon, ctx)
+        val startTs = fixedStartTs(ctx)
+        val expected = expectedSeedArrivals(horizon, ctx, startTs)
 
         val algorithm = HistoricalAverageAlgorithm(observations, seeds)
-        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, ctx)
+        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
 
-        for (stop in horizon) {
-            val prediction = predictions.first { it.stopPathIndex == stop.stopPathIndex && it.tripRowId == stop.tripRowId }
-            assertThat(prediction.predictedArrivalTs).isEqualTo(expected[stop.stopPathIndex])
-        }
+        // Stop path 1 is never written to by any other test in this class.
+        val prediction = predictions.first { it.stopPathIndex == 1 }
+        assertThat(prediction.predictedArrivalTs).isEqualTo(expected[1])
     }
 
     @Test
-    @Order(2)
     fun `HistoricalAverageAlgorithm uses learned observation over the schedule seed`() {
         val ctx = factory.open(avlFeed)!!
-        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
-        val horizon = buildHorizon(trip.id!!, trip.tripPatternId!!, fromStopPathIndex = 1, ctx).filter { it.tripRowId == trip.id }
+        val horizon = t1Horizon(ctx)
         assertThat(horizon.size).isGreaterThan(0)
-        val target = horizon.first()
+        val startTs = fixedStartTs(ctx)
+        val target = horizon.first { it.stopPathIndex == 2 }
 
         observations.save(
             TravelTimeObservation(
@@ -147,45 +161,45 @@ class LearnedPredictionAlgorithmsTest(
             ),
         )
 
+        // Everything strictly before stop path 2 still comes from the schedule seed, so the
+        // instant just before stop path 2's travel time is applied is independently verifiable.
+        val beforeTarget = horizon.takeWhile { it.stopPathIndex < target.stopPathIndex }
+        val expectedBefore = expectedSeedArrivals(beforeTarget, ctx, startTs)
+        val tsBeforeTarget = if (beforeTarget.isEmpty()) startTs else expectedBefore.getValue(beforeTarget.last().stopPathIndex)
+
         val algorithm = HistoricalAverageAlgorithm(observations, seeds)
-        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, ctx)
-        val prediction = predictions.first { it.stopPathIndex == target.stopPathIndex && it.tripRowId == target.tripRowId }
+        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
+        val prediction = predictions.first { it.stopPathIndex == 2 }
 
-        val anchorSchedule = ctx.scheduleOf(target.tripRowId).first { it.stopPathIndex == target.stopPathIndex }
-        val anchorSec = anchorSchedule.arrivalSec ?: anchorSchedule.departureSec!!
-        val anchorTs = serviceSecToInstant(serviceDate, anchorSec, ctx.zone)
-
-        assertThat(prediction.predictedArrivalTs).isEqualTo(anchorTs.plusSeconds(999L))
+        assertThat(prediction.predictedArrivalTs).isEqualTo(tsBeforeTarget.plusSeconds(999L))
     }
 
     @Test
-    @Order(3)
     fun `KalmanAlgorithm falls back to schedule seed with no state and reports null confidence`() {
         val ctx = factory.open(avlFeed)!!
-        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
-        val horizon = buildHorizon(trip.id!!, trip.tripPatternId!!, fromStopPathIndex = 1, ctx).filter { it.tripRowId == trip.id }
+        val horizon = t1Horizon(ctx)
         assertThat(horizon.size).isGreaterThan(0)
-        val expected = expectedSeedArrivals(horizon, ctx)
+        val startTs = fixedStartTs(ctx)
+        val expected = expectedSeedArrivals(horizon, ctx, startTs)
 
         val algorithm = KalmanAlgorithm(states, seeds)
-        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, ctx)
+        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
 
-        for (stop in horizon) {
-            val prediction = predictions.first { it.stopPathIndex == stop.stopPathIndex && it.tripRowId == stop.tripRowId }
-            assertThat(prediction.predictedArrivalTs).isEqualTo(expected[stop.stopPathIndex])
+        // Stop paths 1 and 2 are never written to by any Kalman-state-seeding test in this class.
+        for (idx in listOf(1, 2)) {
+            val prediction = predictions.first { it.stopPathIndex == idx }
+            assertThat(prediction.predictedArrivalTs).isEqualTo(expected[idx])
             assertThat(prediction.confidenceSec).isNull()
         }
     }
 
     @Test
-    @Order(4)
     fun `KalmanAlgorithm uses learned state over the schedule seed and reports confidence`() {
         val ctx = factory.open(avlFeed)!!
-        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
-        val horizon = buildHorizon(trip.id!!, trip.tripPatternId!!, fromStopPathIndex = 1, ctx).filter { it.tripRowId == trip.id }
+        val horizon = t1Horizon(ctx)
         assertThat(horizon.size).isGreaterThan(0)
-        val target = horizon.first()
-        val other = horizon.drop(1).firstOrNull()
+        val startTs = fixedStartTs(ctx)
+        val target = horizon.first { it.stopPathIndex == 3 }
 
         states.save(
             KalmanTravelTimeState(
@@ -198,20 +212,16 @@ class LearnedPredictionAlgorithmsTest(
             ),
         )
 
+        // Everything strictly before stop path 3 still comes from the schedule seed.
+        val beforeTarget = horizon.takeWhile { it.stopPathIndex < target.stopPathIndex }
+        val expectedBefore = expectedSeedArrivals(beforeTarget, ctx, startTs)
+        val tsBeforeTarget = if (beforeTarget.isEmpty()) startTs else expectedBefore.getValue(beforeTarget.last().stopPathIndex)
+
         val algorithm = KalmanAlgorithm(states, seeds)
-        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, ctx)
-        val prediction = predictions.first { it.stopPathIndex == target.stopPathIndex && it.tripRowId == target.tripRowId }
+        val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
+        val prediction = predictions.first { it.stopPathIndex == 3 }
 
-        val anchorSchedule = ctx.scheduleOf(target.tripRowId).first { it.stopPathIndex == target.stopPathIndex }
-        val anchorSec = anchorSchedule.arrivalSec ?: anchorSchedule.departureSec!!
-        val anchorTs = serviceSecToInstant(serviceDate, anchorSec, ctx.zone)
-
-        assertThat(prediction.predictedArrivalTs).isEqualTo(anchorTs.plusSeconds(777L))
+        assertThat(prediction.predictedArrivalTs).isEqualTo(tsBeforeTarget.plusSeconds(777L))
         assertThat(prediction.confidenceSec).isEqualTo(sqrt(64.0).roundToInt())
-
-        if (other != null) {
-            val otherPrediction = predictions.first { it.stopPathIndex == other.stopPathIndex && it.tripRowId == other.tripRowId }
-            assertThat(otherPrediction.confidenceSec).isNull()
-        }
     }
 }

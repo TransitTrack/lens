@@ -70,10 +70,16 @@ fun serviceSecToInstant(
 interface PredictionStrategy {
     val algorithm: PredictionAlgorithm
 
+    /**
+     * [startTs] is the vehicle's current position timestamp — the anchor accumulation-style
+     * strategies walk forward from. Schedule-projection strategies (e.g.
+     * [ScheduleAdherenceAlgorithm]) don't need it.
+     */
     fun predict(
         horizon: List<HorizonStop>,
         serviceDate: LocalDate,
         adherenceSec: Int,
+        startTs: Instant,
         ctx: AvlMatchContext,
     ): List<GeneratedPrediction>
 }
@@ -92,6 +98,7 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
         horizon: List<HorizonStop>,
         serviceDate: LocalDate,
         adherenceSec: Int,
+        startTs: Instant,
         ctx: AvlMatchContext,
     ): List<GeneratedPrediction> {
         val predictions = ArrayList<GeneratedPrediction>()
