@@ -7,7 +7,7 @@ export default defineNuxtConfig({
   // browser origin to resolve relative GraphQL URIs against.
   ssr: false,
   modules: ['@nuxt/ui', '@nuxt/eslint'],
-  css: [],
+  css: ['~/assets/css/main.css'],
   devtools: { enabled: true },
   vite: {
     // maplibre-gl spins up a worker via `?worker` internally; Vite's dep
