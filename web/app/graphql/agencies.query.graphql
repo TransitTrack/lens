@@ -1,0 +1,11 @@
+query Agencies($feedCode: String!) {
+  agencies(feedCode: $feedCode) {
+    agencyId
+    extent {
+      minLat
+      minLon
+      maxLat
+      maxLon
+    }
+  }
+}

@@ -4,9 +4,11 @@ import VehicleList from '../components/VehicleList.vue'
 import VehiclePredictionPanel from '../components/VehiclePredictionPanel.vue'
 import { useDashboardSelection } from '../composables/useDashboardSelection'
 import { useVehiclePolling } from '../composables/useVehiclePolling'
+import { useFeedExtent } from '../composables/useFeedExtent'
 
 const { selectedFeedCode } = useDashboardSelection()
 const { vehicles, loading, error } = useVehiclePolling(selectedFeedCode)
+const { extent } = useFeedExtent(selectedFeedCode)
 
 const mapRef = ref<InstanceType<typeof VehicleMap> | null>(null)
 
@@ -31,7 +33,7 @@ function onListSelect(vehicleId: string) {
     </div>
     <div class="flex flex-1 overflow-hidden">
       <div class="flex-1">
-        <VehicleMap ref="mapRef" :vehicles="vehicles" />
+        <VehicleMap ref="mapRef" :vehicles="vehicles" :extent="extent" />
       </div>
       <div class="border-default w-96 overflow-y-auto border-l">
         <VehicleList :vehicles="vehicles" @select="onListSelect" />

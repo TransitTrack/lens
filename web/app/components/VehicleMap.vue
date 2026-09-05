@@ -4,8 +4,9 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { colorForVehicle } from '../utils/vehicleMarker'
 import { useDashboardSelection } from '../composables/useDashboardSelection'
+import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
 
-const props = defineProps<{ vehicles: VehicleRow[] }>()
+const props = defineProps<{ vehicles: VehicleRow[]; extent?: LngLatBoundsExtent | null }>()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
 let map: InstanceType<typeof MaplibreMap> | null = null
@@ -40,15 +41,27 @@ function syncMarkers(vehicles: VehicleRow[]) {
   }
 }
 
+function applyExtent(extent: LngLatBoundsExtent | null | undefined) {
+  if (!map || !extent) return
+  map.fitBounds(
+    [
+      [extent.minLon, extent.minLat],
+      [extent.maxLon, extent.maxLat],
+    ],
+    { padding: 32, duration: 1000 },
+  )
+}
+
 onMounted(() => {
   if (!mapContainer.value) return
   map = new MaplibreMap({
     container: mapContainer.value,
-    style: 'https://demotiles.maplibre.org/style.json',
+    style: 'https://tiles.versatiles.org/assets/styles/shadow/style.json',
     center: [0, 0],
     zoom: 2,
   })
   syncMarkers(props.vehicles)
+  applyExtent(props.extent)
 })
 
 onBeforeUnmount(() => {
@@ -64,6 +77,13 @@ watch(
     syncMarkers(vehicles)
   },
   { deep: true },
+)
+
+watch(
+  () => props.extent,
+  (extent) => {
+    applyExtent(extent)
+  },
 )
 
 function flyTo(vehicleId: string) {

@@ -715,6 +715,17 @@ export type Vehicle = {
   vehicleId: Scalars['String']['output']
 }
 
+export type AgenciesQueryVariables = Exact<{
+  feedCode: string
+}>
+
+export type AgenciesQuery = {
+  agencies: Array<{
+    agencyId: string | null
+    extent: { minLat: number; minLon: number; maxLat: number; maxLon: number } | null
+  }>
+}
+
 export type AvlFeedsQueryVariables = Exact<{ [key: string]: never }>
 
 export type AvlFeedsQuery = {
@@ -816,6 +827,79 @@ export type VehiclesQuery = {
   }>
 }
 
+export const AgenciesDocument = gql`
+  query Agencies($feedCode: String!) {
+    agencies(feedCode: $feedCode) {
+      agencyId
+      extent {
+        minLat
+        minLon
+        maxLat
+        maxLon
+      }
+    }
+  }
+`
+
+/**
+ * __useAgenciesQuery__
+ *
+ * To run a query within a Vue component, call `useAgenciesQuery` and pass it any options that fit your needs.
+ * When your component renders, `useAgenciesQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useAgenciesQuery({
+ *   feedCode: // value for 'feedCode'
+ * });
+ */
+export function useAgenciesQuery(
+  variables:
+    | AgenciesQueryVariables
+    | VueCompositionApi.Ref<AgenciesQueryVariables>
+    | ReactiveFunction<AgenciesQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<AgenciesQuery, AgenciesQueryVariables>
+    | VueCompositionApi.Ref<
+        VueApolloComposable.UseQueryOptions<AgenciesQuery, AgenciesQueryVariables>
+      >
+    | ReactiveFunction<
+        VueApolloComposable.UseQueryOptions<AgenciesQuery, AgenciesQueryVariables>
+      > = {},
+) {
+  return VueApolloComposable.useQuery<AgenciesQuery, AgenciesQueryVariables>(
+    AgenciesDocument,
+    variables,
+    options,
+  )
+}
+export function useAgenciesLazyQuery(
+  variables?:
+    | AgenciesQueryVariables
+    | VueCompositionApi.Ref<AgenciesQueryVariables>
+    | ReactiveFunction<AgenciesQueryVariables>,
+  options:
+    | VueApolloComposable.UseQueryOptions<AgenciesQuery, AgenciesQueryVariables>
+    | VueCompositionApi.Ref<
+        VueApolloComposable.UseQueryOptions<AgenciesQuery, AgenciesQueryVariables>
+      >
+    | ReactiveFunction<
+        VueApolloComposable.UseQueryOptions<AgenciesQuery, AgenciesQueryVariables>
+      > = {},
+) {
+  return VueApolloComposable.useLazyQuery<AgenciesQuery, AgenciesQueryVariables>(
+    AgenciesDocument,
+    variables,
+    options,
+  )
+}
+export type AgenciesQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<
+  AgenciesQuery,
+  AgenciesQueryVariables
+>
 export const AvlFeedsDocument = gql`
   query AvlFeeds {
     avlFeeds {
