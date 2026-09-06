@@ -11,6 +11,7 @@ enum class GtfsRevisionStatus {
     SUPERSEDED,
     FAILED,
     UNCHANGED,
+    DRAFT,
     ;
 
     val terminal: Boolean
