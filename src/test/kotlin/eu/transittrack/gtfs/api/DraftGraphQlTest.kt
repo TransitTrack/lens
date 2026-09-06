@@ -13,6 +13,7 @@ import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
 import eu.transittrack.config.GraphQlConfiguration
+import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.draft.DraftLock
@@ -21,7 +22,6 @@ import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 
 @GraphQlTest
@@ -40,7 +40,19 @@ class DraftGraphQlTest(
 
     @MockitoBean lateinit var feeds: GtfsFeedRepository
 
-    @MockitoBean lateinit var revisions: GtfsRevisionRepository
+    private fun feed() =
+        GtfsFeed(
+            "stpt",
+            "F",
+            null,
+            "u",
+            null,
+            true,
+            null,
+            FeedSource.CONFIG,
+            Instant.now(),
+            Instant.now(),
+        ).apply { id = 1 }
 
     private fun draftRev(id: Long) =
         GtfsRevision(feedId = 1, status = GtfsRevisionStatus.DRAFT, sourceUrl = "u").apply {
@@ -51,28 +63,33 @@ class DraftGraphQlTest(
             createdAt = Instant.now()
         }
 
+    private fun edit(seq: Int) =
+        DraftEdit(
+            revisionId = 42,
+            seq = seq,
+            op = "op$seq",
+            summary = "s$seq",
+            forward = "{}",
+            inverse = "{}",
+            appliedAt = Instant.now(),
+        )
+
     @Test
-    fun `forkDraft returns the new draft`() {
-        val feed =
-            GtfsFeed(
-                "stpt",
-                "F",
-                null,
-                "u",
-                null,
-                true,
-                null,
-                FeedSource.CONFIG,
-                Instant.now(),
-                Instant.now(),
-            ).apply { id = 1 }
-        whenever(feeds.findById(1L)).thenReturn(Optional.of(feed))
+    fun `forkDraft returns the new draft with the claimed lock`() {
+        val expiresAt = Instant.parse("2026-09-06T10:15:00Z")
+        val claimed =
+            draftRev(42).apply {
+                editorClaimBy = "alice"
+                editorClaimExpiresAt = expiresAt
+            }
+        whenever(feeds.findById(1L)).thenReturn(Optional.of(feed()))
         whenever(draftService.fork("stpt", null, "P1", "alice")).thenReturn(draftRev(42))
-        whenever(draftService.currentLock(any())).thenReturn(null)
+        whenever(draftService.get(42L)).thenReturn(claimed)
+        whenever(draftService.currentLock(any())).thenReturn(DraftLock("alice", expiresAt))
 
         tester
             .document(
-                """mutation { forkDraft(input:{feedCode:"stpt", label:"P1", editor:"alice"}) { id label status version } }""",
+                """mutation { forkDraft(input:{feedCode:"stpt", label:"P1", editor:"alice"}) { id label status version lock { editor } } }""",
             ).execute()
             .path("forkDraft.id")
             .entity(String::class.java)
@@ -80,6 +97,9 @@ class DraftGraphQlTest(
             .path("forkDraft.status")
             .entity(String::class.java)
             .isEqualTo("DRAFT")
+            .path("forkDraft.lock.editor")
+            .entity(String::class.java)
+            .isEqualTo("alice")
     }
 
     @Test
@@ -92,5 +112,40 @@ class DraftGraphQlTest(
             .path("claimDraftEditor.editor")
             .entity(String::class.java)
             .isEqualTo("alice")
+    }
+
+    @Test
+    fun `draftEdits applies the limit via takeLast`() {
+        whenever(editRepo.findByRevisionIdOrderBySeqAsc(42L))
+            .thenReturn((1..5).map(::edit))
+        tester
+            .document("""{ draftEdits(id:"42", limit:2) { seq } }""")
+            .execute()
+            .path("draftEdits")
+            .entityList(Any::class.java)
+            .hasSize(2)
+            .path("draftEdits[0].seq")
+            .entity(Int::class.java)
+            .isEqualTo(4)
+    }
+
+    @Test
+    fun `activateDraft maps the activated revision through GtfsDtoMapper`() {
+        val active =
+            GtfsRevision(feedId = 1, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "u").apply {
+                id = 42
+                createdAt = Instant.now()
+            }
+        whenever(draftService.activate(42L, true)).thenReturn(active)
+        whenever(feeds.findById(1L)).thenReturn(Optional.of(feed()))
+        tester
+            .document("""mutation { activateDraft(id:"42", force:true) { id status feedCode } }""")
+            .execute()
+            .path("activateDraft.status")
+            .entity(String::class.java)
+            .isEqualTo("ACTIVE")
+            .path("activateDraft.feedCode")
+            .entity(String::class.java)
+            .isEqualTo("stpt")
     }
 }

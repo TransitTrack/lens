@@ -14,7 +14,6 @@ import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 
 @Controller
 class DraftController(
@@ -23,7 +22,6 @@ class DraftController(
     private val mapper: DraftMapper,
     private val gtfsMapper: GtfsDtoMapper,
     private val feeds: GtfsFeedRepository,
-    private val revisions: GtfsRevisionRepository,
 ) {
     private fun feedCodeOf(rev: GtfsRevision): String = feeds.findById(rev.feedId).map { it.code }.orElse("")
 
@@ -51,7 +49,7 @@ class DraftController(
     ): DraftDto {
         val rev = drafts.fork(input.feedCode, input.baseRevisionId?.toLong(), input.label, input.editor)
         drafts.claimEditor(rev.id!!, input.editor)
-        return dto(rev)
+        return dto(drafts.get(rev.id!!))
     }
 
     @MutationMapping
