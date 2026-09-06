@@ -56,6 +56,8 @@ transittrack:
     enabled: true
     layover-threshold-sec: 60
     stop-projection-max-deviation-m: 100
+  draft:
+    editor-lease-minutes: 15
   avl:
     enabled: true
     retention:
