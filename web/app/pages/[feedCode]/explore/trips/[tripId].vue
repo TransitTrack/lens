@@ -1,18 +1,17 @@
 <script setup lang="ts">
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useTripDetailQuery } from '~~/generated/graphql'
-import { hexColor, type LngLat } from '~/utils/gtfs'
-import { secToHm } from '~/utils/blocks'
+import {useFeeds} from '~/composables/useFeeds'
+import {useTripDetailQuery} from '~~/generated/graphql'
+import {hexColor, type LngLat} from '~/utils/gtfs'
 
 const route = useRoute()
-const { selectedFeedCode, feedPath } = useFeeds()
+const {selectedFeedCode, feedPath} = useFeeds()
 const tripId = computed(() => String(route.params.tripId))
 
-const { result, loading, error } = useTripDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', tripId: tripId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading, error} = useTripDetailQuery(
+  () => ({feedCode: selectedFeedCode.value ?? '', tripId: tripId.value}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 const trip = computed(() => result.value?.trip ?? null)
@@ -41,8 +40,8 @@ const stops = computed(
         .filter((s) => s.stop?.stopLat != null && s.stop?.stopLon != null)
         .map((s) => ({
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [s.stop!.stopLon, s.stop!.stopLat] },
-          properties: { name: s.stop!.stopName ?? s.stop!.stopId, state: 'upcoming' },
+          geometry: {type: 'Point', coordinates: [s.stop!.stopLon, s.stop!.stopLat]},
+          properties: {name: s.stop!.stopName ?? s.stop!.stopId, state: 'upcoming'},
         })),
     }) as GeoJSON.FeatureCollection,
 )
@@ -84,7 +83,7 @@ const runtimeSec = computed(() => {
           >
             {{ trip.route.routeShortName }}
           </UBadge>
-          <NavbarActions />
+          <NavbarActions/>
         </template>
       </UDashboardNavbar>
     </template>
@@ -100,15 +99,15 @@ const runtimeSec = computed(() => {
         class="m-4"
       />
       <div v-else-if="loading && !trip" class="flex min-h-0 flex-1">
-        <USkeleton class="min-w-0 flex-1 rounded-none" />
+        <USkeleton class="min-w-0 flex-1 rounded-none"/>
         <div class="w-96 shrink-0 border-l border-default p-4">
-          <USkeleton v-for="i in 12" :key="i" class="mb-2 h-8 w-full" />
+          <USkeleton v-for="i in 12" :key="i" class="mb-2 h-8 w-full"/>
         </div>
       </div>
 
       <div v-else class="flex min-h-0 flex-1">
         <div class="relative min-w-0 flex-1">
-          <VehicleRouteMap :line="line" :stops="stops" :vehicle="null" :route-color="routeColor" />
+          <VehicleRouteMap :line="line" :stops="stops" :vehicle="null" :route-color="routeColor"/>
         </div>
 
         <aside class="flex w-[26rem] shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">
@@ -151,43 +150,47 @@ const runtimeSec = computed(() => {
 
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-left text-xs text-dimmed">
-                <th class="py-1 pr-2 font-medium">#</th>
-                <th class="py-1 font-medium">Stop</th>
-                <th class="py-1 pl-3 text-right font-medium">Arr</th>
-                <th class="py-1 pl-3 text-right font-medium">Dep</th>
-              </tr>
+            <tr class="text-left text-xs text-dimmed">
+              <th class="py-1 pr-2 font-medium">#</th>
+              <th class="py-1 font-medium">Stop</th>
+              <th class="py-1 pl-3 text-right font-medium">Arr</th>
+              <th class="py-1 pl-3 text-right font-medium">Dep</th>
+            </tr>
             </thead>
             <tbody>
-              <tr v-for="st in stopTimes" :key="st.stopSequence" class="border-t border-default align-top">
-                <td class="py-1.5 text-xs text-dimmed">{{ st.stopSequence }}</td>
-                <td class="py-1.5">
-                  <span class="line-clamp-1 text-highlighted">{{ st.stop?.stopName ?? '—' }}</span>
-                  <span
-                    v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
-                    class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
-                  >interp</span>
-                  <span
-                    v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
-                    class="ml-1 text-[10px] text-dimmed"
-                  >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span>
-                </td>
-                <td class="py-1.5 pl-3 text-right tabular-nums">
-                  <div class="text-highlighted">
-                    {{ schedByIndex.has(st.stopSequence - 1)
+            <tr v-for="st in stopTimes" :key="st.stopSequence" class="border-t border-default align-top">
+              <td class="py-1.5 text-xs text-dimmed">{{ st.stopSequence }}</td>
+              <td class="py-1.5">
+                <span class="line-clamp-1 text-highlighted">{{ st.stop?.stopName ?? '—' }}</span>
+                <span
+                  v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
+                  class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
+                >interp</span>
+                <span
+                  v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
+                  class="ml-1 text-[10px] text-dimmed"
+                >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span>
+              </td>
+              <td class="py-1.5 pl-3 text-right tabular-nums">
+                <div class="text-highlighted">
+                  {{
+                    schedByIndex.has(st.stopSequence - 1)
                       ? secToHm(schedByIndex.get(st.stopSequence - 1)!.arrivalSec ?? null)
-                      : hm(st.arrivalTime) }}
-                  </div>
-                  <div v-if="schedByIndex.has(st.stopSequence - 1)" class="text-[10px] text-dimmed">
-                    gtfs {{ hm(st.arrivalTime) }}
-                  </div>
-                </td>
-                <td class="py-1.5 pl-3 text-right tabular-nums text-muted">
-                  {{ schedByIndex.has(st.stopSequence - 1)
+                      : hm(st.arrivalTime)
+                  }}
+                </div>
+                <div v-if="schedByIndex.has(st.stopSequence - 1)" class="text-[10px] text-dimmed">
+                  gtfs {{ hm(st.arrivalTime) }}
+                </div>
+              </td>
+              <td class="py-1.5 pl-3 text-right tabular-nums text-muted">
+                {{
+                  schedByIndex.has(st.stopSequence - 1)
                     ? secToHm(schedByIndex.get(st.stopSequence - 1)!.departureSec ?? null)
-                    : hm(st.departureTime) }}
-                </td>
-              </tr>
+                    : hm(st.departureTime)
+                }}
+              </td>
+            </tr>
             </tbody>
           </table>
         </aside>

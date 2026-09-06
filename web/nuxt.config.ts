@@ -9,6 +9,7 @@ const vueMaplibreEsm = createRequire(require.resolve('nuxt-maplibre')).resolve(
 )
 
 export default defineNuxtConfig({
+  compatibilityDate: '2026-09-06',
   // This dashboard is a client-side-polling ops UI (see spec: no SSR data-fetching
   // is needed or wanted). Disabling SSR also sidesteps a real crash class where
   // universal code (e.g. the Apollo plugin) runs during server rendering with no

@@ -1,6 +1,4 @@
-import { hexColor } from './gtfs'
-
-export { secToHm } from './stopSchedule'
+import {hexColor} from './gtfs'
 
 interface BlockLike {
   startTimeSec: number
@@ -59,7 +57,7 @@ export function timeSplit(trips: BlockTripLike[]): TimeSplit {
     layoverSec += bt.layoverAfterSec ?? 0
     if (bt.deadheadAfter) deadheadLegs++
   }
-  return { revenueSec, layoverSec, deadheadLegs }
+  return {revenueSec, layoverSec, deadheadLegs}
 }
 
 export interface TimelineSegment {

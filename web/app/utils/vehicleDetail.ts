@@ -1,10 +1,8 @@
-import type { VehicleDetailQuery } from '../../generated/graphql'
+import type {VehicleDetailQuery} from '../../generated/graphql'
 
 type Vehicle = NonNullable<VehicleDetailQuery['vehicle']>
 type Prediction = VehicleDetailQuery['vehiclePredictions'][number]
 type Accuracy = VehicleDetailQuery['predictionAccuracy'][number]
-
-export type LngLat = [number, number]
 
 /**
  * The route line, as an ordered list of [lon, lat] pairs. Prefers the schedule
@@ -62,13 +60,13 @@ export function stopFeatureCollection(vehicle: Vehicle) {
     .filter((p) => p.stop?.stopLat != null && p.stop?.stopLon != null)
     .map((p) => ({
       type: 'Feature' as const,
-      geometry: { type: 'Point' as const, coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat },
+      geometry: {type: 'Point' as const, coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat},
       properties: {
         name: p.stop!.stopName ?? p.stopId,
         state: stateFor(p.stopPathIndex, nextIndex),
       },
     }))
-  return { type: 'FeatureCollection' as const, features }
+  return {type: 'FeatureCollection' as const, features}
 }
 
 function stateFor(index: number, nextIndex: number): StopState {
