@@ -31,5 +31,16 @@ class GtfsRevision(
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now(),
     @Column(name = "activated_at") var activatedAt: Instant? = null,
     @Column(name = "superseded_at") var supersededAt: Instant? = null,
+    @Enumerated(EnumType.STRING) @Column(name = "kind", nullable = false)
+    var kind: eu.transittrack.gtfs.draft.DraftKind = eu.transittrack.gtfs.draft.DraftKind.IMPORT,
+    @Column(name = "base_revision_id") var baseRevisionId: Long? = null,
+    @Column(name = "label") var label: String? = null,
+    @Column(name = "derivation_stale", nullable = false) var derivationStale: Boolean = false,
+    @Column(name = "deriving", nullable = false) var deriving: Boolean = false,
+    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "last_validation") var lastValidation: String? = null,
+    @Column(name = "editor_claim_by") var editorClaimBy: String? = null,
+    @Column(name = "editor_claim_expires_at") var editorClaimExpiresAt: Instant? = null,
+    @Column(name = "version", nullable = false) var version: Long = 0,
+    @Column(name = "created_by") var createdBy: String? = null,
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
 )

@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0004-draft
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: gtfs_revision
+            columns:
+              - column: { name: kind, type: VARCHAR(16), defaultValue: IMPORT, constraints: { nullable: false } }
+              - column: { name: base_revision_id, type: BIGINT, constraints: { foreignKeyName: fk_revision_base, references: "gtfs_revision(id)" } }
+              - column: { name: label, type: TEXT }
+              - column: { name: derivation_stale, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: deriving, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: last_validation, type: JSONB }
+              - column: { name: editor_claim_by, type: TEXT }
+              - column: { name: editor_claim_expires_at, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_by, type: TEXT }
+        - createSequence: { sequenceName: draft_edit_seq, startValue: 1, incrementBy: 1 }
+        - createTable:
+            tableName: draft_edit
+            columns:
+              - column: { name: id, type: BIGINT, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_draft_edit_revision, references: "gtfs_revision(id)", deleteCascade: true } }
+              - column: { name: seq, type: INT, constraints: { nullable: false } }
+              - column: { name: op, type: TEXT, constraints: { nullable: false } }
+              - column: { name: summary, type: TEXT, constraints: { nullable: false } }
+              - column: { name: forward, type: JSONB, constraints: { nullable: false } }
+              - column: { name: inverse, type: JSONB, constraints: { nullable: false } }
+              - column: { name: applied_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: undone, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+        - createIndex:
+            tableName: draft_edit
+            indexName: ix_draft_edit_revision_seq
+            columns:
+              - column: { name: revision_id }
+              - column: { name: seq }
+        - addUniqueConstraint:
+            tableName: draft_edit
+            constraintName: uq_draft_edit_revision_seq
+            columnNames: revision_id, seq
