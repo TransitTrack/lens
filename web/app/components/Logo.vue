@@ -1,128 +1,185 @@
 <template>
-  <div class="logo-container" :style="{ width: size + 'px', height: 'auto' }">
+  <div class="transit-track">
+    <!-- ICON -->
     <svg
-      :viewBox="collapsed ? '0 0 370 240' : '0 0 970 280'"
-      width="100%"
-      height="100%"
-      fill="none"
-      class="transit-logo-svg"
+      class="transit-track__icon"
+      viewBox="0 0 160 160"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
     >
-      <defs>
-        <!-- Structural background tracking guidelines (Ultra-Thick) -->
-        <path id="heavyPath1" d="M 35,65 L 140,20 L 240,150 L 345,95"/>
-        <path id="heavyPath2" d="M 35,115 L 140,115 L 240,65 L 345,135"/>
-        <path id="heavyPath3" d="M 35,165 L 140,180 L 210,95 L 345,185"/>
-      </defs>
+      <!-- Motion lines -->
+      <rect x="2" y="74" width="45" height="8" rx="4" fill="#FF1E2D"/>
+      <rect x="9" y="91" width="37" height="8" rx="4" fill="#FF1E2D"/>
+      <rect x="2" y="108" width="45" height="8" rx="4" fill="#FF1E2D"/>
 
-      <!-- BRAND LOGO ICON (Maximum Thickness Grid) -->
-      <g transform="translate(10, 15)">
-        <!-- Static High-Visibility Base Layers -->
-        <use href="#heavyPath1" stroke="#cbd5e1" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-        <use href="#heavyPath2" stroke="#cbd5e1" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-        <use href="#heavyPath3" stroke="#cbd5e1" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- Red outer transit marker -->
+      <path
+        d="
+          M80 5
+          C45 5 18 32 18 67
+          C18 91 31 111 50 125
+          L80 151
+          L110 125
+          C129 111 142 91 142 67
+          C142 32 115 5 80 5
+          Z
+        "
+        fill="#FF1E2D"
+      />
 
-        <!-- Line 1: Ultra-Thick Dynamic Flow -->
-        <use href="#heavyPath1" class="flow-line line-slow" :stroke="accentColor" stroke-width="12" stroke-linecap="round"
-             stroke-linejoin="round"/>
+      <!-- White inner circle -->
+      <circle
+        cx="80"
+        cy="67"
+        r="43"
+        fill="#FFFFFF"
+      />
 
-        <!-- Line 2: Ultra-Thick Dynamic Flow -->
-        <use href="#heavyPath2" class="flow-line line-fast" :stroke="accentColor" stroke-width="12" stroke-linecap="round"
-             stroke-linejoin="round"/>
+      <!-- Train body -->
+      <rect
+        x="54"
+        y="32"
+        width="52"
+        height="63"
+        rx="12"
+        fill="#29343A"
+      />
 
-        <!-- Line 3: Ultra-Thick Dynamic Flow -->
-        <use href="#heavyPath3" class="flow-line line-normal" :stroke="accentColor" stroke-width="12" stroke-linecap="round"
-             stroke-linejoin="round"/>
+      <!-- Roof detail -->
+      <rect
+        x="68"
+        y="37"
+        width="24"
+        height="5"
+        rx="2.5"
+        fill="#FFFFFF"
+      />
 
-        <!-- Heavy Junction Hubs (Thick white shields to block background lines completely) -->
-        <circle cx="140" cy="115" r="14" fill="#0f172a" stroke="#ffffff" stroke-width="5"/>
-        <circle cx="240" cy="65" r="14" fill="#0f172a" stroke="#ffffff" stroke-width="5"/>
+      <!-- Front window -->
+      <rect
+        x="63"
+        y="46"
+        width="34"
+        height="22"
+        rx="5"
+        fill="#FFFFFF"
+      />
 
-        <!-- Key Tracking Terminals with Deep Contours -->
-        <circle cx="345" cy="95" r="10" :fill="accentColor" stroke="#ffffff" stroke-width="3"/>
-        <circle cx="345" cy="135" r="10" :fill="accentColor" stroke="#ffffff" stroke-width="3"/>
-        <circle cx="345" cy="185" r="10" :fill="accentColor" stroke="#ffffff" stroke-width="3"/>
-      </g>
+      <!-- Inner window -->
+      <rect
+        x="67"
+        y="50"
+        width="26"
+        height="14"
+        rx="3"
+        fill="#29343A"
+      />
 
-      <!-- BRAND TYPOGRAPHY (Max Impact Weight) -->
-      <g v-if="!collapsed" transform="translate(410, 148)">
-        <text class="font-ultra-black" x="0" y="0" fill="#0f172a">TRANSIT</text>
-        <text class="font-bold-accent" x="290" y="0" :fill="accentColor">TRACK</text>
-        <text class="font-sub-heavy" x="5" y="44" fill="#334155">ROUTE ANALYSIS &amp; PREDICTIONS</text>
-      </g>
+      <!-- Headlights -->
+      <circle cx="66" cy="78" r="5" fill="#FFFFFF"/>
+      <circle cx="94" cy="78" r="5" fill="#FFFFFF"/>
+
+      <!-- Left rail -->
+      <path
+        d="M67 92 L48 137"
+        stroke="#29343A"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+
+      <!-- Right rail -->
+      <path
+        d="M93 92 L112 137"
+        stroke="#29343A"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+
+      <!-- Rail center -->
+      <path
+        d="M78 103 L72 129"
+        stroke="#FFFFFF"
+        stroke-width="4"
+        stroke-linecap="round"
+      />
     </svg>
+
+    <!-- WORDMARK -->
+    <div v-if="!collapsed" class="transit-track__wordmark">
+      <div class="transit-track__transit">
+        Transit
+      </div>
+
+      <div class="transit-track__track">
+        Track
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 defineProps({
-  size: {
-    type: [String, Number],
-    default: 590
+  height: {
+    type: Number,
+    default: 55
   },
   collapsed: {
     type: Boolean,
     default: false
-  },
-  accentColor: {
-    type: String,
-    default: '#0284c7'
   }
-});
+})
 </script>
 
 <style scoped>
-.logo-container {
-  display: inline-block;
-  vertical-align: middle;
-  padding-top: 20px;
-  padding-bottom: 5px;
+@import url(
+'https://fonts.googleapis.com/css2?family=Montserrat:wght@800;900&display=swap'
+);
+
+.transit-track {
+  --red: #ff1e2d;
+  --dark: #29343a;
+
+  display: inline-flex;
+  align-items: center;
+
+  height: v-bind(height+ 'px');
+
+  gap: 1px;
+
+  font-family: 'Montserrat', Arial, sans-serif;
 }
 
-/* Max weight system typography setup to rival native app headers */
-.font-ultra-black {
-  font-family: Arial Black, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+/* Icon */
+.transit-track__icon {
+  width: calc(v-bind(height+ 'px') * 0.90);
+  height: v-bind(height+ 'px');
+  flex-shrink: 0;
+}
+
+/* Wordmark */
+.transit-track__wordmark {
+  display: flex;
+  flex-direction: row;
+
+  justify-content: center;
+
+  line-height: 0.82;
+  letter-spacing: -0.055em;
+
   font-weight: 900;
-  font-size: 72px;
-  letter-spacing: -2.5px;
 }
 
-.font-bold-accent {
-  font-family: Arial Black, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-weight: 900;
-  font-size: 72px;
-  letter-spacing: -2.5px;
+/* Transit */
+.transit-track__transit {
+  color: var(--dark);
+  font-size: calc(v-bind(height+ 'px') * 0.57);
 }
 
-.font-sub-heavy {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-weight: 800; /* Extra bold subtitle tracking layout */
-  font-size: 15px;
-  letter-spacing: 5px;
-}
+/* Track */
+.transit-track__track {
+  color: var(--red);
+  font-size: calc(v-bind(height+ 'px') * 0.57);
 
-/* Solid high-visibility dash patterns for robust interface presence */
-.flow-line {
-  stroke-dasharray: 25 30;
-}
-
-.line-slow {
-  animation: transitFlowPattern 4.8s linear infinite;
-}
-
-.line-fast {
-  animation: transitFlowPattern 2.2s linear infinite;
-}
-
-.line-normal {
-  animation: transitFlowPattern 3.5s linear infinite;
-}
-
-@keyframes transitFlowPattern {
-  0% {
-    stroke-dashoffset: 110;
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
+  margin-top: 7px;
 }
 </style>

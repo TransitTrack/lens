@@ -73,7 +73,7 @@ const groups = computed(() => [
       :ui="{ footer: 'lg:border-t lg:border-default' }"
     >
       <template #header="{ collapsed }">
-        <Logo :collapsed="collapsed" accent-color="red"/>
+        <Logo :collapsed="collapsed"/>
       </template>
 
       <template #default="{ collapsed }">

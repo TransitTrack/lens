@@ -23,4 +23,13 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
         feedId: Long,
         statuses: Collection<GtfsRevisionStatus>,
     ): Boolean
+
+    @Query("select r from GtfsRevision r where r.status = :status")
+    fun findByStatus(status: GtfsRevisionStatus): List<GtfsRevision>
+
+    @Query("select r from GtfsRevision r where r.kind = :kind and r.status = :status")
+    fun findByKindAndStatus(
+        kind: eu.transittrack.gtfs.draft.DraftKind,
+        status: GtfsRevisionStatus,
+    ): List<GtfsRevision>
 }
