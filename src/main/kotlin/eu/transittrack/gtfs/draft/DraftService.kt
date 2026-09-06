@@ -1,5 +1,7 @@
 package eu.transittrack.gtfs.draft
 
+import java.time.Instant
+
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -8,6 +10,11 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
+
+data class DraftLock(
+    val editor: String,
+    val expiresAt: Instant,
+)
 
 /**
  * Forks a base revision's raw GTFS tables into an isolated `DRAFT` revision an editor can modify,
@@ -89,5 +96,57 @@ class DraftService(
             throw IllegalArgumentException("revision $draftId is not a draft")
         }
         return r
+    }
+
+    fun currentLock(draft: GtfsRevision): DraftLock? {
+        val who = draft.editorClaimBy ?: return null
+        val exp = draft.editorClaimExpiresAt ?: return null
+        return if (exp.isAfter(Instant.now())) DraftLock(who, exp) else null
+    }
+
+    @Transactional
+    fun claimEditor(
+        draftId: Long,
+        editor: String,
+        takeOver: Boolean = false,
+    ): DraftLock {
+        val d = get(draftId)
+        val held = currentLock(d)
+        check(takeOver || held == null || held.editor == editor) { "locked by ${held?.editor}" }
+        return writeClaim(d, editor)
+    }
+
+    @Transactional
+    fun renewEditor(
+        draftId: Long,
+        editor: String,
+    ): DraftLock {
+        val d = get(draftId)
+        check(currentLock(d)?.editor == editor) { "not the current editor" }
+        return writeClaim(d, editor)
+    }
+
+    @Transactional
+    fun releaseEditor(
+        draftId: Long,
+        editor: String,
+    ): Boolean {
+        val d = get(draftId)
+        if (d.editorClaimBy != editor) return false
+        d.editorClaimBy = null
+        d.editorClaimExpiresAt = null
+        revisions.save(d)
+        return true
+    }
+
+    private fun writeClaim(
+        d: GtfsRevision,
+        editor: String,
+    ): DraftLock {
+        val exp = Instant.now().plusSeconds(props.editorLeaseMinutes * 60)
+        d.editorClaimBy = editor
+        d.editorClaimExpiresAt = exp
+        revisions.save(d)
+        return DraftLock(editor, exp)
     }
 }

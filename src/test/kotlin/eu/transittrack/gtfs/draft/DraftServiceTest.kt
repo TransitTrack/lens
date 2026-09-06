@@ -136,4 +136,20 @@ class DraftServiceTest(
         assertThat(drafts.get(draft.id!!).id).isEqualTo(draft.id)
         assertFailure { drafts.get(activeRev) }.isInstanceOf<IllegalArgumentException>()
     }
+
+    @Test
+    fun `claim, renew, release, and take over`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+
+        val lock = drafts.claimEditor(draft.id!!, "alice")
+        assertThat(lock.editor).isEqualTo("alice")
+
+        assertFailure { drafts.claimEditor(draft.id!!, "bob") }.isInstanceOf(IllegalStateException::class)
+        assertThat(drafts.renewEditor(draft.id!!, "alice").editor).isEqualTo("alice")
+        assertThat(drafts.claimEditor(draft.id!!, "bob", takeOver = true).editor).isEqualTo("bob")
+        assertThat(drafts.releaseEditor(draft.id!!, "alice")).isEqualTo(false) // alice no longer holds it
+        assertThat(drafts.releaseEditor(draft.id!!, "bob")).isEqualTo(true)
+    }
 }
