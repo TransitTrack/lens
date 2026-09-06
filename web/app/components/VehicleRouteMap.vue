@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
-import { useMapStyle } from '../composables/useMapStyle'
-import { boundsOf, type LngLat } from '../utils/vehicleDetail'
+import {useMapStyle} from '../composables/useMapStyle'
+import {boundsOf} from '../utils/vehicleDetail'
 
 const props = withDefaults(
   defineProps<{
@@ -15,7 +15,7 @@ const props = withDefaults(
     /** keep the map centred on the vehicle as it moves */
     follow?: boolean
   }>(),
-  { trail: () => [], follow: false },
+  {trail: () => [], follow: false},
 )
 
 const MAP_ID = 'vehicle-route-map'
@@ -26,13 +26,13 @@ const map = useMglMap(MAP_ID)
 const lineData = computed<GeoJSON.Feature>(() => ({
   type: 'Feature',
   properties: {},
-  geometry: { type: 'LineString', coordinates: props.line },
+  geometry: {type: 'LineString', coordinates: props.line},
 }))
 
 const trailData = computed<GeoJSON.Feature>(() => ({
   type: 'Feature',
   properties: {},
-  geometry: { type: 'LineString', coordinates: props.trail },
+  geometry: {type: 'LineString', coordinates: props.trail},
 }))
 
 function fit() {
@@ -44,16 +44,16 @@ function fit() {
         : [],
   )
   if (!b || !map.map || !map.isLoaded) return
-  map.map.fitBounds(b, { padding: 48, duration: 800, maxZoom: 16 })
+  map.map.fitBounds(b, {padding: 48, duration: 800, maxZoom: 16})
 }
 
-watch([() => props.line, () => map.isLoaded], fit, { immediate: true })
+watch([() => props.line, () => map.isLoaded], fit, {immediate: true})
 
 watch(
   () => props.vehicle,
   (v) => {
     if (props.follow && v && map.map && map.isLoaded) {
-      map.map.easeTo({ center: [v.lng, v.lat], duration: 600 })
+      map.map.easeTo({center: [v.lng, v.lat], duration: 600})
     }
   },
 )
@@ -62,7 +62,7 @@ watch(
 <template>
   <div class="h-full w-full">
     <MglMap :map-key="MAP_ID" :map-style="mapStyle" :center="[0, 0]" :zoom="2">
-      <MglNavigationControl />
+      <MglNavigationControl/>
 
       <MglGeoJsonSource v-if="trail.length > 1" source-id="avl-trail" :data="trailData">
         <MglLineLayer
