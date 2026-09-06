@@ -1,0 +1,78 @@
+query VehicleDetail($feedCode: String!, $vehicleId: String!) {
+  vehicle(feedCode: $feedCode, vehicleId: $vehicleId) {
+    vehicleId
+    label
+    reportTs
+    position {
+      lat
+      lon
+    }
+    snappedPosition {
+      lat
+      lon
+    }
+    bearing
+    speedMps
+    occupancyStatus
+    matched
+    stale
+    scheduleAdherenceSec
+    stopPathIndex
+    distanceAlongTripM
+    currentStop {
+      stopId
+      stopName
+    }
+    trip {
+      tripId
+      tripHeadsign
+      directionId
+      routeId
+      route {
+        routeShortName
+        routeLongName
+        routeColor
+        routeTextColor
+      }
+      shape {
+        points {
+          lat
+          lon
+        }
+      }
+    }
+    pattern {
+      patternKey
+      stopPaths {
+        stopPathIndex
+        stopId
+        waitStop
+        stop {
+          stopId
+          stopName
+          stopLat
+          stopLon
+        }
+        pathGeometry
+      }
+    }
+  }
+  vehiclePredictions(feedCode: $feedCode, vehicleId: $vehicleId) {
+    stopPathIndex
+    stop {
+      stopId
+      stopName
+    }
+    scheduledArrival
+    predictedArrival
+    actualArrival
+    algorithm
+    confidenceSec
+  }
+  predictionAccuracy(feedCode: $feedCode) {
+    algorithm
+    sampleCount
+    meanErrorSec
+    meanAbsErrorSec
+  }
+}

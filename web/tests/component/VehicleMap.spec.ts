@@ -1,47 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import VehicleMap from '../../app/components/VehicleMap.vue'
 import { fixtures } from '../../mocks/handlers'
 
-const markerInstances: unknown[] = []
-
-vi.mock('maplibre-gl', () => {
-  class FakeMarker {
-    element: HTMLElement
-    lngLat: [number, number] = [0, 0]
-    constructor(opts: { element: HTMLElement }) {
-      this.element = opts.element
-      markerInstances.push(this)
-    }
-    setLngLat(ll: [number, number]) {
-      this.lngLat = ll
-      return this
-    }
-    addTo() {
-      return this
-    }
-    remove() {
-      return this
-    }
-    getElement() {
-      return this.element
-    }
-  }
-  class FakeMap {
-    flyToCalls: unknown[] = []
-    flyTo(opts: unknown) {
-      this.flyToCalls.push(opts)
-    }
-    remove() {}
-  }
-  return { Map: FakeMap, Marker: FakeMarker }
-})
+// @indoorequal/vue-maplibre-gl is aliased to tests/mocks/vue-maplibre-gl.ts:
+// MglMarker renders a `.mgl-marker-stub` probe per marker.
 
 describe('VehicleMap', () => {
-  it('creates one marker per vehicle', async () => {
-    markerInstances.length = 0
-    await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
-    expect(markerInstances).toHaveLength(fixtures.vehicles.length)
+  it('renders one marker per vehicle', async () => {
+    const wrapper = await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
+    expect(wrapper.findAll('.mgl-marker-stub')).toHaveLength(fixtures.vehicles.length)
   })
 
   it('exposes flyTo', async () => {

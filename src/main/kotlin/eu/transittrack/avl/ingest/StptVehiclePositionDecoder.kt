@@ -9,6 +9,7 @@ import tools.jackson.databind.json.JsonMapper
 import eu.transittrack.avl.feed.RawAvlPayload
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.feed.AvlFormat
+import eu.transittrack.util.kmphToMps
 
 private data class StptVehiclePositionResponse(
     val success: Boolean,
@@ -95,7 +96,7 @@ class StptVehiclePositionDecoder(
                     lat = it.lat,
                     lon = it.lng,
                     bearing = it.bearing,
-                    speedMps = it.speed,
+                    speedMps = it.speed.kmphToMps(), // convert speed in kmph in mps
                     descRouteId = it.routeId,
                     descTripId = it.tripId,
                     descDirectionId = it.directionId.toInt(),

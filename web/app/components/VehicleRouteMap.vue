@@ -1,0 +1,118 @@
+<script setup lang="ts">
+import 'maplibre-gl/dist/maplibre-gl.css'
+import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
+import { useMapStyle } from '../composables/useMapStyle'
+import { boundsOf, type LngLat } from '../utils/vehicleDetail'
+
+const props = withDefaults(
+  defineProps<{
+    line: LngLat[]
+    stops: GeoJSON.FeatureCollection
+    vehicle: { lng: number, lat: number, bearing: number | null } | null
+    routeColor: string
+    /** recent AVL fixes, oldest → newest, as [lon, lat] */
+    trail?: LngLat[]
+    /** keep the map centred on the vehicle as it moves */
+    follow?: boolean
+  }>(),
+  { trail: () => [], follow: false },
+)
+
+const MAP_ID = 'vehicle-route-map'
+const mapStyle = useMapStyle()
+
+const map = useMglMap(MAP_ID)
+
+const lineData = computed<GeoJSON.Feature>(() => ({
+  type: 'Feature',
+  properties: {},
+  geometry: { type: 'LineString', coordinates: props.line },
+}))
+
+const trailData = computed<GeoJSON.Feature>(() => ({
+  type: 'Feature',
+  properties: {},
+  geometry: { type: 'LineString', coordinates: props.trail },
+}))
+
+function fit() {
+  const b = boundsOf(
+    props.line.length
+      ? props.line
+      : props.vehicle
+        ? [[props.vehicle.lng, props.vehicle.lat]]
+        : [],
+  )
+  if (!b || !map.map || !map.isLoaded) return
+  map.map.fitBounds(b, { padding: 48, duration: 800, maxZoom: 16 })
+}
+
+watch([() => props.line, () => map.isLoaded], fit, { immediate: true })
+
+watch(
+  () => props.vehicle,
+  (v) => {
+    if (props.follow && v && map.map && map.isLoaded) {
+      map.map.easeTo({ center: [v.lng, v.lat], duration: 600 })
+    }
+  },
+)
+</script>
+
+<template>
+  <div class="h-full w-full">
+    <MglMap :map-key="MAP_ID" :map-style="mapStyle" :center="[0, 0]" :zoom="2">
+      <MglNavigationControl />
+
+      <MglGeoJsonSource v-if="trail.length > 1" source-id="avl-trail" :data="trailData">
+        <MglLineLayer
+          layer-id="avl-trail-line"
+          :paint="{ 'line-color': '#38bdf8', 'line-width': 2, 'line-opacity': 0.7, 'line-dasharray': [2, 2] }"
+          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+        />
+      </MglGeoJsonSource>
+
+      <MglGeoJsonSource source-id="route-line" :data="lineData">
+        <MglLineLayer
+          layer-id="route-line-casing"
+          :paint="{ 'line-color': '#0f172a', 'line-width': 7, 'line-opacity': 0.35 }"
+          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+        />
+        <MglLineLayer
+          layer-id="route-line-main"
+          :paint="{ 'line-color': props.routeColor, 'line-width': 4 }"
+          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+        />
+      </MglGeoJsonSource>
+
+      <MglGeoJsonSource source-id="route-stops" :data="props.stops">
+        <MglCircleLayer
+          layer-id="route-stops-circles"
+          :paint="{
+            'circle-radius': ['match', ['get', 'state'], 'current', 7, 5],
+            'circle-color': [
+              'match',
+              ['get', 'state'],
+              'passed', '#64748b',
+              'current', props.routeColor,
+              '#e2e8f0',
+            ],
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+          }"
+        />
+      </MglGeoJsonSource>
+
+      <MglMarker v-if="props.vehicle" :coordinates="[props.vehicle.lng, props.vehicle.lat]">
+        <template #marker>
+          <VehicleHeadingMarker
+            :color="props.routeColor"
+            :bearing="props.vehicle.bearing"
+            :size="22"
+            halo
+          />
+        </template>
+      </MglMarker>
+    </MglMap>
+  </div>
+</template>

@@ -1,0 +1,11 @@
+query AvlTrail($feedCode: String!, $vehicleId: String!, $limit: Int) {
+  avlReports(feedCode: $feedCode, vehicleId: $vehicleId, limit: $limit) {
+    ts
+    position {
+      lat
+      lon
+    }
+    speedMps
+    bearing
+  }
+}

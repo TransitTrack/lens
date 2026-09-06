@@ -1,0 +1,11 @@
+query TripsByRoute($feedCode: String!, $routeId: String!) {
+  trips(feedCode: $feedCode, routeId: $routeId) {
+    tripId
+    tripHeadsign
+    tripShortName
+    directionId
+    serviceId
+    shapeId
+    blockId
+  }
+}

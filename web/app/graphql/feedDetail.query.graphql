@@ -1,0 +1,44 @@
+query FeedDetail($code: String!) {
+  feed(code: $code) {
+    code
+    name
+    description
+    url
+    pollingCron
+    enabled
+    source
+    activeRevision {
+      id
+      status
+      createdAt
+      activatedAt
+      feedStartDate
+      feedEndDate
+      byteSize
+      contentSha256
+      filesPresent
+      rowCounts
+      validationSummary { errorCount warningCount }
+    }
+    revisions {
+      id
+      status
+      createdAt
+      activatedAt
+      supersededAt
+      byteSize
+      errorMessage
+      validationSummary { errorCount warningCount }
+    }
+  }
+  feedInfo(feedCode: $code) {
+    feedPublisherName
+    feedPublisherUrl
+    feedLang
+    feedStartDate
+    feedEndDate
+    feedVersion
+    feedContactEmail
+    feedContactUrl
+  }
+}

@@ -1,0 +1,10 @@
+query BlocksList($feedCode: String!) {
+  blocks(feedCode: $feedCode) {
+    blockId
+    serviceId
+    startTimeSec
+    endTimeSec
+    tripCount
+    routeIds
+  }
+}

@@ -1,0 +1,12 @@
+query ExploreStops($feedCode: String!) {
+  stops(feedCode: $feedCode) {
+    stopId
+    stopName
+    stopCode
+    stopDesc
+    stopLat
+    stopLon
+    locationType
+    parentStation
+  }
+}

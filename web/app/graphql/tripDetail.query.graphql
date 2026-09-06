@@ -1,0 +1,51 @@
+query TripDetail($feedCode: String!, $tripId: String!) {
+  trip(feedCode: $feedCode, tripId: $tripId) {
+    tripId
+    tripHeadsign
+    routeId
+    directionId
+    serviceId
+    shapeId
+    startTimeSec
+    endTimeSec
+    frequencyBased
+    noSchedule
+    route {
+      routeShortName
+      routeLongName
+      routeColor
+      routeTextColor
+    }
+    pattern {
+      patternKey
+      stopCount
+      lengthM
+    }
+    block {
+      blockId
+      serviceId
+    }
+    scheduleTimes {
+      stopPathIndex
+      arrivalSec
+      departureSec
+      interpolated
+      schedTravelTimeSec
+      schedDwellTimeSec
+    }
+    stopTimes {
+      stopSequence
+      arrivalTime
+      departureTime
+      stop {
+        stopId
+        stopName
+        stopLat
+        stopLon
+      }
+    }
+    shape {
+      points { lat lon }
+    }
+  }
+}

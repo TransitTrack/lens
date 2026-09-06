@@ -7,10 +7,20 @@ query Vehicles($feedCode: String!, $matchedOnly: Boolean) {
       lat
       lon
     }
+    bearing
     matched
     stale
     scheduleAdherenceSec
     stopPathIndex
     speedMps
+    trip {
+      routeId
+      tripHeadsign
+      route {
+        routeShortName
+        routeColor
+        routeTextColor
+      }
+    }
   }
 }

@@ -4,12 +4,9 @@ import type { Column } from '@tanstack/table-core'
 import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge } from '../utils/adherence'
-import { useDashboardSelection } from '../composables/useDashboardSelection'
 
 const props = defineProps<{ vehicles: VehicleRow[] }>()
 const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
-
-const { selectVehicle } = useDashboardSelection()
 
 const sorting = ref([{ id: 'vehicleId', desc: false }])
 
@@ -45,7 +42,6 @@ const columns: TableColumn<VehicleRow>[] = [
 ]
 
 function onSelect(_event: Event, row: TableRow<VehicleRow>) {
-  selectVehicle(row.original.vehicleId)
   emit('select', row.original.vehicleId)
 }
 </script>

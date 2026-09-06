@@ -1,0 +1,19 @@
+query ExploreCalendar($feedCode: String!) {
+  calendars(feedCode: $feedCode) {
+    serviceId
+    monday
+    tuesday
+    wednesday
+    thursday
+    friday
+    saturday
+    sunday
+    startDate
+    endDate
+  }
+  calendarDates(feedCode: $feedCode) {
+    serviceId
+    date
+    exceptionType
+  }
+}

@@ -1,0 +1,28 @@
+query BlockDetail($feedCode: String!, $blockId: String!, $serviceId: String!) {
+  block(feedCode: $feedCode, blockId: $blockId, serviceId: $serviceId) {
+    blockId
+    serviceId
+    startTimeSec
+    endTimeSec
+    tripCount
+    routeIds
+    blockTrips {
+      listIndex
+      layoverAfterSec
+      deadheadAfter
+      trip {
+        tripId
+        tripHeadsign
+        routeId
+        directionId
+        startTimeSec
+        endTimeSec
+        route {
+          routeShortName
+          routeColor
+          routeTextColor
+        }
+      }
+    }
+  }
+}

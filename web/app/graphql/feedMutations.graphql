@@ -1,0 +1,28 @@
+mutation IngestFeed($feedCode: String!) {
+  ingestFeed(feedCode: $feedCode) {
+    id
+    status
+  }
+}
+
+mutation ActivateRevision($revisionId: ID!) {
+  activateRevision(revisionId: $revisionId) {
+    id
+    status
+  }
+}
+
+mutation DeleteRevision($revisionId: ID!) {
+  deleteRevision(revisionId: $revisionId)
+}
+
+mutation UpdateFeed($code: String!, $input: UpdateFeedInput!) {
+  updateFeed(code: $code, input: $input) {
+    code
+    name
+    description
+    url
+    pollingCron
+    enabled
+  }
+}

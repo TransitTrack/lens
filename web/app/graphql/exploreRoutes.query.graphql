@@ -1,0 +1,15 @@
+query ExploreRoutes($feedCode: String!) {
+  routes(feedCode: $feedCode) {
+    routeId
+    routeShortName
+    routeLongName
+    routeType
+    routeColor
+    routeTextColor
+    agencyId
+  }
+  agencies(feedCode: $feedCode) {
+    agencyId
+    agencyName
+  }
+}

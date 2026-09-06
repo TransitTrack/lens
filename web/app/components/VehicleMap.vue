@@ -1,109 +1,175 @@
 <script setup lang="ts">
-import { Map as MaplibreMap, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { colorForVehicle } from '../utils/vehicleMarker'
-import { useDashboardSelection } from '../composables/useDashboardSelection'
+import { adherenceBadge } from '../utils/adherence'
+import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
+import VehicleMapLegend from './VehicleMapLegend.vue'
+import { useMapStyle } from '../composables/useMapStyle'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
 
 const props = defineProps<{ vehicles: VehicleRow[]; extent?: LngLatBoundsExtent | null }>()
+const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 
-const mapContainer = ref<HTMLDivElement | null>(null)
-let map: InstanceType<typeof MaplibreMap> | null = null
-const markers = new Map<string, InstanceType<typeof Marker>>()
+const MAP_ID = 'vehicle-map'
+const mapStyle = useMapStyle()
 
-const { selectVehicle } = useDashboardSelection()
+// nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
+// back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
+// and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
+// before that silently no-op).
+const map = useMglMap(MAP_ID)
 
-function syncMarkers(vehicles: VehicleRow[]) {
-  if (!map) return
-  const seen = new Set<string>()
-  for (const v of vehicles) {
-    seen.add(v.vehicleId)
-    const lngLat: [number, number] = [v.position.lon, v.position.lat]
-    const existing = markers.get(v.vehicleId)
-    if (existing) {
-      existing.setLngLat(lngLat)
-      existing.getElement().style.backgroundColor = colorForVehicle(v.matched, v.stale)
-    } else {
-      const el = document.createElement('div')
-      el.className = 'vehicle-marker'
-      el.style.backgroundColor = colorForVehicle(v.matched, v.stale)
-      el.addEventListener('click', () => selectVehicle(v.vehicleId))
-      const marker = new Marker({ element: el }).setLngLat(lngLat).addTo(map)
-      markers.set(v.vehicleId, marker)
-    }
-  }
-  for (const [id, marker] of markers) {
-    if (!seen.has(id)) {
-      marker.remove()
-      markers.delete(id)
-    }
-  }
-}
-
-function applyExtent(extent: LngLatBoundsExtent | null | undefined) {
-  if (!map || !extent) return
-  map.fitBounds(
-    [
-      [extent.minLon, extent.minLat],
-      [extent.maxLon, extent.maxLat],
-    ],
-    { padding: 32, duration: 1000 },
-  )
-}
-
-onMounted(() => {
-  if (!mapContainer.value) return
-  map = new MaplibreMap({
-    container: mapContainer.value,
-    style: 'https://tiles.versatiles.org/assets/styles/shadow/style.json',
-    center: [0, 0],
-    zoom: 2,
-  })
-  syncMarkers(props.vehicles)
-  applyExtent(props.extent)
-})
-
-onBeforeUnmount(() => {
-  markers.forEach((m) => m.remove())
-  markers.clear()
-  map?.remove()
-  map = null
-})
-
-watch(
-  () => props.vehicles,
-  (vehicles) => {
-    syncMarkers(vehicles)
-  },
-  { deep: true },
+const activeVehicleId = ref<string | null>(null)
+const activeVehicle = computed(
+  () => props.vehicles.find((v) => v.vehicleId === activeVehicleId.value) ?? null,
 )
 
-watch(
-  () => props.extent,
-  (extent) => {
-    applyExtent(extent)
-  },
-)
-
-function flyTo(vehicleId: string) {
-  const v = props.vehicles.find((x) => x.vehicleId === vehicleId)
-  if (v && map) map.flyTo({ center: [v.position.lon, v.position.lat], zoom: 14 })
+function clipped(values: number[], lo = 0.02, hi = 0.98): [number, number] {
+  const sorted = [...values].sort((a, b) => a - b)
+  const at = (q: number) =>
+    sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(q * (sorted.length - 1))))]!
+  return [at(lo), at(hi)]
 }
 
-defineExpose({ flyTo })
+function boundsForFit(): [[number, number], [number, number]] | null {
+  // Prefer where the vehicles actually are — the agency's GTFS extent can be far
+  // wider than the live fleet. Clip to the 2nd–98th percentile so one bad GPS
+  // fix doesn't blow out the view.
+  const pts = props.vehicles.filter((v) => v.position)
+  if (pts.length >= 3) {
+    const [minLon, maxLon] = clipped(pts.map((v) => v.position.lon))
+    const [minLat, maxLat] = clipped(pts.map((v) => v.position.lat))
+    return [
+      [minLon, minLat],
+      [maxLon, maxLat],
+    ]
+  }
+  const e = props.extent
+  if (e) {
+    return [
+      [e.minLon, e.minLat],
+      [e.maxLon, e.maxLat],
+    ]
+  }
+  if (pts.length > 0) {
+    return [
+      [Math.min(...pts.map((v) => v.position.lon)), Math.min(...pts.map((v) => v.position.lat))],
+      [Math.max(...pts.map((v) => v.position.lon)), Math.max(...pts.map((v) => v.position.lat))],
+    ]
+  }
+  return null
+}
+
+function fit() {
+  if (!map.map || !map.isLoaded) return
+  const bounds = boundsForFit()
+  if (!bounds) return
+  // The panel layout can still be settling when the style first loads, leaving
+  // the canvas at a stale size; resize before fitting so the zoom is right.
+  map.map.resize()
+  map.map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 800 })
+}
+
+// Fit once we have both a loaded map and something to frame; re-fit if the
+// extent changes (e.g. the selected feed switches).
+watch(
+  [() => props.extent, () => map.isLoaded, () => props.vehicles.length > 0],
+  () => {
+    fit()
+    requestAnimationFrame(fit)
+  },
+  { immediate: true },
+)
+
+function badge(v: VehicleRow) {
+  return adherenceBadge(v.scheduleAdherenceSec)
+}
 </script>
 
 <template>
-  <div ref="mapContainer" class="h-full w-full" />
-</template>
+  <!-- MglMap renders a fragment root, so it can't take a `class`; size it here. -->
+  <div class="relative h-full w-full">
+    <MglMap :map-key="MAP_ID" :map-style="mapStyle">
+      <MglNavigationControl />
 
-<style>
-.vehicle-marker {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid white;
-  cursor: pointer;
-}
-</style>
+      <MglMarker
+        v-for="v in props.vehicles"
+        :key="v.vehicleId"
+        :coordinates="[v.position.lon, v.position.lat]"
+      >
+        <template #marker>
+          <VehicleHeadingMarker
+            :color="colorForVehicle(v.matched, v.stale)"
+            :bearing="v.bearing"
+            :size="18"
+            halo
+            @click="activeVehicleId = v.vehicleId"
+          />
+        </template>
+      </MglMarker>
+
+      <MglPopup
+        v-if="activeVehicle"
+        :key="activeVehicle.vehicleId"
+        :coordinates="[activeVehicle.position.lon, activeVehicle.position.lat]"
+        :close-on-click="false"
+        :offset="14"
+        @close="activeVehicleId = null"
+      >
+        <div class="flex min-w-[12rem] flex-col gap-2 p-1">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-semibold text-highlighted">
+              {{ activeVehicle.label ?? activeVehicle.vehicleId }}
+            </span>
+            <UBadge
+              v-if="activeVehicle.trip?.route?.routeShortName"
+              size="sm"
+              :style="{
+                backgroundColor: activeVehicle.trip.route.routeColor
+                  ? `#${activeVehicle.trip.route.routeColor.replace('#', '')}`
+                  : undefined,
+              }"
+            >
+              {{ activeVehicle.trip.route.routeShortName }}
+            </UBadge>
+          </div>
+          <div v-if="activeVehicle.trip?.tripHeadsign" class="text-xs text-muted">
+            {{ activeVehicle.trip.tripHeadsign }}
+          </div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <UBadge :color="badge(activeVehicle).color" variant="subtle" size="sm">
+              {{ badge(activeVehicle).label }}
+            </UBadge>
+            <span class="text-muted">
+              {{ activeVehicle.speedMps != null ? Math.round(activeVehicle.speedMps * 3.6) : '—' }}
+              km/h
+            </span>
+            <span v-if="activeVehicle.stale" class="text-warning">stale</span>
+          </div>
+          <UButton
+            size="xs"
+            color="neutral"
+            variant="soft"
+            trailing-icon="i-lucide-arrow-right"
+            block
+            label="Open details"
+            @click="emit('select', activeVehicle.vehicleId)"
+          />
+        </div>
+      </MglPopup>
+    </MglMap>
+
+    <VehicleMapLegend class="absolute bottom-2 left-2" />
+
+    <UButton
+      class="absolute left-2 top-2 shadow"
+      color="neutral"
+      variant="solid"
+      size="sm"
+      icon="i-lucide-scan"
+      label="Fit fleet"
+      @click="fit"
+    />
+  </div>
+</template>

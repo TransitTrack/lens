@@ -6,5 +6,6 @@ query AvlFeeds {
     enabled
     lastPollAt
     lastPollStatus
+    lastPollReportCount
   }
 }

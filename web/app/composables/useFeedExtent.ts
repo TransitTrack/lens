@@ -1,4 +1,4 @@
-import { useAvlFeedsQuery, useAgenciesQuery } from '../../generated/graphql'
+import { useAgenciesQuery } from '../../generated/graphql'
 
 export interface LngLatBoundsExtent {
   minLon: number
@@ -8,17 +8,10 @@ export interface LngLatBoundsExtent {
 }
 
 /**
- * Resolves the selected AVL feed's underlying GTFS feed, then combines every
- * agency's extent into a single bounding box the map can fit to.
+ * Combines every agency's extent for the given GTFS feed into a single bounding
+ * box the map can fit to.
  */
-export function useFeedExtent(feedCode: Ref<string | null>) {
-  const { result: avlFeedsResult } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
-
-  const gtfsFeedCode = computed(
-    () =>
-      avlFeedsResult.value?.avlFeeds.find((f) => f.code === feedCode.value)?.gtfsFeedCode ?? null,
-  )
-
+export function useFeedExtent(gtfsFeedCode: Ref<string | null>) {
   const { result: agenciesResult } = useAgenciesQuery(
     () => ({ feedCode: gtfsFeedCode.value ?? '' }),
     () => ({ enabled: !!gtfsFeedCode.value }),

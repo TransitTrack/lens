@@ -1,0 +1,23 @@
+query ExplorePatterns($feedCode: String!) {
+  tripPatterns(feedCode: $feedCode) {
+    patternKey
+    routeId
+    directionId
+    headsign
+    tripCount
+    route {
+      routeShortName
+      routeLongName
+      routeColor
+      routeTextColor
+      routeType
+      agencyId
+    }
+    stopPaths {
+      stopPathIndex
+      stopId
+      typicalTravelTimeSec
+      typicalDwellTimeSec
+    }
+  }
+}

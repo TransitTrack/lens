@@ -1,0 +1,15 @@
+query StopDetail($feedCode: String!, $stopId: String!) {
+  stop(feedCode: $feedCode, stopId: $stopId) {
+    stopId
+    stopName
+    stopCode
+    stopDesc
+    stopLat
+    stopLon
+    zoneId
+    locationType
+    parentStation
+    wheelchairBoarding
+    platformCode
+  }
+}

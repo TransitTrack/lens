@@ -1,0 +1,15 @@
+query Feeds {
+  feeds {
+    code
+    name
+    description
+    enabled
+    source
+    activeRevision {
+      id
+      status
+      feedStartDate
+      feedEndDate
+    }
+  }
+}

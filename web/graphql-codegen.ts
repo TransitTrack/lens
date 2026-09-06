@@ -9,6 +9,10 @@ const config: CodegenConfig = {
       config: {
         withCompositionFunctions: true,
         vueApolloComposableImportFrom: '@vue/apollo-composable',
+        // Enums as string-literal unions so they compare cleanly against string
+        // values; the postinstall dedupe script drops the duplicate declaration
+        // the operations plugin emits for the same types.
+        enumsAsTypes: true,
         scalars: {
           JSON: 'any',
         },

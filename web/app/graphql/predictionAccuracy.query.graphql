@@ -1,0 +1,8 @@
+query PredictionAccuracy($feedCode: String!, $sinceDays: Int) {
+  predictionAccuracy(feedCode: $feedCode, sinceDays: $sinceDays) {
+    algorithm
+    sampleCount
+    meanErrorSec
+    meanAbsErrorSec
+  }
+}

@@ -1,44 +1,30 @@
 <script setup lang="ts">
-import VehicleMap from '../components/VehicleMap.vue'
-import VehicleList from '../components/VehicleList.vue'
-import VehiclePredictionPanel from '../components/VehiclePredictionPanel.vue'
-import { useDashboardSelection } from '../composables/useDashboardSelection'
-import { useVehiclePolling } from '../composables/useVehiclePolling'
-import { useFeedExtent } from '../composables/useFeedExtent'
+import { useFeedsQuery } from '~~/generated/graphql'
 
-const { selectedFeedCode } = useDashboardSelection()
-const { vehicles, loading, error } = useVehiclePolling(selectedFeedCode)
-const { extent } = useFeedExtent(selectedFeedCode)
+definePageMeta({ layout: false })
 
-const mapRef = ref<InstanceType<typeof VehicleMap> | null>(null)
+// The app is feed-scoped: every real page lives under /:feedCode. This entry
+// point resolves a feed (last-used cookie, else the first one) and redirects.
+const lastFeed = useCookie<string | null>('tt-feed', { default: () => null })
+const { result } = useFeedsQuery()
 
-function onListSelect(vehicleId: string) {
-  mapRef.value?.flyTo(vehicleId)
-}
+const target = computed(() => {
+  const feeds = result.value?.feeds ?? []
+  if (feeds.length === 0) return null
+  const preferred = feeds.find((f) => f.code === lastFeed.value)
+  return (preferred ?? feeds[0])!.code
+})
+
+watchEffect(() => {
+  if (target.value) navigateTo(`/${target.value}`, { replace: true })
+})
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      icon="i-lucide-alert-triangle"
-      title="Vehicle feed unavailable"
-      :description="error.message"
-      class="m-4"
-    />
-    <div v-else-if="loading && vehicles.length === 0" class="p-4 text-sm text-muted">
-      Loading vehicles…
+  <div class="flex h-svh items-center justify-center">
+    <div class="flex items-center gap-2 text-sm text-muted">
+      <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+      Loading feeds…
     </div>
-    <div class="flex flex-1 overflow-hidden">
-      <div class="flex-1">
-        <VehicleMap ref="mapRef" :vehicles="vehicles" :extent="extent" />
-      </div>
-      <div class="border-default w-96 overflow-y-auto border-l">
-        <VehicleList :vehicles="vehicles" @select="onListSelect" />
-      </div>
-    </div>
-    <VehiclePredictionPanel />
   </div>
 </template>

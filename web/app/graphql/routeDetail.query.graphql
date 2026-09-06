@@ -1,0 +1,41 @@
+query RouteDetail($feedCode: String!, $routeId: String!) {
+  route(feedCode: $feedCode, routeId: $routeId) {
+    routeId
+    routeShortName
+    routeLongName
+    routeDesc
+    routeType
+    routeColor
+    routeTextColor
+    agencyId
+  }
+  tripPatterns(feedCode: $feedCode, routeId: $routeId) {
+    patternKey
+    directionId
+    headsign
+    shapeId
+    stopCount
+    tripCount
+    lengthM
+    stopPaths {
+      stopPathIndex
+      stopId
+      lengthM
+      pathGeometry
+      pickupType
+      dropOffType
+      waitStop
+      scheduleAdherenceStop
+      layoverStop
+      breakTimeSec
+      typicalTravelTimeSec
+      typicalDwellTimeSec
+      stop {
+        stopId
+        stopName
+        stopLat
+        stopLon
+      }
+    }
+  }
+}
