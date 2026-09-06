@@ -4,6 +4,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
+import eu.transittrack.gtfs.draft.DraftKind
+
 @Repository
 interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
     @Query("select r from GtfsRevision r where r.feedId = :feedId and r.status = :status")
@@ -29,7 +31,7 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
 
     @Query("select r from GtfsRevision r where r.kind = :kind and r.status = :status")
     fun findByKindAndStatus(
-        kind: eu.transittrack.gtfs.draft.DraftKind,
+        kind: DraftKind,
         status: GtfsRevisionStatus,
     ): List<GtfsRevision>
 }

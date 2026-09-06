@@ -7,10 +7,33 @@
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <!-- Motion lines -->
-      <rect x="2" y="74" width="45" height="8" rx="4" fill="#FF1E2D"/>
-      <rect x="9" y="91" width="37" height="8" rx="4" fill="#FF1E2D"/>
-      <rect x="2" y="108" width="45" height="8" rx="4" fill="#FF1E2D"/>
+      <!-- Motion lines - RIGHT side -->
+      <rect
+        x="113"
+        y="74"
+        width="45"
+        height="8"
+        rx="4"
+        fill="#FF1E2D"
+      />
+
+      <rect
+        x="120"
+        y="91"
+        width="37"
+        height="8"
+        rx="4"
+        fill="#FF1E2D"
+      />
+
+      <rect
+        x="113"
+        y="108"
+        width="45"
+        height="8"
+        rx="4"
+        fill="#FF1E2D"
+      />
 
       <!-- Red outer transit marker -->
       <path
@@ -121,7 +144,7 @@
 defineProps({
   height: {
     type: Number,
-    default: 55
+    default: 45
   },
   collapsed: {
     type: Boolean,

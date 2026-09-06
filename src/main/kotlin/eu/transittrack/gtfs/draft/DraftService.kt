@@ -43,7 +43,9 @@ class DraftService(
                         ?: throw IllegalArgumentException("feed '$feedCode' has no ACTIVE revision to fork")
                 }
             }
-        require(base.feedId == feed.id) { "base revision belongs to a different feed" }
+        if (base.feedId != feed.id) {
+            throw IllegalArgumentException("base revision ${base.id} belongs to a different feed")
+        }
 
         var draft =
             revisions.saveAndFlush(
@@ -83,7 +85,9 @@ class DraftService(
 
     fun get(draftId: Long): GtfsRevision {
         val r = revisions.findById(draftId).orElseThrow { IllegalArgumentException("no draft $draftId") }
-        require(r.kind == DraftKind.DRAFT) { "revision $draftId is not a draft" }
+        if (r.kind != DraftKind.DRAFT) {
+            throw IllegalArgumentException("revision $draftId is not a draft")
+        }
         return r
     }
 }
