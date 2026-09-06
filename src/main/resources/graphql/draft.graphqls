@@ -1,0 +1,60 @@
+extend type Query {
+    drafts(feedCode: String): [Draft!]!
+    draft(id: ID!): Draft
+    draftEdits(id: ID!, limit: Int = 200): [DraftEdit!]!
+}
+
+extend type Mutation {
+    forkDraft(input: ForkDraftInput!): Draft!
+    discardDraft(id: ID!): Boolean!
+    revertDraftToFork(id: ID!): Draft!
+    activateDraft(id: ID!, force: Boolean = false): Revision!
+
+    claimDraftEditor(id: ID!, editor: String!, takeOver: Boolean = false): DraftLock!
+    renewDraftEditor(id: ID!, editor: String!): DraftLock!
+    releaseDraftEditor(id: ID!, editor: String!): Boolean!
+}
+
+type Draft {
+    id: ID!
+    feedCode: String!
+    label: String
+    baseRevisionId: ID
+    status: String!
+    kind: String!
+    version: Int!
+    derivationStale: Boolean!
+    lastValidation: JSON
+    lock: DraftLock
+    createdBy: String
+    createdAt: String!
+    rowCounts: JSON
+}
+
+type DraftLock {
+    editor: String!
+    expiresAt: String!
+}
+
+type DraftEdit {
+    seq: Int!
+    op: String!
+    summary: String!
+    appliedAt: String!
+    undone: Boolean!
+}
+
+# Consumed by later plans (edit mutations, undo/redo). Declared now so the type is stable.
+type DraftEditResult {
+    draft: Draft!
+    edit: DraftEdit
+    canUndo: Boolean!
+    canRedo: Boolean!
+}
+
+input ForkDraftInput {
+    feedCode: String!
+    baseRevisionId: ID
+    label: String
+    editor: String!
+}
