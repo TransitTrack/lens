@@ -24,11 +24,14 @@ class DraftSchemaTest(
     fun `draft columns round-trip`() {
         val feed = feeds
             .save(GtfsFeed("f-${System.nanoTime()}", "F", null, "u", null, true, null, FeedSource.API, Instant.now(), Instant.now()))
+        val base = revisions.save(
+            GtfsRevision(feedId = feed.id!!, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "u"),
+        )
         val saved = revisions.save(
             GtfsRevision(feedId = feed.id!!, status = GtfsRevisionStatus.DRAFT, sourceUrl = "u").apply {
                 kind = DraftKind.DRAFT
                 label = "Summer 2027"
-                baseRevisionId = 1L
+                baseRevisionId = base.id!!
                 derivationStale = true
                 version = 3
                 createdBy = "alice"
@@ -39,5 +42,6 @@ class DraftSchemaTest(
         assertThat(loaded.label).isEqualTo("Summer 2027")
         assertThat(loaded.derivationStale).isEqualTo(true)
         assertThat(loaded.version).isEqualTo(3L)
+        assertThat(loaded.baseRevisionId).isEqualTo(base.id)
     }
 }
