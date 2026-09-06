@@ -8,19 +8,18 @@ import org.springframework.core.Ordered
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.feed.FeedsProperties
 import eu.transittrack.gtfs.ingest.IngestionService
 
 @Component
 class GtfsFeedConfigSynchronizer(
     private val repo: GtfsFeedRepository,
-    private val props: GtfsProperties,
+    private val props: FeedsProperties,
     private val ingestionService: IngestionService,
 ) : ApplicationRunner,
     Ordered {
     override fun getOrder() = Ordered.LOWEST_PRECEDENCE - 100
 
-    @Transactional
     override fun run(args: ApplicationArguments) {
         sync()
     }

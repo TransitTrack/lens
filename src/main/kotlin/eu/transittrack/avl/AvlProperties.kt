@@ -3,29 +3,12 @@ package eu.transittrack.avl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
-import eu.transittrack.predict.PredictionAlgorithm
-import eu.transittrack.predict.PredictionMode
-
-enum class AvlFormat { GTFS_RT, STPT }
-
-enum class AvlAssignmentMode { TRUST_DESCRIPTOR, DESCRIPTOR_THEN_INFER, FULL_INFERENCE }
-
 @ConfigurationProperties("transittrack.avl")
 data class AvlProperties(
     val enabled: Boolean = false,
-    val pruneConfigFeeds: Boolean = false,
-    @NestedConfigurationProperty val http: Http = Http(),
     @NestedConfigurationProperty val retention: Retention = Retention(),
     @NestedConfigurationProperty val match: Match = Match(),
-    val feeds: List<AvlFeedDef> = emptyList(),
 ) {
-    data class Http(
-        val connectTimeoutMs: Long = 5_000,
-        val readTimeoutMs: Long = 15_000,
-        val maxSizeBytes: Long = 33_554_432,
-        val userAgent: String = "transittrack/0.0.1",
-    )
-
     data class Retention(
         val reportHours: Long = 24,
         val matchHours: Long = 72,
@@ -50,19 +33,5 @@ data class AvlProperties(
         val heading: Double = 0.2,
         val schedule: Double = 0.2,
         val continuity: Double = 0.2,
-    )
-
-    data class AvlFeedDef(
-        val code: String,
-        val name: String,
-        val gtfsFeedCode: String,
-        val url: String,
-        val format: AvlFormat = AvlFormat.GTFS_RT,
-        val pollIntervalSec: Int = 15,
-        val assignmentMode: AvlAssignmentMode = AvlAssignmentMode.FULL_INFERENCE,
-        val enabled: Boolean = true,
-        val headers: Map<String, String> = emptyMap(),
-        val predictionAlgorithm: PredictionAlgorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE,
-        val predictionMode: PredictionMode = PredictionMode.SINGLE,
     )
 }

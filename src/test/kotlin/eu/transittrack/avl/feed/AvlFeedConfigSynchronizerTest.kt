@@ -11,62 +11,76 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import org.springframework.beans.factory.annotation.Autowired
 
-import eu.transittrack.avl.AvlAssignmentMode
-import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.feed.AvlAssignmentMode
+import eu.transittrack.feed.AvlFormat
+import eu.transittrack.feed.FeedsProperties
 import eu.transittrack.gtfs.support.PostgresSliceTest
 
 @PostgresSliceTest
 class AvlFeedConfigSynchronizerTest(
     @Autowired val repo: AvlFeedRepository,
 ) {
-    private fun def(
+    private fun feed(
         code: String,
         url: String,
-    ) = AvlProperties.AvlFeedDef(code = code, name = code.uppercase(), gtfsFeedCode = "g", url = url)
+        avl: FeedsProperties.AvlDef? = FeedsProperties.AvlDef(url = "https://$code.test/vp.pb"),
+    ) = FeedsProperties.FeedDef(code = code, name = code.uppercase(), url = url, avl = avl)
 
     private fun sync(
         prune: Boolean = false,
-        vararg feeds: AvlProperties.AvlFeedDef,
+        vararg feeds: FeedsProperties.FeedDef,
     ) = AvlFeedConfigSynchronizer(
         repo,
-        AvlProperties(pruneConfigFeeds = prune, feeds = feeds.toList()),
+        FeedsProperties(pruneConfigFeeds = prune, feeds = feeds.toList()),
     ).sync()
 
     @Test
-    fun `inserts then updates config feeds`() {
-        sync(feeds = arrayOf(def("a", "https://a.test/1.pb")))
-        assertThat(repo.findByCode("a")!!.url).isEqualTo("https://a.test/1.pb")
-        assertThat(repo.findByCode("a")!!.source).isEqualTo(AvlFeedSourceKind.CONFIG)
+    fun `inserts then updates config feeds, linking gtfsFeedCode to the feed code`() {
+        sync(feeds = arrayOf(feed("a", "https://a.test/gtfs.zip")))
+        val inserted = repo.findByCode("a")!!
+        assertThat(inserted.url).isEqualTo("https://a.test/vp.pb")
+        assertThat(inserted.gtfsFeedCode).isEqualTo("a")
+        assertThat(inserted.name).isEqualTo("A vehicle positions")
+        assertThat(inserted.source).isEqualTo(AvlFeedSourceKind.CONFIG)
+
         sync(
             feeds =
                 arrayOf(
-                    AvlProperties.AvlFeedDef(
-                        code = "a",
-                        name = "A2",
-                        gtfsFeedCode = "g2",
-                        url = "https://a.test/2.pb",
-                        pollIntervalSec = 30,
-                        assignmentMode = AvlAssignmentMode.TRUST_DESCRIPTOR,
+                    feed(
+                        "a",
+                        "https://a.test/gtfs.zip",
+                        FeedsProperties.AvlDef(
+                            url = "https://a.test/v2.pb",
+                            name = "A realtime",
+                            pollIntervalSec = 30,
+                            assignmentMode = AvlAssignmentMode.TRUST_DESCRIPTOR,
+                        ),
                     ),
                 ),
         )
         val updated = repo.findByCode("a")!!
-        assertThat(updated.url).isEqualTo("https://a.test/2.pb")
-        assertThat(updated.name).isEqualTo("A2")
-        assertThat(updated.gtfsFeedCode).isEqualTo("g2")
+        assertThat(updated.url).isEqualTo("https://a.test/v2.pb")
+        assertThat(updated.name).isEqualTo("A realtime")
+        assertThat(updated.gtfsFeedCode).isEqualTo("a")
         assertThat(updated.pollIntervalSec).isEqualTo(30)
         assertThat(updated.assignmentMode).isEqualTo(AvlAssignmentMode.TRUST_DESCRIPTOR)
     }
 
     @Test
+    fun `ignores feeds without an avl block`() {
+        sync(feeds = arrayOf(feed("a", "https://a.test/gtfs.zip", avl = null)))
+        assertThat(repo.findByCode("a")).isNull()
+    }
+
+    @Test
     fun `prune removes config feeds no longer configured`() {
-        sync(feeds = arrayOf(def("a", "https://a.test/1.pb"), def("b", "https://b.test/1.pb")))
-        sync(feeds = arrayOf(def("a", "https://a.test/1.pb")))
+        sync(feeds = arrayOf(feed("a", "https://a.test/gtfs.zip"), feed("b", "https://b.test/gtfs.zip")))
+        sync(feeds = arrayOf(feed("a", "https://a.test/gtfs.zip")))
         assertThat(repo.findByCode("b")).isNotNull()
-        sync(prune = true, feeds = arrayOf(def("a", "https://a.test/1.pb")))
+        sync(prune = true, feeds = arrayOf(feed("a", "https://a.test/gtfs.zip")))
         assertThat(repo.findByCode("a")).isNotNull()
         assertThat(repo.findByCode("b")).isNull()
     }
@@ -78,9 +92,9 @@ class AvlFeedConfigSynchronizerTest(
             AvlFeed(
                 code = "a",
                 name = "A",
-                gtfsFeedCode = "g",
+                gtfsFeedCode = "a",
                 url = "https://x.test/z.pb",
-                format = eu.transittrack.avl.AvlFormat.GTFS_RT,
+                format = AvlFormat.GTFS_RT,
                 pollIntervalSec = 15,
                 assignmentMode = AvlAssignmentMode.FULL_INFERENCE,
                 enabled = true,
@@ -91,7 +105,7 @@ class AvlFeedConfigSynchronizerTest(
             ),
         )
         assertFailure {
-            sync(feeds = arrayOf(def("a", "https://a.test/1.pb")))
+            sync(feeds = arrayOf(feed("a", "https://a.test/gtfs.zip")))
         }.isInstanceOf<IllegalStateException>()
     }
 }

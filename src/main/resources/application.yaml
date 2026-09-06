@@ -20,12 +20,26 @@ spring:
       hibernate.order_inserts: true
 
 transittrack:
+  http:
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    max-size-bytes: 524288000
+    user-agent: "transittrack/0.0.1"
+  feed:
+    prune-config-feeds: false
+    feeds:
+      - code: stpt
+        name: Societatea de transport public Timisoara
+        enabled: true                  # optional, default true
+        auto-activate: true            # optional; overrides gtfs.ingest.auto-activate
+        polling-cron: "0 * * * * *"
+        url: https://blues3.transitpdf.com/files/uran/improved-gtfs-timisoara/9c40c30a5815d3e3.zip
+        avl:
+          format: STPT
+          url: https://live.stpt.ro/gtfs-vehicles.php
+          prediction-algorithm: kalman
+          prediction-mode: evaluation
   gtfs:
-    download:
-      connect-timeout-ms: 10000
-      read-timeout-ms: 60000
-      max-size-bytes: 524288000
-      user-agent: "transittrack-explorer/0.0.1"
     ingest:
       auto-activate: true
       strict-validation: false
@@ -36,27 +50,14 @@ transittrack:
     polling:
       enabled: true
       sweep-cron: "0 */15 * * * *"
-    prune-config-feeds: false
     title-sanitizing:
       enabled: false
-    feeds:
-      - code: stpt
-        name: Societatea de transport public Timisoara
-        enabled: true                  # optional, default true
-        auto-activate: true            # optional; overrides ingest.auto-activate
-        pollingCron: "0 * * * * *"
-        url: https://blues3.transitpdf.com/files/uran/improved-gtfs-timisoara/9c40c30a5815d3e3.zip
   schedule:
     enabled: true
     layover-threshold-sec: 60
     stop-projection-max-deviation-m: 100
   avl:
     enabled: true
-    http:
-      connect-timeout-ms: 5000
-      read-timeout-ms: 15000
-      max-size-bytes: 33554432
-      user-agent: "transittrack/0.0.1"
     retention:
       report-hours: 24
       match-hours: 72
@@ -66,16 +67,8 @@ transittrack:
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0
       unmatch-after-failures: 3
-    feeds:
-      - format: stpt
-        name: STPT vehicle positions rt
-        code: stpt-vehicle-positions-rt
-        url: https://live.stpt.ro/gtfs-vehicles.php
-        gtfs-feed-code: stpt
-        predictionAlgorithm: SCHEDULE_ADHERENCE
-        predictionMode: SINGLE
   predict:
-    enabled: false
+    enabled: true
     learn:
       max-plausible-travel-time-sec: 1800
       kalman-measurement-noise-sec2: 400.0

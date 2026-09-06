@@ -3,10 +3,10 @@ package eu.transittrack.avl.match
 import org.springframework.stereotype.Component
 
 import eu.transittrack.Point
-import eu.transittrack.avl.AvlAssignmentMode
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.feed.AvlAssignmentMode
 
 /**
  * Matcher for feeds whose vehicle descriptors are trusted: the trip is taken straight from

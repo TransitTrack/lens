@@ -13,11 +13,11 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 
-import eu.transittrack.avl.AvlAssignmentMode
-import eu.transittrack.avl.AvlFormat
-import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.feed.AvlAssignmentMode
+import eu.transittrack.feed.AvlFormat
+import eu.transittrack.http.HttpClientProperties
 
 class HttpAvlFeedSourceTest {
     private lateinit var server: MockWebServer
@@ -49,7 +49,7 @@ class HttpAvlFeedSourceTest {
         updatedAt = Instant.EPOCH,
     )
 
-    private val source = HttpAvlFeedSource(AvlProperties())
+    private val source = HttpAvlFeedSource(HttpClientProperties())
 
     @Test
     fun `fetches bytes and sends configured headers`() {
@@ -68,7 +68,7 @@ class HttpAvlFeedSourceTest {
 
     @Test
     fun `oversize body throws`() {
-        val big = AvlProperties(http = AvlProperties.Http(maxSizeBytes = 2))
+        val big = HttpClientProperties(maxSizeBytes = 2)
         server.enqueue(MockResponse().setBody(Buffer().write(ByteArray(10))))
         assertFailure { HttpAvlFeedSource(big).fetch(feed(server.url("/vp.pb").toString())) }
             .isInstanceOf(eu.transittrack.avl.ingest.AvlFetchException::class)

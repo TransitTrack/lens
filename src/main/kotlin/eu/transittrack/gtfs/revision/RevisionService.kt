@@ -32,7 +32,7 @@ class RevisionService(
         feedId: Long,
         sourceUrl: String,
     ): GtfsRevision =
-        revisions.save(
+        revisions.saveAndFlush(
             GtfsRevision(
                 feedId = feedId,
                 status = GtfsRevisionStatus.PENDING,

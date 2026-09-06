@@ -12,11 +12,11 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.avl.AvlAssignmentMode
-import eu.transittrack.avl.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.feed.AvlAssignmentMode
+import eu.transittrack.feed.AvlFormat
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy

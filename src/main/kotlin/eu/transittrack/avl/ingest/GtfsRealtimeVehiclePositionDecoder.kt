@@ -11,9 +11,9 @@ import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
-import eu.transittrack.avl.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
 import eu.transittrack.avl.model.AvlFeed
+import eu.transittrack.feed.AvlFormat
 
 /**
  * Decodes a GTFS-realtime `FeedMessage` into normalized [AvlReport]s, one per entity that carries a

@@ -20,10 +20,10 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
 import eu.transittrack.TestcontainersConfiguration
-import eu.transittrack.avl.AvlAssignmentMode
-import eu.transittrack.avl.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.feed.AvlAssignmentMode
+import eu.transittrack.feed.AvlFormat
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedRepository

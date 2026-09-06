@@ -67,12 +67,14 @@ The whole tree is under `transittrack.predict` and is **disabled by default**
 
 ```yaml
 transittrack:
-  avl:
+  feed:
     feeds:
-      - code: mbta-vp
-        # ...existing AVL fields (see docs/avl.md)...
-        prediction-algorithm: SCHEDULE_ADHERENCE   # SCHEDULE_ADHERENCE | HISTORICAL_AVERAGE | KALMAN, default SCHEDULE_ADHERENCE
-        prediction-mode: SINGLE                    # SINGLE | EVALUATION, default SINGLE
+      - code: mbta
+        # ...GTFS fields (see docs/gtfs.md)...
+        avl:
+          # ...AVL fields (see docs/avl.md)...
+          prediction-algorithm: SCHEDULE_ADHERENCE   # SCHEDULE_ADHERENCE | HISTORICAL_AVERAGE | KALMAN, default SCHEDULE_ADHERENCE
+          prediction-mode: SINGLE                    # SINGLE | EVALUATION, default SINGLE
   predict:
     enabled: false
     learn:
@@ -85,8 +87,8 @@ transittrack:
       sweep-cron: "0 15 * * * *"                   # hourly, offset from the AVL sweep
 ```
 
-`prediction-algorithm` and `prediction-mode` are per-feed fields on
-`transittrack.avl.feeds[]` (`AvlProperties.AvlFeedDef`), not under
+`prediction-algorithm` and `prediction-mode` are per-feed fields on the nested
+`avl` block of `transittrack.feed.feeds[]` (`FeedsProperties.AvlDef`), not under
 `transittrack.predict` — one AVL feed maps to one prediction configuration,
 mirroring how `assignment-mode` already works.
 

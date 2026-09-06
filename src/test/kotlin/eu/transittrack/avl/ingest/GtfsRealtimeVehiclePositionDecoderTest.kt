@@ -18,11 +18,11 @@ import com.google.transit.realtime.GtfsRealtime.TripDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 
-import eu.transittrack.avl.AvlAssignmentMode
-import eu.transittrack.avl.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.feed.AvlAssignmentMode
+import eu.transittrack.feed.AvlFormat
 
 class GtfsRealtimeVehiclePositionDecoderTest {
     private val decoder = GtfsRealtimeVehiclePositionDecoder()

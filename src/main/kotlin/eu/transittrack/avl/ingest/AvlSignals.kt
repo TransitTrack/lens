@@ -3,9 +3,9 @@ package eu.transittrack.avl.ingest
 import java.time.Instant
 import java.time.LocalDate
 
-import eu.transittrack.avl.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
 import eu.transittrack.avl.model.AvlFeed
+import eu.transittrack.feed.AvlFormat
 
 enum class RtScheduleRelationship {
     SCHEDULED,

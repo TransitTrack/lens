@@ -23,9 +23,9 @@ provider feed ──poll──▶ avl_report (PENDING) ──match──▶ vehi
                                                           GraphQL
 ```
 
-Each `avl_feed` names the GTFS feed (`gtfsFeedCode`) whose **active
-`gtfs_revision`** it is matched against, and an **assignment mode** that selects
-the matching strategy:
+Each `avl_feed` is matched against the **active `gtfs_revision`** of the GTFS feed
+it shares a `code` with (`gtfsFeedCode`), and carries an **assignment mode** that
+selects the matching strategy:
 
 | Mode | Behaviour |
 | --- | --- |
@@ -37,30 +37,38 @@ the matching strategy:
 
 ## 2. Configuration
 
-The whole tree is under `transittrack.avl` and is **disabled by default**
+Tuning lives under `transittrack.avl`, which is **disabled by default**
 (`enabled: false`) — nothing schedules, no beans that touch feeds are created.
+Feed *definitions* live in the shared `transittrack.feed.feeds[]` list: a feed
+gets an `avl_feed` row when it carries a nested `avl` block (see §3). The
+`avl_feed` shares the feed's `code`; its `gtfsFeedCode` link is that same code.
 
 ```yaml
 transittrack:
+  feed:
+    prune-config-feeds: false          # delete CONFIG feeds (gtfs_feed + avl_feed) no longer in config
+    feeds:                             # see §3
+      - code: mbta
+        name: "MBTA"
+        url: "https://cdn.mbta.com/realtime/gtfs.zip"
+        avl:
+          url: "https://cdn.mbta.com/realtime/VehiclePositions.pb"
+          name: "MBTA VehiclePositions"     # optional; default "<feed name> vehicle positions"
+          format: GTFS_RT                    # default GTFS_RT
+          poll-interval-sec: 15              # default 15
+          assignment-mode: FULL_INFERENCE    # default FULL_INFERENCE
+          enabled: true                      # default true
+          prediction-algorithm: SCHEDULE_ADHERENCE
+          prediction-mode: SINGLE
+          headers:                           # optional per-feed request headers
+            x-api-key: "…"
+  http:                                # shared outbound HTTP client (see docs/gtfs.md §7)
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    max-size-bytes: 524288000
+    user-agent: "transittrack/0.0.1"
   avl:
     enabled: false
-    prune-config-feeds: false          # delete CONFIG avl_feeds no longer in config
-    feeds:                             # see §3
-      - code: mbta-vp
-        name: "MBTA VehiclePositions"
-        gtfs-feed-code: mbta            # which GTFS feed's active revision to match against
-        url: "https://cdn.mbta.com/realtime/VehiclePositions.pb"
-        format: GTFS_RT                 # default GTFS_RT
-        poll-interval-sec: 15           # default 15
-        assignment-mode: FULL_INFERENCE # default FULL_INFERENCE
-        enabled: true                   # default true
-        headers:                        # optional per-feed request headers
-          x-api-key: "…"
-    http:
-      connect-timeout-ms: 5000
-      read-timeout-ms: 15000
-      max-size-bytes: 33554432          # 32 MiB
-      user-agent: "transittrack/0.0.1"
     retention:
       report-hours: 24
       match-hours: 72
@@ -88,15 +96,16 @@ transittrack:
 
 Mirrors `gtfs_feed`. `AvlFeedConfigSynchronizer` is an `ApplicationRunner`
 (registered only when `transittrack.avl.enabled = true`) that reconciles the
-`transittrack.avl.feeds` list into the `avl_feed` table at startup, with
-`source = CONFIG`:
+`transittrack.feed.feeds[]` entries carrying an `avl` block into the `avl_feed`
+table at startup, with `source = CONFIG`. The row's `code` and `gtfsFeedCode`
+are both the feed's own `code`:
 
 | Situation | Effect |
 | --- | --- |
 | `code` not in DB | insert |
-| existing `CONFIG` feed | update `name`, `gtfsFeedCode`, `url`, `format`, `pollIntervalSec`, `assignmentMode`, `enabled`, `headers` |
+| existing `CONFIG` feed | update `name`, `url`, `format`, `pollIntervalSec`, `assignmentMode`, `predictionAlgorithm`, `predictionMode`, `enabled`, `headers` |
 | existing `API` feed, same `code` | **startup fails** — ambiguous ownership |
-| `CONFIG` feed in DB, absent from config | left untouched unless `transittrack.avl.prune-config-feeds: true` |
+| `CONFIG` feed in DB, absent from config (or its `avl` block removed) | left untouched unless `transittrack.feed.prune-config-feeds: true` |
 
 There is currently no GraphQL mutation surface for `avl_feed` (deferred).
 
@@ -113,8 +122,8 @@ feed row so config edits propagate without a restart.
 Each tick calls `AvlIngestService.pollOnce(feed)`:
 
 1. **Fetch** — `AvlFeedSource` (`HttpAvlFeedSource`, okhttp) GETs `feed.url` with
-   the feed's configured headers, enforcing `http.*` timeouts and
-   `max-size-bytes`; non-2xx or oversize throws `AvlFetchException` and is
+   the feed's configured headers, enforcing the shared `transittrack.http.*`
+   timeouts and `max-size-bytes`; non-2xx or oversize throws `AvlFetchException` and is
    recorded in `last_poll_status`.
 2. **Decode** — the `AvlFeedDecoder` registered for `feed.format`
    (`GtfsRealtimeVehiclePositionDecoder` for `GTFS_RT`) parses the payload into

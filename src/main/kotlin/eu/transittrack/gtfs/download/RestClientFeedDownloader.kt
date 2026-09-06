@@ -13,34 +13,34 @@ import okhttp3.logging.HttpLoggingInterceptor
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.http.HttpClientProperties
 
 /**
  * Streaming [FeedDownloader] built on Spring's [RestClient] over the JDK HTTP client.
  *
  * The response body is streamed straight to [into] while a SHA-256 digest is computed in the same
  * pass. The download is aborted with a [FeedDownloadException] when the response status is non-2xx,
- * when the body exceeds [GtfsProperties.Download.maxSizeBytes], or on any IO/timeout failure. The
+ * when the body exceeds [HttpClientProperties.maxSizeBytes], or on any IO/timeout failure. The
  * partial file is always removed on failure.
  */
 @Component
 class RestClientFeedDownloader(
-    props: GtfsProperties,
+    props: HttpClientProperties,
 ) : FeedDownloader {
-    private val maxBytes: Long = props.download.maxSizeBytes
+    private val maxBytes: Long = props.maxSizeBytes
 
     private val okHttpClient: OkHttpClient =
         OkHttpClient
             .Builder()
-            .connectTimeout(props.download.connectTimeoutMs, TimeUnit.MILLISECONDS)
-            .readTimeout(props.download.readTimeoutMs, TimeUnit.MILLISECONDS)
+            .connectTimeout(props.connectTimeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(props.readTimeoutMs, TimeUnit.MILLISECONDS)
             .followRedirects(true)
             .addInterceptor {
                 val modifiedRequest =
                     it
                         .request()
                         .newBuilder()
-                        .header("User-Agent", props.download.userAgent)
+                        .header("User-Agent", props.userAgent)
                         .build()
                 it.proceed(modifiedRequest)
             }.addInterceptor(

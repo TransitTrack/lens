@@ -17,7 +17,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 import org.junit.jupiter.api.io.TempDir
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.http.HttpClientProperties
 
 class RestClientFeedDownloaderTest {
     private lateinit var server: MockWebServer
@@ -27,13 +27,10 @@ class RestClientFeedDownloaderTest {
 
     private fun downloader(maxBytes: Long = 1_000_000) =
         RestClientFeedDownloader(
-            GtfsProperties(
-                download =
-                    GtfsProperties.Download(
-                        connectTimeoutMs = 2000,
-                        readTimeoutMs = 2000,
-                        maxSizeBytes = maxBytes,
-                    ),
+            HttpClientProperties(
+                connectTimeoutMs = 2000,
+                readTimeoutMs = 2000,
+                maxSizeBytes = maxBytes,
             ),
         )
 

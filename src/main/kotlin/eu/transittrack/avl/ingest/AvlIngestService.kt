@@ -6,13 +6,13 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.avl.AvlFormat
 import eu.transittrack.avl.feed.AvlFeedSource
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
+import eu.transittrack.feed.AvlFormat
 
 /**
  * One poll cycle for one AVL feed: fetch -> decode -> drop `(vehicleId, ts)` duplicates already

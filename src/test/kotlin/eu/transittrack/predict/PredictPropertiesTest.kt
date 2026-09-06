@@ -8,7 +8,7 @@ import assertk.assertions.isFalse
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 
-import eu.transittrack.avl.AvlProperties
+import eu.transittrack.feed.FeedsProperties
 
 class PredictPropertiesTest {
     private fun bind(map: Map<String, Any>): PredictProperties =
@@ -16,9 +16,9 @@ class PredictPropertiesTest {
             .bind("transittrack.predict", PredictProperties::class.java)
             .get()
 
-    private fun bindAvl(map: Map<String, Any>): AvlProperties =
+    private fun bindFeeds(map: Map<String, Any>): FeedsProperties =
         Binder(MapConfigurationPropertySource(map))
-            .bind("transittrack.avl", AvlProperties::class.java)
+            .bind("transittrack.feed", FeedsProperties::class.java)
             .get()
 
     @Test
@@ -32,18 +32,18 @@ class PredictPropertiesTest {
 
     @Test
     fun `binds prediction algorithm and mode on a feed`() {
-        val p = bindAvl(
+        val p = bindFeeds(
             mapOf(
-                "transittrack.avl.feeds[0].code" to "mbta-vp",
-                "transittrack.avl.feeds[0].name" to "MBTA VP",
-                "transittrack.avl.feeds[0].gtfs-feed-code" to "mbta",
-                "transittrack.avl.feeds[0].url" to "https://example.test/vp.pb",
-                "transittrack.avl.feeds[0].prediction-algorithm" to "KALMAN",
-                "transittrack.avl.feeds[0].prediction-mode" to "EVALUATION",
+                "transittrack.feed.feeds[0].code" to "mbta",
+                "transittrack.feed.feeds[0].name" to "MBTA",
+                "transittrack.feed.feeds[0].url" to "https://example.test/gtfs.zip",
+                "transittrack.feed.feeds[0].avl.url" to "https://example.test/vp.pb",
+                "transittrack.feed.feeds[0].avl.prediction-algorithm" to "KALMAN",
+                "transittrack.feed.feeds[0].avl.prediction-mode" to "EVALUATION",
             ),
         )
-        val f = p.feeds.single()
-        assertThat(f.predictionAlgorithm).isEqualTo(PredictionAlgorithm.KALMAN)
-        assertThat(f.predictionMode).isEqualTo(PredictionMode.EVALUATION)
+        val avl = p.feeds.single().avl!!
+        assertThat(avl.predictionAlgorithm).isEqualTo(PredictionAlgorithm.KALMAN)
+        assertThat(avl.predictionMode).isEqualTo(PredictionMode.EVALUATION)
     }
 }

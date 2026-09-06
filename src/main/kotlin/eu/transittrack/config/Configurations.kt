@@ -23,10 +23,10 @@ import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
-import eu.transittrack.gtfs.GtfsProperties
 import eu.transittrack.gtfs.feed.FeedConflictException
 import eu.transittrack.gtfs.feed.FeedNotFoundException
 import eu.transittrack.gtfs.feed.FeedProtectedException
+import eu.transittrack.http.HttpClientProperties
 
 @Configuration
 @EnableScheduling
@@ -45,22 +45,22 @@ class AsyncConfiguration {
 
 @Configuration
 class HttpClientsConfiguration(
-    val props: GtfsProperties,
+    val props: HttpClientProperties,
 ) {
     @Bean
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     fun okHttpClient(): OkHttpClient =
         OkHttpClient
             .Builder()
-            .connectTimeout(props.download.connectTimeoutMs, TimeUnit.MILLISECONDS)
-            .readTimeout(props.download.readTimeoutMs, TimeUnit.MILLISECONDS)
+            .connectTimeout(props.connectTimeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(props.readTimeoutMs, TimeUnit.MILLISECONDS)
             .followRedirects(true)
             .addInterceptor {
                 val modifiedRequest =
                     it
                         .request()
                         .newBuilder()
-                        .header("User-Agent", props.download.userAgent)
+                        .header("User-Agent", props.userAgent)
                         .build()
                 it.proceed(modifiedRequest)
             }.addInterceptor(

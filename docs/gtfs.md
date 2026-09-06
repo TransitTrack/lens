@@ -18,22 +18,23 @@ A feed is a `{ code, name, description?, url, pollingCron?, enabled?, autoActiva
 record. `url` is the only transport detail — everything else is metadata or
 policy. There are two ways to create one, and both ingest identically.
 
-### 1a. Configuration (`transittrack.gtfs.feeds`)
+### 1a. Configuration (`transittrack.feed.feeds`)
 
-Declared feeds are reconciled into the `gtfs_feed` table at startup by
-`GtfsFeedConfigSynchronizer` (an `ApplicationRunner` that runs after Liquibase),
-with `source = CONFIG`:
+Feed definitions live in a single place — `transittrack.feed.feeds[]` — shared with
+AVL (an optional nested `avl` block, see [avl.md](avl.md)). Declared feeds are
+reconciled into the `gtfs_feed` table at startup by `GtfsFeedConfigSynchronizer`
+(an `ApplicationRunner` that runs after Liquibase), with `source = CONFIG`:
 
 | Situation | Effect |
 | --- | --- |
 | `code` not in DB | insert |
 | existing `CONFIG` feed | update `name`, `description`, `url`, `pollingCron`, `enabled`, `autoActivate` |
 | existing `API` feed, same `code` | **startup fails** — ambiguous ownership |
-| `CONFIG` feed in DB, absent from config | left untouched by default; deleted only when `transittrack.gtfs.prune-config-feeds: true` |
+| `CONFIG` feed in DB, absent from config | left untouched by default; deleted only when `transittrack.feed.prune-config-feeds: true` |
 
 ```yaml
 transittrack:
-  gtfs:
+  feed:
     feeds:
       - code: wroclaw
         name: "Wrocław"
@@ -41,7 +42,7 @@ transittrack:
         url: "https://przystanek.wroclaw.pl/feed/gtfs.zip"
         polling-cron: "0 30 3 * * *"        # optional; per-feed schedule
         enabled: true                       # optional, default true
-        auto-activate: true                 # optional; overrides ingest.auto-activate
+        auto-activate: true                 # optional; overrides gtfs.ingest.auto-activate
 ```
 
 The list may be empty — feeds can then be created purely via the mutation below.
@@ -99,7 +100,7 @@ Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `DERIVING`, `RE
 ### Pipeline steps
 
 1. **Download** — `FeedDownloader` streams the URL to a temp file, capped at
-   `download.max-size-bytes`, computing SHA-256 and byte size.
+   `transittrack.http.max-size-bytes`, computing SHA-256 and byte size.
 2. **Unchanged check** — if the SHA-256 equals the feed's current `ACTIVE`
    revision's `content_sha256`, the revision is set to `UNCHANGED` and the
    pipeline stops (no rows written).
@@ -216,6 +217,7 @@ transittrack:
     polling:
       enabled: true
       sweep-cron: "0 * * * * *"   # how often the sweep wakes up (6-field Spring cron)
+  feed:
     feeds:
       - code: wroclaw
         name: "Wrocław"
@@ -323,12 +325,12 @@ Typed GraphQL for these entities is a documented follow-up.
 
 ```yaml
 transittrack:
+  http:                             # shared outbound HTTP client (GTFS download + AVL polling)
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    max-size-bytes: 524288000       # 500 MiB
+    user-agent: "transittrack/0.0.1"
   gtfs:
-    download:
-      connect-timeout-ms: 10000
-      read-timeout-ms: 60000
-      max-size-bytes: 524288000      # 500 MiB
-      user-agent: "transittrack-explorer/0.0.1"
     ingest:
       auto-activate: true
       strict-validation: false
@@ -339,6 +341,7 @@ transittrack:
     polling:
       enabled: false
       sweep-cron: "0 0 * * * *"      # hourly
+  feed:
     prune-config-feeds: false        # delete CONFIG feeds no longer in config
     feeds: []                        # see §1a
   schedule:

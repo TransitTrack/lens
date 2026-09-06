@@ -12,7 +12,7 @@ import org.mockito.Mockito.mock
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.feed.FeedsProperties
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.PostgresSliceTest
 
@@ -25,10 +25,10 @@ class GtfsFeedConfigSynchronizerTest(
 
     private fun sync(
         pruneConfigFeeds: Boolean = false,
-        vararg feeds: GtfsProperties.FeedDef,
+        vararg feeds: FeedsProperties.FeedDef,
     ) = GtfsFeedConfigSynchronizer(
         repo,
-        GtfsProperties(pruneConfigFeeds = pruneConfigFeeds, feeds = feeds.toList()),
+        FeedsProperties(pruneConfigFeeds = pruneConfigFeeds, feeds = feeds.toList()),
         ingestionService,
     ).sync()
 
@@ -74,5 +74,5 @@ class GtfsFeedConfigSynchronizerTest(
     private fun feed(
         code: String,
         url: String,
-    ) = GtfsProperties.FeedDef(code = code, name = code.uppercase(), url = url)
+    ) = FeedsProperties.FeedDef(code = code, name = code.uppercase(), url = url)
 }

@@ -23,7 +23,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 
 /**
  * Whole-subsystem acceptance test: a real [eu.transittrack.Application] context (pinned via `classes` so the `GtfsSliceTestApplication` is not picked up first), Testcontainers Postgres + LGTM, a stubbed [FeedDownloader] serving the
- * `full-spec-sample` fixture (~32 files). The `e2e` feed is defined purely through `transittrack.gtfs.feeds[0]` config — `GtfsFeedConfigSynchronizer` upserts it into `gtfs_feed` with `source = CONFIG` at startup. The test then ingests it, reads it back over
+ * `full-spec-sample` fixture (~32 files). The `e2e` feed is defined purely through `transittrack.feed.feeds[0]` config — `GtfsFeedConfigSynchronizer` upserts it into `gtfs_feed` with `source = CONFIG` at startup. The test then ingests it, reads it back over
  * HTTP GraphQL, and confirms a byte-identical re-ingest is `UNCHANGED`.
  */
 @SpringBootTest(
@@ -31,9 +31,9 @@ import eu.transittrack.gtfs.support.FixtureDownloader
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties =
         [
-            "transittrack.gtfs.feeds[0].code=e2e",
-            "transittrack.gtfs.feeds[0].name=E2E",
-            "transittrack.gtfs.feeds[0].url=http://x/g.zip",
+            "transittrack.feed.feeds[0].code=e2e",
+            "transittrack.feed.feeds[0].name=E2E",
+            "transittrack.feed.feeds[0].url=http://x/g.zip",
         ],
 )
 @Import(TestcontainersConfiguration::class, GtfsEndToEndTest.Stub::class)
