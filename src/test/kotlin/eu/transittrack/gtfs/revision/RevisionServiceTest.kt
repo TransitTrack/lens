@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -104,6 +105,28 @@ class RevisionServiceTest(
         assertThat(
             revisions.findByFeedNewestFirst(f).count { it.status == GtfsRevisionStatus.SUPERSEDED },
         ).isEqualTo(2)
+    }
+
+    @Test
+    fun `prune keeps a revision a live draft was forked from`() {
+        val f = feed()
+        val active = svc.createPending(f, "u")
+        svc.transition(active.id!!, GtfsRevisionStatus.READY)
+        svc.activate(active.id!!)
+        val base = svc.createPending(f, "u")
+        svc.transition(base.id!!, GtfsRevisionStatus.SUPERSEDED)
+        revisions.save(
+            GtfsRevision(feedId = f, status = GtfsRevisionStatus.DRAFT, sourceUrl = "u").apply {
+                kind = DraftKind.DRAFT
+                baseRevisionId = base.id
+            },
+        )
+        (1..5).forEach {
+            val r = svc.createPending(f, "u")
+            svc.transition(r.id!!, GtfsRevisionStatus.SUPERSEDED)
+        }
+        svc.prune(f, keep = 2)
+        assertThat(revisions.findById(base.id!!).isPresent).isTrue()
     }
 
     @Test

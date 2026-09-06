@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0005-draft-fk-ondelete
+      author: transittrack
+      changes:
+        # fk_revision_base defaulted to NO ACTION: deleting a revision that a draft was
+        # forked from (e.g. once it is SUPERSEDED and pruned) failed with a FK violation,
+        # which aborted the ingest pipeline mid-activation. SET NULL lets the base go while
+        # the draft survives with a null base (handled end-to-end).
+        - dropForeignKeyConstraint:
+            baseTableName: gtfs_revision
+            constraintName: fk_revision_base
+        - addForeignKeyConstraint:
+            baseTableName: gtfs_revision
+            baseColumnNames: base_revision_id
+            constraintName: fk_revision_base
+            referencedTableName: gtfs_revision
+            referencedColumnNames: id
+            onDelete: SET NULL
+        # ix_draft_edit_revision_seq is fully redundant with the index Postgres creates to
+        # back uq_draft_edit_revision_seq (same columns, same order).
+        - dropIndex:
+            tableName: draft_edit
+            indexName: ix_draft_edit_revision_seq

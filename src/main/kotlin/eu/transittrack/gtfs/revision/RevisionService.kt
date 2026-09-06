@@ -152,11 +152,29 @@ class RevisionService(
                 all.firstOrNull { it.status == GtfsRevisionStatus.ACTIVE }?.id?.let(::add)
                 keepRank.take(keep.coerceAtLeast(0)).forEach { it.id?.let(::add) }
             }
-        val toDelete = terminal.filter { it.id !in keepIds }.sortedBy { it.createdAt }
+        // Never prune a revision some DRAFT was forked from, even once it is SUPERSEDED and
+        // beyond the keep-count — a draft's history must outlive retention trimming.
+        val draftBaseIds = revisions.findBaseRevisionIdsReferencedByDrafts().toSet()
+        val toDelete = terminal.filter { it.id !in keepIds && it.id !in draftBaseIds }.sortedBy { it.createdAt }
         for (r in toDelete) {
             writer.deleteAllForRevision(r.id!!)
             revisions.delete(r)
         }
+    }
+
+    /**
+     * Persist an honest "empty draft" state after a failed `revertToFork` re-copy. Runs in its own
+     * transaction so it survives the caller's rollback — the wipe already committed on a separate
+     * connection, so without this the draft would keep advertising its pre-revert `rowCounts`.
+     */
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    fun markRevertFailed(revisionId: Long) {
+        val r = revision(revisionId)
+        r.rowCounts = emptyMap()
+        r.version += 1
+        r.derivationStale = true
+        r.lastValidation = null
+        revisions.save(r)
     }
 
     /** Delete every child row for the revision, then the revision row itself. */
