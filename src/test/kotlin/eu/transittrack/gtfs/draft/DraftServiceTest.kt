@@ -7,6 +7,7 @@ import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isInstanceOf
@@ -25,6 +26,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.schedule.derive.ScheduleWriter
 
 /**
  * `RevisionWriter` and the ingestion pieces commit on their own connections, so — like
@@ -40,6 +42,8 @@ class DraftServiceTest(
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val stops: StopRepository,
     @Autowired val writer: RevisionWriter,
+    @Autowired val editRepo: DraftEditRepository,
+    @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired dataSource: DataSource,
 ) {
@@ -48,6 +52,7 @@ class DraftServiceTest(
 
     @AfterEach
     fun cleanup() {
+        for (id in cleanupRevs) runCatching { scheduleWriter.deleteForRevision(id) }
         for (id in cleanupRevs) runCatching { writer.deleteAllForRevision(id) }
         for (id in cleanupRevs) runCatching { revisions.deleteById(id) }
         runCatching { feeds.findByCode("schedule-sample")?.id?.let { feeds.deleteById(it) } }
@@ -151,5 +156,50 @@ class DraftServiceTest(
         assertThat(drafts.claimEditor(draft.id!!, "bob", takeOver = true).editor).isEqualTo("bob")
         assertThat(drafts.releaseEditor(draft.id!!, "alice")).isEqualTo(false) // alice no longer holds it
         assertThat(drafts.releaseEditor(draft.id!!, "bob")).isEqualTo(true)
+    }
+
+    @Test
+    fun `discard removes the draft and its rows`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null)
+        val id = draft.id!!
+        drafts.discard(id)
+        assertThat(revisions.findById(id).isPresent).isEqualTo(false)
+        assertThat(stops.findByRevisionId(id)).isEmpty()
+    }
+
+    @Test
+    fun `revertToFork restores from base and clears the journal`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        // simulate an edit: delete a stop + a journal row
+        val s = stops.findByRevisionId(draft.id!!).first()
+        stops.delete(s)
+        editRepo.save(DraftEdit(draft.id!!, 1, "DELETE_TRIP", "x", "{}", "{}", java.time.Instant.now()))
+
+        val reverted = drafts.revertToFork(draft.id!!)
+        assertThat(stops.findByRevisionId(reverted.id!!).size).isEqualTo(stops.findByRevisionId(activeRev).size)
+        assertThat(editRepo.countByRevisionId(reverted.id!!)).isEqualTo(0L)
+        assertThat(reverted.derivationStale).isEqualTo(true)
+    }
+
+    @Test
+    fun `activate is blocked while stale`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        assertFailure { drafts.activate(draft.id!!) }.isInstanceOf(IllegalStateException::class)
+    }
+
+    @Test
+    fun `force activate supersedes the previous active revision`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        val activated = drafts.activate(draft.id!!, force = true)
+        assertThat(activated.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(activeRev).get().status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
     }
 }

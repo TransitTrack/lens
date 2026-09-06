@@ -4,12 +4,15 @@ import java.time.Instant
 
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
+import eu.transittrack.gtfs.store.RevisionWriter
+import eu.transittrack.schedule.derive.ScheduleWriter
 
 data class DraftLock(
     val editor: String,
@@ -28,6 +31,9 @@ class DraftService(
     private val edits: DraftEditRepository,
     private val feeds: GtfsFeedRepository,
     private val props: DraftProperties,
+    private val revisionWriter: RevisionWriter,
+    private val scheduleWriter: ScheduleWriter,
+    private val objectMapper: JsonMapper,
 ) {
     @Transactional
     fun fork(
@@ -137,6 +143,51 @@ class DraftService(
         d.editorClaimExpiresAt = null
         revisions.save(d)
         return true
+    }
+
+    @Transactional
+    fun discard(draftId: Long) {
+        val d = get(draftId)
+        check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be discarded" }
+        wipeRows(draftId)
+        edits.deleteByRevisionId(draftId)
+        revisions.deleteById(draftId)
+    }
+
+    @Transactional
+    fun revertToFork(draftId: Long): GtfsRevision {
+        val d = get(draftId)
+        check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be reverted" }
+        val base = d.baseRevisionId ?: error("draft $draftId has no base revision")
+        wipeRows(draftId)
+        d.rowCounts = copier.copyRawTables(base, draftId)
+        edits.deleteByRevisionId(draftId)
+        d.version += 1
+        d.derivationStale = true
+        d.lastValidation = null
+        return revisions.save(d)
+    }
+
+    @Transactional
+    fun activate(
+        draftId: Long,
+        force: Boolean = false,
+    ): GtfsRevision {
+        val d = get(draftId)
+        check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be activated" }
+        if (!force) {
+            check(!d.derivationStale) { "rebuild the draft before activating" }
+            val errors =
+                d.lastValidation
+                    ?.let { objectMapper.readTree(it).path("errorCount").asInt(0) } ?: -1
+            check(errors == 0) { "draft has $errors validation error(s); rebuild & validate, or force" }
+        }
+        return revisionService.activate(draftId)
+    }
+
+    private fun wipeRows(revisionId: Long) {
+        scheduleWriter.deleteForRevision(revisionId)
+        revisionWriter.deleteAllForRevision(revisionId)
     }
 
     private fun writeClaim(
