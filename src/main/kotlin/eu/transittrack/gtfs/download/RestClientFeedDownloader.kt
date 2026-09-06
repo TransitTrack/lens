@@ -26,28 +26,9 @@ import eu.transittrack.http.HttpClientProperties
 @Component
 class RestClientFeedDownloader(
     props: HttpClientProperties,
+    private val okHttpClient: OkHttpClient,
 ) : FeedDownloader {
     private val maxBytes: Long = props.maxSizeBytes
-
-    private val okHttpClient: OkHttpClient =
-        OkHttpClient
-            .Builder()
-            .connectTimeout(props.connectTimeoutMs, TimeUnit.MILLISECONDS)
-            .readTimeout(props.readTimeoutMs, TimeUnit.MILLISECONDS)
-            .followRedirects(true)
-            .addInterceptor {
-                val modifiedRequest =
-                    it
-                        .request()
-                        .newBuilder()
-                        .header("User-Agent", props.userAgent)
-                        .build()
-                it.proceed(modifiedRequest)
-            }.addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.BASIC
-                },
-            ).build()
 
     override fun download(
         url: String,

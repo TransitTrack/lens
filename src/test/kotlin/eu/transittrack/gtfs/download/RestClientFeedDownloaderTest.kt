@@ -12,6 +12,7 @@ import assertk.assertions.hasLength
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
@@ -32,6 +33,7 @@ class RestClientFeedDownloaderTest {
                 readTimeoutMs = 2000,
                 maxSizeBytes = maxBytes,
             ),
+            okHttpClient = OkHttpClient().newBuilder().build(),
         )
 
     @BeforeTest

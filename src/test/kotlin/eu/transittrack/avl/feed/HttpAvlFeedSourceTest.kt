@@ -9,6 +9,7 @@ import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
@@ -49,7 +50,7 @@ class HttpAvlFeedSourceTest {
         updatedAt = Instant.EPOCH,
     )
 
-    private val source = HttpAvlFeedSource(HttpClientProperties())
+    private val source = HttpAvlFeedSource(HttpClientProperties(), OkHttpClient())
 
     @Test
     fun `fetches bytes and sends configured headers`() {
@@ -70,7 +71,7 @@ class HttpAvlFeedSourceTest {
     fun `oversize body throws`() {
         val big = HttpClientProperties(maxSizeBytes = 2)
         server.enqueue(MockResponse().setBody(Buffer().write(ByteArray(10))))
-        assertFailure { HttpAvlFeedSource(big).fetch(feed(server.url("/vp.pb").toString())) }
+        assertFailure { HttpAvlFeedSource(big, OkHttpClient()).fetch(feed(server.url("/vp.pb").toString())) }
             .isInstanceOf(eu.transittrack.avl.ingest.AvlFetchException::class)
     }
 }

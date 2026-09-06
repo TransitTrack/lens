@@ -19,22 +19,14 @@ import eu.transittrack.http.HttpClientProperties
 @Component
 class HttpAvlFeedSource(
     private val props: HttpClientProperties,
+    private val client: OkHttpClient,
 ) : AvlFeedSource {
-    private val client: OkHttpClient =
-        OkHttpClient
-            .Builder()
-            .connectTimeout(props.connectTimeoutMs, TimeUnit.MILLISECONDS)
-            .readTimeout(props.readTimeoutMs, TimeUnit.MILLISECONDS)
-            .followRedirects(true)
-            .build()
-
     override fun fetch(feed: AvlFeed): RawAvlPayload {
         val builder =
             Request
                 .Builder()
                 .get()
                 .url(feed.url)
-                .header("User-Agent", props.userAgent)
         feed.headers?.forEach { (k, v) -> builder.header(k, v) }
         try {
             client.newCall(builder.build()).execute().use { response ->
