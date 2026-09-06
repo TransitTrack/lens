@@ -17,10 +17,16 @@ object DraftRawTables {
             "trip_patterns",
         )
 
-    val NAMES: List<String> =
-        (GtfsTables.ALL + listOf("shapes", "shape_points"))
-            .distinct()
-            .filterNot { it in DERIVED }
+    val NAMES: List<String> = GtfsTables.ALL.filterNot { it in DERIVED }
+
+    /**
+     * Columns on `trips` owned by schedule derivation (written by `DerivedGtfsWriter`, cleared by
+     * `clearTripDerivation`). `trip_pattern_id` is a bare surrogate key into the *base* revision's
+     * `trip_patterns`, so copying these verbatim would leave draft trips pointing across revisions.
+     * The fork emits NULL for them; a later rebuild re-derives them.
+     */
+    val DERIVATION_OWNED_TRIP_COLUMNS =
+        setOf("trip_pattern_id", "start_time_sec", "end_time_sec", "frequency_based", "no_schedule")
 }
 
 @Component
@@ -37,10 +43,16 @@ class DraftRowCopier(
             val cols = dataColumns(table)
             if (cols.isEmpty()) continue
             val colList = cols.joinToString(", ")
+            val selectList =
+                if (table == "trips") {
+                    cols.joinToString(", ") { if (it in DraftRawTables.DERIVATION_OWNED_TRIP_COLUMNS) "NULL" else it }
+                } else {
+                    colList
+                }
             val sql =
                 """
                 INSERT INTO $table ($colList, id, revision_id)
-                SELECT $colList, nextval('gtfs_entity_seq'), ?
+                SELECT $selectList, nextval('gtfs_entity_seq'), ?
                 FROM $table WHERE revision_id = ?
                 """.trimIndent()
             val n = jdbc.update(sql, toRevisionId, fromRevisionId)

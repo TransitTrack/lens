@@ -2,6 +2,7 @@ package eu.transittrack.gtfs.draft
 
 import java.time.Instant
 
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
@@ -32,9 +33,13 @@ class DraftService(
     private val feeds: GtfsFeedRepository,
     private val props: DraftProperties,
     private val revisionWriter: RevisionWriter,
-    private val scheduleWriter: ScheduleWriter,
+    scheduleWriterProvider: ObjectProvider<ScheduleWriter>,
     private val objectMapper: JsonMapper,
 ) {
+    // ScheduleWriter is @ConditionalOnProperty(transittrack.schedule.enabled) — absent when the
+    // schedule feature is toggled off, so the draft feature must degrade rather than fail startup.
+    private val scheduleWriter: ScheduleWriter? = scheduleWriterProvider.ifAvailable
+
     @Transactional
     fun fork(
         feedCode: String,
@@ -117,9 +122,10 @@ class DraftService(
         takeOver: Boolean = false,
     ): DraftLock {
         val d = get(draftId)
-        val held = currentLock(d)
-        check(takeOver || held == null || held.editor == editor) { "locked by ${held?.editor}" }
-        return writeClaim(d, editor)
+        check(d.status == GtfsRevisionStatus.DRAFT) { "draft $draftId is not editable (status ${d.status})" }
+        // The claim is now a single conditional UPDATE (see writeClaim) — the check-then-write race
+        // where two clients both saw a free lock is gone.
+        return writeClaim(d, editor, takeOver)
     }
 
     @Transactional
@@ -128,8 +134,9 @@ class DraftService(
         editor: String,
     ): DraftLock {
         val d = get(draftId)
+        check(d.status == GtfsRevisionStatus.DRAFT) { "draft $draftId is not editable (status ${d.status})" }
         check(currentLock(d)?.editor == editor) { "not the current editor" }
-        return writeClaim(d, editor)
+        return writeClaim(d, editor, takeOver = false)
     }
 
     @Transactional
@@ -160,8 +167,19 @@ class DraftService(
         check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be reverted" }
         val base = d.baseRevisionId ?: error("draft $draftId has no base revision")
         wipeRows(draftId)
-        d.rowCounts = copier.copyRawTables(base, draftId)
         edits.deleteByRevisionId(draftId)
+        // wipeRows commits on ScheduleWriter/RevisionWriter's own connections; the entity-field
+        // updates below are in this JPA transaction. If the re-copy throws, that wipe still stands,
+        // so persist an honest "empty draft, must re-revert" state (in a REQUIRES_NEW txn that
+        // survives this rollback) rather than let `drafts`/`draft` keep advertising the old counts.
+        val counts =
+            try {
+                copier.copyRawTables(base, draftId)
+            } catch (e: RuntimeException) {
+                revisionService.markRevertFailed(draftId)
+                throw e
+            }
+        d.rowCounts = counts
         d.version += 1
         d.derivationStale = true
         d.lastValidation = null
@@ -186,18 +204,20 @@ class DraftService(
     }
 
     private fun wipeRows(revisionId: Long) {
-        scheduleWriter.deleteForRevision(revisionId)
+        scheduleWriter?.deleteForRevision(revisionId)
         revisionWriter.deleteAllForRevision(revisionId)
     }
 
     private fun writeClaim(
         d: GtfsRevision,
         editor: String,
+        takeOver: Boolean,
     ): DraftLock {
-        val exp = Instant.now().plusSeconds(props.editorLeaseMinutes * 60)
-        d.editorClaimBy = editor
-        d.editorClaimExpiresAt = exp
-        revisions.save(d)
+        val now = Instant.now()
+        val exp = now.plusSeconds(props.editorLeaseMinutes * 60)
+        // Atomic: sets the holder only when the lock is free / expired / self / takeOver.
+        val updated = revisions.tryClaimEditor(d.id!!, editor, exp, now, takeOver)
+        check(updated == 1) { "locked by ${d.editorClaimBy}" }
         return DraftLock(editor, exp)
     }
 }

@@ -123,6 +123,36 @@ class DraftServiceTest(
     }
 
     @Test
+    fun `fork nulls the derivation-owned trip columns`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+
+        fun derivedTrips(rev: Long) =
+            jdbc.queryForObject(
+                "select count(*) from trips where revision_id = ? and trip_pattern_id is not null",
+                Long::class.java,
+                rev,
+            )!!
+
+        fun allTrips(rev: Long) = jdbc.queryForObject("select count(*) from trips where revision_id = ?", Long::class.java, rev)!!
+        assertThat(derivedTrips(activeRev)).isGreaterThan(0L)
+
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+
+        assertThat(allTrips(draft.id!!)).isEqualTo(allTrips(activeRev))
+        assertThat(derivedTrips(draft.id!!)).isEqualTo(0L)
+    }
+
+    @Test
+    fun `claimEditor is rejected once the draft is activated`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        drafts.activate(draft.id!!, force = true)
+        assertFailure { drafts.claimEditor(draft.id!!, "alice") }.isInstanceOf(IllegalStateException::class)
+    }
+
+    @Test
     fun `fork with unknown feed fails`() {
         assertFailure { drafts.fork("nope", null, null, null) }.isInstanceOf<IllegalArgumentException>()
     }
