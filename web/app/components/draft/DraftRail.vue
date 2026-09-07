@@ -39,9 +39,9 @@ function reveal(t: Tab) {
 }
 
 watch(
-  () => props.selectedTrip,
-  (t) => {
-    if (t) {
+  () => props.selectedTrip?.tripId,
+  (id) => {
+    if (id) {
       open.value = true
       tab.value = 'trip'
     }

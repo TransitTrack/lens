@@ -36,11 +36,14 @@ const parsed = computed<Parsed | null>(() => {
   const rawNotices = Array.isArray(obj.notices) ? obj.notices : []
   const notices: Notice[] = rawNotices
     .filter((n): n is Record<string, unknown> => typeof n === 'object' && n !== null)
-    .map((n) => ({
-      severity: String(n.severity ?? 'INFO').toUpperCase(),
-      code: String(n.code ?? ''),
-      message: String(n.message ?? ''),
-    }))
+    .map((n) => {
+      const sev = String(n.severity ?? 'INFO').toUpperCase()
+      return {
+        severity: sev === 'ERROR' || sev === 'WARNING' || sev === 'INFO' ? sev : 'INFO',
+        code: String(n.code ?? ''),
+        message: String(n.message ?? ''),
+      }
+    })
   return {
     errorCount: typeof obj.errorCount === 'number' ? obj.errorCount : 0,
     warningCount: typeof obj.warningCount === 'number' ? obj.warningCount : 0,

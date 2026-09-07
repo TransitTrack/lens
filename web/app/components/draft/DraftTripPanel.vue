@@ -9,7 +9,7 @@ import {
   type DraftGridQuery,
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
-import { parseTimeInput, secToClock } from '~/utils/gtfsTime'
+import { parseDeltaInput, secToClock } from '~/utils/gtfsTime'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
 
@@ -46,28 +46,35 @@ const runTime = computed(() => {
 const { mutate: shiftTrip } = useShiftTripMutation()
 const shiftRaw = ref('')
 
+const shiftDelta = computed(() => parseDeltaInput(shiftRaw.value))
+const shiftInvalid = computed(() => shiftRaw.value.trim() !== '' && shiftDelta.value == null)
+
 async function applyShift(deltaSec: number) {
-  const data = await props.editor.mutate(async (vars) => {
-    const res = await shiftTrip({
-      input: {
-        draftId: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-        tripId: props.trip.tripId,
-        deltaSec,
-      },
+  try {
+    const data = await props.editor.mutate(async (vars) => {
+      const res = await shiftTrip({
+        input: {
+          draftId: vars.draftId,
+          editor: vars.editor,
+          expectedVersion: vars.expectedVersion,
+          tripId: props.trip.tripId,
+          deltaSec,
+        },
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.shiftTrip) {
-    props.editor.applyResult(data.shiftTrip)
-    await props.editor.refetchEdits()
-    emit('changed')
+    if (data?.shiftTrip) {
+      props.editor.applyResult(data.shiftTrip)
+      await props.editor.refetchEdits()
+      emit('changed')
+    }
+  } catch {
+    // toast already fired inside editor.mutate
   }
 }
 
 function applyShiftInput() {
-  const delta = parseTimeInput(shiftRaw.value, 0)
+  const delta = shiftDelta.value
   if (delta == null) return
   void applyShift(delta)
   shiftRaw.value = ''
@@ -78,23 +85,27 @@ const { mutate: deleteTrip } = useDeleteTripMutation()
 const deleteOpen = ref(false)
 
 async function confirmDelete() {
-  const data = await props.editor.mutate(async (vars) => {
-    const res = await deleteTrip({
-      input: {
-        draftId: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-        tripId: props.trip.tripId,
-      },
+  try {
+    const data = await props.editor.mutate(async (vars) => {
+      const res = await deleteTrip({
+        input: {
+          draftId: vars.draftId,
+          editor: vars.editor,
+          expectedVersion: vars.expectedVersion,
+          tripId: props.trip.tripId,
+        },
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.deleteTrip) {
-    props.editor.applyResult(data.deleteTrip)
-    await props.editor.refetchEdits()
-    deleteOpen.value = false
-    emit('changed')
-    emit('deleted', props.trip.tripId)
+    if (data?.deleteTrip) {
+      props.editor.applyResult(data.deleteTrip)
+      await props.editor.refetchEdits()
+      deleteOpen.value = false
+      emit('changed')
+      emit('deleted', props.trip.tripId)
+    }
+  } catch {
+    // toast already fired inside editor.mutate
   }
 }
 
@@ -122,47 +133,55 @@ const { mutate: setStopDwell } = useSetStopDwellMutation()
 async function commitStopTime() {
   const seq = props.activeCell?.stopSequence
   if (seq == null) return
-  const data = await props.editor.mutate(async (vars) => {
-    const res = await updateStopTime({
-      input: {
-        draftId: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-        tripId: props.trip.tripId,
-        stopSequence: seq,
-        arrivalSec: arr.value,
-        departureSec: dep.value,
-      },
+  try {
+    const data = await props.editor.mutate(async (vars) => {
+      const res = await updateStopTime({
+        input: {
+          draftId: vars.draftId,
+          editor: vars.editor,
+          expectedVersion: vars.expectedVersion,
+          tripId: props.trip.tripId,
+          stopSequence: seq,
+          arrivalSec: arr.value,
+          departureSec: dep.value,
+        },
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.updateStopTime) {
-    props.editor.applyResult(data.updateStopTime)
-    await props.editor.refetchEdits()
-    emit('changed')
+    if (data?.updateStopTime) {
+      props.editor.applyResult(data.updateStopTime)
+      await props.editor.refetchEdits()
+      emit('changed')
+    }
+  } catch {
+    // toast already fired inside editor.mutate
   }
 }
 
 async function commitDwell() {
   const seq = props.activeCell?.stopSequence
   if (seq == null || dwell.value == null) return
-  const data = await props.editor.mutate(async (vars) => {
-    const res = await setStopDwell({
-      input: {
-        draftId: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-        tripId: props.trip.tripId,
-        stopSequence: seq,
-        dwellSec: dwell.value as number,
-      },
+  try {
+    const data = await props.editor.mutate(async (vars) => {
+      const res = await setStopDwell({
+        input: {
+          draftId: vars.draftId,
+          editor: vars.editor,
+          expectedVersion: vars.expectedVersion,
+          tripId: props.trip.tripId,
+          stopSequence: seq,
+          dwellSec: dwell.value as number,
+        },
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.setStopDwell) {
-    props.editor.applyResult(data.setStopDwell)
-    await props.editor.refetchEdits()
-    emit('changed')
+    if (data?.setStopDwell) {
+      props.editor.applyResult(data.setStopDwell)
+      await props.editor.refetchEdits()
+      emit('changed')
+    }
+  } catch {
+    // toast already fired inside editor.mutate
   }
 }
 
@@ -234,8 +253,9 @@ const dirLabel = computed(() =>
         <UInput
           v-model="shiftRaw"
           size="xs"
-          placeholder="+3 / -2 / 1:30"
+          placeholder="e.g. +3m or -90"
           :disabled="readOnly"
+          :color="shiftInvalid ? 'error' : undefined"
           class="flex-1"
           @keydown.enter="applyShiftInput"
         />
@@ -244,10 +264,13 @@ const dirLabel = computed(() =>
           color="neutral"
           variant="soft"
           label="Apply"
-          :disabled="readOnly"
+          :disabled="readOnly || shiftDelta == null"
           @click="applyShiftInput"
         />
       </div>
+      <p v-if="shiftInvalid" class="mt-1 text-xs text-error">
+        Enter a signed delta: +3m, -90, +1:30
+      </p>
       <div class="mt-3 flex flex-wrap gap-2">
         <UButton
           size="xs"

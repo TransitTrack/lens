@@ -96,6 +96,45 @@ export function parseTimeInput(raw: string, base: number | null): number | null 
 }
 
 /**
+ * Signed relative delta in seconds. Requires an explicit +/-.
+ * "+15m"→900, "-2m"→-120, "+1:30"→90, "-1:30"→-90, "+90"→90.
+ * Unsigned or unparseable → null. No clamping.
+ */
+export function parseDeltaInput(raw: string): number | null {
+  const s = (raw ?? "").trim();
+  const sign = s[0];
+  if (sign !== "+" && sign !== "-") return null;
+  const body = s.slice(1).trim();
+  if (!body) return null;
+
+  let mag: number | null = null;
+
+  const mmss = /^(\d{1,3}):([0-5]?\d)(?::([0-5]?\d))?$/.exec(body);
+  const mins = /^(\d+)\s*m$/i.exec(body);
+  const secs = /^(\d+)$/.exec(body);
+
+  if (mmss) {
+    const a = Number(mmss[1]);
+    const b = Number(mmss[2]);
+    const c = mmss[3] != null ? Number(mmss[3]) : null;
+    if (c != null) {
+      if (b > 59 || c > 59) return null;
+      mag = a * 3600 + b * 60 + c;
+    } else {
+      if (b > 59) return null;
+      mag = a * 60 + b;
+    }
+  } else if (mins) {
+    mag = Number(mins[1]) * 60;
+  } else if (secs) {
+    mag = Number(secs[1]);
+  }
+
+  if (mag == null || !Number.isFinite(mag)) return null;
+  return sign === "-" ? -mag : mag;
+}
+
+/**
  * Format GTFS seconds back into a clock string.
  *
  *   null   → ""

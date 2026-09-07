@@ -78,21 +78,18 @@ async function onRedo() {
   }
 }
 
-function topActiveSeq(): number | null {
-  let max: number | null = null
-  for (const e of result.value?.draftEdits ?? []) {
-    if (!e.undone && (max == null || e.seq > max)) max = e.seq
-  }
-  return max
-}
-
-async function undoToHere(seq: number) {
-  // undo while the newest active edit is above this row
-  let guard = 0
-  while (guard++ < 500) {
-    const top = topActiveSeq()
-    if (top == null || top <= seq) break
-    if (!(await undoOnce())) break
+async function undoToHere(targetSeq: number) {
+  // count the active edits newer than this row up front — the list can't
+  // refresh inside the tight await loop, so don't re-read it per iteration.
+  const n = (result.value?.draftEdits ?? []).filter(
+    (e) => !e.undone && e.seq > targetSeq,
+  ).length
+  for (let i = 0; i < n; i++) {
+    try {
+      if (!(await undoOnce())) break
+    } catch {
+      break
+    }
   }
   await props.editor.refetchEdits()
   await refetch()
