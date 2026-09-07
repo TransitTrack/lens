@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.draft.DraftKind
 
@@ -62,4 +63,24 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
         now: java.time.Instant,
         takeOver: Boolean,
     ): Int
+
+    /**
+     * Atomically claim the rebuild slot: flips `deriving` false -> true for [id] only when it is
+     * currently free. Returns 1 when claimed, 0 when a rebuild is already in flight. Replaces the
+     * former read-check-then-save, which was a TOCTOU across separate transactions.
+     */
+    @Modifying
+    @Transactional
+    @Query("update GtfsRevision r set r.deriving = true where r.id = :id and r.deriving = false")
+    fun tryClaimRebuild(id: Long): Int
+
+    /**
+     * Clears any `deriving = true` left over from a rebuild that never completed (JVM killed
+     * mid-run). Safe to call only at startup, when the in-memory job registry guarantees no rebuild
+     * is legitimately in flight. Returns the number of rows cleared.
+     */
+    @Modifying
+    @Transactional
+    @Query("update GtfsRevision r set r.deriving = false where r.deriving = true")
+    fun clearDanglingDeriving(): Int
 }

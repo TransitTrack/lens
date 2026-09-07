@@ -194,6 +194,10 @@ class DraftService(
         val d = get(draftId)
         check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be activated" }
         if (!force) {
+            // `deriving` spans the whole submit -> derive -> validate window. Without this, a
+            // concurrent activate during the VALIDATING phase would see !derivationStale (rederive
+            // clears it) and read the PREVIOUS run's errorCount.
+            check(!d.deriving) { "draft is rebuilding; wait for it to finish" }
             check(!d.derivationStale) { "rebuild the draft before activating" }
             val errors =
                 d.lastValidation

@@ -48,31 +48,53 @@ class DraftJobService(
         )
 
     fun submitRebuild(draftId: Long): DraftJob {
-        revisions.findById(draftId).ifPresent {
-            check(!it.deriving) { "draft $draftId is already rebuilding" }
+        // Atomic claim (deriving false -> true in one statement). Replaces the old read-check /
+        // separate-transaction write, which two concurrent calls could both pass (TOCTOU).
+        if (revisions.tryClaimRebuild(draftId) != 1) {
+            throw IllegalStateException("draft $draftId is already rebuilding")
         }
         val job = DraftJob(UUID.randomUUID().toString(), DraftJob.State.RUNNING, DraftJob.Phase.DERIVING)
         jobs[job.id] = job
-        revisions.findById(draftId).ifPresent {
-            it.deriving = true
-            revisions.save(it)
-        }
-        gtfsIngestExecutor.execute {
-            try {
-                derivation.rederive(draftId)
-                job.phase = DraftJob.Phase.VALIDATING
-                validator.validate(draftId)
-                job.phase = DraftJob.Phase.DONE
-                job.state = DraftJob.State.SUCCEEDED
-            } catch (e: Exception) {
-                log.warn("rebuild job {} for draft {} failed", job.id, draftId, e)
-                job.state = DraftJob.State.FAILED
-                job.error = e.message ?: e.javaClass.simpleName
-                revisions.findById(draftId).ifPresent {
-                    it.deriving = false
-                    revisions.save(it)
+        try {
+            gtfsIngestExecutor.execute {
+                try {
+                    derivation.rederive(draftId)
+                    job.phase = DraftJob.Phase.VALIDATING
+                    validator.validate(draftId)
+                    job.phase = DraftJob.Phase.DONE
+                    job.state = DraftJob.State.SUCCEEDED
+                } catch (t: Throwable) {
+                    // Throwable, not Exception: an OOM / NoClassDefFoundError from a deep processor
+                    // must still leave the draft non-activatable and release the rebuild slot.
+                    log.warn("rebuild job {} for draft {} failed", job.id, draftId, t)
+                    job.state = DraftJob.State.FAILED
+                    job.error = t.message ?: t.javaClass.simpleName
+                    revisions.findById(draftId).ifPresent {
+                        it.derivationStale = true
+                        revisions.save(it)
+                    }
+                    if (t !is Exception) throw t
+                } finally {
+                    // Belt-and-suspenders with rederive's own clear: the slot is owned by the job.
+                    revisions.findById(draftId).ifPresent {
+                        if (it.deriving) {
+                            it.deriving = false
+                            revisions.save(it)
+                        }
+                    }
                 }
             }
+        } catch (e: RuntimeException) {
+            // execute() itself threw (RejectedExecutionException during shutdown) — the task body's
+            // finally never ran, so release the claim here.
+            log.warn("rebuild job {} for draft {} could not be dispatched", job.id, draftId, e)
+            revisions.findById(draftId).ifPresent {
+                it.deriving = false
+                revisions.save(it)
+            }
+            job.state = DraftJob.State.FAILED
+            job.error = e.message ?: e.javaClass.simpleName
+            throw e
         }
         return job
     }

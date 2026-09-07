@@ -224,6 +224,34 @@ class DraftServiceTest(
     }
 
     @Test
+    fun `activate is blocked when lastValidation reports errors, but force overrides`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        revisions.findById(draft.id!!).get().let {
+            it.derivationStale = false
+            it.lastValidation = """{"errorCount":3,"warningCount":0,"notices":[]}"""
+            revisions.save(it)
+        }
+        assertFailure { drafts.activate(draft.id!!, force = false) }.isInstanceOf(IllegalStateException::class)
+        assertThat(drafts.activate(draft.id!!, force = true).status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+    }
+
+    @Test
+    fun `activate is blocked while a rebuild is in flight`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        revisions.findById(draft.id!!).get().let {
+            it.derivationStale = false
+            it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[]}"""
+            it.deriving = true
+            revisions.save(it)
+        }
+        assertFailure { drafts.activate(draft.id!!, force = false) }.isInstanceOf(IllegalStateException::class)
+    }
+
+    @Test
     fun `force activate supersedes the previous active revision`() {
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
