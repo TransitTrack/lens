@@ -147,8 +147,13 @@ class StopSequenceOpsTest(
     fun `reorder swaps two stops with their times and rejects a non-permutation`() {
         val draftId = forkDraft()
         val tripId = pickTripWithStops(draftId).tripId
+        val seeded = stopTimes.findByTripId(draftId, tripId).sortedBy { it.stopSequence }
+        seeded[1].stopHeadsign = "Travels with stop 2"
+        seeded[1].pickupType = 3
+        stopTimes.save(seeded[1])
         val rows = stopTimes.findByTripId(draftId, tripId).sortedBy { it.stopSequence }
         val ids = rows.mapNotNull { it.stopId }
+        val movedStopId = ids[1]
         val timeById = rows.associate { it.stopId to (it.arrivalTime to it.departureTime) }
         val swapped = ids.toMutableList().apply {
             val t = this[0]
@@ -164,10 +169,19 @@ class StopSequenceOpsTest(
         // times travelled with their stop
         assertThat(after.map { it.stopId to (it.arrivalTime to it.departureTime) }.toMap())
             .isEqualTo(timeById)
+        // seeded non-time columns travelled with their stop (now at position 1)
+        val movedForward = after.single { it.stopId == movedStopId }
+        assertThat(movedForward.stopSequence).isEqualTo(1)
+        assertThat(movedForward.stopHeadsign).isEqualTo("Travels with stop 2")
+        assertThat(movedForward.pickupType).isEqualTo(3)
 
         svc.undo(draftId, "alice", r1.draft.version)
-        assertThat(stopTimes.findByTripId(draftId, tripId).sortedBy { it.stopSequence }.map { it.stopId })
-            .isEqualTo(ids)
+        val undone = stopTimes.findByTripId(draftId, tripId).sortedBy { it.stopSequence }
+        assertThat(undone.map { it.stopId }).isEqualTo(ids)
+        val movedBack = undone.single { it.stopId == movedStopId }
+        assertThat(movedBack.stopSequence).isEqualTo(2)
+        assertThat(movedBack.stopHeadsign).isEqualTo("Travels with stop 2")
+        assertThat(movedBack.pickupType).isEqualTo(3)
 
         assertFailsWith<IllegalArgumentException> {
             svc.apply(draftId, "alice", version(draftId)) { _ ->

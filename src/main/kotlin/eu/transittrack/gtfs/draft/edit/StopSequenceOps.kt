@@ -51,7 +51,7 @@ private object StopSeq {
         ctx.stopTimes
             .findByTripId(ctx.revisionId, tripId)
             .sortedBy { it.stopSequence }
-            .ifEmpty { error("no stop times for trip $tripId") }
+            .also { require(it.isNotEmpty()) { "no stop_times for trip $tripId" } }
 }
 
 /**
@@ -59,7 +59,7 @@ private object StopSeq {
  * `departureSec` are null the arrival is the midpoint between the previous stop's departure (falling
  * back to its arrival) and the next stop's arrival (falling back to its departure); `departure =
  * arrival`. At the head or tail (only one neighbour) the time is that neighbour's time -/+ 60s; with
- * no neighbour at all it is 0. All other 14 columns of the new row are null. Every `stop_sequence`
+ * no neighbour at all it is 0. All other 13 columns of the new row are null. Every `stop_sequence`
  * is then renumbered densely 1..n.
  */
 class InsertTripStopOp(
@@ -146,12 +146,15 @@ class ReorderTripStopsOp(
 
     override fun plan(ctx: EditContext): PlannedEdit {
         val current = StopSeq.currentRows(ctx, tripId)
-        val currentIds = current.map { it.stopId }
-        if (currentIds.toSet().size != currentIds.size) {
-            throw IllegalArgumentException("cannot reorder a trip with duplicate stops by stop id")
+        require(current.all { it.stopId != null }) {
+            "cannot reorder a trip with unnamed stops by stop id"
         }
-        if (stopIdOrder.sorted() != currentIds.filterNotNull().sorted() || stopIdOrder.size != current.size) {
-            throw IllegalArgumentException("stopIdOrder must be a permutation of the trip's current stop ids")
+        val currentIds = current.mapNotNull { it.stopId }
+        require(currentIds.toSet().size == currentIds.size) {
+            "cannot reorder a trip with duplicate stops by stop id"
+        }
+        require(stopIdOrder.size == current.size && stopIdOrder.sorted() == currentIds.sorted()) {
+            "stopIdOrder must be a permutation of the trip's current stop ids"
         }
         val byId = current.associateBy { it.stopId }
         val ordered = stopIdOrder.map { byId.getValue(it) }
