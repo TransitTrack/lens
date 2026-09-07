@@ -7,10 +7,13 @@ import org.springframework.stereotype.Controller
 
 import eu.transittrack.gtfs.api.dto.DraftDto
 import eu.transittrack.gtfs.api.dto.DraftEditDto
+import eu.transittrack.gtfs.api.dto.DraftJobDto
 import eu.transittrack.gtfs.api.dto.DraftLockDto
 import eu.transittrack.gtfs.api.dto.ForkDraftInput
 import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.draft.DraftEditRepository
+import eu.transittrack.gtfs.draft.DraftJob
+import eu.transittrack.gtfs.draft.DraftJobService
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
@@ -22,7 +25,10 @@ class DraftController(
     private val mapper: DraftMapper,
     private val gtfsMapper: GtfsDtoMapper,
     private val feeds: GtfsFeedRepository,
+    private val jobs: DraftJobService,
 ) {
+    private fun jobDto(j: DraftJob) = DraftJobDto(j.id, j.state.name, j.phase.name, j.error)
+
     private fun feedCodeOf(rev: GtfsRevision): String = feeds.findById(rev.feedId).map { it.code }.orElse("")
 
     private fun dto(rev: GtfsRevision): DraftDto = mapper.toDto(rev, feedCodeOf(rev), drafts.currentLock(rev))
@@ -42,6 +48,19 @@ class DraftController(
         @Argument id: String,
         @Argument limit: Int,
     ): List<DraftEditDto> = edits.findByRevisionIdOrderBySeqAsc(id.toLong()).takeLast(limit).map(mapper::toDto)
+
+    @QueryMapping
+    fun draftJob(
+        @Argument jobId: String,
+    ): DraftJobDto? = jobs.get(jobId)?.let(::jobDto)
+
+    @MutationMapping
+    fun rebuildDraft(
+        @Argument id: String,
+    ): DraftJobDto {
+        drafts.get(id.toLong())
+        return jobDto(jobs.submitRebuild(id.toLong()))
+    }
 
     @MutationMapping
     fun forkDraft(

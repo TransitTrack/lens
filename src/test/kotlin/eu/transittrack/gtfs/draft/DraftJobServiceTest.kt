@@ -5,7 +5,9 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
+import assertk.assertions.messageContains
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -63,5 +65,20 @@ class DraftJobServiceTest(
         assertThat(job.phase).isEqualTo(DraftJob.Phase.DONE)
         assertThat(revisions.findById(draft.id!!).get().derivationStale).isEqualTo(false)
         assertThat(revisions.findById(draft.id!!).get().lastValidation).isNotNull()
+    }
+
+    @Test
+    fun `submitRebuild rejects a draft that is already deriving`() {
+        val (feedCode, base) = ingestFactory.ingest("schedule-sample")
+        clean += base
+        val draft = drafts.fork(feedCode, null, "J", "alice")
+        clean += draft.id!!
+        revisions.findById(draft.id!!).get().let {
+            it.deriving = true
+            revisions.save(it)
+        }
+
+        val ex = assertThrows<IllegalStateException> { jobs.submitRebuild(draft.id!!) }
+        assertThat(ex).messageContains("already rebuilding")
     }
 }

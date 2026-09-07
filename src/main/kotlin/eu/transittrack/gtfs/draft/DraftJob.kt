@@ -48,6 +48,9 @@ class DraftJobService(
         )
 
     fun submitRebuild(draftId: Long): DraftJob {
+        revisions.findById(draftId).ifPresent {
+            check(!it.deriving) { "draft $draftId is already rebuilding" }
+        }
         val job = DraftJob(UUID.randomUUID().toString(), DraftJob.State.RUNNING, DraftJob.Phase.DERIVING)
         jobs[job.id] = job
         revisions.findById(draftId).ifPresent {

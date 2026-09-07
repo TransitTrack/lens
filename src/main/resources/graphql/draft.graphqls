@@ -2,9 +2,11 @@ extend type Query {
     drafts(feedCode: String): [Draft!]!
     draft(id: ID!): Draft
     draftEdits(id: ID!, limit: Int = 200): [DraftEdit!]!
+    draftJob(jobId: ID!): DraftJob
 }
 
 extend type Mutation {
+    rebuildDraft(id: ID!): DraftJob!
     forkDraft(input: ForkDraftInput!): Draft!
     discardDraft(id: ID!): Boolean!
     revertDraftToFork(id: ID!): Draft!
@@ -29,6 +31,13 @@ type Draft {
     createdBy: String
     createdAt: String!
     rowCounts: JSON
+}
+
+type DraftJob {
+    id: ID!
+    state: String!
+    phase: String!
+    error: String
 }
 
 type DraftLock {

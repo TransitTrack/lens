@@ -15,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftEditRepository
+import eu.transittrack.gtfs.draft.DraftJobService
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.draft.DraftLock
 import eu.transittrack.gtfs.draft.DraftService
@@ -37,6 +38,8 @@ class DraftGraphQlTest(
     @MockitoBean lateinit var draftService: DraftService
 
     @MockitoBean lateinit var editRepo: DraftEditRepository
+
+    @MockitoBean lateinit var jobs: DraftJobService
 
     @MockitoBean lateinit var feeds: GtfsFeedRepository
 

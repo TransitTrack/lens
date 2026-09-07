@@ -16,6 +16,13 @@ data class DraftDto(
     val rowCounts: Map<String, Long>,
 )
 
+data class DraftJobDto(
+    val id: String,
+    val state: String,
+    val phase: String,
+    val error: String?,
+)
+
 data class DraftLockDto(
     val editor: String,
     val expiresAt: String,
