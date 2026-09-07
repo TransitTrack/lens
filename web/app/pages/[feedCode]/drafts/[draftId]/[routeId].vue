@@ -57,6 +57,11 @@ function parseValidation(raw: unknown): ValidationSummary | null {
 }
 const lastValidation = computed(() => parseValidation(draft.value?.lastValidation))
 
+function formatTime(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleTimeString()
+}
+
 // --- route / service pickers -------------------------------------------
 const { result: routesResult } = useRoutesQuery(
   () => ({ feedCode: selectedFeedCode.value ?? '' }),
@@ -131,8 +136,8 @@ async function finishRebuild() {
   rebuilding.value = false
   jobId.value = null
   rebuildPhase.value = null
-  await editor.refetchDraft()
-  const v = lastValidation.value
+  const fresh = await editor.refetchDraft()
+  const v = parseValidation(fresh?.lastValidation)
   toast.add({
     title: 'Rebuild complete',
     description: v ? `${v.errorCount ?? 0} errors · ${v.warningCount ?? 0} warnings` : undefined,
@@ -212,7 +217,7 @@ async function confirmActivate() {
     await activateDraft({ id: draftId.value, force: force.value })
     toast.add({ title: 'Draft activated', color: 'success', icon: 'i-lucide-check' })
     activateOpen.value = false
-    navigateTo(feedPath('/explore'))
+    navigateTo(feedPath('/explore/feed'))
   } catch (e) {
     toast.add({ title: 'Activation failed', description: (e as Error).message, color: 'error' })
   }
@@ -457,7 +462,7 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
           icon="i-lucide-lock"
           class="m-4"
           :title="`Locked by ${lockBanner?.editor ?? 'another editor'}`"
-          :description="lockBanner ? `Lease expires ${lockBanner.expiresAt}` : undefined"
+          :description="lockBanner ? `Lease expires ${formatTime(lockBanner.expiresAt)}` : undefined"
         >
           <template #actions>
             <UButton

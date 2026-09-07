@@ -66,8 +66,14 @@ export function useDraftEditor(draftId: Ref<string>) {
     toast.add({ title: 'Could not load draft', description: err.message, color: 'error' })
   })
 
-  async function refetchDraft() {
-    await refetchDraftDetailRaw()
+  /**
+   * Refetch the draft and return the fresh row straight from the resolved
+   * query result — the `watch` that syncs `draft.value` only flushes on a
+   * later tick, so reading `draft.value` right after the await is still stale.
+   */
+  async function refetchDraft(): Promise<DraftDetail | null> {
+    const res = await refetchDraftDetailRaw()
+    return res?.data?.draft ?? detailResult.value?.draft ?? null
   }
 
   /**
