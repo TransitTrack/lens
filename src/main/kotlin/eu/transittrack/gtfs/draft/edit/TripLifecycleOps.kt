@@ -154,20 +154,21 @@ internal object TripLifecycle {
     }
 
     /**
-     * Free trip id: the requested id if given and unused, else `${base}_copy`, `${base}_copy2`,
-     * `${base}_copy3`, … until one is free in the draft.
+     * Free trip id. The stem is the requested id when given, else `base`. Try the stem verbatim
+     * first, then `${stem}_copy`, `${stem}_copy2`, `${stem}_copy3`, … until one is free in the draft.
      */
     fun resolveTripId(
         ctx: EditContext,
         requested: String?,
         base: String,
     ): String {
-        if (requested != null && ctx.trips.findByTripId(ctx.revisionId, requested) == null) return requested
-        var candidate = "${base}_copy"
+        val stem = requested ?: base
+        if (ctx.trips.findByTripId(ctx.revisionId, stem) == null) return stem
+        var candidate = "${stem}_copy"
         var n = 1
         while (ctx.trips.findByTripId(ctx.revisionId, candidate) != null) {
             n += 1
-            candidate = "${base}_copy$n"
+            candidate = "${stem}_copy$n"
         }
         return candidate
     }
@@ -278,6 +279,7 @@ class DuplicateTripOp(
                 wheelchairAccessible = src.wheelchairAccessible,
                 bikesAllowed = src.bikesAllowed,
             )
+        // faithful duplicate: source stop_sequence values are copied verbatim, not re-densified 1..n
         val sts =
             srcSts.map { s ->
                 StopTime(

@@ -140,15 +140,28 @@ class TripLifecycleOpsTest(
         assertThat(createdRows[0].arrivalTime).isEqualTo(30_000)
         assertThat(createdRows[2].departureTime).isEqualTo(30_600)
 
-        svc.undo(draftId, "alice", r1.draft.version)
+        val r2 = svc.undo(draftId, "alice", r1.draft.version)
         assertThat(trips.findByTripId(draftId, "brand_new_trip")).isNull()
         assertThat(stopTimes.findByTripId(draftId, "brand_new_trip")).isEmpty()
+
+        // redo re-creates the trip with the same id and the same dense 1..n rows
+        svc.redo(draftId, "alice", r2.draft.version)
+        assertThat(trips.findByTripId(draftId, "brand_new_trip")).isNotNull()
+        val redone = stopTimes.findByTripId(draftId, "brand_new_trip")
+        assertThat(redone.map { it.stopSequence }).isEqualTo(listOf(1, 2, 3))
+        assertThat(redone.map { it.arrivalTime to it.departureTime }).isEqualTo(
+            listOf(30_000 to 30_030, 30_300 to 30_330, 30_600 to 30_600),
+        )
     }
 
     @Test
     fun `duplicateTrip offsets times and auto-suffixes the id when taken`() {
         val draftId = forkDraft()
         val src = pickTripWithStops(draftId)
+        val srcRows = stopTimes.findByTripId(draftId, src.tripId)
+        val markedSeq = srcRows[1].stopSequence
+        srcRows[1].stopHeadsign = "Carry me over"
+        stopTimes.save(srcRows[1])
         val srcTimes = stopTimes.findByTripId(draftId, src.tripId).map { it.arrivalTime to it.departureTime }
         val offset = 3_600
 
@@ -162,6 +175,10 @@ class TripLifecycleOpsTest(
         assertThat(copyTimes).isEqualTo(
             srcTimes.map { (a, d) -> a?.plus(offset) to d?.plus(offset) },
         )
+        // non-time columns carry over verbatim
+        assertThat(
+            stopTimes.findByTripId(draftId, copyId).single { it.stopSequence == markedSeq }.stopHeadsign,
+        ).isEqualTo("Carry me over")
 
         // second copy: requested id already exists -> "<source>_copy2"
         val r2 = svc.apply(draftId, "alice", version(draftId)) { _ ->
