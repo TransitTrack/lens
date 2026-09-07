@@ -1,11 +1,18 @@
 package eu.transittrack.gtfs.support
 
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.test.context.TestComponent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.task.SyncTaskExecutor
 
 import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.gtfs.download.DownloadedFeed
+import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -44,22 +51,48 @@ class IngestionTestFactory(
         if (feeds.findByCode(fixture) == null) {
             feedService.register(FeedInput(fixture, fixture.uppercase(), null, "http://x/g.zip", null))
         }
-        val service =
-            IngestionService(
-                FixtureDownloader(fixture),
-                revisionService,
-                writer,
-                feeds,
-                feedService,
-                props,
-                shapes,
-                GtfsFeedLoader(),
-                SyncTaskExecutor(),
-                eventPublisher,
-                derivationService,
-                postProcessors,
-            )
-        val rev = service.ingestBlocking(fixture)
+        val rev = serviceWith(FixtureDownloader(fixture)).ingestBlocking(fixture)
         return fixture to rev.id!!
     }
+
+    /**
+     * Registers a feed pointing at [zipPath] (as a `file:` URL) and runs the real ingestion
+     * pipeline against that zip, returning the active revision id. Used to round-trip an
+     * exported GTFS archive back through ingestion.
+     */
+    fun ingestFromZip(zipPath: Path): Long {
+        val code = "zip-" + zipPath.fileName.toString().substringBeforeLast('.')
+        if (feeds.findByCode(code) == null) {
+            feedService.register(FeedInput(code, code.uppercase(), null, zipPath.toUri().toString(), null))
+        }
+        val downloader =
+            object : FeedDownloader {
+                override fun download(
+                    url: String,
+                    into: Path,
+                ): DownloadedFeed {
+                    Files.copy(zipPath, into, StandardCopyOption.REPLACE_EXISTING)
+                    val bytes = Files.readAllBytes(into)
+                    val sha = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+                    return DownloadedFeed(into, sha, bytes.size.toLong())
+                }
+            }
+        return serviceWith(downloader).ingestBlocking(code).id!!
+    }
+
+    private fun serviceWith(downloader: FeedDownloader) =
+        IngestionService(
+            downloader,
+            revisionService,
+            writer,
+            feeds,
+            feedService,
+            props,
+            shapes,
+            GtfsFeedLoader(),
+            SyncTaskExecutor(),
+            eventPublisher,
+            derivationService,
+            postProcessors,
+        )
 }
