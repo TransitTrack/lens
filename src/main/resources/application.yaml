@@ -58,6 +58,9 @@ transittrack:
     stop-projection-max-deviation-m: 100
   draft:
     editor-lease-minutes: 15
+  export:
+    temp-sweep-cron: "0 */5 * * * *"
+    temp-file-max-age-minutes: 15
   avl:
     enabled: true
     retention:

@@ -10,7 +10,7 @@ import kotlin.streams.toList
 import kotlin.test.Test
 
 import assertk.assertThat
-import assertk.assertions.isEmpty
+import assertk.assertions.isNotEmpty
 import org.hamcrest.Matchers.containsString
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
@@ -74,12 +74,15 @@ class RevisionExportControllerTest {
             .andExpect(content().contentType("application/zip"))
             .andExpect(content().bytes("PK".toByteArray()))
 
-        // Serving the response reads and closes the body stream, which deletes the spool file.
+        // The body is streamed straight from the on-disk spool file (FileSystemResource opens it
+        // lazily), so the file is still present right after the request; ExportTempFileSweeper
+        // reaps stragglers asynchronously.
         val leftovers =
             Files.list(Paths.get(System.getProperty("java.io.tmpdir"))).use { paths ->
                 paths.toList().filter { it.name.startsWith("gtfs-export-5-") }
             }
-        assertThat(leftovers).isEmpty()
+        assertThat(leftovers).isNotEmpty()
+        leftovers.forEach { Files.deleteIfExists(it) }
     }
 
     @Test
