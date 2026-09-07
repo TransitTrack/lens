@@ -1,6 +1,5 @@
 package eu.transittrack.gtfs.draft.edit
 
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -13,13 +12,14 @@ import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftService
+import eu.transittrack.gtfs.model.Frequency
+import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
@@ -35,13 +35,12 @@ class TripLifecycleOpsTest(
     @Autowired val drafts: DraftService,
     @Autowired val trips: TripRepository,
     @Autowired val stopTimes: StopTimeRepository,
+    @Autowired val frequencies: FrequencyRepository,
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
-    @Autowired dataSource: DataSource,
 ) {
-    private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
 
     @AfterEach
@@ -192,5 +191,47 @@ class TripLifecycleOpsTest(
         assertThat(stopTimes.findByTripId(draftId, copy2Id)).isEmpty()
         // first copy survives the second's undo
         assertThat(trips.findByTripId(draftId, copyId)).isNotNull()
+    }
+
+    @Test
+    fun `deleteTrip snapshots frequencies and undo restores them`() {
+        val draftId = forkDraft()
+        val trip = pickTripWithStops(draftId)
+        val tripId = trip.tripId
+        frequencies.save(Frequency(draftId, tripId, 21_600, 36_000, 600, 1))
+        frequencies.save(Frequency(draftId, tripId, 36_000, 72_000, 1_200, 0))
+
+        val r1 = svc.apply(draftId, "alice", version(draftId)) { _ -> DeleteTripOp(tripId) }
+        assertThat(frequencies.findByTripId(draftId, tripId)).isEmpty()
+
+        svc.undo(draftId, "alice", r1.draft.version)
+        val restored = frequencies.findByTripId(draftId, tripId).sortedBy { it.startTime }
+        assertThat(restored).hasSize(2)
+        assertThat(restored.map { listOf(it.startTime, it.endTime, it.headwaySecs, it.exactTimes) }).isEqualTo(
+            listOf(
+                listOf(21_600, 36_000, 600, 1),
+                listOf(36_000, 72_000, 1_200, 0),
+            ),
+        )
+    }
+
+    @Test
+    fun `duplicateTrip copies frequencies verbatim to the new trip id and undo removes them`() {
+        val draftId = forkDraft()
+        val src = pickTripWithStops(draftId)
+        frequencies.save(Frequency(draftId, src.tripId, 21_600, 36_000, 600, 1))
+
+        val r1 = svc.apply(draftId, "alice", version(draftId)) { _ -> DuplicateTripOp(src.tripId, "freq_copy", 3_600) }
+        val copied = frequencies.findByTripId(draftId, "freq_copy")
+        assertThat(copied).hasSize(1)
+        // headway window copied as-is, NOT offset by 3600
+        assertThat(copied[0].startTime).isEqualTo(21_600)
+        assertThat(copied[0].endTime).isEqualTo(36_000)
+        assertThat(copied[0].headwaySecs).isEqualTo(600)
+        // source untouched
+        assertThat(frequencies.findByTripId(draftId, src.tripId)).hasSize(1)
+
+        svc.undo(draftId, "alice", r1.draft.version)
+        assertThat(frequencies.findByTripId(draftId, "freq_copy")).isEmpty()
     }
 }

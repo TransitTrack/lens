@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ObjectNode
 
+import eu.transittrack.gtfs.model.Frequency
 import eu.transittrack.gtfs.model.StopTime
 import eu.transittrack.gtfs.model.Trip
 
@@ -52,29 +53,58 @@ internal object TripLifecycle {
             .putIntN("wheelchairAccessible", t.wheelchairAccessible)
             .putIntN("bikesAllowed", t.bikesAllowed)
 
-    fun stopTimeNode(
+    // stop-time (de)serialisation lives entirely in StopTimeSnapshot — call it directly.
+
+    fun frequencyNode(
         json: JsonMapper,
-        s: StopTime,
-    ): ObjectNode = StopTimeSnapshot.toNode(json, s)
+        f: Frequency,
+    ): ObjectNode =
+        json
+            .createObjectNode()
+            .put("tripId", f.tripId)
+            .put("startTime", f.startTime)
+            .putIntN("endTime", f.endTime)
+            .putIntN("headwaySecs", f.headwaySecs)
+            .putIntN("exactTimes", f.exactTimes)
+
+    /** Build a fresh (unsaved) [Frequency] from a node, under `ctx.revisionId`, retargeted to `tripId`. */
+    fun frequencyFromNode(
+        ctx: EditContext,
+        node: JsonNode,
+        tripId: String = node.get("tripId").asString(),
+    ): Frequency =
+        Frequency(
+            ctx.revisionId,
+            tripId = tripId,
+            startTime = node.get("startTime").asInt(),
+            endTime = node.intOrNull("endTime"),
+            headwaySecs = node.intOrNull("headwaySecs"),
+            exactTimes = node.intOrNull("exactTimes"),
+        )
 
     fun snapshot(
         json: JsonMapper,
         trip: Trip,
         stopTimes: List<StopTime>,
+        frequencies: List<Frequency> = emptyList(),
     ): ObjectNode {
         val node = json.createObjectNode()
         node.replace("trip", tripNode(json, trip))
         val arr = json.createArrayNode()
-        stopTimes.forEach { arr.add(stopTimeNode(json, it)) }
+        stopTimes.forEach { arr.add(StopTimeSnapshot.toNode(json, it)) }
         node.replace("stopTimes", arr)
+        val freqArr = json.createArrayNode()
+        frequencies.forEach { freqArr.add(frequencyNode(json, it)) }
+        node.replace("frequencies", freqArr)
         return node
     }
 
-    /** Recreate a trip + all its stop times from a full snapshot, with fresh surrogate ids. */
+    /** Recreate a trip + all its stop times (+ frequencies) from a full snapshot, with fresh surrogate ids. */
     fun recreate(
         ctx: EditContext,
         tripJson: JsonNode,
         stopTimesJson: JsonNode,
+        frequenciesJson: JsonNode? = null,
     ) {
         val t =
             Trip(
@@ -92,6 +122,7 @@ internal object TripLifecycle {
             )
         ctx.trips.save(t)
         stopTimesJson.forEach { s -> ctx.stopTimes.save(StopTimeSnapshot.fromNode(ctx, s)) }
+        frequenciesJson?.forEach { f -> ctx.frequencies.save(frequencyFromNode(ctx, f)) }
     }
 
     fun deleteTrip(
@@ -99,6 +130,7 @@ internal object TripLifecycle {
         tripId: String,
     ) {
         ctx.stopTimes.findByTripId(ctx.revisionId, tripId).let(ctx.stopTimes::deleteAll)
+        ctx.frequencies.findByTripId(ctx.revisionId, tripId).let(ctx.frequencies::deleteAll)
         ctx.trips.findByTripId(ctx.revisionId, tripId)?.let(ctx.trips::delete)
     }
 
@@ -131,7 +163,7 @@ internal object TripLifecycle {
         EditOpRegistry.register(op) { ctx, dir ->
             {
                 if (dir.has("trip")) {
-                    recreate(ctx, dir.get("trip"), dir.get("stopTimes"))
+                    recreate(ctx, dir.get("trip"), dir.get("stopTimes"), dir.get("frequencies"))
                 } else {
                     deleteTrip(ctx, dir.get("tripId").asString())
                 }
@@ -253,7 +285,13 @@ class DuplicateTripOp(
                     dropOffBookingRuleId = s.dropOffBookingRuleId,
                 )
             }
-        val fwd = TripLifecycle.snapshot(ctx.json, trip, sts)
+        // Frequencies define a headway service window: copy verbatim onto the new trip id,
+        // do NOT offset start/end by offsetSec.
+        val freqs =
+            ctx.frequencies.findByTripId(ctx.revisionId, sourceTripId).map { f ->
+                Frequency(ctx.revisionId, newId, f.startTime, f.endTime, f.headwaySecs, f.exactTimes)
+            }
+        val fwd = TripLifecycle.snapshot(ctx.json, trip, sts, freqs)
         val inv = ctx.json.createObjectNode().put("tripId", newId)
         return PlannedEdit(
             "Duplicate trip $sourceTripId as $newId (${offsetSec / 60}m offset)",
@@ -262,6 +300,7 @@ class DuplicateTripOp(
             mutate = {
                 ctx.trips.save(trip)
                 ctx.stopTimes.saveAll(sts)
+                ctx.frequencies.saveAll(freqs)
             },
         )
     }
@@ -285,14 +324,16 @@ class DeleteTripOp(
     override fun plan(ctx: EditContext): PlannedEdit {
         val trip = ctx.trips.findByTripId(ctx.revisionId, tripId) ?: error("no trip $tripId")
         val sts = ctx.stopTimes.findByTripId(ctx.revisionId, tripId)
+        val freqs = ctx.frequencies.findByTripId(ctx.revisionId, tripId)
         val fwd = ctx.json.createObjectNode().put("tripId", tripId)
-        val inv = TripLifecycle.snapshot(ctx.json, trip, sts)
+        val inv = TripLifecycle.snapshot(ctx.json, trip, sts, freqs)
         return PlannedEdit(
             "Delete trip $tripId (${sts.size} stops)",
             fwd,
             inv,
             mutate = {
                 ctx.stopTimes.deleteAll(sts)
+                ctx.frequencies.deleteAll(freqs)
                 ctx.trips.delete(trip)
             },
         )
