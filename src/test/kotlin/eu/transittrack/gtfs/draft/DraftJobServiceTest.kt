@@ -1,0 +1,67 @@
+package eu.transittrack.gtfs.draft
+
+import kotlin.test.Test
+
+import assertk.assertThat
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import org.junit.jupiter.api.AfterEach
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.context.annotation.Import
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
+
+import eu.transittrack.TestcontainersConfiguration
+import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.store.RevisionWriter
+import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.schedule.derive.ScheduleWriter
+
+/**
+ * Like [DraftServiceTest], the rebuild path commits on its own connections, so this must not run
+ * inside a rollback transaction. Uses the real [DraftJobService] bean (real `gtfsIngestExecutor`)
+ * and polls the returned job until it leaves `RUNNING`.
+ */
+@SpringBootTest(classes = [eu.transittrack.Application::class])
+@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+class DraftJobServiceTest(
+    @Autowired val jobs: DraftJobService,
+    @Autowired val drafts: DraftService,
+    @Autowired val revisions: GtfsRevisionRepository,
+    @Autowired val writer: RevisionWriter,
+    @Autowired val scheduleWriter: ScheduleWriter,
+    @Autowired val ingestFactory: IngestionTestFactory,
+) {
+    private val clean = mutableListOf<Long>()
+
+    @AfterEach
+    fun cleanup() {
+        for (id in clean) runCatching { scheduleWriter.deleteForRevision(id) }
+        for (id in clean) runCatching { writer.deleteAllForRevision(id) }
+        for (id in clean) runCatching { revisions.deleteById(id) }
+        clean.clear()
+    }
+
+    @Test
+    fun `rebuild job derives then validates`() {
+        val (feedCode, base) = ingestFactory.ingest("schedule-sample")
+        clean += base
+        val draft = drafts.fork(feedCode, null, "J", "alice")
+        clean += draft.id!!
+
+        val job = jobs.submitRebuild(draft.id!!)
+
+        var waited = 0
+        while (job.state == DraftJob.State.RUNNING && waited < 300) {
+            Thread.sleep(100)
+            waited++
+        }
+
+        assertThat(job.state).isEqualTo(DraftJob.State.SUCCEEDED)
+        assertThat(job.phase).isEqualTo(DraftJob.Phase.DONE)
+        assertThat(revisions.findById(draft.id!!).get().derivationStale).isEqualTo(false)
+        assertThat(revisions.findById(draft.id!!).get().lastValidation).isNotNull()
+    }
+}
