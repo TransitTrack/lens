@@ -40,7 +40,7 @@ const patternKey = ref<string | null>(null)
 const serviceSel = ref<string | null>(null)
 const baseRaw = ref('')
 const headsign = ref('')
-const directionRaw = ref<number | null>(null)
+const directionRaw = ref<number | string | null>(null)
 const blockId = ref('')
 
 watch(open, (isOpen) => {
@@ -87,7 +87,9 @@ const selectedPattern = computed(
   () => patterns.value.find((p) => p.patternKey === patternKey.value) ?? null,
 )
 const patternHasUnknownTimes = computed(() =>
-  (selectedPattern.value?.stopPaths ?? []).some((sp) => sp.typicalTravelTimeSec == null),
+  (selectedPattern.value?.stopPaths ?? []).some(
+    (sp) => sp.typicalTravelTimeSec == null || sp.typicalDwellTimeSec == null,
+  ),
 )
 
 const offsetSec = computed(() => parseDeltaInput(offsetRaw.value))
@@ -154,7 +156,10 @@ async function submit() {
             serviceId: serviceSel.value as string,
             tripId: null,
             headsign: headsign.value || null,
-            directionId: directionRaw.value,
+            directionId:
+              directionRaw.value === '' || directionRaw.value == null
+                ? null
+                : Number(directionRaw.value),
             shapeId: null,
             blockId: blockId.value || null,
             stops,

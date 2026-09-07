@@ -62,11 +62,18 @@ const windowToSec = computed(() => parseTimeInput(toRaw.value, null))
 const deltaSec = computed(() => parseDeltaInput(deltaRaw.value))
 const deltaInvalid = computed(() => deltaRaw.value.trim() !== '' && deltaSec.value == null)
 
+// The grid (`props.trips`) is already server-filtered by the page's active
+// direction + service. The backend bulk-shift has no directionId filter, so it
+// shifts every direction of the route — the client count can only ever be a
+// rough "what's on screen" hint, and it's meaningless when the dialog's service
+// selection diverges from the page's active service filter.
+const serviceFilterDiverges = computed(
+  () => (serviceSel.value || null) !== (props.serviceId || null),
+)
 const previewCount = computed(() => {
   const from = windowFromSec.value
   const to = windowToSec.value
   return props.trips.filter((t) => {
-    if (serviceSel.value && t.serviceId !== serviceSel.value) return false
     if (from != null || to != null) {
       const d = t.firstDepartureSec
       if (d == null) return false
@@ -171,9 +178,15 @@ async function submit() {
         </UFormField>
 
         <p class="text-xs text-muted">
-          Will shift ~{{ previewCount }} trip{{ previewCount === 1 ? '' : 's' }}
-          <template v-if="deltaLabel"> by {{ deltaLabel }}</template>
-          <template v-if="patternKey"> (before pattern filter)</template>.
+          <template v-if="serviceFilterDiverges">
+            Trip count unavailable for this filter — the bulk shift applies to all
+            matching trips of the route<template v-if="deltaLabel">, shifted by {{ deltaLabel }}</template>.
+          </template>
+          <template v-else>
+            ≈{{ previewCount }} trip{{ previewCount === 1 ? '' : 's' }} currently shown in the grid
+            <template v-if="deltaLabel"> would shift by {{ deltaLabel }}</template>.
+            The shift applies to every direction of the route<template v-if="patternKey"> (before pattern filter)</template>.
+          </template>
         </p>
       </div>
     </template>
