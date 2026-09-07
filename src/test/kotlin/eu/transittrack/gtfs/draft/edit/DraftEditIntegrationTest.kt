@@ -90,6 +90,34 @@ class DraftEditIntegrationTest(
         val forkState = stopTimesSnapshot(id)
         val forkTripCount = trips.findByRevisionId(id).size
 
+        // Derive a full model up front so the "deleted trip loses its derived rows" check is real:
+        // capture T3's surrogate id + its schedule_time count now, while it is still a scheduled trip.
+        derivationService.rederive(id)
+        val t3SurrogateId =
+            jdbc.queryForObject(
+                "select id from trips where revision_id = ? and trip_id = ?",
+                Long::class.java,
+                id,
+                "T3",
+            )!!
+        val t1SurrogateId =
+            jdbc.queryForObject(
+                "select id from trips where revision_id = ? and trip_id = ?",
+                Long::class.java,
+                id,
+                "T1",
+            )!!
+
+        fun scheduleRowCount(surrogateId: Long) =
+            jdbc.queryForObject(
+                "select count(*) from schedule_time where revision_id = ? and trip_id = ?",
+                Long::class.java,
+                id,
+                surrogateId,
+            )!!
+        assertThat(scheduleRowCount(t3SurrogateId) > 0L).isEqualTo(true)
+        assertThat(scheduleRowCount(t1SurrogateId) > 0L).isEqualTo(true)
+
         // T1: all four stops 08:00/08:10/08:20/08:30, arrival == departure.
         val t1Before = arrivalsOf(id, "T1")
         assertThat(t1Before).isEqualTo(listOf(28800, 29400, 30000, 30600))
@@ -145,17 +173,10 @@ class DraftEditIntegrationTest(
         val addedTrip = trips.findByTripId(id, addedTripId)!!
         assertThat(addedTrip.tripPatternId).isNotNull()
 
-        // deleted trip T3 has no derived schedule rows (its trip row is gone, so nothing references it)
-        val t3ScheduleRows =
-            jdbc.queryForObject(
-                "select count(*) from schedule_time st " +
-                    "join trips t on t.id = st.trip_id and t.revision_id = st.revision_id " +
-                    "where t.revision_id = ? and t.trip_id = ?",
-                Long::class.java,
-                id,
-                "T3",
-            )!!
-        assertThat(t3ScheduleRows).isEqualTo(0L)
+        // deleted trip T3's previously-derived schedule rows are gone; a targeted drop, not a wipe:
+        // the other trips (T1) keep their derived rows, and T3's old surrogate id has none.
+        assertThat(scheduleRowCount(t3SurrogateId)).isEqualTo(0L)
+        assertThat(scheduleRowCount(t1SurrogateId) > 0L).isEqualTo(true)
         assertThat(scheduleTimes.findByRevisionId(id).isNotEmpty()).isEqualTo(true)
         assertThat(tripPatterns.findByRevisionId(id).isNotEmpty()).isEqualTo(true)
 
