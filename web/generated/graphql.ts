@@ -1311,6 +1311,15 @@ export type ReleaseDraftEditorMutationVariables = Exact<{
 
 export type ReleaseDraftEditorMutation = { releaseDraftEditor: boolean };
 
+export type DraftPatternsQueryVariables = Exact<{
+  feedCode: string;
+  routeId: string;
+  revisionId: string | number;
+}>;
+
+
+export type DraftPatternsQuery = { tripPatterns: Array<{ patternKey: string, directionId: number | null, headsign: string | null, stopCount: number, stopPaths: Array<{ stopPathIndex: number, stopId: string, typicalTravelTimeSec: number | null, typicalDwellTimeSec: number | null }> }> };
+
 export type DraftTripDetailQueryVariables = Exact<{
   feedCode: string;
   tripId: string;
@@ -2421,6 +2430,47 @@ export function useReleaseDraftEditorMutation(options: VueApolloComposable.UseMu
   return VueApolloComposable.useMutation<ReleaseDraftEditorMutation, ReleaseDraftEditorMutationVariables>(ReleaseDraftEditorDocument, options);
 }
 export type ReleaseDraftEditorMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<ReleaseDraftEditorMutation, ReleaseDraftEditorMutationVariables>;
+export const DraftPatternsDocument = gql`
+    query DraftPatterns($feedCode: String!, $routeId: String!, $revisionId: ID!) {
+  tripPatterns(feedCode: $feedCode, routeId: $routeId, revisionId: $revisionId) {
+    patternKey
+    directionId
+    headsign
+    stopCount
+    stopPaths {
+      stopPathIndex
+      stopId
+      typicalTravelTimeSec
+      typicalDwellTimeSec
+    }
+  }
+}
+    `;
+
+/**
+ * __useDraftPatternsQuery__
+ *
+ * To run a query within a Vue component, call `useDraftPatternsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useDraftPatternsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useDraftPatternsQuery({
+ *   feedCode: // value for 'feedCode'
+ *   routeId: // value for 'routeId'
+ *   revisionId: // value for 'revisionId'
+ * });
+ */
+export function useDraftPatternsQuery(variables: DraftPatternsQueryVariables | VueCompositionApi.Ref<DraftPatternsQueryVariables> | ReactiveFunction<DraftPatternsQueryVariables>, options: VueApolloComposable.UseQueryOptions<DraftPatternsQuery, DraftPatternsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<DraftPatternsQuery, DraftPatternsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<DraftPatternsQuery, DraftPatternsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<DraftPatternsQuery, DraftPatternsQueryVariables>(DraftPatternsDocument, variables, options);
+}
+export function useDraftPatternsLazyQuery(variables?: DraftPatternsQueryVariables | VueCompositionApi.Ref<DraftPatternsQueryVariables> | ReactiveFunction<DraftPatternsQueryVariables>, options: VueApolloComposable.UseQueryOptions<DraftPatternsQuery, DraftPatternsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<DraftPatternsQuery, DraftPatternsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<DraftPatternsQuery, DraftPatternsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<DraftPatternsQuery, DraftPatternsQueryVariables>(DraftPatternsDocument, variables, options);
+}
+export type DraftPatternsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<DraftPatternsQuery, DraftPatternsQueryVariables>;
 export const DraftTripDetailDocument = gql`
     query DraftTripDetail($feedCode: String!, $tripId: String!, $revisionId: ID!) {
   trip(feedCode: $feedCode, tripId: $tripId, revisionId: $revisionId) {

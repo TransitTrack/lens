@@ -17,6 +17,8 @@ import NavbarActions from '~/components/NavbarActions.vue'
 import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
 import DraftGrid from '~/components/draft/DraftGrid.vue'
 import DraftRail from '~/components/draft/DraftRail.vue'
+import BulkShiftDialog from '~/components/draft/BulkShiftDialog.vue'
+import AddTripDialog from '~/components/draft/AddTripDialog.vue'
 
 const route = useRoute()
 const toast = useToast()
@@ -356,6 +358,17 @@ async function onCommitCell(payload: {
 // --- dialogs wired in later tasks --------------------------------
 const addTripOpen = ref(false) // AddTripDialog — task 8
 const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
+const duplicateSourceTripId = ref<string | null>(null)
+const derivationStale = computed(() => draft.value?.derivationStale ?? false)
+
+function openAddTrip() {
+  duplicateSourceTripId.value = null
+  addTripOpen.value = true
+}
+function openDuplicate(tripId: string) {
+  duplicateSourceTripId.value = tripId
+  addTripOpen.value = true
+}
 </script>
 
 <template>
@@ -477,7 +490,7 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
             icon="i-lucide-plus"
             label="Add trip"
             :disabled="readOnly"
-            @click="addTripOpen = true"
+            @click="openAddTrip"
           />
           <UButton
             size="sm"
@@ -536,7 +549,7 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
               :service-id="serviceId"
               :read-only="readOnly"
               @commit-cell="onCommitCell"
-              @add-trip="addTripOpen = true"
+              @add-trip="openAddTrip"
             />
           </div>
           <DraftRail
@@ -554,8 +567,34 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
             @changed="onRailChanged"
             @goto="onRailGoto"
             @deleted="onRailDeleted"
+            @duplicate="openDuplicate"
           />
         </div>
+
+        <BulkShiftDialog
+          v-model:open="bulkShiftOpen"
+          :editor="editor"
+          :feed-code="selectedFeedCode ?? ''"
+          :route-id="routeId"
+          :service-id="serviceId"
+          :derivation-stale="derivationStale"
+          :trips="gridRef?.trips ?? []"
+          :service-items="serviceItems"
+          @changed="onRailChanged"
+        />
+        <AddTripDialog
+          v-model:open="addTripOpen"
+          :editor="editor"
+          :feed-code="selectedFeedCode ?? ''"
+          :route-id="routeId"
+          :direction-id="directionId"
+          :service-id="serviceId"
+          :derivation-stale="derivationStale"
+          :trips="gridRef?.trips ?? []"
+          :duplicate-source-trip-id="duplicateSourceTripId"
+          :service-items="serviceItems"
+          @changed="onRailChanged"
+        />
       </template>
 
       <UModal v-model:open="activateOpen" title="Activate draft?">

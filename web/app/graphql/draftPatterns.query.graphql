@@ -1,0 +1,14 @@
+query DraftPatterns($feedCode: String!, $routeId: String!, $revisionId: ID!) {
+  tripPatterns(feedCode: $feedCode, routeId: $routeId, revisionId: $revisionId) {
+    patternKey
+    directionId
+    headsign
+    stopCount
+    stopPaths {
+      stopPathIndex
+      stopId
+      typicalTravelTimeSec
+      typicalDwellTimeSec
+    }
+  }
+}
