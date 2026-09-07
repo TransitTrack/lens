@@ -135,6 +135,38 @@ class GtfsSerializerTest(
     }
 
     @Test
+    fun `full-spec fixture round-trips row counts for the newly-covered raw tables`() {
+        val (_, base) = ingestFactory.ingest("full-spec-sample")
+        clean += base
+
+        val tables =
+            listOf(
+                "transfers", "pathways", "levels", "fare_attributes", "fare_rules",
+                "fare_media", "fare_products", "areas", "stop_areas", "networks",
+                "route_networks", "timeframes", "rider_categories", "translations", "attributions",
+                "booking_rules", "location_groups", "location_group_stops",
+                "fare_leg_rules", "fare_leg_join_rules", "fare_transfer_rules",
+            )
+        val baseCounts = tables.associateWith { count(it, base) }
+        // The fixture must actually exercise these tables, else the round-trip proves nothing.
+        assertThat(baseCounts.values.count { it > 0 }).isGreaterThan(6)
+
+        val zip = Files.createTempFile("export-full", ".zip")
+        Files.newOutputStream(zip).use { serializer.serialize(base, it) }
+
+        val reIngested = ingestFactory.ingestFromZip(zip)
+        clean += reIngested
+
+        val reCounts = tables.associateWith { count(it, reIngested) }
+        assertThat(reCounts).isEqualTo(baseCounts)
+    }
+
+    private fun count(
+        table: String,
+        revisionId: Long,
+    ): Long = jdbc.queryForObject("select count(*) from $table where revision_id = ?", Long::class.java, revisionId) ?: 0L
+
+    @Test
     fun `csv output has the exact GTFS header and RFC-4180 quotes special characters`() {
         val (_, base) = ingestFactory.ingest("schedule-sample")
         clean += base

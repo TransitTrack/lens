@@ -153,5 +153,160 @@ object GtfsFileSchema {
                 c("feed_version"), c("feed_contact_email"), c("feed_contact_url"),
             ),
         ),
+        GtfsFile(
+            "transfers.txt", "transfers",
+            listOf(
+                c("from_stop_id"), c("to_stop_id"), c("from_route_id"), c("to_route_id"),
+                c("from_trip_id"), c("to_trip_id"),
+                c("transfer_type", kind = ColKind.INT), c("min_transfer_time", kind = ColKind.INT),
+            ),
+        ),
+        GtfsFile(
+            "translations.txt", "translations",
+            listOf(
+                c("table_name"), c("field_name"), c("language"), c("translation"),
+                c("record_id"), c("record_sub_id"), c("field_value"),
+            ),
+        ),
+        GtfsFile(
+            "attributions.txt", "attributions",
+            listOf(
+                c("attribution_id"), c("agency_id"), c("route_id"), c("trip_id"), c("organization_name"),
+                c("is_producer", kind = ColKind.INT), c("is_operator", kind = ColKind.INT),
+                c("is_authority", kind = ColKind.INT),
+                c("attribution_url"), c("attribution_email"), c("attribution_phone"),
+            ),
+        ),
+        GtfsFile(
+            "levels.txt", "levels",
+            listOf(
+                c("level_id"), c("level_index", kind = ColKind.FLOAT), c("level_name"),
+            ),
+        ),
+        GtfsFile(
+            "pathways.txt", "pathways",
+            listOf(
+                c("pathway_id"), c("from_stop_id"), c("to_stop_id"),
+                c("pathway_mode", kind = ColKind.INT), c("is_bidirectional", kind = ColKind.INT),
+                c("length", kind = ColKind.FLOAT), c("traversal_time", kind = ColKind.INT),
+                c("stair_count", kind = ColKind.INT), c("max_slope", kind = ColKind.FLOAT),
+                c("min_width", kind = ColKind.FLOAT), c("signposted_as"), c("reversed_signposted_as"),
+            ),
+        ),
+        GtfsFile(
+            "location_groups.txt", "location_groups",
+            listOf(
+                c("location_group_id"), c("location_group_name"),
+            ),
+        ),
+        GtfsFile(
+            "location_group_stops.txt", "location_group_stops",
+            listOf(
+                c("location_group_id"), c("stop_id"),
+            ),
+        ),
+        GtfsFile(
+            "booking_rules.txt", "booking_rules",
+            listOf(
+                c("booking_rule_id"), c("booking_type", kind = ColKind.INT),
+                c("prior_notice_duration_min", kind = ColKind.INT),
+                c("prior_notice_duration_max", kind = ColKind.INT),
+                c("prior_notice_last_day", kind = ColKind.INT),
+                c("prior_notice_last_time", kind = ColKind.TIME),
+                c("prior_notice_start_day", kind = ColKind.INT),
+                c("prior_notice_start_time", kind = ColKind.TIME),
+                c("prior_notice_service_id"), c("message"), c("pickup_message"), c("drop_off_message"),
+                c("phone_number"), c("info_url"), c("booking_url"),
+            ),
+        ),
+        GtfsFile(
+            "areas.txt", "areas",
+            listOf(
+                c("area_id"), c("area_name"),
+            ),
+        ),
+        GtfsFile(
+            "stop_areas.txt", "stop_areas",
+            listOf(
+                c("area_id"), c("stop_id"),
+            ),
+        ),
+        GtfsFile(
+            "networks.txt", "networks",
+            listOf(
+                c("network_id"), c("network_name"),
+            ),
+        ),
+        GtfsFile(
+            "route_networks.txt", "route_networks",
+            listOf(
+                c("network_id"), c("route_id"),
+            ),
+        ),
+        GtfsFile(
+            "timeframes.txt", "timeframes",
+            listOf(
+                c("timeframe_group_id"),
+                c("start_time", kind = ColKind.TIME), c("end_time", kind = ColKind.TIME),
+                c("service_id"),
+            ),
+        ),
+        GtfsFile(
+            "rider_categories.txt", "rider_categories",
+            listOf(
+                c("rider_category_id"), c("rider_category_name"),
+                c("is_default_fare_category", kind = ColKind.INT), c("eligibility_url"),
+            ),
+        ),
+        GtfsFile(
+            "fare_media.txt", "fare_media",
+            listOf(
+                c("fare_media_id"), c("fare_media_name"), c("fare_media_type", kind = ColKind.INT),
+            ),
+        ),
+        GtfsFile(
+            "fare_products.txt", "fare_products",
+            listOf(
+                c("fare_product_id"), c("fare_product_name"), c("rider_category_id"), c("fare_media_id"),
+                c("amount", kind = ColKind.FLOAT), c("currency"),
+            ),
+        ),
+        GtfsFile(
+            "fare_attributes.txt", "fare_attributes",
+            listOf(
+                c("fare_id"), c("price", kind = ColKind.FLOAT), c("currency_type"),
+                c("payment_method", kind = ColKind.INT), c("transfers", kind = ColKind.INT),
+                c("agency_id"), c("transfer_duration", kind = ColKind.INT),
+            ),
+        ),
+        GtfsFile(
+            "fare_rules.txt", "fare_rules",
+            listOf(
+                c("fare_id"), c("route_id"), c("origin_id"), c("destination_id"), c("contains_id"),
+            ),
+        ),
+        GtfsFile(
+            "fare_leg_rules.txt", "fare_leg_rules",
+            listOf(
+                c("leg_group_id"), c("network_id"), c("from_area_id"), c("to_area_id"),
+                c("from_timeframe_group_id"), c("to_timeframe_group_id"), c("fare_product_id"),
+                c("rule_priority", kind = ColKind.INT),
+            ),
+        ),
+        GtfsFile(
+            "fare_leg_join_rules.txt", "fare_leg_join_rules",
+            listOf(
+                c("from_network_id"), c("to_network_id"), c("from_stop_id"), c("to_stop_id"),
+            ),
+        ),
+        GtfsFile(
+            "fare_transfer_rules.txt", "fare_transfer_rules",
+            listOf(
+                c("from_leg_group_id"), c("to_leg_group_id"),
+                c("transfer_count", kind = ColKind.INT), c("duration_limit", kind = ColKind.INT),
+                c("duration_limit_type", kind = ColKind.INT), c("fare_transfer_type", kind = ColKind.INT),
+                c("fare_product_id"),
+            ),
+        ),
     )
 }
