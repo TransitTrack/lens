@@ -1,0 +1,16 @@
+query Drafts($feedCode: String) {
+  drafts(feedCode: $feedCode) {
+    id feedCode label baseRevisionId status kind version derivationStale
+    lastValidation lock { editor expiresAt } createdBy createdAt rowCounts
+  }
+}
+query DraftDetail($id: ID!) {
+  draft(id: $id) {
+    id feedCode label baseRevisionId status kind version derivationStale
+    lastValidation lock { editor expiresAt } createdBy createdAt rowCounts
+  }
+}
+query DraftEdits($id: ID!, $limit: Int) {
+  draftEdits(id: $id, limit: $limit) { seq op summary appliedAt undone }
+}
+query DraftJob($jobId: ID!) { draftJob(jobId: $jobId) { id state phase error } }

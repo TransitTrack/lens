@@ -1,0 +1,9 @@
+query DraftGrid($draftId: ID!, $routeId: String!, $directionId: Int, $serviceId: String) {
+  draftGrid(draftId: $draftId, routeId: $routeId, directionId: $directionId, serviceId: $serviceId) {
+    stops { stopSequence stopId stopName timepoint }
+    trips {
+      tripId firstDepartureSec headsign blockId directionId serviceId
+      cells { stopSequence arrivalSec departureSec }
+    }
+  }
+}

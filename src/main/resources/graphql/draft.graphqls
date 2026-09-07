@@ -5,6 +5,35 @@ extend type Query {
     draft(id: ID!): Draft
     draftEdits(id: ID!, limit: Int = 200): [DraftEdit!]!
     draftJob(jobId: ID!): DraftJob
+    draftGrid(draftId: ID!, routeId: String!, directionId: Int, serviceId: String): DraftGrid!
+}
+
+type DraftGrid {
+    stops: [DraftGridStop!]!
+    trips: [DraftGridTrip!]!
+}
+
+type DraftGridStop {
+    stopSequence: Int!
+    stopId: String
+    stopName: String
+    timepoint: Int
+}
+
+type DraftGridTrip {
+    tripId: String!
+    firstDepartureSec: Int
+    headsign: String
+    blockId: String
+    directionId: Int
+    serviceId: String
+    cells: [DraftGridCell!]!
+}
+
+type DraftGridCell {
+    stopSequence: Int!
+    arrivalSec: Int
+    departureSec: Int
 }
 
 extend type Mutation {

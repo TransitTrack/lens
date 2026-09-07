@@ -15,6 +15,7 @@ const config: CodegenConfig = {
         enumsAsTypes: true,
         scalars: {
           JSON: 'any',
+          Long: 'number',
         },
       },
     },
