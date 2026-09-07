@@ -1,7 +1,9 @@
 package eu.transittrack.gtfs.export
 
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
+import java.io.FilterInputStream
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
 
 import org.springframework.core.io.InputStreamResource
 import org.springframework.core.io.Resource
@@ -16,12 +18,17 @@ import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 
 /**
- * REST download of any revision's RAW GTFS zip. [GtfsSerializer] writes the zip into a
- * [PipedOutputStream] on a worker thread while the HTTP response thread drains the paired
- * [PipedInputStream] — the whole feed never sits in the heap at once.
+ * REST download of any revision's RAW GTFS zip.
  *
- * Uses only `spring-web` / `spring-core` types (no `spring-webmvc` `StreamingResponseBody`): the
- * web MVC stack is present at runtime but not on this module's compile classpath.
+ * [GtfsSerializer] spools the whole zip to a temp file up-front (same approach as
+ * `GtfsRevisionValidator`), then the response streams that file. Spooling before the `200` means a
+ * serialization failure surfaces as a clean `500` rather than a truncated body, and — unlike a
+ * piped producer thread — a client that aborts the download mid-stream cannot leave a worker parked
+ * on `jdbc.query` holding a DB connection. The temp file is deleted when the response stream closes
+ * (with `deleteOnExit` as a backstop).
+ *
+ * Uses only `spring-web` / `spring-core` types (no `spring-webmvc` `StreamingResponseBody`): the web
+ * MVC stack is present at runtime but not on this module's compile classpath.
  */
 @RestController
 class RevisionExportController(
@@ -38,20 +45,33 @@ class RevisionExportController(
                 ?: return ResponseEntity.notFound().build()
         val feedCode = feeds.findById(rev.feedId).map { it.code }.orElse("feed")
 
-        val sink = PipedOutputStream()
-        val source = PipedInputStream(sink, DEFAULT_BUFFER_SIZE)
-        Thread({
-            sink.use { serializer.serialize(id, it) }
-        }, "gtfs-export-$id").apply { isDaemon = true }.start()
+        val tmp = Files.createTempFile("gtfs-export-$id-", ".zip")
+        tmp.toFile().deleteOnExit()
+        try {
+            Files.newOutputStream(tmp).use { serializer.serialize(id, it) }
+        } catch (e: Exception) {
+            runCatching { Files.deleteIfExists(tmp) }
+            throw e
+        }
 
+        val body = InputStreamResource(deleteOnCloseStream(tmp))
         return ResponseEntity
             .ok()
             .contentType(MediaType.parseMediaType("application/zip"))
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$feedCode-rev$id.zip\"")
-            .body(InputStreamResource(source))
+            .contentLength(Files.size(tmp))
+            .body(body)
     }
 
-    private companion object {
-        const val DEFAULT_BUFFER_SIZE = 64 * 1024
-    }
+    /** Stream over [path] that deletes the file once the consumer closes it. */
+    private fun deleteOnCloseStream(path: Path): InputStream =
+        object : FilterInputStream(Files.newInputStream(path)) {
+            override fun close() {
+                try {
+                    super.close()
+                } finally {
+                    Files.deleteIfExists(path)
+                }
+            }
+        }
 }

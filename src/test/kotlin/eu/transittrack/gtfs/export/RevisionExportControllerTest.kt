@@ -1,10 +1,16 @@
 package eu.transittrack.gtfs.export
 
 import java.io.OutputStream
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.time.Instant
 import java.util.Optional
+import kotlin.io.path.name
+import kotlin.streams.toList
 import kotlin.test.Test
 
+import assertk.assertThat
+import assertk.assertions.isEmpty
 import org.hamcrest.Matchers.containsString
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
@@ -66,6 +72,14 @@ class RevisionExportControllerTest {
             .andExpect(header().string("Content-Disposition", containsString("attachment")))
             .andExpect(header().string("Content-Disposition", containsString("stpt-rev5.zip")))
             .andExpect(content().contentType("application/zip"))
+            .andExpect(content().bytes("PK".toByteArray()))
+
+        // Serving the response reads and closes the body stream, which deletes the spool file.
+        val leftovers =
+            Files.list(Paths.get(System.getProperty("java.io.tmpdir"))).use { paths ->
+                paths.toList().filter { it.name.startsWith("gtfs-export-5-") }
+            }
+        assertThat(leftovers).isEmpty()
     }
 
     @Test
