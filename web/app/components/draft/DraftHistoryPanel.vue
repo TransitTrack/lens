@@ -54,27 +54,35 @@ async function undoOnce(): Promise<boolean> {
 }
 
 async function onUndo() {
-  if (await undoOnce()) {
-    await props.editor.refetchEdits()
-    await refetch()
-    emit('changed')
+  try {
+    if (await undoOnce()) {
+      await props.editor.refetchEdits()
+      await refetch()
+      emit('changed')
+    }
+  } catch {
+    // editor.mutate already toasts
   }
 }
 
 async function onRedo() {
-  const data = await props.editor.mutate(async (vars) => {
-    const res = await redoDraftEdit({
-      id: vars.draftId,
-      editor: vars.editor,
-      expectedVersion: vars.expectedVersion,
+  try {
+    const data = await props.editor.mutate(async (vars) => {
+      const res = await redoDraftEdit({
+        id: vars.draftId,
+        editor: vars.editor,
+        expectedVersion: vars.expectedVersion,
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.redoDraftEdit) {
-    props.editor.applyResult(data.redoDraftEdit)
-    await props.editor.refetchEdits()
-    await refetch()
-    emit('changed')
+    if (data?.redoDraftEdit) {
+      props.editor.applyResult(data.redoDraftEdit)
+      await props.editor.refetchEdits()
+      await refetch()
+      emit('changed')
+    }
+  } catch {
+    // editor.mutate already toasts
   }
 }
 

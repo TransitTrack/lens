@@ -116,6 +116,11 @@ export function useDraftEditor(draftId: Ref<string>) {
   const { mutate: renewDraftEditor } = useRenewDraftEditorMutation()
   const { mutate: releaseDraftEditor } = useReleaseDraftEditorMutation()
 
+  /** true once we hold the lock; false after a release / a claim failure. */
+  const claimed = ref(false)
+  /** set when the identity dialog was dismissed on entry — page is inert. */
+  const identityMissing = ref(false)
+
   const readOnly = computed(
     () => draft.value?.lock?.editor != null && draft.value.lock.editor !== me.value,
   )
@@ -169,9 +174,17 @@ export function useDraftEditor(draftId: Ref<string>) {
       }
 
       if (code === 'LOCK_LOST') {
-        await refetchDraft()
-        toast.add({ title: 'You no longer hold the editor lock', color: 'error' })
-        throw e
+        try {
+          await claimDraftEditor({ id: draftId.value, editor })
+          claimed.value = true
+          const freshVersion = await refetchDraftVersion(current.version)
+          return await run(freshVersion)
+        } catch {
+          claimed.value = false
+          await refetchDraft()
+          toast.add({ title: 'Another editor holds this draft', color: 'error' })
+          throw e
+        }
       }
 
       toast.add({ title: 'Edit failed', description: (e as Error).message, color: 'error' })
@@ -190,6 +203,8 @@ export function useDraftEditor(draftId: Ref<string>) {
     const editor = await ensureIdentity()
     try {
       await claimDraftEditor({ id: draftId.value, editor, takeOver: true })
+      claimed.value = true
+      identityMissing.value = false
     } catch (e) {
       toast.add({
         title: 'Could not take over the editor lock',
@@ -207,6 +222,7 @@ export function useDraftEditor(draftId: Ref<string>) {
 
   function releaseNow() {
     const editor = me.value
+    claimed.value = false
     if (!editor) return
     // fire-and-forget
     void releaseDraftEditor({ id: draftId.value, editor }).catch(() => {})
@@ -218,11 +234,21 @@ export function useDraftEditor(draftId: Ref<string>) {
 
   onMounted(async () => {
     if (!import.meta.client) return
-    const editor = await identity.ensure()
+    let editor: string
+    try {
+      editor = await identity.ensure()
+    } catch {
+      identityMissing.value = true
+      claimed.value = false
+      toast.add({ title: 'Enter your name to edit this draft', color: 'warning' })
+      return
+    }
     try {
       await claimDraftEditor({ id: draftId.value, editor })
+      claimed.value = true
     } catch {
       // someone else holds the lock — `readOnly` handles display
+      claimed.value = false
     }
     await refetchDraft()
 
@@ -252,6 +278,8 @@ export function useDraftEditor(draftId: Ref<string>) {
     draft,
     loading,
     readOnly,
+    claimed,
+    identityMissing,
     lockBanner,
     canUndo,
     canRedo,

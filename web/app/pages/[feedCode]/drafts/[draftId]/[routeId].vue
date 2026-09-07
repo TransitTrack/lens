@@ -20,6 +20,12 @@ import DraftRail from '~/components/draft/DraftRail.vue'
 import BulkShiftDialog from '~/components/draft/BulkShiftDialog.vue'
 import AddTripDialog from '~/components/draft/AddTripDialog.vue'
 
+definePageMeta({
+  // Keep the same page instance (and the useDraftEditor lock) mounted while the
+  // routeId param / ?dir / ?service change — only a real draft switch remounts.
+  key: (route) => `draft-${route.params.draftId}`,
+})
+
 const route = useRoute()
 const toast = useToast()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -38,7 +44,7 @@ const serviceId = computed<string | null>(() => {
 })
 
 const editor = useDraftEditor(draftId)
-const { draft, readOnly, lockBanner, canUndo, canRedo } = editor
+const { draft, loading: draftLoading, readOnly, identityMissing, lockBanner, canUndo, canRedo } = editor
 
 // --- validation parsing --------------------------------------------------
 interface ValidationSummary {
@@ -245,33 +251,41 @@ const { mutate: undoDraftEdit } = useUndoDraftEditMutation()
 const { mutate: redoDraftEdit } = useRedoDraftEditMutation()
 
 async function onUndo() {
-  const data = await editor.mutate(async (vars) => {
-    const res = await undoDraftEdit({
-      id: vars.draftId,
-      editor: vars.editor,
-      expectedVersion: vars.expectedVersion,
+  try {
+    const data = await editor.mutate(async (vars) => {
+      const res = await undoDraftEdit({
+        id: vars.draftId,
+        editor: vars.editor,
+        expectedVersion: vars.expectedVersion,
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.undoDraftEdit) {
-    editor.applyResult(data.undoDraftEdit)
-    await editor.refetchEdits()
-    await gridRef.value?.refetch()
+    if (data?.undoDraftEdit) {
+      editor.applyResult(data.undoDraftEdit)
+      await editor.refetchEdits()
+      await gridRef.value?.refetch()
+    }
+  } catch {
+    // editor.mutate already toasts
   }
 }
 async function onRedo() {
-  const data = await editor.mutate(async (vars) => {
-    const res = await redoDraftEdit({
-      id: vars.draftId,
-      editor: vars.editor,
-      expectedVersion: vars.expectedVersion,
+  try {
+    const data = await editor.mutate(async (vars) => {
+      const res = await redoDraftEdit({
+        id: vars.draftId,
+        editor: vars.editor,
+        expectedVersion: vars.expectedVersion,
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.redoDraftEdit) {
-    editor.applyResult(data.redoDraftEdit)
-    await editor.refetchEdits()
-    await gridRef.value?.refetch()
+    if (data?.redoDraftEdit) {
+      editor.applyResult(data.redoDraftEdit)
+      await editor.refetchEdits()
+      await gridRef.value?.refetch()
+    }
+  } catch {
+    // editor.mutate already toasts
   }
 }
 
@@ -334,24 +348,28 @@ async function onCommitCell(payload: {
   arrivalSec: number | null
   departureSec: number | null
 }) {
-  const data = await editor.mutate(async (vars) => {
-    const res = await updateStopTime({
-      input: {
-        draftId: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-        tripId: payload.tripId,
-        stopSequence: payload.stopSequence,
-        arrivalSec: payload.arrivalSec,
-        departureSec: payload.departureSec,
-      },
+  try {
+    const data = await editor.mutate(async (vars) => {
+      const res = await updateStopTime({
+        input: {
+          draftId: vars.draftId,
+          editor: vars.editor,
+          expectedVersion: vars.expectedVersion,
+          tripId: payload.tripId,
+          stopSequence: payload.stopSequence,
+          arrivalSec: payload.arrivalSec,
+          departureSec: payload.departureSec,
+        },
+      })
+      return res?.data
     })
-    return res?.data
-  })
-  if (data?.updateStopTime) {
-    editor.applyResult(data.updateStopTime)
-    await editor.refetchEdits()
-    await gridRef.value?.refetch()
+    if (data?.updateStopTime) {
+      editor.applyResult(data.updateStopTime)
+      await editor.refetchEdits()
+      await gridRef.value?.refetch()
+    }
+  } catch {
+    // editor.mutate already toasts
   }
 }
 
@@ -401,7 +419,7 @@ function openDuplicate(tripId: string) {
             variant="soft"
             icon="i-lucide-hammer"
             :loading="rebuilding"
-            :disabled="rebuilding || !draft"
+            :disabled="rebuilding || !draft || readOnly"
             :label="rebuilding ? (rebuildPhase ?? 'Rebuilding…') : 'Rebuild & validate'"
             @click="onRebuild"
           />
@@ -420,7 +438,7 @@ function openDuplicate(tripId: string) {
             variant="soft"
             icon="i-lucide-rocket"
             label="Activate"
-            :disabled="!draft"
+            :disabled="!draft || readOnly"
             @click="activateOpen = true"
           />
           <UButton
@@ -429,7 +447,7 @@ function openDuplicate(tripId: string) {
             variant="ghost"
             icon="i-lucide-trash-2"
             label="Discard"
-            :disabled="!draft"
+            :disabled="!draft || readOnly"
             @click="discardOpen = true"
           />
           <NavbarActions />
@@ -509,14 +527,39 @@ function openDuplicate(tripId: string) {
       <EditorIdentityDialog />
 
       <div
-        v-if="!draft"
+        v-if="!draft && draftLoading"
         class="flex items-center gap-3 py-16 justify-center text-muted"
       >
         <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" />
         <span class="text-sm">Loading editor…</span>
       </div>
 
+      <div
+        v-else-if="!draft"
+        class="flex flex-col items-center gap-3 py-16 justify-center text-muted"
+      >
+        <UIcon name="i-lucide-file-x" class="size-6" />
+        <p class="text-sm">This draft no longer exists.</p>
+        <UButton
+          size="sm"
+          color="neutral"
+          variant="soft"
+          icon="i-lucide-arrow-left"
+          label="Back to drafts"
+          :to="feedPath('/drafts')"
+        />
+      </div>
+
       <template v-else>
+        <UAlert
+          v-if="identityMissing"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-user-x"
+          class="m-4"
+          title="Not editing"
+          description="Reload the page and enter your name to edit this draft."
+        />
         <UAlert
           v-if="readOnly"
           color="warning"
@@ -532,12 +575,12 @@ function openDuplicate(tripId: string) {
               color="warning"
               variant="solid"
               label="Take over"
-              @click="editor.takeOver()"
+              @click="editor.takeOver().catch(() => {})"
             />
           </template>
         </UAlert>
 
-        <div class="flex min-h-0 flex-1" :class="{ 'pointer-events-none opacity-50': readOnly }">
+        <div class="flex min-h-0 flex-1" :class="{ 'opacity-50': readOnly }">
           <div class="min-w-0 flex-1 overflow-hidden">
             <DraftGrid
               ref="gridRef"
