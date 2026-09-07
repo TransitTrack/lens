@@ -253,7 +253,7 @@ async function onUndo() {
   if (data?.undoDraftEdit) {
     editor.applyResult(data.undoDraftEdit)
     await editor.refetchEdits()
-    // TODO(task 6): refetch the grid
+    await gridRef.value?.refetch()
   }
 }
 async function onRedo() {
@@ -268,13 +268,14 @@ async function onRedo() {
   if (data?.redoDraftEdit) {
     editor.applyResult(data.redoDraftEdit)
     await editor.refetchEdits()
-    // TODO(task 6): refetch the grid
+    await gridRef.value?.refetch()
   }
 }
 
 // --- grid model + cell commit -------------------------------------
 const selectedTripId = ref<string | null>(null)
 const activeCell = ref<{ tripId: string; stopSequence: number } | null>(null)
+const gridRef = ref<{ refetch: () => Promise<unknown> } | null>(null)
 const { mutate: updateStopTime } = useUpdateStopTimeMutation()
 
 async function onCommitCell(payload: {
@@ -300,7 +301,7 @@ async function onCommitCell(payload: {
   if (data?.updateStopTime) {
     editor.applyResult(data.updateStopTime)
     await editor.refetchEdits()
-    // TODO(task 6): refetch the grid
+    await gridRef.value?.refetch()
   }
 }
 
@@ -478,6 +479,7 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
         <div class="flex min-h-0 flex-1" :class="{ 'pointer-events-none opacity-50': readOnly }">
           <div class="min-w-0 flex-1 overflow-auto">
             <DraftGrid
+              ref="gridRef"
               v-model:selected-trip-id="selectedTripId"
               v-model:active-cell="activeCell"
               :draft-id="draftId"
