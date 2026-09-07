@@ -9,6 +9,7 @@ import tools.jackson.databind.json.JsonMapper
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
+import eu.transittrack.schedule.model.TripPatternRepository
 
 /** Thrown when the caller's `expectedVersion` no longer matches the draft (concurrent edit). */
 class StaleDraftException(
@@ -21,6 +22,7 @@ data class EditContext(
     val stopTimes: StopTimeRepository,
     val trips: TripRepository,
     val frequencies: FrequencyRepository,
+    val tripPatterns: TripPatternRepository,
     val jdbc: JdbcTemplate,
     val json: JsonMapper,
 )

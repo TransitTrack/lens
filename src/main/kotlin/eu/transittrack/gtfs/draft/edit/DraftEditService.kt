@@ -17,6 +17,7 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.schedule.model.TripPatternRepository
 
 /**
  * The shared template for every draft edit: guard (status + lock + version) -> plan -> in one tx
@@ -31,6 +32,7 @@ class DraftEditService(
     private val stopTimes: StopTimeRepository,
     private val trips: TripRepository,
     private val frequencies: FrequencyRepository,
+    private val tripPatterns: TripPatternRepository,
     private val jdbc: JdbcTemplate,
     private val json: JsonMapper,
 ) {
@@ -41,7 +43,7 @@ class DraftEditService(
         val canRedo: Boolean,
     )
 
-    private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, jdbc, json)
+    private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, jdbc, json)
 
     private fun guard(
         draftId: Long,
