@@ -92,7 +92,7 @@ defineExpose({
     </div>
 
     <div v-else class="grid-scroll">
-      <!-- TODO: horizontal virtualization if a large feed lags -->
+      <!-- FOLLOW-UP: horizontal virtualization if a large feed lags -->
       <table class="grid-table">
         <thead>
           <tr>

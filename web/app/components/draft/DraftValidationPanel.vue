@@ -74,7 +74,7 @@ const order = ['ERROR', 'WARNING', 'INFO']
 
       <p v-if="parsed.notices.length === 0" class="text-xs text-muted">No notices.</p>
 
-      <!-- TODO: per-notice go-to once backend enriches notices with tripId/stopSequence -->
+      <!-- FOLLOW-UP: per-notice go-to once backend enriches notices with tripId/stopSequence -->
       <div v-for="sev in order" :key="sev">
         <div v-if="groups[sev]?.length" class="mb-1 text-xs font-semibold uppercase text-muted">
           {{ sev }}

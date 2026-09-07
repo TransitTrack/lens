@@ -281,7 +281,6 @@ const dirLabel = computed(() =>
           :disabled="readOnly"
           @click="emit('duplicate', trip.tripId)"
         />
-        <!-- TODO(task 8): Duplicate opens AddTripDialog pre-filled -->
         <UButton
           size="xs"
           color="error"
