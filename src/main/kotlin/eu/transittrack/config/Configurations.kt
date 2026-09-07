@@ -28,6 +28,7 @@ import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
+import eu.transittrack.gtfs.draft.edit.StaleDraftException
 import eu.transittrack.gtfs.feed.FeedConflictException
 import eu.transittrack.gtfs.feed.FeedNotFoundException
 import eu.transittrack.gtfs.feed.FeedProtectedException
@@ -149,7 +150,7 @@ class GraphQlConfiguration {
             ex: Throwable,
             env: DataFetchingEnvironment,
         ): GraphQLError? {
-            if (ex is eu.transittrack.gtfs.draft.edit.StaleDraftException) {
+            if (ex is StaleDraftException) {
                 return GraphqlErrorBuilder
                     .newError(env)
                     .errorType(ErrorType.BAD_REQUEST)
