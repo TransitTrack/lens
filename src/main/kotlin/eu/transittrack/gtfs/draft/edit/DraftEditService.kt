@@ -2,7 +2,6 @@ package eu.transittrack.gtfs.draft.edit
 
 import java.time.Instant
 
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
@@ -33,7 +32,6 @@ class DraftEditService(
     private val trips: TripRepository,
     private val frequencies: FrequencyRepository,
     private val tripPatterns: TripPatternRepository,
-    private val jdbc: JdbcTemplate,
     private val json: JsonMapper,
 ) {
     data class DraftEditResultData(
@@ -43,16 +41,19 @@ class DraftEditService(
         val canRedo: Boolean,
     )
 
-    private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, jdbc, json)
+    private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, json)
 
     private fun guard(
         draftId: Long,
         editor: String,
         expectedVersion: Long,
     ): GtfsRevision {
-        val d = revisions.findById(draftId).orElseThrow { IllegalArgumentException("no draft $draftId") }
+        // Pessimistic row lock: serializes concurrent apply/undo/redo on one draft so the version
+        // check below is a real compare-and-swap (a plain findById leaves a check-then-act window
+        // where two concurrent `undo`s both pass and double-apply a delta inverse).
+        val d = revisions.findByIdForUpdate(draftId) ?: throw IllegalArgumentException("no draft $draftId")
         require(d.kind == DraftKind.DRAFT && d.status == GtfsRevisionStatus.DRAFT) { "not an editable draft" }
-        check(draftService.currentLock(d)?.editor == editor) { "you are not the current editor" }
+        if (draftService.currentLock(d)?.editor != editor) throw LockNotHeldException(d.id!!)
         if (d.version != expectedVersion) throw StaleDraftException(d.version)
         return d
     }
@@ -89,6 +90,11 @@ class DraftEditService(
         edits.deleteByRevisionIdAndUndoneTrue(draftId) // truncate redo tail
         planned.mutate()
 
+        // Ordering is safe: the findByRevisionIdOrderBySeqAsc query below forces a Hibernate flush,
+        // and within one flush Hibernate runs INSERTs before DELETEs — so the queued redo-tail
+        // deletes are applied before nextSeq is computed, and it cannot collide with
+        // uq_draft_edit_revision_seq. A future `select max(seq)` projection must keep that property:
+        // it must stay a query over draft_edit (which auto-flushes), not an in-memory shortcut.
         val nextSeq = (edits.findByRevisionIdOrderBySeqAsc(draftId).maxOfOrNull { it.seq } ?: 0) + 1
         val row =
             edits.save(

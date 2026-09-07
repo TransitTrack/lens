@@ -2,7 +2,6 @@ package eu.transittrack.gtfs.draft.edit
 
 import java.util.concurrent.ConcurrentHashMap
 
-import org.springframework.jdbc.core.JdbcTemplate
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
@@ -16,6 +15,11 @@ class StaleDraftException(
     val currentVersion: Long,
 ) : RuntimeException("draft was modified concurrently (now v$currentVersion)")
 
+/** Thrown when the caller no longer holds the editor lock on the draft (taken over, or expired). */
+class LockNotHeldException(
+    val draftId: Long,
+) : RuntimeException("editor lock not held for draft $draftId")
+
 /** Everything an [EditOp] or a reversible builder needs to inspect and mutate a draft revision. */
 data class EditContext(
     val revisionId: Long,
@@ -23,7 +27,6 @@ data class EditContext(
     val trips: TripRepository,
     val frequencies: FrequencyRepository,
     val tripPatterns: TripPatternRepository,
-    val jdbc: JdbcTemplate,
     val json: JsonMapper,
 )
 

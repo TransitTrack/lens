@@ -15,6 +15,7 @@ import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.draft.edit.DraftEditService
+import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.draft.edit.StaleDraftException
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
@@ -116,6 +117,19 @@ class DraftEditGraphQlTest(
             .path("undoDraftEdit.canRedo")
             .entity(Boolean::class.java)
             .isEqualTo(false)
+    }
+
+    @Test
+    fun `lost editor lock surfaces LOCK_LOST error`() {
+        whenever(editService.apply(any(), any(), any(), any())).thenThrow(LockNotHeldException(5))
+        tester
+            .document(
+                """mutation { shiftTrip(input: { draftId: "5", editor: "alice", expectedVersion: 4, tripId: "t1", deltaSec: 60 }) { canUndo } }""",
+            ).execute()
+            .errors()
+            .satisfy { errors ->
+                assert(errors[0].extensions["code"] == "LOCK_LOST") { "code was ${errors[0].extensions["code"]}" }
+            }
     }
 
     @Test

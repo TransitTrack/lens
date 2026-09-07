@@ -28,6 +28,7 @@ import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
+import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.draft.edit.StaleDraftException
 import eu.transittrack.gtfs.feed.FeedConflictException
 import eu.transittrack.gtfs.feed.FeedNotFoundException
@@ -156,6 +157,14 @@ class GraphQlConfiguration {
                     .errorType(ErrorType.BAD_REQUEST)
                     .message(ex.message ?: "draft was modified concurrently")
                     .extensions(mapOf("code" to "STALE_DRAFT", "currentVersion" to ex.currentVersion))
+                    .build()
+            }
+            if (ex is LockNotHeldException) {
+                return GraphqlErrorBuilder
+                    .newError(env)
+                    .errorType(ErrorType.BAD_REQUEST)
+                    .message(ex.message ?: "editor lock not held")
+                    .extensions(mapOf("code" to "LOCK_LOST"))
                     .build()
             }
             val type =

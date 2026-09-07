@@ -1,6 +1,9 @@
 package eu.transittrack.gtfs.revision
 
+import jakarta.persistence.LockModeType
+
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
@@ -10,6 +13,17 @@ import eu.transittrack.gtfs.draft.DraftKind
 
 @Repository
 interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
+    /**
+     * Row-locking read for the draft-edit template: `DraftEditService.guard` takes a
+     * `PESSIMISTIC_WRITE` lock on the draft row so concurrent `apply`/`undo`/`redo` on one draft
+     * serialize, turning the `version` check into a true compare-and-swap (→ `StaleDraftException`).
+     * Deliberately not `@Version` on the entity — that would impose optimistic locking on every
+     * other writer of `gtfs_revision` (ingestion, revision lifecycle, AVL).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from GtfsRevision r where r.id = :id")
+    fun findByIdForUpdate(id: Long): GtfsRevision?
+
     @Query("select r from GtfsRevision r where r.feedId = :feedId and r.status = :status")
     fun findByFeedAndStatus(
         feedId: Long,
