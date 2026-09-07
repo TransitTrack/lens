@@ -1,3 +1,5 @@
+scalar Long
+
 extend type Query {
     drafts(feedCode: String): [Draft!]!
     draft(id: ID!): Draft
@@ -15,6 +17,123 @@ extend type Mutation {
     claimDraftEditor(id: ID!, editor: String!, takeOver: Boolean = false): DraftLock!
     renewDraftEditor(id: ID!, editor: String!): DraftLock!
     releaseDraftEditor(id: ID!, editor: String!): Boolean!
+
+    updateStopTime(input: UpdateStopTimeInput!): DraftEditResult!
+    shiftTrip(input: ShiftTripInput!): DraftEditResult!
+    setStopDwell(input: SetStopDwellInput!): DraftEditResult!
+    addTrip(input: AddTripInput!): DraftEditResult!
+    duplicateTrip(input: DuplicateTripInput!): DraftEditResult!
+    deleteTrip(input: DeleteTripInput!): DraftEditResult!
+    bulkShiftTrips(input: BulkShiftTripsInput!): DraftEditResult!
+    insertTripStop(input: InsertTripStopInput!): DraftEditResult!
+    removeTripStop(input: RemoveTripStopInput!): DraftEditResult!
+    reorderTripStops(input: ReorderTripStopsInput!): DraftEditResult!
+    undoDraftEdit(id: ID!, editor: String!, expectedVersion: Long!): DraftEditResult!
+    redoDraftEdit(id: ID!, editor: String!, expectedVersion: Long!): DraftEditResult!
+}
+
+input UpdateStopTimeInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+    stopSequence: Int!
+    "null clears the value; omitting is the same as null"
+    arrivalSec: Int
+    "null clears the value; omitting is the same as null"
+    departureSec: Int
+}
+
+input ShiftTripInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+    deltaSec: Int!
+}
+
+input SetStopDwellInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+    stopSequence: Int!
+    dwellSec: Int!
+}
+
+input NewStopTimeInput {
+    stopId: String!
+    arrivalSec: Int!
+    departureSec: Int!
+}
+
+input AddTripInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    routeId: String!
+    serviceId: String!
+    tripId: String
+    headsign: String
+    directionId: Int
+    shapeId: String
+    blockId: String
+    stops: [NewStopTimeInput!]!
+}
+
+input DuplicateTripInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    sourceTripId: String!
+    newTripId: String
+    offsetSec: Int!
+}
+
+input DeleteTripInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+}
+
+input BulkShiftTripsInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    routeId: String
+    patternKey: String
+    serviceId: String
+    windowFromSec: Int
+    windowToSec: Int
+    deltaSec: Int!
+}
+
+input InsertTripStopInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+    afterStopSequence: Int!
+    stopId: String!
+    arrivalSec: Int
+    departureSec: Int
+}
+
+input RemoveTripStopInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+    stopSequence: Int!
+}
+
+input ReorderTripStopsInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    tripId: String!
+    stopIdOrder: [String!]!
 }
 
 type Draft {
@@ -24,7 +143,7 @@ type Draft {
     baseRevisionId: ID
     status: String!
     kind: String!
-    version: Int!
+    version: Long!
     derivationStale: Boolean!
     lastValidation: JSON
     lock: DraftLock

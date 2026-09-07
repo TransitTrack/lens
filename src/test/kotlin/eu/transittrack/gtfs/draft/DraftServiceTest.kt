@@ -153,6 +153,16 @@ class DraftServiceTest(
     }
 
     @Test
+    fun `activate clears the editor lock`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        drafts.claimEditor(draft.id!!, "alice")
+        drafts.activate(draft.id!!, force = true)
+        assertThat(revisions.findById(draft.id!!).get().editorClaimBy).isEqualTo(null)
+    }
+
+    @Test
     fun `fork with unknown feed fails`() {
         assertFailure { drafts.fork("nope", null, null, null) }.isInstanceOf<IllegalArgumentException>()
     }

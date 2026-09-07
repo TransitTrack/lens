@@ -204,6 +204,10 @@ class DraftService(
                     ?.let { objectMapper.readTree(it).path("errorCount").asInt(0) } ?: -1
             check(errors == 0) { "draft has $errors validation error(s); rebuild & validate, or force" }
         }
+        // activation ends the editing session: drop any editor lock so a re-fork starts clean.
+        d.editorClaimBy = null
+        d.editorClaimExpiresAt = null
+        revisions.save(d)
         return revisionService.activate(draftId)
     }
 

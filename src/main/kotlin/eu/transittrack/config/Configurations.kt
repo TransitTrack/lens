@@ -138,6 +138,7 @@ class GraphQlConfiguration {
     fun jsonScalar(): RuntimeWiringConfigurer =
         RuntimeWiringConfigurer {
             it.scalar(ExtendedScalars.Json)
+            it.scalar(ExtendedScalars.GraphQLLong)
         }
 
     @Bean
@@ -148,6 +149,14 @@ class GraphQlConfiguration {
             ex: Throwable,
             env: DataFetchingEnvironment,
         ): GraphQLError? {
+            if (ex is eu.transittrack.gtfs.draft.edit.StaleDraftException) {
+                return GraphqlErrorBuilder
+                    .newError(env)
+                    .errorType(ErrorType.BAD_REQUEST)
+                    .message(ex.message ?: "draft was modified concurrently")
+                    .extensions(mapOf("code" to "STALE_DRAFT", "currentVersion" to ex.currentVersion))
+                    .build()
+            }
             val type =
                 when (ex) {
                     is FeedNotFoundException -> ErrorType.NOT_FOUND
