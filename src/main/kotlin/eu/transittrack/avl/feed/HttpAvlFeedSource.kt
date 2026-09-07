@@ -1,7 +1,6 @@
 package eu.transittrack.avl.feed
 
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -22,11 +21,10 @@ class HttpAvlFeedSource(
     private val client: OkHttpClient,
 ) : AvlFeedSource {
     override fun fetch(feed: AvlFeed): RawAvlPayload {
-        val builder =
-            Request
-                .Builder()
-                .get()
-                .url(feed.url)
+        val builder = Request
+            .Builder()
+            .get()
+            .url(feed.url)
         feed.headers?.forEach { (k, v) -> builder.header(k, v) }
         try {
             client.newCall(builder.build()).execute().use { response ->

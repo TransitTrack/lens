@@ -5,11 +5,9 @@ import java.nio.file.Path
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.HexFormat
-import java.util.concurrent.TimeUnit
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.logging.HttpLoggingInterceptor
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 

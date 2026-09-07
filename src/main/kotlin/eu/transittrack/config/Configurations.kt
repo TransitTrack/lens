@@ -7,9 +7,14 @@ import graphql.GraphQLError
 import graphql.GraphqlErrorBuilder
 import graphql.scalars.ExtendedScalars
 import graphql.schema.DataFetchingEnvironment
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.asResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
-import org.springframework.beans.factory.config.ConfigurableBeanFactory
+import okio.Buffer
+import okio.ForwardingSource
+import okio.buffer // Imports the correct extension function
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.persistence.autoconfigure.EntityScan
 import org.springframework.context.annotation.Bean
@@ -47,8 +52,49 @@ class AsyncConfiguration {
 class HttpClientsConfiguration(
     val props: HttpClientProperties,
 ) {
+    class MaxBytesResponseInterceptor(
+        private val maxBytes: Long,
+    ) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val response = chain.proceed(chain.request())
+            val body = response.body ?: return response
+
+            // Optional: Fast-fail using Content-Length header if available
+            if (body.contentLength() > maxBytes) {
+                throw okio.IOException("Response content-length (${body.contentLength()} bytes) exceeds max limit of $maxBytes bytes.")
+            }
+
+            // Wrap the original source to count actual bytes read dynamically
+            val limitedSource = object : ForwardingSource(body.source()) {
+                private var bytesRead = 0L
+
+                override fun read(
+                    sink: Buffer,
+                    byteCount: Long,
+                ): Long {
+                    val read = super.read(sink, byteCount)
+                    if (read != -1L) {
+                        bytesRead += read
+                        if (bytesRead > maxBytes) {
+                            throw okio.IOException("Response payload exceeded the max limit of $maxBytes bytes.")
+                        }
+                    }
+                    return read
+                }
+            }
+
+            // Return a new response with the size-bounded body
+            return response
+                .newBuilder()
+                .body(
+                    body.contentType()?.let { type ->
+                        limitedSource.buffer().asResponseBody(type, body.contentLength())
+                    } ?: response.body,
+                ).build()
+        }
+    }
+
     @Bean
-    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     fun okHttpClient(): OkHttpClient =
         OkHttpClient
             .Builder()
@@ -67,7 +113,8 @@ class HttpClientsConfiguration(
                 HttpLoggingInterceptor().apply {
                     level = HttpLoggingInterceptor.Level.BASIC
                 },
-            ).build()
+            ).addInterceptor(MaxBytesResponseInterceptor(props.maxSizeBytes))
+            .build()
 }
 
 @Configuration
