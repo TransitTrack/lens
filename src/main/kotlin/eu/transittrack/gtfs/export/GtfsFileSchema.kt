@@ -31,7 +31,7 @@ fun formatCell(
 
         ColKind.TIME -> {
             val s = (value as Number).toInt()
-            "%d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
+            "%02d:%02d:%02d".format(s / 3600, (s % 3600) / 60, s % 60)
         }
 
         ColKind.BOOL_INT -> {

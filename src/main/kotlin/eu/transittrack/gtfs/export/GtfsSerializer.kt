@@ -7,6 +7,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.core.RowCallbackHandler
 import org.springframework.stereotype.Component
 
 /**
@@ -28,11 +29,11 @@ class GtfsSerializer(
                 zip.putNextEntry(ZipEntry(file.name))
                 val w = OutputStreamWriter(zip, Charsets.UTF_8)
                 w.write(file.columns.joinToString(",") { it.header })
-                w.write("\n")
+                w.write("\r\n")
                 val select = file.columns.joinToString(", ") { it.sqlColumn }
                 jdbc.query(
                     "SELECT $select FROM ${file.table} WHERE revision_id = ? ORDER BY id",
-                    { rs ->
+                    RowCallbackHandler { rs ->
                         val line =
                             file.columns
                                 .mapIndexed { i, col ->
@@ -43,7 +44,7 @@ class GtfsSerializer(
                                     csv(formatCell(v, col.kind))
                                 }.joinToString(",")
                         w.write(line)
-                        w.write("\n")
+                        w.write("\r\n")
                     },
                     revisionId,
                 )

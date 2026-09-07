@@ -10,7 +10,7 @@ import assertk.assertions.isEqualTo
 class GtfsFileSchemaTest {
     @Test
     fun `formats time, bool, date, null`() {
-        assertThat(formatCell(21600, ColKind.TIME)).isEqualTo("6:00:00")
+        assertThat(formatCell(21600, ColKind.TIME)).isEqualTo("06:00:00")
         assertThat(formatCell(90000, ColKind.TIME)).isEqualTo("25:00:00")
         assertThat(formatCell(true, ColKind.BOOL_INT)).isEqualTo("1")
         assertThat(formatCell(false, ColKind.BOOL_INT)).isEqualTo("0")
