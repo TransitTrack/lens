@@ -19,5 +19,8 @@ class EditOpBootstrap {
         UpdateStopTimeOp
         ShiftTripOp
         SetStopDwellOp
+        AddTripOp
+        DuplicateTripOp
+        DeleteTripOp
     }
 }
