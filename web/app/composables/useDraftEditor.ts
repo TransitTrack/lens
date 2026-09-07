@@ -70,6 +70,18 @@ export function useDraftEditor(draftId: Ref<string>) {
     await refetchDraftDetailRaw()
   }
 
+  /**
+   * Refetch and return the draft version straight from the resolved query
+   * result — the `watch` that syncs `draft.value` only flushes on a later
+   * tick, so reading `draft.value` right after the await is still stale.
+   */
+  async function refetchDraftVersion(fallback: number): Promise<number> {
+    const res = await refetchDraftDetailRaw()
+    return (
+      res?.data?.draft?.version ?? detailResult.value?.draft?.version ?? fallback
+    )
+  }
+
   // --- undo/redo seeding -------------------------------------------------------
   const canUndo = ref(false)
   const canRedo = ref(false)
@@ -108,11 +120,25 @@ export function useDraftEditor(draftId: Ref<string>) {
     return { editor, expiresAt }
   })
 
+  /** Resolve the editor name, toasting + rethrowing if the user cancels. */
+  async function ensureIdentity(): Promise<string> {
+    if (me.value) return me.value
+    try {
+      return await identity.ensure()
+    } catch (e) {
+      toast.add({
+        title: 'Editing cancelled — enter your name to edit',
+        color: 'warning',
+      })
+      throw e
+    }
+  }
+
   // --- version-guarded mutate ---------------------------------------------
   async function mutate<T>(fn: (vars: MutateVars) => Promise<T>): Promise<T> {
     const current = draft.value
     if (!current) throw new Error('Draft is not loaded yet')
-    const editor = me.value ?? (await identity.ensure())
+    const editor = await ensureIdentity()
 
     const run = (expectedVersion: number) =>
       fn({ draftId: draftId.value, editor, expectedVersion })
@@ -123,9 +149,9 @@ export function useDraftEditor(draftId: Ref<string>) {
       const code = errorCode(e)
 
       if (code === 'STALE_DRAFT') {
-        await refetchDraft()
+        const freshVersion = await refetchDraftVersion(current.version)
         try {
-          return await run(draft.value?.version ?? current.version)
+          return await run(freshVersion)
         } catch (retryErr) {
           toast.add({
             title: 'Edit failed',
@@ -155,13 +181,23 @@ export function useDraftEditor(draftId: Ref<string>) {
   }
 
   async function takeOver() {
-    const editor = me.value ?? (await identity.ensure())
-    await claimDraftEditor({ id: draftId.value, editor, takeOver: true })
+    const editor = await ensureIdentity()
+    try {
+      await claimDraftEditor({ id: draftId.value, editor, takeOver: true })
+    } catch (e) {
+      toast.add({
+        title: 'Could not take over the editor lock',
+        description: (e as Error).message,
+        color: 'error',
+      })
+      throw e
+    }
     await refetchDraft()
   }
 
   // --- lifecycle (client only) ------------------------------------------
   let renewTimer: ReturnType<typeof setInterval> | null = null
+  let disposed = false
 
   function releaseNow() {
     const editor = me.value
@@ -184,6 +220,9 @@ export function useDraftEditor(draftId: Ref<string>) {
     }
     await refetchDraft()
 
+    // The component may have unmounted while the awaits above were pending.
+    if (disposed) return
+
     renewTimer = setInterval(() => {
       void renewDraftEditor({ id: draftId.value, editor }).catch(() => {})
     }, RENEW_INTERVAL_MS)
@@ -192,6 +231,7 @@ export function useDraftEditor(draftId: Ref<string>) {
   })
 
   onBeforeUnmount(() => {
+    disposed = true
     if (renewTimer) {
       clearInterval(renewTimer)
       renewTimer = null
