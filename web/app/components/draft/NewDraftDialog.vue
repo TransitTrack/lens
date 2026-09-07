@@ -12,32 +12,27 @@ const { name: editorName } = useEditorIdentity()
 
 const label = ref('')
 const editor = ref('')
-const baseRevisionId = ref<string | null>(null)
 
 const { result: feedResult } = useFeedDetailQuery(
   () => ({ code: selectedFeedCode.value ?? '' }),
   () => ({ enabled: !!selectedFeedCode.value && open.value }),
 )
 
-const activeRevisionId = computed(() => feedResult.value?.feed?.activeRevision?.id ?? null)
-
-const revisionOptions = computed(() =>
-  (feedResult.value?.feed?.revisions ?? []).map((r) => ({
-    label: `#${r.id} · ${r.status} · ${gtfsDate(r.createdAt)}`,
-    value: r.id,
-  })),
-)
+// ITEM-5 stopgap: forking is restricted to the feed's ACTIVE revision. Picking a
+// non-active base offers routes/services the draft doesn't contain and lets
+// AddTripDialog write a dangling service_id. Draft-scoped `draftRoutes` /
+// `draftCalendar` queries are the proper fix (deferred). We always send
+// `baseRevisionId: null` so the backend uses ACTIVE.
+const activeRevisionLabel = computed(() => {
+  const active = feedResult.value?.feed?.activeRevision
+  return active ? `#${active.id} · ${gtfsDate(active.createdAt)}` : 'Active revision'
+})
 
 watch(open, (isOpen) => {
   if (isOpen) {
     label.value = ''
     editor.value = editorName.value ?? ''
-    baseRevisionId.value = activeRevisionId.value
   }
-})
-
-watch(activeRevisionId, (id) => {
-  if (open.value && baseRevisionId.value == null) baseRevisionId.value = id
 })
 
 const { mutate: fork, loading: forking } = useForkDraftMutation()
@@ -51,7 +46,7 @@ async function submit() {
     const res = await fork({
       input: {
         feedCode: selectedFeedCode.value ?? '',
-        baseRevisionId: baseRevisionId.value,
+        baseRevisionId: null,
         label: label.value.trim() || null,
         editor: name,
       },
@@ -72,14 +67,8 @@ async function submit() {
         <UFormField label="Label" hint="optional">
           <UInput v-model="label" placeholder="e.g. Summer 2026 timetable" class="w-full" />
         </UFormField>
-        <UFormField label="Base revision">
-          <USelectMenu
-            v-model="baseRevisionId"
-            :items="revisionOptions"
-            value-key="value"
-            placeholder="Active revision"
-            class="w-full"
-          />
+        <UFormField label="Base revision" hint="active revision">
+          <UInput :model-value="activeRevisionLabel" readonly disabled class="w-full" />
         </UFormField>
         <UFormField label="Your name">
           <UInput v-model="editor" placeholder="Your name" class="w-full" />

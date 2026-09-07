@@ -61,6 +61,10 @@ const windowFromSec = computed(() => parseTimeInput(fromRaw.value, null))
 const windowToSec = computed(() => parseTimeInput(toRaw.value, null))
 const deltaSec = computed(() => parseDeltaInput(deltaRaw.value))
 const deltaInvalid = computed(() => deltaRaw.value.trim() !== '' && deltaSec.value == null)
+// An empty window field is a valid open bound; a non-empty unparseable one is not.
+const fromInvalid = computed(() => fromRaw.value.trim() !== '' && windowFromSec.value == null)
+const toInvalid = computed(() => toRaw.value.trim() !== '' && windowToSec.value == null)
+const windowInvalid = computed(() => fromInvalid.value || toInvalid.value)
 
 // The grid (`props.trips`) is already server-filtered by the page's active
 // direction + service. The backend bulk-shift has no directionId filter, so it
@@ -94,7 +98,7 @@ const { mutate: bulkShift } = useBulkShiftTripsMutation()
 const submitting = ref(false)
 
 async function submit() {
-  if (deltaSec.value == null) return
+  if (deltaSec.value == null || windowInvalid.value) return
   submitting.value = true
   try {
     const data = await props.editor.mutate(async (v) => {
@@ -160,11 +164,29 @@ async function submit() {
         </UFormField>
 
         <div class="grid grid-cols-2 gap-2">
-          <UFormField label="From" hint="optional">
-            <UInput v-model="fromRaw" placeholder="e.g. 06:00" class="w-full" />
+          <UFormField
+            label="From"
+            hint="optional"
+            :error="fromInvalid ? 'Use HH:MM, e.g. 06:00' : undefined"
+          >
+            <UInput
+              v-model="fromRaw"
+              placeholder="e.g. 06:00"
+              :color="fromInvalid ? 'error' : undefined"
+              class="w-full"
+            />
           </UFormField>
-          <UFormField label="To" hint="optional">
-            <UInput v-model="toRaw" placeholder="e.g. 09:30" class="w-full" />
+          <UFormField
+            label="To"
+            hint="optional"
+            :error="toInvalid ? 'Use HH:MM, e.g. 09:30' : undefined"
+          >
+            <UInput
+              v-model="toRaw"
+              placeholder="e.g. 09:30"
+              :color="toInvalid ? 'error' : undefined"
+              class="w-full"
+            />
           </UFormField>
         </div>
 
@@ -195,7 +217,7 @@ async function submit() {
         <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false" />
         <UButton
           :loading="submitting"
-          :disabled="deltaSec == null"
+          :disabled="deltaSec == null || windowInvalid"
           label="Shift trips"
           @click="submit"
         />
