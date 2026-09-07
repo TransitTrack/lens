@@ -45,7 +45,10 @@ function commit() {
     void nextTick(() => inputEl.value?.select())
     return
   }
-  const dwell = (props.departureSec ?? parsed) - (props.arrivalSec ?? parsed)
+  const dwell =
+    props.arrivalSec != null && props.departureSec != null
+      ? props.departureSec - props.arrivalSec
+      : 0
   emit('commit', { arrivalSec: parsed, departureSec: parsed + dwell })
   editing.value = false
 }
@@ -72,7 +75,7 @@ function commit() {
     <template v-else-if="arrivalSec != null || departureSec != null">
       <span class="grid-cell-arr">{{ secToClock(arrivalSec) }}</span>
       <span
-        v-if="arrivalSec !== departureSec"
+        v-if="departureSec != null && arrivalSec !== departureSec"
         class="grid-cell-dep"
       >{{ secToClock(departureSec) }}</span>
     </template>

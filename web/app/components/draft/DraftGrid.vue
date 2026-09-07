@@ -78,7 +78,7 @@ defineExpose({ refetch })
       <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" />
       <span class="text-sm">Loading timetable…</span>
     </div>
-    <div v-else-if="error" class="grid-state text-error">
+    <div v-else-if="error && !trips.length" class="grid-state text-error">
       <UIcon name="i-lucide-triangle-alert" class="size-5" />
       <span class="text-sm">Failed to load timetable: {{ error.message }}</span>
     </div>

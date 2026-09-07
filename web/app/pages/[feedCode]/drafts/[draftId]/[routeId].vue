@@ -477,7 +477,7 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
         </UAlert>
 
         <div class="flex min-h-0 flex-1" :class="{ 'pointer-events-none opacity-50': readOnly }">
-          <div class="min-w-0 flex-1 overflow-auto">
+          <div class="min-w-0 flex-1 overflow-hidden">
             <DraftGrid
               ref="gridRef"
               v-model:selected-trip-id="selectedTripId"
