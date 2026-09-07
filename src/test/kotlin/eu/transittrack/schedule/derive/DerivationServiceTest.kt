@@ -2,9 +2,11 @@ package eu.transittrack.schedule.derive
 
 import kotlin.test.Test
 
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
+import assertk.assertions.messageContains
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -14,9 +16,12 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Application
 import eu.transittrack.TestcontainersConfiguration
+import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.gtfs.support.derivationService
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 
@@ -31,6 +36,8 @@ import eu.transittrack.schedule.model.TripPatternRepository
 class DerivationServiceTest(
     @Autowired val derivation: DerivationService,
     @Autowired val scheduleWriter: ScheduleWriter,
+    @Autowired val context: DerivationContext,
+    @Autowired val revisionService: RevisionService,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val revisions: GtfsRevisionRepository,
@@ -42,6 +49,7 @@ class DerivationServiceTest(
     @AfterEach
     fun clean() {
         revToClean?.let {
+            runCatching { context.close(it) }
             runCatching { scheduleWriter.deleteForRevision(it) }
             runCatching { writer.deleteAllForRevision(it) }
             runCatching { revisions.deleteById(it) }
@@ -61,5 +69,28 @@ class DerivationServiceTest(
         assertThat(patterns.findByRevisionId(rev).size).isEqualTo(patternsAfterIngest)
         assertThat(scheduleTimes.findByRevisionId(rev).size).isEqualTo(timesAfterIngest)
         assertThat(revisions.findById(rev).get().derivationStale).isEqualTo(false)
+    }
+
+    /**
+     * A processor that fails after opening the [DerivationContext] (as `TripPatternProcessor` does)
+     * must not leave the context open: the `finally` block in `rederive` owns the close, so a second
+     * `rederive` fails with the processor's own error, never "context already open for revision".
+     */
+    @Test
+    fun `a failed rederive releases the derivation context`() {
+        val (_, rev) = ingestFactory.ingest("schedule-sample")
+        revToClean = rev
+
+        val opensThenThrows =
+            object : IngestionPostProcessor {
+                override fun postProcess(revisionId: Long): Any {
+                    context.open(revisionId)
+                    throw IllegalStateException("boom")
+                }
+            }
+        val svc = derivationService(revisionService, revisions, opensThenThrows, context = context)
+
+        assertFailure { svc.rederive(rev) }.messageContains("boom")
+        assertFailure { svc.rederive(rev) }.messageContains("boom")
     }
 }
