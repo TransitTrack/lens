@@ -14,6 +14,9 @@ private fun fmtClock(s: Int?): String = s?.let { "%d:%02d:%02d".format(it / 3600
  * a non-null arg means "set to that value". The forward/inverse JSON always carries both
  * `arr` and `dep` as either a number or JSON null, so the replay builder is a pure function
  * of the direction JSON.
+ *
+ * NOTE for the GraphQL layer (Task 6): a `null` arg means "set the column to NULL", NOT "leave
+ * unchanged" — this op has no partial-update semantics.
  */
 class UpdateStopTimeOp(
     private val tripId: String,
