@@ -6,12 +6,14 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
 import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.model.StopTimeRepository
@@ -32,6 +34,7 @@ class GtfsRevisionValidatorTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
+    @Autowired val json: JsonMapper,
 ) {
     private var rev: Long? = null
 
@@ -49,7 +52,11 @@ class GtfsRevisionValidatorTest(
         rev = r
         val result = validator.validate(r)
         assertThat(result.errorCount).isEqualTo(0)
-        assertThat(revisions.findById(r).get().lastValidation).isNotNull()
+        val persisted = revisions.findById(r).get().lastValidation
+        assertThat(persisted).isNotNull()
+        val node = json.readTree(persisted!!)
+        assertThat(node.path("errorCount").isNumber).isTrue()
+        assertThat(node.path("errorCount").asInt(-1)).isEqualTo(0)
     }
 
     @Test
@@ -64,5 +71,8 @@ class GtfsRevisionValidatorTest(
         stopTimes.save(last)
         val result = validator.validate(r)
         assertThat(result.errorCount).isGreaterThan(0)
+        val node = json.readTree(revisions.findById(r).get().lastValidation!!)
+        assertThat(node.path("errorCount").isNumber).isTrue()
+        assertThat(node.path("errorCount").asInt(-1)).isGreaterThan(0)
     }
 }

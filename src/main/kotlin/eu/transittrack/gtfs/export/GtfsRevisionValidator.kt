@@ -4,6 +4,7 @@ import java.nio.file.Files
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
@@ -33,6 +34,7 @@ class GtfsRevisionValidator(
     private val serializer: GtfsSerializer,
     private val feedLoader: GtfsFeedLoader,
     private val revisions: GtfsRevisionRepository,
+    private val json: JsonMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -41,8 +43,17 @@ class GtfsRevisionValidator(
         try {
             Files.newOutputStream(zip).use { serializer.serialize(revisionId, it) }
             val report = feedLoader.load(zip)
+            val result =
+                ValidationResult(
+                    errorCount = report.errorCount.toInt(),
+                    warningCount = report.warningCount.toInt(),
+                    notices = report.issues.map { ValidationNotice(it.severity.name, it.rule, it.sample) },
+                )
+            // Persist the NORMALISED summary ({"errorCount":N,"warningCount":M,"notices":[...]}),
+            // not report.toJson() (which is {"issues":[...]} — errorCount is a computed getter that
+            // never serialises, so DraftService.activate's `path("errorCount")` guard would be inert).
             revisions.findById(revisionId).ifPresent {
-                it.lastValidation = report.toJson()
+                it.lastValidation = json.writeValueAsString(result)
                 revisions.save(it)
             }
             log.info(
@@ -51,11 +62,7 @@ class GtfsRevisionValidator(
                 report.errorCount,
                 report.warningCount,
             )
-            return ValidationResult(
-                errorCount = report.errorCount.toInt(),
-                warningCount = report.warningCount.toInt(),
-                notices = report.issues.map { ValidationNotice(it.severity.name, it.rule, it.sample) },
-            )
+            return result
         } finally {
             runCatching { Files.deleteIfExists(zip) }
         }
