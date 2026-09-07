@@ -46,6 +46,7 @@ async function submit() {
   const name = editor.value.trim()
   if (!name) return
   editorName.value = name
+  toast.add({ title: 'Forking draft…', description: 'Copying rows', color: 'info', icon: 'i-lucide-git-fork' })
   try {
     const res = await fork({
       input: {
@@ -55,7 +56,6 @@ async function submit() {
         editor: name,
       },
     })
-    toast.add({ title: 'Forking draft…', description: 'Copying rows', color: 'info', icon: 'i-lucide-git-fork' })
     const id = res?.data?.forkDraft.id
     open.value = false
     if (id) await navigateTo(feedPath('/drafts/' + id))

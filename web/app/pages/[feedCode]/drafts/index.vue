@@ -11,7 +11,7 @@ const toast = useToast()
 
 const newOpen = ref(false)
 
-const { result, loading, refetch } = useDraftsQuery(
+const { result, loading, error, refetch } = useDraftsQuery(
   () => ({ feedCode: selectedFeedCode.value }),
   () => ({ enabled: !!selectedFeedCode.value }),
 )
@@ -56,6 +56,10 @@ const columns: TableColumn<Draft>[] = [
   { id: 'created', header: 'Created' },
   { id: 'actions', header: '' },
 ]
+
+function onSelect(_e: Event, row: { original: Draft }) {
+  navigateTo(feedPath('/drafts/' + row.original.id))
+}
 
 function openDraft(row: Draft) {
   navigateTo(feedPath('/drafts/' + row.id))
@@ -128,6 +132,15 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
         <USkeleton class="h-40 w-full" />
       </div>
 
+      <UAlert
+        v-else-if="error"
+        color="error"
+        variant="soft"
+        icon="i-lucide-alert-triangle"
+        title="Drafts unavailable"
+        :description="error.message"
+      />
+
       <div
         v-else-if="!drafts.length"
         class="flex flex-col items-center gap-3 py-16 text-center"
@@ -137,7 +150,7 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
         <UButton icon="i-lucide-plus" label="New draft" @click="newOpen = true" />
       </div>
 
-      <UTable v-else :data="drafts" :columns="columns" @select="openDraft">
+      <UTable v-else :data="drafts" :columns="columns" @select="onSelect">
         <template #label-cell="{ row }">{{ row.original.label ?? '(untitled)' }}</template>
         <template #baseRevisionId-cell="{ row }">{{ row.original.baseRevisionId ?? '—' }}</template>
         <template #version-cell="{ row }">v{{ row.original.version }}</template>

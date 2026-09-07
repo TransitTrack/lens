@@ -25,7 +25,7 @@ const links = computed<NavigationMenuItem[][]>(() => [
     {label: 'Overview', icon: 'i-lucide-layout-dashboard', to: feedPath(), exact: true, onSelect: close},
     {label: 'Vehicles', icon: 'i-lucide-bus', to: feedPath('/vehicles'), onSelect: close},
     {label: 'Headway', icon: 'i-lucide-clock', to: feedPath('/headway'), onSelect: close},
-      {label: 'Drafts', icon: 'i-lucide-file-pen-line', to: feedPath('/drafts'), onSelect: close},
+    {label: 'Drafts', icon: 'i-lucide-file-pen-line', to: feedPath('/drafts'), onSelect: close},
     {
       label: 'Explore',
       icon: 'i-lucide-compass',
