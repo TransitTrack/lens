@@ -40,7 +40,6 @@ class DraftGridController(
                 .findByRouteId(revisionId, routeId)
                 .filter { directionId == null || it.directionId == directionId }
                 .filter { serviceId == null || it.serviceId == serviceId }
-                .sortedBy { it.tripId }
 
         val stopTimesByTrip: Map<String, List<StopTime>> =
             matchedTrips.associate { it.tripId to stopTimes.findByTripId(revisionId, it.tripId) }
@@ -66,6 +65,12 @@ class DraftGridController(
                 )
             }
 
+        // Grid columns read left-to-right chronologically.
+        val orderedTrips = tripDtos.sortedWith(compareBy(nullsLast()) { it.firstDepartureSec })
+
+        // Stop rows key on stopSequence alone, assuming one dominant stop pattern per
+        // (route, direction, service); divergent-pattern stops at the same sequence collapse
+        // to the first seen.
         val allStopTimes = stopTimesByTrip.values.flatten()
         val stopNameCache = mutableMapOf<String, String?>()
         val stopDtos =
@@ -85,6 +90,6 @@ class DraftGridController(
                     )
                 }
 
-        return DraftGridDto(stops = stopDtos, trips = tripDtos)
+        return DraftGridDto(stops = stopDtos, trips = orderedTrips)
     }
 }

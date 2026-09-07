@@ -76,6 +76,9 @@ class DraftGridControllerTest(
         assertThat(grid.trips.size.toLong()).isEqualTo(expectedTripCount)
         assertThat(grid.stops.size).isGreaterThan(0)
         assertThat(grid.stops).isEqualTo(grid.stops.sortedBy { it.stopSequence })
+        assertThat(grid.trips).isEqualTo(
+            grid.trips.sortedWith(compareBy(nullsLast()) { it.firstDepartureSec }),
+        )
 
         val knownTripId = grid.trips.first().tripId
         val expectedCells =
