@@ -18,8 +18,6 @@ private fun JsonNode.strOrNull(field: String): String? = get(field)?.takeUnless 
 
 private fun JsonNode.intOrNull(field: String): Int? = get(field)?.takeUnless { it.isNull }?.asInt()
 
-private fun JsonNode.dblOrNull(field: String): Double? = get(field)?.takeUnless { it.isNull }?.asDouble()
-
 private fun ObjectNode.putStr(
     field: String,
     v: String?,
@@ -28,11 +26,6 @@ private fun ObjectNode.putStr(
 private fun ObjectNode.putIntN(
     field: String,
     v: Int?,
-): ObjectNode = if (v == null) putNull(field) else put(field, v)
-
-private fun ObjectNode.putDblN(
-    field: String,
-    v: Double?,
 ): ObjectNode = if (v == null) putNull(field) else put(field, v)
 
 /**
@@ -62,27 +55,7 @@ internal object TripLifecycle {
     fun stopTimeNode(
         json: JsonMapper,
         s: StopTime,
-    ): ObjectNode =
-        json
-            .createObjectNode()
-            .put("tripId", s.tripId)
-            .put("stopSequence", s.stopSequence)
-            .putStr("stopId", s.stopId)
-            .putIntN("arrivalTime", s.arrivalTime)
-            .putIntN("departureTime", s.departureTime)
-            .putStr("locationGroupId", s.locationGroupId)
-            .putStr("locationId", s.locationId)
-            .putStr("stopHeadsign", s.stopHeadsign)
-            .putIntN("startPickupDropOffWindow", s.startPickupDropOffWindow)
-            .putIntN("endPickupDropOffWindow", s.endPickupDropOffWindow)
-            .putIntN("pickupType", s.pickupType)
-            .putIntN("dropOffType", s.dropOffType)
-            .putIntN("continuousPickup", s.continuousPickup)
-            .putIntN("continuousDropOff", s.continuousDropOff)
-            .putDblN("shapeDistTraveled", s.shapeDistTraveled)
-            .putIntN("timepoint", s.timepoint)
-            .putStr("pickupBookingRuleId", s.pickupBookingRuleId)
-            .putStr("dropOffBookingRuleId", s.dropOffBookingRuleId)
+    ): ObjectNode = StopTimeSnapshot.toNode(json, s)
 
     fun snapshot(
         json: JsonMapper,
@@ -118,31 +91,7 @@ internal object TripLifecycle {
                 bikesAllowed = tripJson.intOrNull("bikesAllowed"),
             )
         ctx.trips.save(t)
-        stopTimesJson.forEach { s ->
-            ctx.stopTimes.save(
-                StopTime(
-                    ctx.revisionId,
-                    tripId = t.tripId,
-                    stopSequence = s.get("stopSequence").asInt(),
-                    stopId = s.strOrNull("stopId"),
-                    arrivalTime = s.intOrNull("arrivalTime"),
-                    departureTime = s.intOrNull("departureTime"),
-                    locationGroupId = s.strOrNull("locationGroupId"),
-                    locationId = s.strOrNull("locationId"),
-                    stopHeadsign = s.strOrNull("stopHeadsign"),
-                    startPickupDropOffWindow = s.intOrNull("startPickupDropOffWindow"),
-                    endPickupDropOffWindow = s.intOrNull("endPickupDropOffWindow"),
-                    pickupType = s.intOrNull("pickupType"),
-                    dropOffType = s.intOrNull("dropOffType"),
-                    continuousPickup = s.intOrNull("continuousPickup"),
-                    continuousDropOff = s.intOrNull("continuousDropOff"),
-                    shapeDistTraveled = s.dblOrNull("shapeDistTraveled"),
-                    timepoint = s.intOrNull("timepoint"),
-                    pickupBookingRuleId = s.strOrNull("pickupBookingRuleId"),
-                    dropOffBookingRuleId = s.strOrNull("dropOffBookingRuleId"),
-                ),
-            )
-        }
+        stopTimesJson.forEach { s -> ctx.stopTimes.save(StopTimeSnapshot.fromNode(ctx, s)) }
     }
 
     fun deleteTrip(

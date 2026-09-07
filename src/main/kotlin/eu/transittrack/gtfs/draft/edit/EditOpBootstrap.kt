@@ -23,5 +23,8 @@ class EditOpBootstrap {
         DuplicateTripOp
         DeleteTripOp
         BulkShiftTripsOp
+        InsertTripStopOp
+        RemoveTripStopOp
+        ReorderTripStopsOp
     }
 }
