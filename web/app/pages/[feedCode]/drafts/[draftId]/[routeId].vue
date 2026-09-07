@@ -9,6 +9,7 @@ import {
   useUndoDraftEditMutation,
   useRedoDraftEditMutation,
   useUpdateStopTimeMutation,
+  useDraftEditsQuery,
 } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
 import { useDraftEditor } from '~/composables/useDraftEditor'
@@ -273,10 +274,57 @@ async function onRedo() {
 }
 
 // --- grid model + cell commit -------------------------------------
+type GridCellVal = { arrivalSec: number | null; departureSec: number | null }
+type DraftGridTrip = {
+  tripId: string
+  firstDepartureSec: number | null
+  headsign: string | null
+  blockId: string | null
+  directionId: number | null
+  serviceId: string | null
+  cells: Array<{ stopSequence: number; arrivalSec: number | null; departureSec: number | null }>
+}
 const selectedTripId = ref<string | null>(null)
 const activeCell = ref<{ tripId: string; stopSequence: number } | null>(null)
-const gridRef = ref<{ refetch: () => Promise<unknown> } | null>(null)
+const gridRef = ref<{
+  refetch: () => Promise<unknown>
+  trips: DraftGridTrip[]
+  cellAt: (tripId: string, stopSequence: number) => GridCellVal
+} | null>(null)
 const { mutate: updateStopTime } = useUpdateStopTimeMutation()
+
+const selectedTrip = computed<DraftGridTrip | null>(
+  () => gridRef.value?.trips?.find((t) => t.tripId === selectedTripId.value) ?? null,
+)
+const activeCellValue = computed<GridCellVal | null>(() => {
+  const c = activeCell.value
+  if (!c || !gridRef.value) return null
+  return gridRef.value.cellAt(c.tripId, c.stopSequence)
+})
+
+// --- rail: undone (redo tail) + error counts --------------------
+const { result: editsResult } = useDraftEditsQuery(
+  () => ({ id: draftId.value, limit: 200 }),
+  () => ({ enabled: !!draftId.value }),
+)
+const undoneCount = computed(
+  () => (editsResult.value?.draftEdits ?? []).filter((e) => e.undone).length,
+)
+const errorCount = computed(() => lastValidation.value?.errorCount ?? 0)
+
+async function onRailChanged() {
+  await gridRef.value?.refetch()
+  await editor.refetchDraft()
+}
+function onRailGoto(payload: { tripId: string; stopSequence: number }) {
+  navigateTo({
+    path: route.path,
+    query: { ...route.query, trip: payload.tripId, stop: String(payload.stopSequence) },
+  })
+}
+function onRailDeleted() {
+  selectedTripId.value = null
+}
 
 async function onCommitCell(payload: {
   tripId: string
@@ -493,11 +541,19 @@ const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
           </div>
           <DraftRail
             :draft-id="draftId"
-            :route-id="routeId"
-            :direction-id="directionId"
-            :service-id="serviceId"
-            :selected-trip-id="selectedTripId"
+            :selected-trip="selectedTrip"
+            :active-cell="activeCell"
+            :active-cell-value="activeCellValue"
             :read-only="readOnly"
+            :derivation-stale="draft?.derivationStale ?? false"
+            :feed-code="selectedFeedCode ?? ''"
+            :last-validation="draft?.lastValidation"
+            :undone-count="undoneCount"
+            :error-count="errorCount"
+            :editor="editor"
+            @changed="onRailChanged"
+            @goto="onRailGoto"
+            @deleted="onRailDeleted"
           />
         </div>
       </template>

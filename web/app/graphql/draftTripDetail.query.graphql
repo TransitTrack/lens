@@ -1,0 +1,8 @@
+query DraftTripDetail($feedCode: String!, $tripId: String!, $revisionId: ID!) {
+  trip(feedCode: $feedCode, tripId: $tripId, revisionId: $revisionId) {
+    tripId tripHeadsign routeId directionId serviceId blockId shapeId
+    startTimeSec endTimeSec frequencyBased noSchedule
+    pattern { patternKey stopCount lengthM }
+    block { blockId serviceId }
+  }
+}

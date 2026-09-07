@@ -1311,6 +1311,15 @@ export type ReleaseDraftEditorMutationVariables = Exact<{
 
 export type ReleaseDraftEditorMutation = { releaseDraftEditor: boolean };
 
+export type DraftTripDetailQueryVariables = Exact<{
+  feedCode: string;
+  tripId: string;
+  revisionId: string | number;
+}>;
+
+
+export type DraftTripDetailQuery = { trip: { tripId: string, tripHeadsign: string | null, routeId: string, directionId: number | null, serviceId: string, blockId: string | null, shapeId: string | null, startTimeSec: number | null, endTimeSec: number | null, frequencyBased: boolean | null, noSchedule: boolean | null, pattern: { patternKey: string, stopCount: number, lengthM: number | null } | null, block: { blockId: string, serviceId: string } | null } | null };
+
 export type DraftsQueryVariables = Exact<{
   feedCode?: string | null | undefined;
 }>;
@@ -2412,6 +2421,57 @@ export function useReleaseDraftEditorMutation(options: VueApolloComposable.UseMu
   return VueApolloComposable.useMutation<ReleaseDraftEditorMutation, ReleaseDraftEditorMutationVariables>(ReleaseDraftEditorDocument, options);
 }
 export type ReleaseDraftEditorMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<ReleaseDraftEditorMutation, ReleaseDraftEditorMutationVariables>;
+export const DraftTripDetailDocument = gql`
+    query DraftTripDetail($feedCode: String!, $tripId: String!, $revisionId: ID!) {
+  trip(feedCode: $feedCode, tripId: $tripId, revisionId: $revisionId) {
+    tripId
+    tripHeadsign
+    routeId
+    directionId
+    serviceId
+    blockId
+    shapeId
+    startTimeSec
+    endTimeSec
+    frequencyBased
+    noSchedule
+    pattern {
+      patternKey
+      stopCount
+      lengthM
+    }
+    block {
+      blockId
+      serviceId
+    }
+  }
+}
+    `;
+
+/**
+ * __useDraftTripDetailQuery__
+ *
+ * To run a query within a Vue component, call `useDraftTripDetailQuery` and pass it any options that fit your needs.
+ * When your component renders, `useDraftTripDetailQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useDraftTripDetailQuery({
+ *   feedCode: // value for 'feedCode'
+ *   tripId: // value for 'tripId'
+ *   revisionId: // value for 'revisionId'
+ * });
+ */
+export function useDraftTripDetailQuery(variables: DraftTripDetailQueryVariables | VueCompositionApi.Ref<DraftTripDetailQueryVariables> | ReactiveFunction<DraftTripDetailQueryVariables>, options: VueApolloComposable.UseQueryOptions<DraftTripDetailQuery, DraftTripDetailQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<DraftTripDetailQuery, DraftTripDetailQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<DraftTripDetailQuery, DraftTripDetailQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<DraftTripDetailQuery, DraftTripDetailQueryVariables>(DraftTripDetailDocument, variables, options);
+}
+export function useDraftTripDetailLazyQuery(variables?: DraftTripDetailQueryVariables | VueCompositionApi.Ref<DraftTripDetailQueryVariables> | ReactiveFunction<DraftTripDetailQueryVariables>, options: VueApolloComposable.UseQueryOptions<DraftTripDetailQuery, DraftTripDetailQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<DraftTripDetailQuery, DraftTripDetailQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<DraftTripDetailQuery, DraftTripDetailQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<DraftTripDetailQuery, DraftTripDetailQueryVariables>(DraftTripDetailDocument, variables, options);
+}
+export type DraftTripDetailQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<DraftTripDetailQuery, DraftTripDetailQueryVariables>;
 export const DraftsDocument = gql`
     query Drafts($feedCode: String) {
   drafts(feedCode: $feedCode) {

@@ -69,7 +69,11 @@ function tripLabel(tripId: string): string {
   return tripId.split('_').pop() ?? tripId
 }
 
-defineExpose({ refetch })
+defineExpose({
+  refetch,
+  trips,
+  cellAt: (tripId: string, stopSequence: number): CellVal => cellFor(tripId, stopSequence),
+})
 </script>
 
 <template>
