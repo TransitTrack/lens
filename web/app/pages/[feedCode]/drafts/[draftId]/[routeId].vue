@@ -1,0 +1,542 @@
+<script setup lang="ts">
+import {
+  useRoutesQuery,
+  useExploreCalendarQuery,
+  useRebuildDraftMutation,
+  useDraftJobQuery,
+  useActivateDraftMutation,
+  useDiscardDraftMutation,
+  useUndoDraftEditMutation,
+  useRedoDraftEditMutation,
+  useUpdateStopTimeMutation,
+} from '~~/generated/graphql'
+import { useFeeds } from '~/composables/useFeeds'
+import { useDraftEditor } from '~/composables/useDraftEditor'
+import NavbarActions from '~/components/NavbarActions.vue'
+import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
+import DraftGrid from '~/components/draft/DraftGrid.vue'
+import DraftRail from '~/components/draft/DraftRail.vue'
+
+const route = useRoute()
+const toast = useToast()
+const { selectedFeedCode, feedPath } = useFeeds()
+
+const draftId = computed(() => String(route.params.draftId))
+const routeId = computed(() => String(route.params.routeId))
+const directionId = computed<number | null>(() => {
+  const d = route.query.dir
+  if (d === '0') return 0
+  if (d === '1') return 1
+  return null
+})
+const serviceId = computed<string | null>(() => {
+  const s = route.query.service
+  return typeof s === 'string' && s ? s : null
+})
+
+const editor = useDraftEditor(draftId)
+const { draft, readOnly, lockBanner, canUndo, canRedo } = editor
+
+// --- validation parsing --------------------------------------------------
+interface ValidationSummary {
+  errorCount?: number
+  warningCount?: number
+}
+function parseValidation(raw: unknown): ValidationSummary | null {
+  if (raw == null) return null
+  let value: unknown = raw
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return null
+    }
+  }
+  if (typeof value !== 'object' || value === null) return null
+  return value as ValidationSummary
+}
+const lastValidation = computed(() => parseValidation(draft.value?.lastValidation))
+
+// --- route / service pickers -------------------------------------------
+const { result: routesResult } = useRoutesQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
+)
+const routeItems = computed(() =>
+  [...(routesResult.value?.routes ?? [])]
+    .sort((a, b) =>
+      (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
+        numeric: true,
+      }),
+    )
+    .map((r) => ({
+      label: `${r.routeShortName ?? r.routeId}${r.routeLongName ? ' — ' + r.routeLongName : ''}`,
+      value: r.routeId,
+    })),
+)
+
+const { result: calendarResult } = useExploreCalendarQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
+)
+const serviceItems = computed(() => {
+  const ids = new Set<string>()
+  for (const c of calendarResult.value?.calendars ?? []) ids.add(c.serviceId)
+  for (const d of calendarResult.value?.calendarDates ?? []) ids.add(d.serviceId)
+  return [...ids]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((id) => ({ label: id, value: id }))
+})
+const directionItems = [
+  { label: 'All directions', value: '' },
+  { label: 'Direction 0', value: '0' },
+  { label: 'Direction 1', value: '1' },
+]
+
+function queryString(dir?: string, service?: string | null): string {
+  const d = dir ?? (route.query.dir as string | undefined) ?? '0'
+  const s = service ?? serviceId.value
+  return `?dir=${encodeURIComponent(d)}` + (s ? `&service=${encodeURIComponent(s)}` : '')
+}
+
+const routeSel = ref(routeId.value)
+watch(routeId, (v) => {
+  routeSel.value = v
+})
+watch(routeSel, (v) => {
+  if (v && v !== routeId.value) {
+    navigateTo(feedPath('/drafts/' + draftId.value + '/' + encodeURIComponent(v)) + queryString())
+  }
+})
+
+function setDirection(v: string) {
+  navigateTo({ path: route.path, query: { ...route.query, dir: v || '' } }, { replace: true })
+}
+function setService(v: string) {
+  navigateTo({ path: route.path, query: { ...route.query, service: v || undefined } }, { replace: true })
+}
+
+// --- rebuild & validate -----------------------------------------------
+const { mutate: rebuildDraft } = useRebuildDraftMutation()
+const rebuilding = ref(false)
+const rebuildPhase = ref<string | null>(null)
+const jobId = ref<string | null>(null)
+
+const { result: jobResult } = useDraftJobQuery(
+  () => ({ jobId: jobId.value ?? '' }),
+  () => ({ enabled: !!jobId.value && rebuilding.value, pollInterval: 1000 }),
+)
+
+async function finishRebuild() {
+  rebuilding.value = false
+  jobId.value = null
+  rebuildPhase.value = null
+  await editor.refetchDraft()
+  const v = lastValidation.value
+  toast.add({
+    title: 'Rebuild complete',
+    description: v ? `${v.errorCount ?? 0} errors · ${v.warningCount ?? 0} warnings` : undefined,
+    color: (v?.errorCount ?? 0) > 0 ? 'error' : 'success',
+    icon: 'i-lucide-hammer',
+  })
+}
+
+watch(
+  () => jobResult.value?.draftJob,
+  (job) => {
+    if (!rebuilding.value || !job) return
+    rebuildPhase.value = job.phase
+    if (job.state !== 'RUNNING') {
+      if (job.error) {
+        toast.add({ title: 'Rebuild failed', description: job.error, color: 'error' })
+        rebuilding.value = false
+        jobId.value = null
+        rebuildPhase.value = null
+        void editor.refetchDraft()
+      } else {
+        void finishRebuild()
+      }
+    }
+  },
+)
+
+async function onRebuild() {
+  if (rebuilding.value) return
+  rebuilding.value = true
+  try {
+    const res = await rebuildDraft({ id: draftId.value })
+    const job = res?.data?.rebuildDraft
+    if (!job) {
+      rebuilding.value = false
+      return
+    }
+    rebuildPhase.value = job.phase
+    if (job.state !== 'RUNNING') {
+      if (job.error) {
+        toast.add({ title: 'Rebuild failed', description: job.error, color: 'error' })
+        rebuilding.value = false
+        rebuildPhase.value = null
+      } else {
+        await finishRebuild()
+      }
+      return
+    }
+    jobId.value = job.id
+  } catch (e) {
+    toast.add({ title: 'Rebuild failed', description: (e as Error).message, color: 'error' })
+    rebuilding.value = false
+    rebuildPhase.value = null
+  }
+}
+
+onBeforeUnmount(() => {
+  rebuilding.value = false
+  jobId.value = null
+})
+
+// --- export ----------------------------------------------------------
+function onExport() {
+  window.open('/api/revisions/' + draftId.value + '/gtfs.zip')
+}
+
+// --- activate --------------------------------------------------------
+const { mutate: activateDraft, loading: activating } = useActivateDraftMutation()
+const activateOpen = ref(false)
+const force = ref(false)
+const canActivate = computed(
+  () =>
+    (!draft.value?.derivationStale && (lastValidation.value?.errorCount ?? 1) === 0) || force.value,
+)
+async function confirmActivate() {
+  try {
+    await activateDraft({ id: draftId.value, force: force.value })
+    toast.add({ title: 'Draft activated', color: 'success', icon: 'i-lucide-check' })
+    activateOpen.value = false
+    navigateTo(feedPath('/explore'))
+  } catch (e) {
+    toast.add({ title: 'Activation failed', description: (e as Error).message, color: 'error' })
+  }
+}
+
+// --- discard --------------------------------------------------------
+const { mutate: discardDraft, loading: discarding } = useDiscardDraftMutation()
+const discardOpen = ref(false)
+async function confirmDiscard() {
+  try {
+    await discardDraft({ id: draftId.value })
+    toast.add({ title: 'Draft discarded', color: 'success', icon: 'i-lucide-trash-2' })
+    discardOpen.value = false
+    navigateTo(feedPath('/drafts'))
+  } catch (e) {
+    toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+  }
+}
+
+// --- undo / redo ----------------------------------------------------
+const { mutate: undoDraftEdit } = useUndoDraftEditMutation()
+const { mutate: redoDraftEdit } = useRedoDraftEditMutation()
+
+async function onUndo() {
+  const data = await editor.mutate(async (vars) => {
+    const res = await undoDraftEdit({
+      id: vars.draftId,
+      editor: vars.editor,
+      expectedVersion: vars.expectedVersion,
+    })
+    return res?.data
+  })
+  if (data?.undoDraftEdit) {
+    editor.applyResult(data.undoDraftEdit)
+    await editor.refetchEdits()
+    // TODO(task 6): refetch the grid
+  }
+}
+async function onRedo() {
+  const data = await editor.mutate(async (vars) => {
+    const res = await redoDraftEdit({
+      id: vars.draftId,
+      editor: vars.editor,
+      expectedVersion: vars.expectedVersion,
+    })
+    return res?.data
+  })
+  if (data?.redoDraftEdit) {
+    editor.applyResult(data.redoDraftEdit)
+    await editor.refetchEdits()
+    // TODO(task 6): refetch the grid
+  }
+}
+
+// --- grid model + cell commit -------------------------------------
+const selectedTripId = ref<string | null>(null)
+const activeCell = ref<{ tripId: string; stopSequence: number } | null>(null)
+const { mutate: updateStopTime } = useUpdateStopTimeMutation()
+
+async function onCommitCell(payload: {
+  tripId: string
+  stopSequence: number
+  arrivalSec: number | null
+  departureSec: number | null
+}) {
+  const data = await editor.mutate(async (vars) => {
+    const res = await updateStopTime({
+      input: {
+        draftId: vars.draftId,
+        editor: vars.editor,
+        expectedVersion: vars.expectedVersion,
+        tripId: payload.tripId,
+        stopSequence: payload.stopSequence,
+        arrivalSec: payload.arrivalSec,
+        departureSec: payload.departureSec,
+      },
+    })
+    return res?.data
+  })
+  if (data?.updateStopTime) {
+    editor.applyResult(data.updateStopTime)
+    await editor.refetchEdits()
+    // TODO(task 6): refetch the grid
+  }
+}
+
+// --- dialogs wired in later tasks --------------------------------
+const addTripOpen = ref(false) // AddTripDialog — task 8
+const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
+</script>
+
+<template>
+  <UDashboardPanel id="draft-editor" :ui="{ body: 'p-0 sm:p-0 gap-0' }">
+    <template #header>
+      <UDashboardNavbar :title="draft?.label ?? 'Draft'" :ui="{ right: 'gap-2' }">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+
+        <template #title>
+          <span class="flex items-center gap-2">
+            <span>{{ draft?.label ?? 'Draft' }}</span>
+            <UBadge v-if="draft" color="neutral" variant="subtle" size="sm">
+              v{{ draft.version }}
+            </UBadge>
+            <UBadge v-if="draft?.derivationStale" color="warning" variant="subtle" size="sm">
+              derivation stale
+            </UBadge>
+            <UBadge v-if="draft?.lock?.editor" color="neutral" variant="soft" size="sm">
+              🔒 {{ draft.lock.editor }}
+            </UBadge>
+          </span>
+        </template>
+
+        <template #right>
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-hammer"
+            :loading="rebuilding"
+            :disabled="rebuilding || !draft"
+            :label="rebuilding ? (rebuildPhase ?? 'Rebuilding…') : 'Rebuild & validate'"
+            @click="onRebuild"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-download"
+            label="Export"
+            :disabled="!draft"
+            @click="onExport"
+          />
+          <UButton
+            size="sm"
+            color="primary"
+            variant="soft"
+            icon="i-lucide-rocket"
+            label="Activate"
+            :disabled="!draft"
+            @click="activateOpen = true"
+          />
+          <UButton
+            size="sm"
+            color="error"
+            variant="ghost"
+            icon="i-lucide-trash-2"
+            label="Discard"
+            :disabled="!draft"
+            @click="discardOpen = true"
+          />
+          <NavbarActions />
+        </template>
+      </UDashboardNavbar>
+
+      <UDashboardToolbar>
+        <template #left>
+          <USelectMenu
+            v-model="routeSel"
+            :items="routeItems"
+            value-key="value"
+            placeholder="Route"
+            icon="i-lucide-route"
+            class="w-64"
+          />
+          <USelectMenu
+            :model-value="(route.query.dir as string) || ''"
+            :items="directionItems"
+            value-key="value"
+            class="w-44"
+            @update:model-value="setDirection"
+          />
+          <USelectMenu
+            :model-value="serviceId ?? ''"
+            :items="serviceItems"
+            value-key="value"
+            placeholder="Service"
+            icon="i-lucide-calendar"
+            class="w-48"
+            @update:model-value="setService"
+          />
+        </template>
+
+        <template #right>
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-undo-2"
+            label="Undo"
+            :disabled="!canUndo || readOnly"
+            @click="onUndo"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-redo-2"
+            label="Redo"
+            :disabled="!canRedo || readOnly"
+            @click="onRedo"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-plus"
+            label="Add trip"
+            :disabled="readOnly"
+            @click="addTripOpen = true"
+          />
+          <UButton
+            size="sm"
+            color="neutral"
+            variant="soft"
+            icon="i-lucide-move-horizontal"
+            label="Bulk shift…"
+            :disabled="readOnly"
+            @click="bulkShiftOpen = true"
+          />
+        </template>
+      </UDashboardToolbar>
+    </template>
+
+    <template #body>
+      <EditorIdentityDialog />
+
+      <div
+        v-if="!draft"
+        class="flex items-center gap-3 py-16 justify-center text-muted"
+      >
+        <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" />
+        <span class="text-sm">Loading editor…</span>
+      </div>
+
+      <template v-else>
+        <UAlert
+          v-if="readOnly"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-lock"
+          class="m-4"
+          :title="`Locked by ${lockBanner?.editor ?? 'another editor'}`"
+          :description="lockBanner ? `Lease expires ${lockBanner.expiresAt}` : undefined"
+        >
+          <template #actions>
+            <UButton
+              size="xs"
+              color="warning"
+              variant="solid"
+              label="Take over"
+              @click="editor.takeOver()"
+            />
+          </template>
+        </UAlert>
+
+        <div class="flex min-h-0 flex-1" :class="{ 'pointer-events-none opacity-50': readOnly }">
+          <div class="min-w-0 flex-1 overflow-auto">
+            <DraftGrid
+              v-model:selected-trip-id="selectedTripId"
+              v-model:active-cell="activeCell"
+              :draft-id="draftId"
+              :route-id="routeId"
+              :direction-id="directionId"
+              :service-id="serviceId"
+              :read-only="readOnly"
+              @commit-cell="onCommitCell"
+              @add-trip="addTripOpen = true"
+            />
+          </div>
+          <DraftRail
+            :draft-id="draftId"
+            :route-id="routeId"
+            :direction-id="directionId"
+            :service-id="serviceId"
+            :selected-trip-id="selectedTripId"
+            :read-only="readOnly"
+          />
+        </div>
+      </template>
+
+      <UModal v-model:open="activateOpen" title="Activate draft?">
+        <template #body>
+          <div class="flex flex-col gap-4 text-sm text-muted">
+            <p>
+              Activating publishes this draft as the feed's active revision.
+            </p>
+            <div v-if="draft?.derivationStale" class="text-warning">
+              Derivation is stale — rebuild before activating, or force.
+            </div>
+            <div v-if="(lastValidation?.errorCount ?? 0) > 0" class="text-error">
+              {{ lastValidation?.errorCount }} validation error(s) outstanding.
+            </div>
+            <USwitch v-model="force" label="Force activation" />
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" label="Cancel" @click="activateOpen = false" />
+            <UButton
+              color="primary"
+              :loading="activating"
+              :disabled="!canActivate"
+              label="Activate"
+              @click="confirmActivate"
+            />
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="discardOpen" title="Discard draft?">
+        <template #body>
+          <p class="text-sm text-muted">
+            This permanently discards this draft and its edits. This cannot be undone.
+          </p>
+        </template>
+        <template #footer>
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" label="Cancel" @click="discardOpen = false" />
+            <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard" />
+          </div>
+        </template>
+      </UModal>
+    </template>
+  </UDashboardPanel>
+</template>
