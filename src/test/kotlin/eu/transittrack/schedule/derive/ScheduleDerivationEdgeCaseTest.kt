@@ -147,6 +147,11 @@ class ScheduleDerivationEdgeCaseTest(
                 GtfsFeedLoader(),
                 SyncTaskExecutor(),
                 mock<org.springframework.context.ApplicationEventPublisher>(),
+                eu.transittrack.gtfs.support.derivationService(
+                    revisionService,
+                    revisions,
+                    *(if (deriveDuringPipeline) stages().toTypedArray() else emptyArray()),
+                ),
                 eu.transittrack.gtfs.support.postProcessors(
                     *(if (deriveDuringPipeline) stages().toTypedArray() else emptyArray()),
                 ),
@@ -518,6 +523,8 @@ class ScheduleDerivationEdgeCaseTest(
                 GtfsFeedLoader(),
                 SyncTaskExecutor(),
                 mock<org.springframework.context.ApplicationEventPublisher>(),
+                eu.transittrack.gtfs.support
+                    .derivationService(brittle, revisions, deriving),
                 eu.transittrack.gtfs.support
                     .postProcessors(deriving),
             )

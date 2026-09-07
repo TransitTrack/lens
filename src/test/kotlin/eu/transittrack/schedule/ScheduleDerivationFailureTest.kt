@@ -100,6 +100,11 @@ class ScheduleDerivationFailureTest(
         GtfsFeedLoader(),
         SyncTaskExecutor(),
         mock<org.springframework.context.ApplicationEventPublisher>(),
+        eu.transittrack.gtfs.support.derivationService(
+            revisionService,
+            revisions,
+            *(if (props.enabled) arrayOf(derivation) else emptyArray()),
+        ),
         eu.transittrack.gtfs.support.postProcessors(
             *(if (props.enabled) arrayOf(derivation) else emptyArray()),
         ),

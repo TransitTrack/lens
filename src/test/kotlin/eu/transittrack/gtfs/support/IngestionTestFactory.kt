@@ -15,6 +15,7 @@ import eu.transittrack.gtfs.model.ShapeRepository
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
+import eu.transittrack.schedule.derive.DerivationService
 
 /**
  * Shared full-context test helper: registers a feed for a fixture folder under
@@ -32,6 +33,7 @@ class IngestionTestFactory(
     private val props: GtfsProperties,
     private val shapes: ShapeRepository,
     private val eventPublisher: ApplicationEventPublisher,
+    private val derivationService: DerivationService,
     private val postProcessors: ObjectProvider<IngestionPostProcessor>,
 ) {
     /**
@@ -54,6 +56,7 @@ class IngestionTestFactory(
                 GtfsFeedLoader(),
                 SyncTaskExecutor(),
                 eventPublisher,
+                derivationService,
                 postProcessors,
             )
         val rev = service.ingestBlocking(fixture)

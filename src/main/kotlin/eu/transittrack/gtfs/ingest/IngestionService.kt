@@ -31,6 +31,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.haversineMeters
+import eu.transittrack.schedule.derive.DerivationService
 
 interface IngestionPostProcessor {
     fun postProcess(revisionId: Long): Any
@@ -70,6 +71,7 @@ class IngestionService(
     private val feedLoader: GtfsFeedLoader,
     private val gtfsIngestExecutor: org.springframework.core.task.TaskExecutor,
     private val eventPublisher: ApplicationEventPublisher,
+    private val derivationService: DerivationService,
     postProcessors: ObjectProvider<IngestionPostProcessor>,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -170,14 +172,7 @@ class IngestionService(
                 it.rowCounts = rowCounts
             }
 
-            revisionService.deriveDates(revisionId)
-
-            postProcessors.forEach { postProcessor ->
-                @Suppress("UNCHECKED_CAST")
-                (postProcessor.postProcess(revisionId) as? Map<String, Long>)?.let {
-                    revisionService.mergeRowCounts(revisionId, it)
-                }
-            }
+            derivationService.rederive(revisionId)
 
             log.info("Marking feed ${feed.code} READY")
             revisionService.transition(revisionId, GtfsRevisionStatus.READY)

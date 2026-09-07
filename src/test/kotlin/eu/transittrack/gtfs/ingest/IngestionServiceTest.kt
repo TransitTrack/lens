@@ -102,6 +102,8 @@ class IngestionServiceTest(
             SyncTaskExecutor(),
             org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
             eu.transittrack.gtfs.support
+                .derivationService(revisionService, revisions),
+            eu.transittrack.gtfs.support
                 .postProcessors(),
         )
 
@@ -194,6 +196,8 @@ class IngestionServiceTest(
                 validator,
                 SyncTaskExecutor(),
                 org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
+                eu.transittrack.gtfs.support
+                    .derivationService(revisionService, revisions),
                 eu.transittrack.gtfs.support
                     .postProcessors(),
             )
