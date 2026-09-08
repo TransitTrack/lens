@@ -1,5 +1,5 @@
-import type { Pattern } from '~/composables/useExplorePatterns'
-import type { Bar } from './chart'
+import type {Pattern} from '~/composables/useExplorePatterns'
+import type {Bar} from './chart'
 
 export interface ServingPattern {
   pattern: Pattern
@@ -21,7 +21,7 @@ export function servingPatterns(patterns: Pattern[], stopId: string): ServingPat
       if (s.stopPathIndex === 0) continue
       offsetSec += (s.typicalTravelTimeSec ?? 0) + (s.typicalDwellTimeSec ?? 0)
     }
-    out.push({ pattern, stopPathIndex: sp.stopPathIndex, offsetSec })
+    out.push({pattern, stopPathIndex: sp.stopPathIndex, offsetSec})
   }
   return out
 }
@@ -89,12 +89,5 @@ export function departureHistogram(
     color: '#3b82f6',
     hint: `${h}:00–${h + 1}:00 · ${count} departures`,
   }))
-  return { bars, total, firstSec, lastSec }
-}
-
-export function secToHm(sec: number | null): string {
-  if (sec == null) return '—'
-  const h = Math.floor(sec / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  return `${String(h % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  return {bars, total, firstSec, lastSec}
 }

@@ -24,6 +24,13 @@ export function hexColor(raw: string | null | undefined, fallback = '#64748b'): 
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 
+export function secToHm(sec: number | null): string {
+  if (sec == null) return '—'
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  return `${String(h % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export interface DayFlags {
   monday: boolean | null
   tuesday: boolean | null
@@ -52,7 +59,7 @@ export function gtfsDate(raw: string | null | undefined): string {
   if (!raw) return '—'
   const s = raw.length === 8 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : raw
   const d = new Date(s)
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, { dateStyle: 'medium' })
+  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, {dateStyle: 'medium'})
 }
 
 export type LngLat = [number, number]
@@ -93,7 +100,7 @@ export function patternStopFeatures(stopPaths: StopPathLike[]) {
           type: 'Point' as const,
           coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat,
         },
-        properties: { name: p.stop!.stopName ?? p.stopId, state: 'upcoming' },
+        properties: {name: p.stop!.stopName ?? p.stopId, state: 'upcoming'},
       })),
   }
 }

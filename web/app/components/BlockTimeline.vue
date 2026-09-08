@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { TimelineSegment } from '~/utils/blocks'
-import { secToHm } from '~/utils/blocks'
+import type {TimelineSegment} from '~/utils/blocks'
 
 const props = withDefaults(
   defineProps<{
@@ -9,7 +8,7 @@ const props = withDefaults(
     spanEnd: number
     height?: number
   }>(),
-  { height: 64 },
+  {height: 64},
 )
 
 const VW = 1000
@@ -20,7 +19,7 @@ const hourTicks = computed(() => {
   const last = Math.floor(props.spanEnd / 3600)
   const ticks: { x: number, label: string }[] = []
   for (let h = first; h <= last; h++) {
-    ticks.push({ x: ((h * 3600 - props.spanStart) / span) * VW, label: `${h % 24}` })
+    ticks.push({x: ((h * 3600 - props.spanStart) / span) * VW, label: `${h % 24}`})
   }
   return ticks
 })
@@ -88,12 +87,13 @@ const hourTicks = computed(() => {
         font-size="9"
         text-anchor="middle"
         fill="currentColor"
-      >{{ t.label }}</text>
+      >{{ t.label }}
+      </text>
     </svg>
     <div class="flex items-center gap-3 text-[11px] text-dimmed">
-      <span class="flex items-center gap-1"><span class="size-2 rounded-sm bg-primary" /> trip</span>
-      <span class="flex items-center gap-1"><span class="h-1 w-3 rounded bg-muted" /> layover</span>
-      <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-warning" /> deadhead</span>
+      <span class="flex items-center gap-1"><span class="size-2 rounded-sm bg-primary"/> trip</span>
+      <span class="flex items-center gap-1"><span class="h-1 w-3 rounded bg-muted"/> layover</span>
+      <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-warning"/> deadhead</span>
     </div>
   </div>
 </template>

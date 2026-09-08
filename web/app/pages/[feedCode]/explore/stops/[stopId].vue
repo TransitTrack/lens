@@ -1,36 +1,35 @@
 <script setup lang="ts">
 import gql from 'graphql-tag'
-import { useApolloClient } from '@vue/apollo-composable'
+import {useApolloClient} from '@vue/apollo-composable'
 import NavbarActions from '~/components/NavbarActions.vue'
 import StopsMap from '~/components/StopsMap.vue'
 import BarChart from '~/components/BarChart.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useExplorePatterns } from '~/composables/useExplorePatterns'
-import { useStopDetailQuery, useExploreCalendarQuery } from '~~/generated/graphql'
-import { hexColor } from '~/utils/gtfs'
+import {useFeeds} from '~/composables/useFeeds'
+import {useExplorePatterns} from '~/composables/useExplorePatterns'
+import {useStopDetailQuery, useExploreCalendarQuery} from '~~/generated/graphql'
+import {hexColor} from '~/utils/gtfs'
 import {
   servingPatterns,
   serviceKinds,
   departureHistogram,
-  secToHm,
   type ServiceKind,
 } from '~/utils/stopSchedule'
 
 const route = useRoute()
-const { selectedFeedCode, feedPath } = useFeeds()
-const { client } = useApolloClient()
+const {selectedFeedCode, feedPath} = useFeeds()
+const {client} = useApolloClient()
 const stopId = computed(() => String(route.params.stopId))
 
-const { result: stopResult, loading: stopLoading } = useStopDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', stopId: stopId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result: stopResult, loading: stopLoading} = useStopDetailQuery(
+  () => ({feedCode: selectedFeedCode.value ?? '', stopId: stopId.value}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 const stop = computed(() => stopResult.value?.stop ?? null)
 
-const { patterns } = useExplorePatterns(ref(true))
-const { result: calResult } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {patterns} = useExplorePatterns(ref(true))
+const {result: calResult} = useExploreCalendarQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 const serving = computed(() => servingPatterns(patterns.value, stopId.value))
@@ -57,7 +56,7 @@ const tripTotals = computed(() => {
     if (s.pattern.directionId === 0) dir0 += s.pattern.tripCount
     else if (s.pattern.directionId === 1) dir1 += s.pattern.tripCount
   }
-  return { total, dir0, dir1 }
+  return {total, dir0, dir1}
 })
 
 // --- departures histogram (fetched per serving pattern in one aliased query) --
@@ -76,9 +75,12 @@ watch(
       .join('\n')
     tripsLoading.value = true
     try {
-      const { data } = await client.query<Record<string, { patternKey: string, trips: { startTimeSec: number | null, serviceId: string }[] } | null>>({
+      const {data} = await client.query<Record<string, {
+        patternKey: string,
+        trips: { startTimeSec: number | null, serviceId: string }[]
+      } | null>>({
         query: gql`query StopPatternTrips($fc: String!) { ${body} }`,
-        variables: { fc },
+        variables: {fc},
         fetchPolicy: 'cache-first',
       })
       patternTrips.value = Object.values(data ?? {}).filter((v): v is NonNullable<typeof v> => !!v)
@@ -86,7 +88,7 @@ watch(
       tripsLoading.value = false
     }
   },
-  { immediate: true },
+  {immediate: true},
 )
 
 const kinds = computed(() => serviceKinds(calResult.value?.calendars ?? []))
@@ -95,9 +97,9 @@ const histogram = computed(() =>
 )
 
 const kindItems = [
-  { label: 'Weekday', value: 'weekday' as const },
-  { label: 'Saturday', value: 'saturday' as const },
-  { label: 'Sunday', value: 'sunday' as const },
+  {label: 'Weekday', value: 'weekday' as const},
+  {label: 'Saturday', value: 'saturday' as const},
+  {label: 'Sunday', value: 'sunday' as const},
 ]
 
 const mapFeatures = computed(
@@ -107,10 +109,10 @@ const mapFeatures = computed(
       features:
         stop.value?.stopLat != null && stop.value?.stopLon != null
           ? [{
-              type: 'Feature',
-              geometry: { type: 'Point', coordinates: [stop.value.stopLon, stop.value.stopLat] },
-              properties: { stopId: stop.value.stopId, name: stop.value.stopName ?? stop.value.stopId },
-            }]
+            type: 'Feature',
+            geometry: {type: 'Point', coordinates: [stop.value.stopLon, stop.value.stopLat]},
+            properties: {stopId: stop.value.stopId, name: stop.value.stopName ?? stop.value.stopId},
+          }]
           : [],
     }) as GeoJSON.FeatureCollection,
 )
@@ -130,38 +132,43 @@ const mapFeatures = computed(
           />
         </template>
         <template #right>
-          <NavbarActions />
+          <NavbarActions/>
         </template>
       </UDashboardNavbar>
     </template>
 
     <template #body>
       <div v-if="stopLoading && !stop" class="flex min-h-0 flex-1">
-        <USkeleton class="min-w-0 flex-1 rounded-none" />
+        <USkeleton class="min-w-0 flex-1 rounded-none"/>
         <div class="w-[26rem] shrink-0 border-l border-default p-4">
-          <USkeleton v-for="i in 8" :key="i" class="mb-2 h-10 w-full" />
+          <USkeleton v-for="i in 8" :key="i" class="mb-2 h-10 w-full"/>
         </div>
       </div>
 
       <div v-else-if="stop" class="flex min-h-0 flex-1">
         <div class="relative min-w-0 flex-1">
-          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" />
+          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId"/>
         </div>
 
         <aside class="flex w-[26rem] shrink-0 flex-col gap-4 overflow-y-auto border-l border-default p-4">
           <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-            <dt class="text-dimmed">Code</dt><dd>{{ stop.stopCode ?? '—' }}</dd>
-            <dt class="text-dimmed">ID</dt><dd class="truncate">{{ stop.stopId }}</dd>
+            <dt class="text-dimmed">Code</dt>
+            <dd>{{ stop.stopCode ?? '—' }}</dd>
+            <dt class="text-dimmed">ID</dt>
+            <dd class="truncate">{{ stop.stopId }}</dd>
             <template v-if="stop.stopDesc">
-              <dt class="text-dimmed">Desc</dt><dd>{{ stop.stopDesc }}</dd>
+              <dt class="text-dimmed">Desc</dt>
+              <dd>{{ stop.stopDesc }}</dd>
             </template>
             <dt class="text-dimmed">Location</dt>
             <dd>{{ stop.stopLat?.toFixed(5) }}, {{ stop.stopLon?.toFixed(5) }}</dd>
             <template v-if="stop.zoneId">
-              <dt class="text-dimmed">Zone</dt><dd>{{ stop.zoneId }}</dd>
+              <dt class="text-dimmed">Zone</dt>
+              <dd>{{ stop.zoneId }}</dd>
             </template>
             <template v-if="stop.parentStation">
-              <dt class="text-dimmed">Parent</dt><dd>{{ stop.parentStation }}</dd>
+              <dt class="text-dimmed">Parent</dt>
+              <dd>{{ stop.parentStation }}</dd>
             </template>
             <template v-if="stop.wheelchairBoarding">
               <dt class="text-dimmed">Wheelchair</dt>
@@ -219,9 +226,9 @@ const mapFeatures = computed(
                 />
               </UButtonGroup>
             </div>
-            <USkeleton v-if="tripsLoading && !patternTrips.length" class="h-[130px] w-full" />
+            <USkeleton v-if="tripsLoading && !patternTrips.length" class="h-[130px] w-full"/>
             <template v-else>
-              <BarChart :bars="histogram.bars" :height="130" :format="(n) => `${n}`" />
+              <BarChart :bars="histogram.bars" :height="130" :format="(n) => `${n}`"/>
               <p class="text-xs text-dimmed">
                 {{ histogram.total.toLocaleString() }} scheduled departures on a typical
                 {{ kind }} · estimated from typical segment times

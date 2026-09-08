@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type {TableColumn} from '@nuxt/ui'
 import NavbarActions from '~/components/NavbarActions.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useAgencyFilter } from '~/composables/useAgencyFilter'
+import {useFeeds} from '~/composables/useFeeds'
+import {useAgencyFilter} from '~/composables/useAgencyFilter'
 import {
   useBlocksListQuery,
   useExploreRoutesQuery,
   useExploreCalendarQuery,
   type BlocksListQuery,
 } from '~~/generated/graphql'
-import { serviceDaysLabel } from '~/utils/gtfs'
-import { blockDurationSec, peakConcurrency, secToHm } from '~/utils/blocks'
+import {serviceDaysLabel} from '~/utils/gtfs'
+import {blockDurationSec, peakConcurrency} from '~/utils/blocks'
 
-const { selectedFeedCode, feedPath } = useFeeds()
-const { agencyId } = useAgencyFilter()
+const {selectedFeedCode, feedPath} = useFeeds()
+const {agencyId} = useAgencyFilter()
 
-const { result, loading } = useBlocksListQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading} = useBlocksListQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
-const { result: routesResult } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result: routesResult} = useExploreRoutesQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
-const { result: calResult } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result: calResult} = useExploreCalendarQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 type Block = BlocksListQuery['blocks'][number]
@@ -49,7 +49,7 @@ const calLabel = computed(() => {
 const serviceItems = computed(() => {
   const ids = [...new Set(allBlocks.value.map((b) => b.serviceId))].sort()
   return [
-    { label: 'All services', value: null },
+    {label: 'All services', value: null},
     ...ids.map((id) => ({
       label: calLabel.value.get(id) ? `${calLabel.value.get(id)} — ${id}` : id,
       value: id,
@@ -72,26 +72,26 @@ const stats = computed(() => {
   const totalSec = list.reduce((s, b) => s + blockDurationSec(b), 0)
   const trips = list.reduce((s, b) => s + b.tripCount, 0)
   return [
-    { label: 'Blocks', value: String(list.length) },
-    { label: 'Vehicle-hours', value: (totalSec / 3600).toFixed(0) },
-    { label: 'Avg trips/block', value: list.length ? (trips / list.length).toFixed(1) : '0' },
-    { label: 'Peak concurrent', value: String(peakConcurrency(list)) },
+    {label: 'Blocks', value: String(list.length)},
+    {label: 'Vehicle-hours', value: (totalSec / 3600).toFixed(0)},
+    {label: 'Avg trips/block', value: list.length ? (trips / list.length).toFixed(1) : '0'},
+    {label: 'Peak concurrent', value: String(peakConcurrency(list))},
   ]
 })
 
 const columns: TableColumn<Block>[] = [
-  { accessorKey: 'blockId', header: 'Block' },
-  { accessorKey: 'serviceId', header: 'Service' },
-  { id: 'span', header: 'Span' },
-  { id: 'duration', header: 'Duration' },
-  { accessorKey: 'tripCount', header: 'Trips' },
-  { id: 'routes', header: 'Routes' },
+  {accessorKey: 'blockId', header: 'Block'},
+  {accessorKey: 'serviceId', header: 'Service'},
+  {id: 'span', header: 'Span'},
+  {id: 'duration', header: 'Duration'},
+  {accessorKey: 'tripCount', header: 'Trips'},
+  {id: 'routes', header: 'Routes'},
 ]
 
 const routeName = computed(() => {
   const m = new Map<string, { name: string, color: string | null }>()
   for (const r of routesResult.value?.routes ?? []) {
-    m.set(r.routeId, { name: r.routeShortName ?? r.routeId, color: r.routeColor ?? null })
+    m.set(r.routeId, {name: r.routeShortName ?? r.routeId, color: r.routeColor ?? null})
   }
   return m
 })
@@ -111,13 +111,13 @@ function durH(b: Block): string {
     <template #header>
       <UDashboardNavbar title="Blocks">
         <template #leading>
-          <UDashboardSidebarCollapse />
+          <UDashboardSidebarCollapse/>
         </template>
         <template #right>
-          <NavbarActions />
+          <NavbarActions/>
         </template>
       </UDashboardNavbar>
-      <ExploreToolbar />
+      <ExploreToolbar/>
     </template>
 
     <template #body>
@@ -140,7 +140,7 @@ function durH(b: Block): string {
       </div>
 
       <div v-if="loading && !blocks.length" class="flex flex-col gap-2">
-        <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
+        <USkeleton v-for="i in 8" :key="i" class="h-10 w-full"/>
       </div>
 
       <UTable v-else :data="blocks" :columns="columns" @select="onSelect">

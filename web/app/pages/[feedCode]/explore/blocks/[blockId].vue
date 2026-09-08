@@ -1,23 +1,23 @@
 <script setup lang="ts">
 import NavbarActions from '~/components/NavbarActions.vue'
 import BlockTimeline from '~/components/BlockTimeline.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useBlockDetailQuery } from '~~/generated/graphql'
-import { hexColor } from '~/utils/gtfs'
-import { timeSplit, timelineSegments, secToHm } from '~/utils/blocks'
+import {useFeeds} from '~/composables/useFeeds'
+import {useBlockDetailQuery} from '~~/generated/graphql'
+import {hexColor} from '~/utils/gtfs'
+import {timeSplit, timelineSegments} from '~/utils/blocks'
 
 const route = useRoute()
-const { selectedFeedCode, feedPath } = useFeeds()
+const {selectedFeedCode, feedPath} = useFeeds()
 const blockId = computed(() => String(route.params.blockId))
 const serviceId = computed(() => String(route.query.service ?? ''))
 
-const { result, loading, error } = useBlockDetailQuery(
+const {result, loading, error} = useBlockDetailQuery(
   () => ({
     feedCode: selectedFeedCode.value ?? '',
     blockId: blockId.value,
     serviceId: serviceId.value,
   }),
-  () => ({ enabled: !!selectedFeedCode.value && !!serviceId.value }),
+  () => ({enabled: !!selectedFeedCode.value && !!serviceId.value}),
 )
 
 const block = computed(() => result.value?.block ?? null)
@@ -37,6 +37,7 @@ const durationSec = computed(() =>
 function fmtDur(sec: number): string {
   return `${Math.floor(sec / 3600)}h ${Math.round((sec % 3600) / 60)}m`
 }
+
 function pct(sec: number): number {
   return durationSec.value ? Math.round((sec / durationSec.value) * 100) : 0
 }
@@ -56,7 +57,7 @@ function pct(sec: number): number {
           />
         </template>
         <template #right>
-          <NavbarActions />
+          <NavbarActions/>
         </template>
       </UDashboardNavbar>
     </template>
@@ -79,9 +80,9 @@ function pct(sec: number): number {
         description="Open a block from the Blocks list so its service is known."
       />
       <div v-else-if="loading && !block" class="flex flex-col gap-4">
-        <USkeleton class="h-24 w-full" />
-        <USkeleton class="h-16 w-full" />
-        <USkeleton class="h-64 w-full" />
+        <USkeleton class="h-24 w-full"/>
+        <USkeleton class="h-16 w-full"/>
+        <USkeleton class="h-64 w-full"/>
       </div>
 
       <template v-else-if="block">
@@ -100,8 +101,8 @@ function pct(sec: number): number {
         <!-- revenue / layover / deadhead split -->
         <div class="flex flex-col gap-1">
           <div class="flex h-3 w-full overflow-hidden rounded-full bg-elevated">
-            <div class="bg-primary" :style="{ width: `${pct(split.revenueSec)}%` }" />
-            <div class="bg-muted" :style="{ width: `${pct(split.layoverSec)}%` }" />
+            <div class="bg-primary" :style="{ width: `${pct(split.revenueSec)}%` }"/>
+            <div class="bg-muted" :style="{ width: `${pct(split.layoverSec)}%` }"/>
           </div>
           <div class="flex flex-wrap gap-x-4 text-xs text-muted">
             <span>Revenue {{ fmtDur(split.revenueSec) }} ({{ pct(split.revenueSec) }}%)</span>
