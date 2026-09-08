@@ -23,6 +23,8 @@ import org.springframework.graphql.test.tester.HttpGraphQlTester
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
 import eu.transittrack.Point
 import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContextFactory
@@ -34,8 +36,6 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.feed.AvlAssignmentMode
-import eu.transittrack.feed.AvlFormat
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService

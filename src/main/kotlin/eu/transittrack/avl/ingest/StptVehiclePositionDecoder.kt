@@ -6,9 +6,9 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
 import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.feed.AvlFormat
 import eu.transittrack.util.kmphToMps
 
 private data class StptVehiclePositionResponse(

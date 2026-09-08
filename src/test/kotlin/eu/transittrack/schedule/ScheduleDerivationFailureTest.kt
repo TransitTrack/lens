@@ -18,7 +18,8 @@ import org.springframework.core.task.SyncTaskExecutor
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
+import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository

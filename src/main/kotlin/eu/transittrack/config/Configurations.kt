@@ -19,7 +19,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.persistence.autoconfigure.EntityScan
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Scope
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.graphql.execution.DataFetcherExceptionResolver
 import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter
@@ -28,12 +27,12 @@ import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
+import eu.transittrack.HttpClientProperties
 import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.draft.edit.StaleDraftException
 import eu.transittrack.gtfs.feed.FeedConflictException
 import eu.transittrack.gtfs.feed.FeedNotFoundException
 import eu.transittrack.gtfs.feed.FeedProtectedException
-import eu.transittrack.http.HttpClientProperties
 
 @Configuration
 @EnableScheduling

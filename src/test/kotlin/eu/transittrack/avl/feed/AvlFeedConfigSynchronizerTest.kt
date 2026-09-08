@@ -11,12 +11,12 @@ import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import org.springframework.beans.factory.annotation.Autowired
 
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
+import eu.transittrack.FeedsProperties
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.feed.AvlAssignmentMode
-import eu.transittrack.feed.AvlFormat
-import eu.transittrack.feed.FeedsProperties
 import eu.transittrack.gtfs.support.PostgresSliceTest
 
 @PostgresSliceTest

@@ -12,7 +12,7 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.annotation.AnnotationAwareOrderComparator
 import org.springframework.stereotype.Service
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService

@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Configuration
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
 
 class GtfsPropertiesTest {
     private val runner = ApplicationContextRunner().withUserConfiguration(TestConfig::class.java)

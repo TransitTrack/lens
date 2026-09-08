@@ -31,7 +31,8 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
+import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -57,7 +58,6 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.haversineMeters
-import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository

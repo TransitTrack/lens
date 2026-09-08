@@ -8,7 +8,7 @@ import assertk.assertions.isFalse
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 
-import eu.transittrack.feed.FeedsProperties
+import eu.transittrack.FeedsProperties
 
 class PredictPropertiesTest {
     private fun bind(map: Map<String, Any>): PredictProperties =

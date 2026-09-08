@@ -5,13 +5,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
+import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.Frequency
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
-import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.ScheduleTime
 
 /**

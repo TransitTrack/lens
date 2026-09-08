@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.TestComponent
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.task.SyncTaskExecutor
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
 import eu.transittrack.gtfs.download.DownloadedFeed
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput

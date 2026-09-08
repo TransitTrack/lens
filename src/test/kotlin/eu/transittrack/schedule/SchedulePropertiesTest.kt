@@ -9,6 +9,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Configuration
 
+import eu.transittrack.ScheduleProperties
+
 class SchedulePropertiesTest {
     private val runner = ApplicationContextRunner().withUserConfiguration(TestConfig::class.java)
 

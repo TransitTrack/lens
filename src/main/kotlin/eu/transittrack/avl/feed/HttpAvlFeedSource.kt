@@ -6,9 +6,9 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.springframework.stereotype.Component
 
+import eu.transittrack.HttpClientProperties
 import eu.transittrack.avl.ingest.AvlFetchException
 import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.http.HttpClientProperties
 
 /**
  * okhttp-backed [AvlFeedSource]. GET the feed URL with the feed's configured headers, enforce
@@ -17,7 +17,6 @@ import eu.transittrack.http.HttpClientProperties
  */
 @Component
 class HttpAvlFeedSource(
-    private val props: HttpClientProperties,
     private val client: OkHttpClient,
 ) : AvlFeedSource {
     override fun fetch(feed: AvlFeed): RawAvlPayload {
@@ -32,11 +31,6 @@ class HttpAvlFeedSource(
                     throw AvlFetchException("GET ${feed.url} returned HTTP ${response.code}")
                 }
                 val body = response.body.bytes()
-                if (body.size.toLong() > props.maxSizeBytes) {
-                    throw AvlFetchException(
-                        "AVL payload from ${feed.url} exceeds ${props.maxSizeBytes} bytes",
-                    )
-                }
                 return RawAvlPayload(body, response.body.contentType()?.toString(), Instant.now())
             }
         } catch (e: AvlFetchException) {

@@ -1,10 +1,53 @@
-package eu.transittrack.feed
+package eu.transittrack
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.PredictionMode
+
+/**
+ * Shared outbound HTTP client settings, used for both GTFS feed downloads and AVL feed polling.
+ * Defaults are the permissive union of the two former per-module blocks — large enough for a GTFS
+ * zip, harmless as a ceiling for a small AVL protobuf.
+ */
+@ConfigurationProperties("transittrack.http")
+data class HttpClientProperties(
+    val connectTimeoutMs: Long = 10_000,
+    val readTimeoutMs: Long = 60_000,
+    val maxSizeBytes: Long = 524_288_000,
+    val userAgent: String = "transittrack/0.0.1",
+)
+
+@ConfigurationProperties("transittrack.gtfs")
+data class GtfsProperties(
+    @NestedConfigurationProperty val ingest: Ingest = Ingest(),
+    @NestedConfigurationProperty val retention: Retention = Retention(),
+    @NestedConfigurationProperty val polling: Polling = Polling(),
+    @NestedConfigurationProperty val titleSanitizing: TitleSanitizing = TitleSanitizing(),
+) {
+    data class Ingest(
+        val autoActivate: Boolean = true,
+        val strictValidation: Boolean = false,
+        val batchSize: Int = 1000,
+        val tempDir: String = "",
+    )
+
+    data class Retention(
+        val keepRevisionsPerFeed: Int = 5,
+    )
+
+    data class Polling(
+        val enabled: Boolean = false,
+        val sweepCron: String = "0 0 * * * *",
+    )
+
+    data class TitleSanitizing(
+        val enabled: Boolean = false,
+        val capitalizeNames: Boolean = false,
+        val regexReplaceListFileName: String? = null,
+    )
+}
 
 enum class AvlFormat { GTFS_RT, STPT }
 
@@ -44,3 +87,11 @@ data class FeedsProperties(
         val predictionMode: PredictionMode = PredictionMode.SINGLE,
     )
 }
+
+@ConfigurationProperties("transittrack.schedule")
+data class ScheduleProperties(
+    val enabled: Boolean = true,
+    val layoverThresholdSec: Int = 60,
+    val stopProjectionMaxDeviationM: Double = 100.0,
+    val tolerateNoScheduleTrips: Boolean = false,
+)

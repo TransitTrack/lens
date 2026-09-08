@@ -8,8 +8,8 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import org.springframework.beans.factory.annotation.Autowired
 
-import eu.transittrack.feed.AvlAssignmentMode
-import eu.transittrack.feed.AvlFormat
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
 import eu.transittrack.gtfs.support.PostgresSliceTest
 
 @PostgresSliceTest

@@ -19,13 +19,13 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
 import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.feed.AvlAssignmentMode
-import eu.transittrack.feed.AvlFormat
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService

@@ -2,9 +2,9 @@ package eu.transittrack.avl.match
 
 import org.springframework.stereotype.Component
 
+import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.VehicleStateRow
-import eu.transittrack.feed.AvlAssignmentMode
 
 /**
  * Tries [TrustDescriptorMatcher] first and falls back to [FullInferenceMatcher] whenever the

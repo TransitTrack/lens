@@ -12,7 +12,8 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
+import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.gtfs.model.RouteRepository
@@ -24,7 +25,6 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 

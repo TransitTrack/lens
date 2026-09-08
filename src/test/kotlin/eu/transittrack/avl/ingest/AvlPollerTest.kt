@@ -12,12 +12,12 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
 import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.feed.AvlAssignmentMode
-import eu.transittrack.feed.AvlFormat
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -28,7 +28,8 @@ class AvlPollerTest(
     @Autowired val poller: AvlPoller,
     @Autowired val feeds: AvlFeedRepository,
 ) {
-    @MockitoBean lateinit var ingest: AvlIngestService
+    @MockitoBean
+    lateinit var ingest: AvlIngestService
 
     @AfterEach
     fun cleanup() {

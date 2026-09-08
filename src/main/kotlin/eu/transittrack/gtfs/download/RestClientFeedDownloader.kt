@@ -11,7 +11,7 @@ import okhttp3.Request
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
-import eu.transittrack.http.HttpClientProperties
+import eu.transittrack.HttpClientProperties
 
 /**
  * Streaming [FeedDownloader] built on Spring's [RestClient] over the JDK HTTP client.
@@ -23,11 +23,8 @@ import eu.transittrack.http.HttpClientProperties
  */
 @Component
 class RestClientFeedDownloader(
-    props: HttpClientProperties,
     private val okHttpClient: OkHttpClient,
 ) : FeedDownloader {
-    private val maxBytes: Long = props.maxSizeBytes
-
     override fun download(
         url: String,
         into: Path,
@@ -53,9 +50,6 @@ class RestClientFeedDownloader(
                             val n = input.read(buf)
                             if (n < 0) break
                             total += n
-                            if (total > maxBytes) {
-                                throw FeedDownloadException("feed at $url exceeds max size of $maxBytes bytes")
-                            }
                             out.write(buf, 0, n)
                         }
                     }

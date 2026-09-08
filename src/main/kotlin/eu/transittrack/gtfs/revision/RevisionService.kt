@@ -5,7 +5,7 @@ import java.time.Instant
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
 import eu.transittrack.gtfs.model.CalendarDateRepository
 import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.model.FeedInfoRepository

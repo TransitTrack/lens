@@ -16,8 +16,8 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
-import eu.transittrack.feed.AvlAssignmentMode
-import eu.transittrack.feed.AvlFormat
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.PredictionMode
 

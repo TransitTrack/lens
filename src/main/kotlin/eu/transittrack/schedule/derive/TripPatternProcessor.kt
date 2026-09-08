@@ -9,6 +9,7 @@ import tools.jackson.databind.json.JsonMapper
 import eu.transittrack.Extent
 import eu.transittrack.Point
 import eu.transittrack.Polyline
+import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.ShapePointRepository
@@ -16,7 +17,6 @@ import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
-import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
 
@@ -90,6 +90,7 @@ class TripPatternProcessor(
                 val rows: List<CleanStopTime>,
                 val stopIds: List<String>,
             )
+
             val pending = ArrayList<Pending>()
             for (t in routeTrips) {
                 val raw = stByTrip[t.tripId] ?: emptyList()

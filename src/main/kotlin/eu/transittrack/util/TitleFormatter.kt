@@ -9,10 +9,9 @@ import java.util.regex.Pattern
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.context.annotation.Conditional
 import org.springframework.stereotype.Component
 
-import eu.transittrack.gtfs.GtfsProperties
+import eu.transittrack.GtfsProperties
 
 /**
  * Tool for formatting titles in the GTFS data. Need to be able to "unshout" titles (change "MAIN

@@ -18,7 +18,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 import org.junit.jupiter.api.io.TempDir
 
-import eu.transittrack.http.HttpClientProperties
+import eu.transittrack.config.HttpClientsConfiguration
 
 class RestClientFeedDownloaderTest {
     private lateinit var server: MockWebServer
@@ -28,12 +28,10 @@ class RestClientFeedDownloaderTest {
 
     private fun downloader(maxBytes: Long = 1_000_000) =
         RestClientFeedDownloader(
-            HttpClientProperties(
-                connectTimeoutMs = 2000,
-                readTimeoutMs = 2000,
-                maxSizeBytes = maxBytes,
-            ),
-            okHttpClient = OkHttpClient().newBuilder().build(),
+            okHttpClient = OkHttpClient()
+                .newBuilder()
+                .addInterceptor(HttpClientsConfiguration.MaxBytesResponseInterceptor(maxBytes))
+                .build(),
         )
 
     @BeforeTest

@@ -7,6 +7,8 @@ import assertk.assertions.isEqualTo
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 
+import eu.transittrack.HttpClientProperties
+
 class HttpClientPropertiesTest {
     private fun bind(map: Map<String, Any>): HttpClientProperties =
         Binder(MapConfigurationPropertySource(map))

@@ -9,10 +9,10 @@ import org.springframework.core.Ordered
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.FeedsProperties
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.feed.FeedsProperties
 
 /**
  * Upserts the `transittrack.feed.feeds[]` entries that carry an `avl` block into `avl_feed` at

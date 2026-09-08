@@ -4,10 +4,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
+import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.median
-import eu.transittrack.schedule.ScheduleProperties
 import eu.transittrack.schedule.model.Block
 import eu.transittrack.schedule.model.BlockTrip
 

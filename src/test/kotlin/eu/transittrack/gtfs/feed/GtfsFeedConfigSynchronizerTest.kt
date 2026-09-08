@@ -12,7 +12,7 @@ import org.mockito.Mockito.mock
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
-import eu.transittrack.feed.FeedsProperties
+import eu.transittrack.FeedsProperties
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.PostgresSliceTest
 
