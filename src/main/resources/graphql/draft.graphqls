@@ -39,9 +39,9 @@ type DraftGridCell {
 extend type Mutation {
     rebuildDraft(id: ID!): DraftJob!
     forkDraft(input: ForkDraftInput!): Draft!
-    discardDraft(id: ID!): Boolean!
-    revertDraftToFork(id: ID!): Draft!
-    activateDraft(id: ID!, force: Boolean = false): Revision!
+    discardDraft(id: ID!, editor: String!): Boolean!
+    revertDraftToFork(id: ID!, editor: String!): Draft!
+    activateDraft(id: ID!, editor: String!, force: Boolean = false): Revision!
 
     claimDraftEditor(id: ID!, editor: String!, takeOver: Boolean = false): DraftLock!
     renewDraftEditor(id: ID!, editor: String!): DraftLock!

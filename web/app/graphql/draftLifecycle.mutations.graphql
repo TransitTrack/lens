@@ -1,7 +1,7 @@
 mutation ForkDraft($input: ForkDraftInput!) { forkDraft(input: $input) { id feedCode label version } }
-mutation DiscardDraft($id: ID!) { discardDraft(id: $id) }
-mutation RevertDraftToFork($id: ID!) { revertDraftToFork(id: $id) { id version derivationStale } }
-mutation ActivateDraft($id: ID!, $force: Boolean) { activateDraft(id: $id, force: $force) { id status } }
+mutation DiscardDraft($id: ID!, $editor: String!) { discardDraft(id: $id, editor: $editor) }
+mutation RevertDraftToFork($id: ID!, $editor: String!) { revertDraftToFork(id: $id, editor: $editor) { id version derivationStale } }
+mutation ActivateDraft($id: ID!, $editor: String!, $force: Boolean) { activateDraft(id: $id, editor: $editor, force: $force) { id status } }
 mutation RebuildDraft($id: ID!) { rebuildDraft(id: $id) { id state phase error } }
 mutation ClaimDraftEditor($id: ID!, $editor: String!, $takeOver: Boolean) { claimDraftEditor(id: $id, editor: $editor, takeOver: $takeOver) { editor expiresAt } }
 mutation RenewDraftEditor($id: ID!, $editor: String!) { renewDraftEditor(id: $id, editor: $editor) { editor expiresAt } }

@@ -148,7 +148,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        drafts.activate(draft.id!!, force = true)
+        drafts.activate(draft.id!!, "nobody", force = true)
         assertFailure { drafts.claimEditor(draft.id!!, "alice") }.isInstanceOf(IllegalStateException::class)
     }
 
@@ -158,7 +158,7 @@ class DraftServiceTest(
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
         drafts.claimEditor(draft.id!!, "alice")
-        drafts.activate(draft.id!!, force = true)
+        drafts.activate(draft.id!!, "alice", force = true)
         assertThat(revisions.findById(draft.id!!).get().editorClaimBy).isEqualTo(null)
     }
 
@@ -204,9 +204,48 @@ class DraftServiceTest(
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null)
         val id = draft.id!!
-        drafts.discard(id)
+        drafts.discard(id, "nobody")
         assertThat(revisions.findById(id).isPresent).isEqualTo(false)
         assertThat(stops.findByRevisionId(id)).isEmpty()
+    }
+
+    @Test
+    fun `discard is blocked when another editor holds the lock`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        val id = draft.id!!
+        drafts.claimEditor(id, "alice")
+
+        assertFailure { drafts.discard(id, "bob") }
+            .isInstanceOf(eu.transittrack.gtfs.draft.edit.LockNotHeldException::class)
+
+        drafts.discard(id, "alice")
+        assertThat(revisions.findById(id).isPresent).isEqualTo(false)
+    }
+
+    @Test
+    fun `discard is allowed on an unlocked draft`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null)
+        val id = draft.id!!
+        drafts.discard(id, "anyone")
+        assertThat(revisions.findById(id).isPresent).isEqualTo(false)
+    }
+
+    @Test
+    fun `activate is blocked when another editor holds the lock`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        val id = draft.id!!
+        drafts.claimEditor(id, "alice")
+
+        assertFailure { drafts.activate(id, "bob", force = true) }
+            .isInstanceOf(eu.transittrack.gtfs.draft.edit.LockNotHeldException::class)
+
+        assertThat(drafts.activate(id, "alice", force = true).status).isEqualTo(GtfsRevisionStatus.ACTIVE)
     }
 
     @Test
@@ -219,7 +258,7 @@ class DraftServiceTest(
         stops.delete(s)
         editRepo.save(DraftEdit(draft.id!!, 1, "DELETE_TRIP", "x", "{}", "{}", java.time.Instant.now()))
 
-        val reverted = drafts.revertToFork(draft.id!!)
+        val reverted = drafts.revertToFork(draft.id!!, "nobody")
         assertThat(stops.findByRevisionId(reverted.id!!).size).isEqualTo(stops.findByRevisionId(activeRev).size)
         assertThat(editRepo.countByRevisionId(reverted.id!!)).isEqualTo(0L)
         assertThat(reverted.derivationStale).isEqualTo(true)
@@ -230,7 +269,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        assertFailure { drafts.activate(draft.id!!) }.isInstanceOf(IllegalStateException::class)
+        assertFailure { drafts.activate(draft.id!!, "nobody") }.isInstanceOf(IllegalStateException::class)
     }
 
     @Test
@@ -243,8 +282,8 @@ class DraftServiceTest(
             it.lastValidation = """{"errorCount":3,"warningCount":0,"notices":[]}"""
             revisions.save(it)
         }
-        assertFailure { drafts.activate(draft.id!!, force = false) }.isInstanceOf(IllegalStateException::class)
-        assertThat(drafts.activate(draft.id!!, force = true).status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertFailure { drafts.activate(draft.id!!, "nobody", force = false) }.isInstanceOf(IllegalStateException::class)
+        assertThat(drafts.activate(draft.id!!, "nobody", force = true).status).isEqualTo(GtfsRevisionStatus.ACTIVE)
     }
 
     @Test
@@ -258,7 +297,7 @@ class DraftServiceTest(
             it.deriving = true
             revisions.save(it)
         }
-        assertFailure { drafts.activate(draft.id!!, force = false) }.isInstanceOf(IllegalStateException::class)
+        assertFailure { drafts.activate(draft.id!!, "nobody", force = false) }.isInstanceOf(IllegalStateException::class)
     }
 
     @Test
@@ -266,7 +305,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        val activated = drafts.activate(draft.id!!, force = true)
+        val activated = drafts.activate(draft.id!!, "nobody", force = true)
         assertThat(activated.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         assertThat(revisions.findById(activeRev).get().status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
     }

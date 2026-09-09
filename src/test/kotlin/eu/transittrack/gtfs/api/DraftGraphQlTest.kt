@@ -139,10 +139,10 @@ class DraftGraphQlTest(
                 id = 42
                 createdAt = Instant.now()
             }
-        whenever(draftService.activate(42L, true)).thenReturn(active)
+        whenever(draftService.activate(42L, "alice", true)).thenReturn(active)
         whenever(feeds.findById(1L)).thenReturn(Optional.of(feed()))
         tester
-            .document("""mutation { activateDraft(id:"42", force:true) { id status feedCode } }""")
+            .document("""mutation { activateDraft(id:"42", editor:"alice", force:true) { id status feedCode } }""")
             .execute()
             .path("activateDraft.status")
             .entity(String::class.java)

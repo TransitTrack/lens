@@ -5,8 +5,10 @@ import { useFeeds } from '~/composables/useFeeds'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NewDraftDialog from '~/components/draft/NewDraftDialog.vue'
 import { gtfsDate } from '~/utils/gtfs'
+import { useEditorIdentity } from '~/composables/useEditorIdentity'
 
 const { selectedFeedCode, feedPath } = useFeeds()
+const { name: editorName } = useEditorIdentity()
 const toast = useToast()
 
 const newOpen = ref(false)
@@ -83,12 +85,25 @@ async function confirmDiscard() {
   const target = discardTarget.value
   if (!target) return
   try {
-    await discard({ id: target.id })
+    await discard({ id: target.id, editor: editorName.value ?? '' })
     toast.add({ title: `Draft ${target.label ?? target.id} discarded`, color: 'success', icon: 'i-lucide-trash-2' })
     discardTarget.value = null
     await refetch()
   } catch (e) {
-    toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+    const err = e as {
+      graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }>
+      cause?: { graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }> }
+    }
+    const code = (err?.graphQLErrors ?? err?.cause?.graphQLErrors)?.[0]?.extensions?.code
+    if (code === 'LOCK_LOST') {
+      toast.add({
+        title: 'Someone is editing this draft — ask them to discard it',
+        color: 'error',
+        icon: 'i-lucide-lock',
+      })
+    } else {
+      toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+    }
   }
 }
 

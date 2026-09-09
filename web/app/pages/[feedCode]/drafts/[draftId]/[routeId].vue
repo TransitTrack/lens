@@ -223,7 +223,7 @@ const canActivate = computed(
 )
 async function confirmActivate() {
   try {
-    await activateDraft({ id: draftId.value, force: force.value })
+    await activateDraft({ id: draftId.value, editor: editor.me.value ?? '', force: force.value })
     toast.add({ title: 'Draft activated', color: 'success', icon: 'i-lucide-check' })
     activateOpen.value = false
     navigateTo(feedPath('/explore/feed'))
@@ -237,7 +237,7 @@ const { mutate: discardDraft, loading: discarding } = useDiscardDraftMutation()
 const discardOpen = ref(false)
 async function confirmDiscard() {
   try {
-    await discardDraft({ id: draftId.value })
+    await discardDraft({ id: draftId.value, editor: editor.me.value ?? '' })
     toast.add({ title: 'Draft discarded', color: 'success', icon: 'i-lucide-trash-2' })
     discardOpen.value = false
     navigateTo(feedPath('/drafts'))

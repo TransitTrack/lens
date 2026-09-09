@@ -67,7 +67,7 @@ class DraftLifecycleEndToEndTest(
         val baseSt = stopTimes.findByTripId(activeRev, anyTrip).first()
         assertThat(baseSt.arrivalTime).isNotEqualTo(first.arrivalTime)
 
-        drafts.discard(draft.id!!)
+        drafts.discard(draft.id!!, "nobody")
         cleanup.remove(draft.id!!)
 
         assertThat(revisions.findById(draft.id!!).isPresent).isEqualTo(false)

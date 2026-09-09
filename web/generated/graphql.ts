@@ -338,6 +338,7 @@ export type Mutation = {
 
 
 export type MutationActivateDraftArgs = {
+  editor: Scalars['String']['input'];
   force?: InputMaybe<Scalars['Boolean']['input']>;
   id: Scalars['ID']['input'];
 };
@@ -381,6 +382,7 @@ export type MutationDeleteTripArgs = {
 
 
 export type MutationDiscardDraftArgs = {
+  editor: Scalars['String']['input'];
   id: Scalars['ID']['input'];
 };
 
@@ -445,6 +447,7 @@ export type MutationReorderTripStopsArgs = {
 
 
 export type MutationRevertDraftToForkArgs = {
+  editor: Scalars['String']['input'];
   id: Scalars['ID']['input'];
 };
 
@@ -1259,6 +1262,7 @@ export type ForkDraftMutation = { forkDraft: { id: string, feedCode: string, lab
 
 export type DiscardDraftMutationVariables = Exact<{
   id: string | number;
+  editor: string;
 }>;
 
 
@@ -1266,6 +1270,7 @@ export type DiscardDraftMutation = { discardDraft: boolean };
 
 export type RevertDraftToForkMutationVariables = Exact<{
   id: string | number;
+  editor: string;
 }>;
 
 
@@ -1273,6 +1278,7 @@ export type RevertDraftToForkMutation = { revertDraftToFork: { id: string, versi
 
 export type ActivateDraftMutationVariables = Exact<{
   id: string | number;
+  editor: string;
   force?: boolean | null | undefined;
 }>;
 
@@ -2219,8 +2225,8 @@ export function useForkDraftMutation(options: VueApolloComposable.UseMutationOpt
 }
 export type ForkDraftMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<ForkDraftMutation, ForkDraftMutationVariables>;
 export const DiscardDraftDocument = gql`
-    mutation DiscardDraft($id: ID!) {
-  discardDraft(id: $id)
+    mutation DiscardDraft($id: ID!, $editor: String!) {
+  discardDraft(id: $id, editor: $editor)
 }
     `;
 
@@ -2238,6 +2244,7 @@ export const DiscardDraftDocument = gql`
  * const { mutate, loading, error, onDone } = useDiscardDraftMutation({
  *   variables: {
  *     id: // value for 'id'
+ *     editor: // value for 'editor'
  *   },
  * });
  */
@@ -2246,8 +2253,8 @@ export function useDiscardDraftMutation(options: VueApolloComposable.UseMutation
 }
 export type DiscardDraftMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<DiscardDraftMutation, DiscardDraftMutationVariables>;
 export const RevertDraftToForkDocument = gql`
-    mutation RevertDraftToFork($id: ID!) {
-  revertDraftToFork(id: $id) {
+    mutation RevertDraftToFork($id: ID!, $editor: String!) {
+  revertDraftToFork(id: $id, editor: $editor) {
     id
     version
     derivationStale
@@ -2269,6 +2276,7 @@ export const RevertDraftToForkDocument = gql`
  * const { mutate, loading, error, onDone } = useRevertDraftToForkMutation({
  *   variables: {
  *     id: // value for 'id'
+ *     editor: // value for 'editor'
  *   },
  * });
  */
@@ -2277,8 +2285,8 @@ export function useRevertDraftToForkMutation(options: VueApolloComposable.UseMut
 }
 export type RevertDraftToForkMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<RevertDraftToForkMutation, RevertDraftToForkMutationVariables>;
 export const ActivateDraftDocument = gql`
-    mutation ActivateDraft($id: ID!, $force: Boolean) {
-  activateDraft(id: $id, force: $force) {
+    mutation ActivateDraft($id: ID!, $editor: String!, $force: Boolean) {
+  activateDraft(id: $id, editor: $editor, force: $force) {
     id
     status
   }
@@ -2299,6 +2307,7 @@ export const ActivateDraftDocument = gql`
  * const { mutate, loading, error, onDone } = useActivateDraftMutation({
  *   variables: {
  *     id: // value for 'id'
+ *     editor: // value for 'editor'
  *     force: // value for 'force'
  *   },
  * });

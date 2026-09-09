@@ -74,22 +74,25 @@ class DraftController(
     @MutationMapping
     fun discardDraft(
         @Argument id: String,
+        @Argument editor: String,
     ): Boolean {
-        drafts.discard(id.toLong())
+        drafts.discard(id.toLong(), editor)
         return true
     }
 
     @MutationMapping
     fun revertDraftToFork(
         @Argument id: String,
-    ): DraftDto = dto(drafts.revertToFork(id.toLong()))
+        @Argument editor: String,
+    ): DraftDto = dto(drafts.revertToFork(id.toLong(), editor))
 
     @MutationMapping
     fun activateDraft(
         @Argument id: String,
+        @Argument editor: String,
         @Argument force: Boolean,
     ): RevisionDto {
-        val rev = drafts.activate(id.toLong(), force)
+        val rev = drafts.activate(id.toLong(), editor, force)
         return gtfsMapper.toDto(rev, feedCodeOf(rev))
     }
 

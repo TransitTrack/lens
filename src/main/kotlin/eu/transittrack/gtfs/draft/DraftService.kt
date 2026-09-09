@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
@@ -153,18 +154,28 @@ class DraftService(
     }
 
     @Transactional
-    fun discard(draftId: Long) {
+    fun discard(
+        draftId: Long,
+        editor: String,
+    ) {
         val d = get(draftId)
         check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be discarded" }
+        val lock = currentLock(d)
+        if (lock != null && lock.editor != editor) throw LockNotHeldException(draftId)
         wipeRows(draftId)
         edits.deleteByRevisionId(draftId)
         revisions.deleteById(draftId)
     }
 
     @Transactional
-    fun revertToFork(draftId: Long): GtfsRevision {
+    fun revertToFork(
+        draftId: Long,
+        editor: String,
+    ): GtfsRevision {
         val d = get(draftId)
         check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be reverted" }
+        val lock = currentLock(d)
+        if (lock != null && lock.editor != editor) throw LockNotHeldException(draftId)
         val base = d.baseRevisionId ?: error("draft $draftId has no base revision")
         wipeRows(draftId)
         edits.deleteByRevisionId(draftId)
@@ -189,10 +200,13 @@ class DraftService(
     @Transactional
     fun activate(
         draftId: Long,
+        editor: String,
         force: Boolean = false,
     ): GtfsRevision {
         val d = get(draftId)
         check(d.status == GtfsRevisionStatus.DRAFT) { "only DRAFT revisions can be activated" }
+        val lock = currentLock(d)
+        if (lock != null && lock.editor != editor) throw LockNotHeldException(draftId)
         if (!force) {
             // `deriving` spans the whole submit -> derive -> validate window. Without this, a
             // concurrent activate during the VALIDATING phase would see !derivationStale (rederive
