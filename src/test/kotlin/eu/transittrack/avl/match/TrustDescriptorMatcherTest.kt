@@ -75,6 +75,11 @@ class TrustDescriptorMatcherTest(
         lon: Double,
         descTripId: String?,
         ts: Instant,
+        descRouteId: String? = null,
+        descDirectionId: Int? = null,
+        descStartTimeSec: Int? = null,
+        currentStopId: String? = null,
+        currentStopSequence: Int? = null,
     ): AvlReportRow =
         AvlReportRow(
             feedId = 1L,
@@ -87,13 +92,13 @@ class TrustDescriptorMatcherTest(
             speedMps = null,
             odometerM = null,
             descTripId = descTripId,
-            descRouteId = null,
-            descDirectionId = null,
+            descRouteId = descRouteId,
+            descDirectionId = descDirectionId,
             descStartDate = LocalDate.of(2026, 9, 7),
-            descStartTimeSec = null,
+            descStartTimeSec = descStartTimeSec,
             descScheduleRelationship = null,
-            currentStopSequence = null,
-            currentStopId = null,
+            currentStopSequence = currentStopSequence,
+            currentStopId = currentStopId,
             currentStatus = null,
             occupancyStatus = null,
             congestionLevel = null,
@@ -153,5 +158,122 @@ class TrustDescriptorMatcherTest(
 
         assertThat(matcher.match(report(mid.lat + 0.02, mid.lon + 0.02, "T1", ts), null, ctx))
             .isEqualTo(MatchOutcome.Failed)
+    }
+
+    @Test
+    fun `route + direction + exact startTimeSec resolves the trip when descTripId is absent`() {
+        val ctx = factory.open(avlFeed)!!
+        val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+        val ts = LocalDate
+            .of(2026, 9, 7)
+            .atTime(8, 5)
+            .atZone(ctx.zone)
+            .toInstant()
+
+        val outcome =
+            matcher.match(
+                report(
+                    mid.lat, mid.lon, descTripId = null, ts = ts,
+                    descRouteId = "RA", descDirectionId = 0, descStartTimeSec = 8 * 3600,
+                ),
+                prev = null,
+                ctx,
+            )
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)
+    }
+
+    @Test
+    fun `route without startTimeSec is ambiguous and fails`() {
+        val ctx = factory.open(avlFeed)!!
+        val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+        val ts = LocalDate
+            .of(2026, 9, 7)
+            .atTime(8, 5)
+            .atZone(ctx.zone)
+            .toInstant()
+
+        assertThat(
+            matcher.match(
+                report(mid.lat, mid.lon, descTripId = null, ts = ts, descRouteId = "RA", descDirectionId = 0),
+                null,
+                ctx,
+            ),
+        ).isEqualTo(MatchOutcome.Failed)
+    }
+
+    @Test
+    fun `route fallback respects direction id`() {
+        val ctx = factory.open(avlFeed)!!
+        val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+        val ts = LocalDate
+            .of(2026, 9, 7)
+            .atTime(8, 5)
+            .atZone(ctx.zone)
+            .toInstant()
+
+        // startTimeSec 08:00 belongs to a direction-0 trip; asking for direction 1 must not resolve it.
+        assertThat(
+            matcher.match(
+                report(
+                    mid.lat, mid.lon, descTripId = null, ts = ts,
+                    descRouteId = "RA", descDirectionId = 1, descStartTimeSec = 8 * 3600,
+                ),
+                null,
+                ctx,
+            ),
+        ).isEqualTo(MatchOutcome.Failed)
+    }
+
+    @Test
+    fun `current stop sequence lower-bounds the projection`() {
+        val ctx = factory.open(avlFeed)!!
+        val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val early = geom.line.pointAt(geom.line.lengthM * 0.15)
+        val ts = LocalDate
+            .of(2026, 9, 7)
+            .atTime(8, 5)
+            .atZone(ctx.zone)
+            .toInstant()
+
+        // Point sits near the first stop, but the descriptor claims the vehicle is at stop 4 (the last).
+        assertThat(
+            matcher.match(
+                report(early.lat, early.lon, "T1", ts, currentStopSequence = 4, currentStopId = "S4"),
+                null,
+                ctx,
+            ),
+        ).isEqualTo(MatchOutcome.Failed)
+    }
+
+    @Test
+    fun `consistent current stop id still matches`() {
+        val ctx = factory.open(avlFeed)!!
+        val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM * 0.6)
+        val ts = LocalDate
+            .of(2026, 9, 7)
+            .atTime(8, 5)
+            .atZone(ctx.zone)
+            .toInstant()
+
+        val outcome =
+            matcher.match(
+                report(mid.lat, mid.lon, "T1", ts, currentStopSequence = 2, currentStopId = "S2"),
+                null,
+                ctx,
+            )
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)
     }
 }

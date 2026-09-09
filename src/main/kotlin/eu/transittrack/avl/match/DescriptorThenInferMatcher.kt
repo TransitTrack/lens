@@ -22,5 +22,10 @@ class DescriptorThenInferMatcher(
         report: AvlReportRow,
         prev: VehicleStateRow?,
         ctx: AvlMatchContext,
-    ): MatchOutcome = trust.match(report, prev, ctx).let { if (it is MatchOutcome.Matched) it else infer.match(report, prev, ctx) }
+    ): MatchOutcome =
+        trust
+            .match(report, prev, ctx)
+            .let {
+                it as? MatchOutcome.Matched ?: infer.match(report, prev, ctx)
+            }
 }

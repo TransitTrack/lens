@@ -139,7 +139,7 @@ class AvlMatchProcessorTest(
     }
 
     @Test
-    fun `two advancing on-shape reports both match and state reflects the later one`() {
+    fun `a batch matches only the newest report per vehicle and state reflects it`() {
         val (trip, geom) = t1Geom()
         val len = geom.line.lengthM
 
@@ -148,7 +148,9 @@ class AvlMatchProcessorTest(
 
         assertThat(processor.processBatch()).isEqualTo(2)
 
-        assertThat(reports.findAll().map { it.matchStatus }.toSet()).isEqualTo(setOf(MatchStatus.MATCHED))
+        // only the newest report is a real match attempt; the earlier one is skipped
+        assertThat(reports.findAll().map { it.matchStatus }.toSet())
+            .isEqualTo(setOf(MatchStatus.SKIPPED, MatchStatus.MATCHED))
 
         val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
         assertThat(state.matched).isTrue()
@@ -156,11 +158,11 @@ class AvlMatchProcessorTest(
         assertThat(state.tripRowId).isEqualTo(trip.id)
         assertThat(state.distanceAlongTripM!!).isCloseTo(0.60 * len, 0.1 * len)
 
-        assertThat(vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())).hasSize(2)
+        assertThat(vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())).hasSize(1)
     }
 
     @Test
-    fun `three garbage reports fail and clear the trip after unmatchAfterFailures`() {
+    fun `a garbage report fails the newest attempt and never matches the vehicle`() {
         val (_, geom) = t1Geom()
         val mid = geom.line.pointAt(0.5 * geom.line.lengthM)
         val garbage = Point(mid.lat + 0.05, mid.lon + 0.05)
@@ -171,12 +173,42 @@ class AvlMatchProcessorTest(
 
         processor.processBatch()
 
-        assertThat(reports.findAll().map { it.matchStatus }.toSet()).isEqualTo(setOf(MatchStatus.UNMATCHED))
+        assertThat(reports.findAll().map { it.matchStatus }.toSet())
+            .isEqualTo(setOf(MatchStatus.SKIPPED, MatchStatus.UNMATCHED))
 
         val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-2")!!
+        // a vehicle that never had a trip assignment stays unmatched from the first failure
         assertThat(state.matched).isFalse()
         assertThat(state.stale).isTrue()
-        assertThat(state.consecutiveFailures).isEqualTo(3)
+        assertThat(state.consecutiveFailures).isEqualTo(1)
         assertThat(state.tripRowId).isNull()
+    }
+
+    @Test
+    fun `a matched vehicle keeps its trip through failed cycles until unmatchAfterFailures`() {
+        val (trip, geom) = t1Geom()
+        val len = geom.line.lengthM
+        val mid = geom.line.pointAt(0.5 * len)
+        val garbage = Point(mid.lat + 0.05, mid.lon + 0.05)
+
+        insertReport("bus-3", geom.line.pointAt(0.3 * len), ts(8, 0))
+        processor.processBatch()
+        assertThat(vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-3")!!.matched).isTrue()
+
+        // unmatchAfterFailures = 5: cycles 1..4 retain the trip (stale), cycle 5 drops it
+        for (cycle in 1..5) {
+            insertReport("bus-3", garbage, ts(8, cycle * 2))
+            processor.processBatch()
+            val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-3")!!
+            assertThat(state.stale).isTrue()
+            assertThat(state.consecutiveFailures).isEqualTo(cycle)
+            if (cycle < 5) {
+                assertThat(state.matched).isFalse()
+                assertThat(state.tripRowId).isEqualTo(trip.id)
+            } else {
+                assertThat(state.matched).isFalse()
+                assertThat(state.tripRowId).isNull()
+            }
+        }
     }
 }

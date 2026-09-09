@@ -19,7 +19,13 @@ data class AvlProperties(
     data class Match(
         val backtrackToleranceM: Double = 30.0,
         val maxDeviationM: Double = 60.0,
-        val unmatchAfterFailures: Int = 3,
+        /**
+         * Polling cycles with no usable match for a vehicle before it is considered unmatched
+         * (`vehicle_state.matched = false`) and its trip/block assignment is dropped. Until this
+         * many consecutive failed cycles, a vehicle that had a live match keeps that assignment,
+         * flagged `stale`, so a brief GPS/descriptor outage doesn't drop it off its trip.
+         */
+        val unmatchAfterFailures: Int = 5,
         val tripEndAdvanceGraceSec: Int = 120,
         val candidateTimeSlackSec: Int = 1_800,
         val matchIntervalMs: Long = 5_000,

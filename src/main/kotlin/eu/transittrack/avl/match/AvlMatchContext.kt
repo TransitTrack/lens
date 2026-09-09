@@ -17,6 +17,7 @@ import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTrip
 import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.ServiceDateResolver
@@ -47,6 +48,7 @@ class AvlMatchContext(
     private val tripByGtfsIdCache = HashMap<String, Trip?>()
     private val blockTripCache = HashMap<Long, BlockTrip?>()
     private val serviceIdsCache = HashMap<LocalDate, Set<String>>()
+    private val patternStopsCache = HashMap<Long, List<StopPath>>()
 
     fun patternGeometry(tripPatternId: Long): PatternGeometry? = geometryCache.getOrPut(tripPatternId) { buildGeometry(tripPatternId) }
 
@@ -71,6 +73,15 @@ class AvlMatchContext(
     fun activeServiceIds(date: LocalDate): Set<String> = serviceIdsCache.getOrPut(date) { serviceDates.activeServiceIds(revisionId, date) }
 
     fun candidateTrips(serviceIds: Set<String>): List<Trip> = trips.findDerivedByServices(revisionId, serviceIds)
+
+    fun candidateTripsForRoute(
+        routeId: String,
+        serviceIds: Set<String>,
+    ): List<Trip> = trips.findDerivedByRouteAndServices(revisionId, routeId, serviceIds)
+
+    /** Ordered stop paths of a pattern, used to resolve a descriptor's current stop to a distance along the trip. */
+    fun patternStops(tripPatternId: Long): List<StopPath> =
+        patternStopsCache.getOrPut(tripPatternId) { stopPaths.findByTripPatternOrdered(revisionId, tripPatternId) }
 
     fun patternExtentWithin(
         tripPatternId: Long,

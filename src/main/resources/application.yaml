@@ -72,7 +72,7 @@ transittrack:
     match:
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0
-      unmatch-after-failures: 3
+      unmatch-after-failures: 5
   predict:
     enabled: true
     learn:
