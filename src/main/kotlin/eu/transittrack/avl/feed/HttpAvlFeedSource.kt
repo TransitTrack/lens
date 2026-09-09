@@ -2,6 +2,7 @@ package eu.transittrack.avl.feed
 
 import java.time.Instant
 
+import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.springframework.stereotype.Component
@@ -24,6 +25,8 @@ class HttpAvlFeedSource(
             .Builder()
             .get()
             .url(feed.url)
+            .cacheControl(CacheControl.FORCE_NETWORK)
+
         feed.headers?.forEach { (k, v) -> builder.header(k, v) }
         try {
             client.newCall(builder.build()).execute().use { response ->

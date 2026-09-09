@@ -44,7 +44,7 @@ class AvlIngestService(
             }
 
         val latest = reports.latestTsByVehicle(feed.id!!).associate { it.vehicleId to it.ts }
-        val fresh = decoded.filter { latest[it.vehicleId] != it.ts }
+        val fresh = decoded.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: false }
         writer.insertReports(fresh.map { toRow(feed.id!!, it) })
         recordPoll(feed.id!!, status = "OK", count = fresh.size)
         log.debug("avl feed '{}': {} decoded, {} new", feed.code, decoded.size, fresh.size)

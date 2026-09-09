@@ -39,6 +39,7 @@ transittrack:
           url: https://live.stpt.ro/gtfs-vehicles.php
           prediction-algorithm: kalman
           prediction-mode: evaluation
+          assignment-mode: descriptor_then_infer
   gtfs:
     ingest:
       auto-activate: true

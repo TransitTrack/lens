@@ -12,12 +12,14 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 /** Ordinal 0 = PENDING must match the `avl_report.match_status` column default. */
-enum class MatchStatus { PENDING, MATCHED, UNMATCHED }
+enum class MatchStatus { PENDING, MATCHED, UNMATCHED, SKIPPED }
 
 @Entity
 @Table(name = "avl_report")
@@ -55,10 +57,7 @@ interface VehicleTsProjection {
 
 @Repository
 interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
-    @Query(
-        value = "select * from avl_report where match_status = 0 order by feed_id, vehicle_id, ts limit :limit",
-        nativeQuery = true,
-    )
+    @Query("select t from AvlReportRow t where t.matchStatus = 0 order by t.feedId, t.vehicleId, t.ts limit :limit")
     fun findClaimBatch(
         @Param("limit") limit: Int,
     ): List<AvlReportRow>
@@ -81,4 +80,13 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
         ts: Instant,
         pageable: org.springframework.data.domain.Pageable,
     ): List<AvlReportRow>
+
+    @Modifying
+    @Transactional
+    @Query("update AvlReportRow set ts = :at, matchStatus = :status where id = :id")
+    fun markMatched(
+        id: Long,
+        status: MatchStatus,
+        at: Instant,
+    )
 }

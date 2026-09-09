@@ -49,4 +49,6 @@ interface VehicleStateRepository : JpaRepository<VehicleStateRow, Long> {
     ): VehicleStateRow?
 
     fun findByFeedIdOrderByUpdatedAtDesc(feedId: Long): List<VehicleStateRow>
+
+    fun findByFeedId(feedId: Long): List<VehicleStateRow>
 }

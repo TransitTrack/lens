@@ -41,10 +41,10 @@ const links = computed<NavigationMenuItem[][]>(() => [
       ],
     },
   ],
-  [
-    {label: 'Nuxt UI docs', icon: 'i-lucide-book-open', to: 'https://ui.nuxt.com', target: '_blank'},
-    {label: 'GitHub', icon: 'i-simple-icons-github', to: 'https://github.com/transittrack', target: '_blank'},
-  ],
+  // [
+  //   {label: 'Nuxt UI docs', icon: 'i-lucide-book-open', to: 'https://ui.nuxt.com', target: '_blank'},
+  //   {label: 'GitHub', icon: 'i-simple-icons-github', to: 'https://github.com/transittrack', target: '_blank'},
+  // ],
 ])
 
 const groups = computed(() => [

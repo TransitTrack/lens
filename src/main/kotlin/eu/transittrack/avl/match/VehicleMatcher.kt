@@ -26,6 +26,8 @@ sealed interface MatchOutcome {
     ) : MatchOutcome
 
     data object Failed : MatchOutcome
+
+    data object Skipped : MatchOutcome
 }
 
 interface VehicleMatcher {

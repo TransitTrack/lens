@@ -7,7 +7,6 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
-import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.avl.AvlProperties
@@ -60,11 +59,24 @@ class AvlMatchProcessor(
             val feed = feeds.findById(feedId).orElse(null) ?: continue
             val ctx = contextFactory.open(feed) ?: continue // leave rows PENDING when no active revision
             val matcher = matchers[feed.assignmentMode] ?: continue
-            // oldest-first so the sequential constraint sees a vehicle's reports in order
-            for (report in feedReports.sortedWith(compareBy({ it.vehicleId }, { it.ts }))) {
-                val prev = vehicleStates.findByFeedIdAndVehicleId(feedId, report.vehicleId)
-                persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
-                processed++
+            val vehiclesForFeed = feedReports.groupBy { it.vehicleId }
+            val vehiclesPreviousStates = vehicleStates
+                .findByFeedId(feedId)
+                .associateBy { it.vehicleId }
+            for ((vehicleId, reports) in vehiclesForFeed) {
+                val prev = vehiclesPreviousStates[vehicleId]
+
+                // oldest-first so the sequential constraint sees a vehicle's reports in order
+                reports
+                    .sortedBy { it.ts }
+                    .forEachIndexed { index, report ->
+                        if (index != reports.lastIndex) {
+                            persist(feed, report, MatchOutcome.Skipped, prev, ctx)
+                        } else {
+                            persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
+                        }
+                        processed++
+                    }
             }
         }
         return processed
@@ -160,20 +172,21 @@ class AvlMatchProcessor(
                         updatedAt = now,
                     ),
                 )
+
                 markReport(report.id!!, MatchStatus.UNMATCHED, now)
+            }
+
+            MatchOutcome.Skipped -> {
+                markReport(report.id!!, MatchStatus.SKIPPED, now)
             }
         }
     }
 
-    @Transactional
-    fun markReport(
+    private fun markReport(
         id: Long,
         status: MatchStatus,
         at: Instant,
     ) {
-        val r = reports.findById(id).orElseThrow()
-        r.matchStatus = status
-        r.matchedAt = at
-        reports.save(r)
+        reports.markMatched(id, status, at)
     }
 }
