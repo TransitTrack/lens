@@ -131,8 +131,17 @@ function formatTs(iso: string | null | undefined): string {
   }).format(new Date(iso))
 }
 
-function formatSec(sec: number | null | undefined): string {
-  return sec == null ? '—' : `${sec}s`
+/**
+ * `confidenceSec` is the Kalman filter's ±1σ error on the predicted arrival
+ * (only the KALMAN algorithm reports it). Bucket it into a legible rating.
+ */
+function confidenceRating(
+  sec: number | null | undefined,
+): { label: string, color: 'success' | 'neutral' | 'warning' } | null {
+  if (sec == null) return null
+  if (sec <= 20) return { label: 'High', color: 'success' }
+  if (sec <= 60) return { label: 'Fair', color: 'neutral' }
+  return { label: 'Low', color: 'warning' }
 }
 
 function formatDur(sec: number): string {
@@ -274,9 +283,19 @@ const waitRatio = computed(() => {
           <template #predictedArrival-cell="{ row }">{{
             formatTs(row.original.predictedArrival)
           }}</template>
-          <template #confidenceSec-cell="{ row }">{{
-            formatSec(row.original.confidenceSec)
-          }}</template>
+          <template #confidenceSec-cell="{ row }">
+            <UBadge
+              v-if="confidenceRating(row.original.confidenceSec)"
+              :color="confidenceRating(row.original.confidenceSec)!.color"
+              variant="subtle"
+              size="sm"
+              :title="`±1σ uncertainty of the predicted arrival: ±${row.original.confidenceSec}s`"
+            >
+              {{ confidenceRating(row.original.confidenceSec)!.label }} ·
+              &#177;{{ row.original.confidenceSec }}s
+            </UBadge>
+            <span v-else class="text-dimmed">—</span>
+          </template>
         </UTable>
       </template>
     </template>
