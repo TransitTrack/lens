@@ -213,6 +213,14 @@ function onExport() {
   window.open('/api/revisions/' + draftId.value + '/gtfs.zip')
 }
 
+function isLockLost(e: unknown): boolean {
+  const err = e as {
+    graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }>
+    cause?: { graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }> }
+  }
+  return (err?.graphQLErrors ?? err?.cause?.graphQLErrors)?.[0]?.extensions?.code === 'LOCK_LOST'
+}
+
 // --- activate --------------------------------------------------------
 const { mutate: activateDraft, loading: activating } = useActivateDraftMutation()
 const activateOpen = ref(false)
@@ -228,7 +236,11 @@ async function confirmActivate() {
     activateOpen.value = false
     navigateTo(feedPath('/explore/feed'))
   } catch (e) {
-    toast.add({ title: 'Activation failed', description: (e as Error).message, color: 'error' })
+    if (isLockLost(e)) {
+      toast.add({ title: 'Your editing session was taken over — reload to continue', color: 'error', icon: 'i-lucide-lock' })
+    } else {
+      toast.add({ title: 'Activation failed', description: (e as Error).message, color: 'error' })
+    }
   }
 }
 
@@ -242,7 +254,11 @@ async function confirmDiscard() {
     discardOpen.value = false
     navigateTo(feedPath('/drafts'))
   } catch (e) {
-    toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+    if (isLockLost(e)) {
+      toast.add({ title: 'Your editing session was taken over — reload to continue', color: 'error', icon: 'i-lucide-lock' })
+    } else {
+      toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+    }
   }
 }
 

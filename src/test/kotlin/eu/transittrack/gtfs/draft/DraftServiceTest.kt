@@ -265,6 +265,20 @@ class DraftServiceTest(
     }
 
     @Test
+    fun `revertToFork is blocked when another editor holds the lock`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        val id = draft.id!!
+        drafts.claimEditor(id, "alice")
+
+        assertFailure { drafts.revertToFork(id, "bob") }
+            .isInstanceOf(eu.transittrack.gtfs.draft.edit.LockNotHeldException::class)
+
+        assertThat(drafts.revertToFork(id, "alice").derivationStale).isEqualTo(true)
+    }
+
+    @Test
     fun `activate is blocked while stale`() {
         val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
         cleanupRevs += activeRev
