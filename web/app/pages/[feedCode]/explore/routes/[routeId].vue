@@ -2,11 +2,13 @@
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
+import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useRouteDetailQuery } from '~~/generated/graphql'
 import { routeTypeLabel, hexColor, patternLine, patternStopFeatures } from '~/utils/gtfs'
 
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
+const { extent } = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
 
 const { result, loading, error } = useRouteDetailQuery(
@@ -101,7 +103,13 @@ const patternSummary = computed(() => {
 
       <div v-else class="flex min-h-0 flex-1">
         <div class="relative min-w-0 flex-1">
-          <VehicleRouteMap :line="line" :stops="stops" :vehicle="null" :route-color="routeColor" />
+          <VehicleRouteMap
+            :line="line"
+            :stops="stops"
+            :vehicle="null"
+            :route-color="routeColor"
+            :extent="extent"
+          />
         </div>
 
         <aside class="flex w-96 shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">

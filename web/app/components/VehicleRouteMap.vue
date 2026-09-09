@@ -3,6 +3,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
 import {useMapStyle} from '../composables/useMapStyle'
 import {boundsOf} from '../utils/vehicleDetail'
+import {extentToBounds} from '../utils/mapBounds'
+import type {LngLatBoundsExtent} from '../composables/useFeedExtent'
 
 const props = withDefaults(
   defineProps<{
@@ -14,8 +16,10 @@ const props = withDefaults(
     trail?: LngLat[]
     /** keep the map centred on the vehicle as it moves */
     follow?: boolean
+    /** agency service area — frames the map on load before the route line arrives */
+    extent?: LngLatBoundsExtent | null
   }>(),
-  {trail: () => [], follow: false},
+  {trail: () => [], follow: false, extent: null},
 )
 
 const MAP_ID = 'vehicle-route-map'
@@ -35,6 +39,8 @@ const trailData = computed<GeoJSON.Feature>(() => ({
   geometry: {type: 'LineString', coordinates: props.trail},
 }))
 
+// First fit is instant — the map opened on the agency extent via `:bounds`.
+let firstFit = true
 function fit() {
   const b = boundsOf(
     props.line.length
@@ -44,7 +50,8 @@ function fit() {
         : [],
   )
   if (!b || !map.map || !map.isLoaded) return
-  map.map.fitBounds(b, {padding: 48, duration: 800, maxZoom: 16})
+  map.map.fitBounds(b, {padding: 48, duration: firstFit ? 0 : 800, maxZoom: 16})
+  firstFit = false
 }
 
 watch([() => props.line, () => map.isLoaded], fit, {immediate: true})
@@ -61,7 +68,14 @@ watch(
 
 <template>
   <div class="h-full w-full">
-    <MglMap :map-key="MAP_ID" :map-style="mapStyle" :center="[0, 0]" :zoom="2">
+    <MglMap
+      :map-key="MAP_ID"
+      :map-style="mapStyle"
+      :bounds="extentToBounds(props.extent)"
+      :fit-bounds-options="{padding: 40, animate: false}"
+      :center="[0, 0]"
+      :zoom="2"
+    >
       <MglNavigationControl/>
 
       <MglGeoJsonSource v-if="trail.length > 1" source-id="avl-trail" :data="trailData">

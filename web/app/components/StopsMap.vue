@@ -2,11 +2,15 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useMapStyle } from '~/composables/useMapStyle'
 import { boundsOf, type LngLat } from '~/utils/vehicleDetail'
+import { extentToBounds } from '~/utils/mapBounds'
+import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
 
 const props = defineProps<{
   stops: GeoJSON.FeatureCollection
   /** stopId to highlight + centre on */
   focusId?: string | null
+  /** agency service area — frames the map on load before the stops arrive */
+  extent?: LngLatBoundsExtent | null
 }>()
 const emit = defineEmits<{ (e: 'select', stopId: string): void }>()
 
@@ -21,11 +25,15 @@ const allCoords = computed<LngLat[]>(() =>
     .map((g) => [g.coordinates[0]!, g.coordinates[1]!]),
 )
 
+// The first fit is instant — the map already opened on the agency extent via
+// `:bounds`, so there's nothing to fly in from. Later fits (feed switch) ease.
+let firstFit = true
 function fitAll() {
   const b = boundsOf(allCoords.value)
   if (!b || !map.map || !map.isLoaded) return
   map.map.resize()
-  map.map.fitBounds(b, { padding: 40, maxZoom: 15, duration: 600 })
+  map.map.fitBounds(b, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 600 })
+  firstFit = false
 }
 watch([() => props.stops, () => map.isLoaded], () => {
   fitAll()
@@ -51,7 +59,14 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
 
 <template>
   <div class="h-full w-full">
-    <MglMap :map-key="MAP_ID" :map-style="mapStyle" :center="[0, 0]" :zoom="2">
+    <MglMap
+      :map-key="MAP_ID"
+      :map-style="mapStyle"
+      :bounds="extentToBounds(props.extent)"
+      :fit-bounds-options="{ padding: 40, animate: false }"
+      :center="[0, 0]"
+      :zoom="2"
+    >
       <MglNavigationControl />
       <MglGeoJsonSource source-id="all-stops" :data="props.stops">
         <MglCircleLayer

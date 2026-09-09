@@ -2,11 +2,13 @@
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
 import {useTripDetailQuery} from '~~/generated/graphql'
 import {hexColor, type LngLat} from '~/utils/gtfs'
 
 const route = useRoute()
 const {selectedFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
 const tripId = computed(() => String(route.params.tripId))
 
 const {result, loading, error} = useTripDetailQuery(
@@ -107,7 +109,13 @@ const runtimeSec = computed(() => {
 
       <div v-else class="flex min-h-0 flex-1">
         <div class="relative min-w-0 flex-1">
-          <VehicleRouteMap :line="line" :stops="stops" :vehicle="null" :route-color="routeColor"/>
+          <VehicleRouteMap
+            :line="line"
+            :stops="stops"
+            :vehicle="null"
+            :route-color="routeColor"
+            :extent="extent"
+          />
         </div>
 
         <aside class="flex w-[26rem] shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">

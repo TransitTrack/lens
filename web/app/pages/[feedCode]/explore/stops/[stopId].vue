@@ -5,6 +5,7 @@ import NavbarActions from '~/components/NavbarActions.vue'
 import StopsMap from '~/components/StopsMap.vue'
 import BarChart from '~/components/BarChart.vue'
 import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
 import {useExplorePatterns} from '~/composables/useExplorePatterns'
 import {useStopDetailQuery, useExploreCalendarQuery} from '~~/generated/graphql'
 import {hexColor} from '~/utils/gtfs'
@@ -17,6 +18,7 @@ import {
 
 const route = useRoute()
 const {selectedFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
 const {client} = useApolloClient()
 const stopId = computed(() => String(route.params.stopId))
 
@@ -147,7 +149,7 @@ const mapFeatures = computed(
 
       <div v-else-if="stop" class="flex min-h-0 flex-1">
         <div class="relative min-w-0 flex-1">
-          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId"/>
+          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" :extent="extent"/>
         </div>
 
         <aside class="flex w-[26rem] shrink-0 flex-col gap-4 overflow-y-auto border-l border-default p-4">

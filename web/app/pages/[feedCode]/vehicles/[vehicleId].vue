@@ -3,6 +3,7 @@ import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import SparklineChart from '~/components/SparklineChart.vue'
 import { useFeeds } from '~/composables/useFeeds'
+import { useFeedExtent } from '~/composables/useFeedExtent'
 import { usePollControl } from '~/composables/usePollControl'
 import { useAdherenceHistory } from '~/composables/useAdherenceHistory'
 import { useVehicleDetailQuery, useAvlTrailQuery } from '~~/generated/graphql'
@@ -19,7 +20,8 @@ import {
 } from '~/utils/vehicleDetail'
 
 const route = useRoute()
-const { selectedAvlFeedCode, feedPath } = useFeeds()
+const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
+const { extent } = useFeedExtent(selectedFeedCode)
 const { intervalMs } = usePollControl()
 const vehicleId = computed(() => String(route.params.vehicleId))
 
@@ -193,6 +195,7 @@ function speedKmh(mps: number | null | undefined): string {
             :route-color="routeColor"
             :trail="trail"
             :follow="follow"
+            :extent="extent"
           />
         </div>
 

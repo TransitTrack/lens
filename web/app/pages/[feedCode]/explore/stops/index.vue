@@ -4,11 +4,13 @@ import NavbarActions from '~/components/NavbarActions.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
 import StopsMap from '~/components/StopsMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
+import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExplorePatterns } from '~/composables/useExplorePatterns'
 import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
 
 const { selectedFeedCode, feedPath } = useFeeds()
+const { extent } = useFeedExtent(selectedFeedCode)
 const { agencyId } = useAgencyFilter()
 
 const { result, loading } = useExploreStopsQuery(
@@ -104,7 +106,12 @@ function openStop(stopId: string) {
 
       <div class="flex min-h-0 flex-1">
         <div class="min-w-0 flex-1">
-          <StopsMap :stops="stopFeatures" :focus-id="focusId" @select="focusId = $event" />
+          <StopsMap
+            :stops="stopFeatures"
+            :focus-id="focusId"
+            :extent="extent"
+            @select="focusId = $event"
+          />
         </div>
 
         <aside class="flex w-96 shrink-0 flex-col gap-2 border-l border-default p-3">

@@ -6,6 +6,7 @@ import { adherenceBadge } from '../utils/adherence'
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import { useMapStyle } from '../composables/useMapStyle'
+import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
 
 const props = defineProps<{ vehicles: VehicleRow[]; extent?: LngLatBoundsExtent | null }>()
@@ -61,6 +62,8 @@ function boundsForFit(): [[number, number], [number, number]] | null {
   return null
 }
 
+// First fit is instant — the map opened on the agency extent via `:bounds`.
+let firstFit = true
 function fit() {
   if (!map.map || !map.isLoaded) return
   const bounds = boundsForFit()
@@ -68,7 +71,8 @@ function fit() {
   // The panel layout can still be settling when the style first loads, leaving
   // the canvas at a stale size; resize before fitting so the zoom is right.
   map.map.resize()
-  map.map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 800 })
+  map.map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 800 })
+  firstFit = false
 }
 
 // Fit once we have both a loaded map and something to frame; re-fit if the
@@ -90,7 +94,12 @@ function badge(v: VehicleRow) {
 <template>
   <!-- MglMap renders a fragment root, so it can't take a `class`; size it here. -->
   <div class="relative h-full w-full">
-    <MglMap :map-key="MAP_ID" :map-style="mapStyle">
+    <MglMap
+      :map-key="MAP_ID"
+      :map-style="mapStyle"
+      :bounds="extentToBounds(props.extent)"
+      :fit-bounds-options="{ padding: 40, animate: false }"
+    >
       <MglNavigationControl />
 
       <MglMarker
