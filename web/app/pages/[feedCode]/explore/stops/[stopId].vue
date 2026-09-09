@@ -217,7 +217,7 @@ const mapFeatures = computed(
           <div class="flex flex-col gap-2">
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-muted">Departures by hour</span>
-              <UButtonGroup size="xs">
+              <UFieldGroup size="xs">
                 <UButton
                   v-for="k in kindItems"
                   :key="k.value"
@@ -226,7 +226,7 @@ const mapFeatures = computed(
                   :label="k.label"
                   @click="kind = k.value"
                 />
-              </UButtonGroup>
+              </UFieldGroup>
             </div>
             <USkeleton v-if="tripsLoading && !patternTrips.length" class="h-[130px] w-full"/>
             <template v-else>
