@@ -10,7 +10,7 @@ import {
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
 import { useDraftEdit } from '~/composables/useDraftEdit'
-import { parseDeltaInput, secToClock } from '~/utils/gtfsTime'
+import { parseDeltaInput, parseTimeInput, secToClock } from '~/utils/gtfsTime'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
 
@@ -18,6 +18,7 @@ const props = defineProps<{
   trip: DraftGridTrip
   activeCell: { tripId: string; stopSequence: number } | null
   activeCellValue: { arrivalSec: number | null; departureSec: number | null } | null
+  activeStopName?: string | null
   readOnly: boolean
   derivationStale: boolean
   feedCode: string
@@ -105,16 +106,40 @@ const showCell = computed(
 const arr = ref<number | null>(null)
 const dep = ref<number | null>(null)
 const dwell = ref<number | null>(null)
+const arrText = ref('')
+const depText = ref('')
 watch(
   () => props.activeCellValue,
   (v) => {
     arr.value = v?.arrivalSec ?? null
     dep.value = v?.departureSec ?? null
+    arrText.value = secToClock(v?.arrivalSec ?? null)
+    depText.value = secToClock(v?.departureSec ?? null)
     dwell.value =
       v?.arrivalSec != null && v?.departureSec != null ? v.departureSec - v.arrivalSec : null
   },
   { immediate: true },
 )
+
+function commitArrText() {
+  const parsed = parseTimeInput(arrText.value, arr.value ?? dep.value ?? null)
+  if (parsed == null) {
+    arrText.value = secToClock(arr.value)
+    return
+  }
+  arr.value = parsed
+  void commitStopTime()
+}
+
+function commitDepText() {
+  const parsed = parseTimeInput(depText.value, dep.value ?? arr.value ?? null)
+  if (parsed == null) {
+    depText.value = secToClock(dep.value)
+    return
+  }
+  dep.value = parsed
+  void commitStopTime()
+}
 
 const { mutate: updateStopTime } = useUpdateStopTimeMutation()
 const { mutate: setStopDwell } = useSetStopDwellMutation()
@@ -268,14 +293,14 @@ const dirLabel = computed(() =>
 
     <div v-if="showCell" class="border-t border-default pt-3">
       <div class="mb-2 text-xs font-semibold uppercase text-muted">
-        Stop #{{ activeCell?.stopSequence }}
+        {{ activeStopName ?? `Stop #${activeCell?.stopSequence}` }}
       </div>
       <div class="grid grid-cols-3 gap-2">
         <UFormField label="Arrival" size="xs">
-          <UInput v-model.number="arr" type="number" size="xs" :disabled="readOnly" @change="commitStopTime" />
+          <UInput v-model="arrText" type="text" size="xs" placeholder="e.g. 7:33" :disabled="readOnly" @change="commitArrText" />
         </UFormField>
         <UFormField label="Departure" size="xs">
-          <UInput v-model.number="dep" type="number" size="xs" :disabled="readOnly" @change="commitStopTime" />
+          <UInput v-model="depText" type="text" size="xs" placeholder="e.g. 7:33" :disabled="readOnly" @change="commitDepText" />
         </UFormField>
         <UFormField label="Dwell" size="xs">
           <UInput v-model.number="dwell" type="number" size="xs" :disabled="readOnly" @change="commitDwell" />

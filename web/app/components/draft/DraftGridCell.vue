@@ -22,7 +22,7 @@ const inputEl = ref<HTMLInputElement | null>(null)
 function onClick() {
   emit('activate')
   if (props.readOnly || editing.value) return
-  draft.value = secToClock(props.arrivalSec)
+  draft.value = secToClock(props.arrivalSec ?? props.departureSec)
   editing.value = true
   void nextTick(() => {
     inputEl.value?.focus()

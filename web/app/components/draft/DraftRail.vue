@@ -13,6 +13,7 @@ const props = defineProps<{
   selectedTrip: DraftGridTrip | null
   activeCell: { tripId: string; stopSequence: number } | null
   activeCellValue: { arrivalSec: number | null; departureSec: number | null } | null
+  activeStopName?: string | null
   readOnly: boolean
   derivationStale: boolean
   feedCode: string
@@ -125,6 +126,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
             :trip="selectedTrip"
             :active-cell="activeCell"
             :active-cell-value="activeCellValue"
+            :active-stop-name="activeStopName"
             :read-only="readOnly"
             :derivation-stale="derivationStale"
             :feed-code="feedCode"

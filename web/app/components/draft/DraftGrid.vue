@@ -72,6 +72,7 @@ function tripLabel(tripId: string): string {
 defineExpose({
   refetch,
   trips,
+  stops,
   cellAt: (tripId: string, stopSequence: number): CellVal => cellFor(tripId, stopSequence),
 })
 </script>

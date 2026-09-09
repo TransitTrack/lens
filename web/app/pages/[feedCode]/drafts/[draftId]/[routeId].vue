@@ -299,9 +299,16 @@ type DraftGridTrip = {
 }
 const selectedTripId = ref<string | null>(null)
 const activeCell = ref<{ tripId: string; stopSequence: number } | null>(null)
+type DraftGridStop = {
+  stopSequence: number
+  stopId: string
+  stopName: string | null
+  timepoint: boolean
+}
 const gridRef = ref<{
   refetch: () => Promise<unknown>
   trips: DraftGridTrip[]
+  stops: DraftGridStop[]
   cellAt: (tripId: string, stopSequence: number) => GridCellVal
 } | null>(null)
 const { mutate: updateStopTime } = useUpdateStopTimeMutation()
@@ -313,6 +320,12 @@ const activeCellValue = computed<GridCellVal | null>(() => {
   const c = activeCell.value
   if (!c || !gridRef.value) return null
   return gridRef.value.cellAt(c.tripId, c.stopSequence)
+})
+const activeStopName = computed<string | null>(() => {
+  const stop = gridRef.value?.stops?.find(
+    (s) => s.stopSequence === activeCell.value?.stopSequence,
+  )
+  return stop?.stopName ?? stop?.stopId ?? null
 })
 
 // --- rail: undone (redo tail) + error counts --------------------
@@ -589,6 +602,7 @@ function openDuplicate(tripId: string) {
             :selected-trip="selectedTrip"
             :active-cell="activeCell"
             :active-cell-value="activeCellValue"
+            :active-stop-name="activeStopName"
             :read-only="readOnly"
             :derivation-stale="draft?.derivationStale ?? false"
             :feed-code="selectedFeedCode ?? ''"
