@@ -72,8 +72,32 @@ async function undoToHere(targetSeq: number) {
   const n = (result.value?.draftEdits ?? []).filter(
     (e) => !e.undone && e.seq > targetSeq,
   ).length
+  // Don't route through the `run` helper here: its `onChanged` chain (heavy
+  // draftGrid refetch + refetchDraft + emit) would fire once per step. Apply
+  // each undo locally, then refresh once after the loop.
+  let applied = 0
   for (let i = 0; i < n; i++) {
-    if (!(await undoOnce())) break
+    try {
+      const data = await props.editor.mutate(async (vars) => {
+        const res = await undoDraftEdit({
+          id: vars.draftId,
+          editor: vars.editor,
+          expectedVersion: vars.expectedVersion,
+        })
+        return res?.data
+      })
+      if (!data?.undoDraftEdit) break
+      props.editor.applyResult(data.undoDraftEdit)
+      applied++
+    } catch {
+      // editor.mutate already toasts
+      break
+    }
+  }
+  if (applied > 0) {
+    await props.editor.refetchEdits().catch(() => {})
+    await refetch()
+    emit('changed')
   }
 }
 

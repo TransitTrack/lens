@@ -37,7 +37,7 @@ export function useDraftEdit(
       const result = res?.data?.[field] ?? null
       if (result) {
         editor.applyResult(result)
-        void editor.refetchEdits()
+        void editor.refetchEdits().catch(() => {})
         await opts?.onChanged?.()
       }
       return result
