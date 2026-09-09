@@ -6,6 +6,7 @@ import {
   useRedoDraftEditMutation,
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
+import { useDraftEdit } from '~/composables/useDraftEdit'
 
 const props = defineProps<{
   draftId: string
@@ -37,53 +38,32 @@ watch(
 const { mutate: undoDraftEdit } = useUndoDraftEditMutation()
 const { mutate: redoDraftEdit } = useRedoDraftEditMutation()
 
+const { run } = useDraftEdit(props.editor, {
+  onChanged: async () => {
+    await refetch()
+    emit('changed')
+  },
+})
+
 async function undoOnce(): Promise<boolean> {
-  const data = await props.editor.mutate(async (vars) => {
-    const res = await undoDraftEdit({
-      id: vars.draftId,
-      editor: vars.editor,
-      expectedVersion: vars.expectedVersion,
-    })
-    return res?.data
-  })
-  if (data?.undoDraftEdit) {
-    props.editor.applyResult(data.undoDraftEdit)
-    return true
-  }
-  return false
+  const result = await run(
+    (v) =>
+      undoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+    'undoDraftEdit',
+  )
+  return result != null
 }
 
 async function onUndo() {
-  try {
-    if (await undoOnce()) {
-      await props.editor.refetchEdits()
-      await refetch()
-      emit('changed')
-    }
-  } catch {
-    // editor.mutate already toasts
-  }
+  await undoOnce()
 }
 
 async function onRedo() {
-  try {
-    const data = await props.editor.mutate(async (vars) => {
-      const res = await redoDraftEdit({
-        id: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-      })
-      return res?.data
-    })
-    if (data?.redoDraftEdit) {
-      props.editor.applyResult(data.redoDraftEdit)
-      await props.editor.refetchEdits()
-      await refetch()
-      emit('changed')
-    }
-  } catch {
-    // editor.mutate already toasts
-  }
+  await run(
+    (v) =>
+      redoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+    'redoDraftEdit',
+  )
 }
 
 async function undoToHere(targetSeq: number) {
@@ -93,15 +73,8 @@ async function undoToHere(targetSeq: number) {
     (e) => !e.undone && e.seq > targetSeq,
   ).length
   for (let i = 0; i < n; i++) {
-    try {
-      if (!(await undoOnce())) break
-    } catch {
-      break
-    }
+    if (!(await undoOnce())) break
   }
-  await props.editor.refetchEdits()
-  await refetch()
-  emit('changed')
 }
 
 function fmt(iso: string): string {

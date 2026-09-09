@@ -6,6 +6,7 @@ import {
   type DraftGridQuery,
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
+import { useDraftEdit } from '~/composables/useDraftEdit'
 import { parseTimeInput, parseDeltaInput, secToClock } from '~/utils/gtfsTime'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
@@ -95,36 +96,31 @@ const deltaLabel = computed(() => {
 })
 
 const { mutate: bulkShift } = useBulkShiftTripsMutation()
+const { run } = useDraftEdit(props.editor, { onChanged: () => emit('changed') })
 const submitting = ref(false)
 
 async function submit() {
   if (deltaSec.value == null || windowInvalid.value) return
   submitting.value = true
   try {
-    const data = await props.editor.mutate(async (v) => {
-      const res = await bulkShift({
-        input: {
-          draftId: v.draftId,
-          editor: v.editor,
-          expectedVersion: v.expectedVersion,
-          routeId: props.routeId,
-          patternKey: patternKey.value || null,
-          serviceId: serviceSel.value || null,
-          windowFromSec: windowFromSec.value,
-          windowToSec: windowToSec.value,
-          deltaSec: deltaSec.value as number,
-        },
-      })
-      return res?.data
-    })
-    if (data?.bulkShiftTrips) {
-      props.editor.applyResult(data.bulkShiftTrips)
-      await props.editor.refetchEdits()
-      emit('changed')
-      open.value = false
-    }
-  } catch {
-    // toast already fired inside editor.mutate
+    const result = await run(
+      (v) =>
+        bulkShift({
+          input: {
+            draftId: v.draftId,
+            editor: v.editor,
+            expectedVersion: v.expectedVersion,
+            routeId: props.routeId,
+            patternKey: patternKey.value || null,
+            serviceId: serviceSel.value || null,
+            windowFromSec: windowFromSec.value,
+            windowToSec: windowToSec.value,
+            deltaSec: deltaSec.value as number,
+          },
+        }),
+      'bulkShiftTrips',
+    )
+    if (result) open.value = false
   } finally {
     submitting.value = false
   }

@@ -13,6 +13,7 @@ import {
 } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
 import { useDraftEditor } from '~/composables/useDraftEditor'
+import { useDraftEdit } from '~/composables/useDraftEdit'
 import NavbarActions from '~/components/NavbarActions.vue'
 import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
 import DraftGrid from '~/components/draft/DraftGrid.vue'
@@ -266,43 +267,23 @@ async function confirmDiscard() {
 const { mutate: undoDraftEdit } = useUndoDraftEditMutation()
 const { mutate: redoDraftEdit } = useRedoDraftEditMutation()
 
+const { run: runEdit } = useDraftEdit(editor, {
+  onChanged: () => gridRef.value?.refetch(),
+})
+
 async function onUndo() {
-  try {
-    const data = await editor.mutate(async (vars) => {
-      const res = await undoDraftEdit({
-        id: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-      })
-      return res?.data
-    })
-    if (data?.undoDraftEdit) {
-      editor.applyResult(data.undoDraftEdit)
-      await editor.refetchEdits()
-      await gridRef.value?.refetch()
-    }
-  } catch {
-    // editor.mutate already toasts
-  }
+  await runEdit(
+    (v) =>
+      undoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+    'undoDraftEdit',
+  )
 }
 async function onRedo() {
-  try {
-    const data = await editor.mutate(async (vars) => {
-      const res = await redoDraftEdit({
-        id: vars.draftId,
-        editor: vars.editor,
-        expectedVersion: vars.expectedVersion,
-      })
-      return res?.data
-    })
-    if (data?.redoDraftEdit) {
-      editor.applyResult(data.redoDraftEdit)
-      await editor.refetchEdits()
-      await gridRef.value?.refetch()
-    }
-  } catch {
-    // editor.mutate already toasts
-  }
+  await runEdit(
+    (v) =>
+      redoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+    'redoDraftEdit',
+  )
 }
 
 // --- grid model + cell commit -------------------------------------
@@ -364,29 +345,21 @@ async function onCommitCell(payload: {
   arrivalSec: number | null
   departureSec: number | null
 }) {
-  try {
-    const data = await editor.mutate(async (vars) => {
-      const res = await updateStopTime({
+  await runEdit(
+    (v) =>
+      updateStopTime({
         input: {
-          draftId: vars.draftId,
-          editor: vars.editor,
-          expectedVersion: vars.expectedVersion,
+          draftId: v.draftId,
+          editor: v.editor,
+          expectedVersion: v.expectedVersion,
           tripId: payload.tripId,
           stopSequence: payload.stopSequence,
           arrivalSec: payload.arrivalSec,
           departureSec: payload.departureSec,
         },
-      })
-      return res?.data
-    })
-    if (data?.updateStopTime) {
-      editor.applyResult(data.updateStopTime)
-      await editor.refetchEdits()
-      await gridRef.value?.refetch()
-    }
-  } catch {
-    // editor.mutate already toasts
-  }
+      }),
+    'updateStopTime',
+  )
 }
 
 // --- dialogs wired in later tasks --------------------------------

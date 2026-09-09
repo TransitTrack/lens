@@ -9,6 +9,7 @@ import {
   type DraftGridQuery,
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
+import { useDraftEdit } from '~/composables/useDraftEdit'
 import { parseDeltaInput, secToClock } from '~/utils/gtfsTime'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
@@ -42,6 +43,8 @@ const runTime = computed(() => {
   return secToClock(d.endTimeSec - d.startTimeSec)
 })
 
+const { run } = useDraftEdit(props.editor, { onChanged: () => emit('changed') })
+
 // --- shift ----------------------------------------------------------
 const { mutate: shiftTrip } = useShiftTripMutation()
 const shiftRaw = ref('')
@@ -50,27 +53,19 @@ const shiftDelta = computed(() => parseDeltaInput(shiftRaw.value))
 const shiftInvalid = computed(() => shiftRaw.value.trim() !== '' && shiftDelta.value == null)
 
 async function applyShift(deltaSec: number) {
-  try {
-    const data = await props.editor.mutate(async (vars) => {
-      const res = await shiftTrip({
+  await run(
+    (v) =>
+      shiftTrip({
         input: {
-          draftId: vars.draftId,
-          editor: vars.editor,
-          expectedVersion: vars.expectedVersion,
+          draftId: v.draftId,
+          editor: v.editor,
+          expectedVersion: v.expectedVersion,
           tripId: props.trip.tripId,
           deltaSec,
         },
-      })
-      return res?.data
-    })
-    if (data?.shiftTrip) {
-      props.editor.applyResult(data.shiftTrip)
-      await props.editor.refetchEdits()
-      emit('changed')
-    }
-  } catch {
-    // toast already fired inside editor.mutate
-  }
+      }),
+    'shiftTrip',
+  )
 }
 
 function applyShiftInput() {
@@ -85,27 +80,21 @@ const { mutate: deleteTrip } = useDeleteTripMutation()
 const deleteOpen = ref(false)
 
 async function confirmDelete() {
-  try {
-    const data = await props.editor.mutate(async (vars) => {
-      const res = await deleteTrip({
+  const result = await run(
+    (v) =>
+      deleteTrip({
         input: {
-          draftId: vars.draftId,
-          editor: vars.editor,
-          expectedVersion: vars.expectedVersion,
+          draftId: v.draftId,
+          editor: v.editor,
+          expectedVersion: v.expectedVersion,
           tripId: props.trip.tripId,
         },
-      })
-      return res?.data
-    })
-    if (data?.deleteTrip) {
-      props.editor.applyResult(data.deleteTrip)
-      await props.editor.refetchEdits()
-      deleteOpen.value = false
-      emit('changed')
-      emit('deleted', props.trip.tripId)
-    }
-  } catch {
-    // toast already fired inside editor.mutate
+      }),
+    'deleteTrip',
+  )
+  if (result) {
+    deleteOpen.value = false
+    emit('deleted', props.trip.tripId)
   }
 }
 
@@ -133,56 +122,40 @@ const { mutate: setStopDwell } = useSetStopDwellMutation()
 async function commitStopTime() {
   const seq = props.activeCell?.stopSequence
   if (seq == null) return
-  try {
-    const data = await props.editor.mutate(async (vars) => {
-      const res = await updateStopTime({
+  await run(
+    (v) =>
+      updateStopTime({
         input: {
-          draftId: vars.draftId,
-          editor: vars.editor,
-          expectedVersion: vars.expectedVersion,
+          draftId: v.draftId,
+          editor: v.editor,
+          expectedVersion: v.expectedVersion,
           tripId: props.trip.tripId,
           stopSequence: seq,
           arrivalSec: arr.value,
           departureSec: dep.value,
         },
-      })
-      return res?.data
-    })
-    if (data?.updateStopTime) {
-      props.editor.applyResult(data.updateStopTime)
-      await props.editor.refetchEdits()
-      emit('changed')
-    }
-  } catch {
-    // toast already fired inside editor.mutate
-  }
+      }),
+    'updateStopTime',
+  )
 }
 
 async function commitDwell() {
   const seq = props.activeCell?.stopSequence
   if (seq == null || dwell.value == null) return
-  try {
-    const data = await props.editor.mutate(async (vars) => {
-      const res = await setStopDwell({
+  await run(
+    (v) =>
+      setStopDwell({
         input: {
-          draftId: vars.draftId,
-          editor: vars.editor,
-          expectedVersion: vars.expectedVersion,
+          draftId: v.draftId,
+          editor: v.editor,
+          expectedVersion: v.expectedVersion,
           tripId: props.trip.tripId,
           stopSequence: seq,
           dwellSec: dwell.value as number,
         },
-      })
-      return res?.data
-    })
-    if (data?.setStopDwell) {
-      props.editor.applyResult(data.setStopDwell)
-      await props.editor.refetchEdits()
-      emit('changed')
-    }
-  } catch {
-    // toast already fired inside editor.mutate
-  }
+      }),
+    'setStopDwell',
+  )
 }
 
 const dirLabel = computed(() =>

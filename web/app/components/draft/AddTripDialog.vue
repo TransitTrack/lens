@@ -7,6 +7,7 @@ import {
   type DraftGridQuery,
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
+import { useDraftEdit } from '~/composables/useDraftEdit'
 import { parseTimeInput, parseDeltaInput, secToClock } from '~/utils/gtfsTime'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
@@ -103,6 +104,7 @@ const canSubmit = computed(() => {
 
 const { mutate: addTrip } = useAddTripMutation()
 const { mutate: duplicateTrip } = useDuplicateTripMutation()
+const { run } = useDraftEdit(props.editor, { onChanged: () => emit('changed') })
 const submitting = ref(false)
 
 function buildStops(base: number) {
@@ -125,57 +127,47 @@ async function submit() {
   submitting.value = true
   try {
     if (mode.value === 'duplicate') {
-      const data = await props.editor.mutate(async (v) => {
-        const res = await duplicateTrip({
-          input: {
-            draftId: v.draftId,
-            editor: v.editor,
-            expectedVersion: v.expectedVersion,
-            sourceTripId: sourceTripId.value as string,
-            newTripId: newTripId.value || null,
-            offsetSec: offsetSec.value as number,
-          },
-        })
-        return res?.data
-      })
-      if (data?.duplicateTrip) {
-        props.editor.applyResult(data.duplicateTrip)
-        await props.editor.refetchEdits()
-        emit('changed')
-        open.value = false
-      }
+      const result = await run(
+        (v) =>
+          duplicateTrip({
+            input: {
+              draftId: v.draftId,
+              editor: v.editor,
+              expectedVersion: v.expectedVersion,
+              sourceTripId: sourceTripId.value as string,
+              newTripId: newTripId.value || null,
+              offsetSec: offsetSec.value as number,
+            },
+          }),
+        'duplicateTrip',
+      )
+      if (result) open.value = false
     } else {
       const stops = buildStops(baseSec.value as number)
-      const data = await props.editor.mutate(async (v) => {
-        const res = await addTrip({
-          input: {
-            draftId: v.draftId,
-            editor: v.editor,
-            expectedVersion: v.expectedVersion,
-            routeId: props.routeId,
-            serviceId: serviceSel.value as string,
-            tripId: null,
-            headsign: headsign.value || null,
-            directionId:
-              directionRaw.value === '' || directionRaw.value == null
-                ? null
-                : Number(directionRaw.value),
-            shapeId: null,
-            blockId: blockId.value || null,
-            stops,
-          },
-        })
-        return res?.data
-      })
-      if (data?.addTrip) {
-        props.editor.applyResult(data.addTrip)
-        await props.editor.refetchEdits()
-        emit('changed')
-        open.value = false
-      }
+      const result = await run(
+        (v) =>
+          addTrip({
+            input: {
+              draftId: v.draftId,
+              editor: v.editor,
+              expectedVersion: v.expectedVersion,
+              routeId: props.routeId,
+              serviceId: serviceSel.value as string,
+              tripId: null,
+              headsign: headsign.value || null,
+              directionId:
+                directionRaw.value === '' || directionRaw.value == null
+                  ? null
+                  : Number(directionRaw.value),
+              shapeId: null,
+              blockId: blockId.value || null,
+              stops,
+            },
+          }),
+        'addTrip',
+      )
+      if (result) open.value = false
     }
-  } catch {
-    // toast already fired inside editor.mutate
   } finally {
     submitting.value = false
   }
