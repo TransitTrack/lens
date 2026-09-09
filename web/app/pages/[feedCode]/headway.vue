@@ -2,7 +2,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import {
   useRoutesQuery,
-  useStopsQuery,
+  useHeadwayRoutePatternsQuery,
   useHeadwayInfoQuery,
   useStopBoardQuery,
   type StopBoardQuery,
@@ -32,22 +32,57 @@ const routeOptions = computed(() =>
   })),
 )
 
-const { result: stopsResult } = useStopsQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+// Stops and directions cascade from the selected route: fetch that route's
+// patterns and derive the direction + stop options from them.
+const { result: patternsResult, loading: patternsLoading } = useHeadwayRoutePatternsQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: selectedRouteId.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value && !!selectedRouteId.value }),
 )
-const stopOptions = computed(() =>
-  (stopsResult.value?.stops ?? []).map((s) => ({
-    label: s.stopName ?? s.stopId,
-    value: s.stopId,
-  })),
-)
+const routePatterns = computed(() => patternsResult.value?.tripPatterns ?? [])
 
-const directionOptions = [
-  { label: 'Either direction', value: null },
-  { label: 'Direction 0', value: 0 },
-  { label: 'Direction 1', value: 1 },
-]
+const directionOptions = computed(() => {
+  const dirs = [
+    ...new Set(routePatterns.value.map((p) => p.directionId).filter((d): d is number => d != null)),
+  ].sort((a, b) => a - b)
+  return [
+    { label: 'Either direction', value: null },
+    ...dirs.map((d) => ({ label: `Direction ${d}`, value: d })),
+  ]
+})
+
+const stopOptions = computed(() => {
+  const pats =
+    selectedDirectionId.value == null
+      ? routePatterns.value
+      : routePatterns.value.filter((p) => p.directionId === selectedDirectionId.value)
+  const seen = new Map<string, { label: string, value: string, order: number }>()
+  for (const p of pats) {
+    for (const sp of p.stopPaths) {
+      if (!seen.has(sp.stopId)) {
+        seen.set(sp.stopId, {
+          label: sp.stop?.stopName ?? sp.stopId,
+          value: sp.stopId,
+          order: sp.stopPathIndex,
+        })
+      }
+    }
+  }
+  return [...seen.values()]
+    .sort((a, b) => a.order - b.order)
+    .map(({ label, value }) => ({ label, value }))
+})
+
+// Selecting a route resets the downstream picks; a stop that falls out of the
+// filtered list (route or direction changed) is cleared.
+watch(selectedRouteId, () => {
+  selectedDirectionId.value = null
+  selectedStopId.value = null
+})
+watch(stopOptions, (opts) => {
+  if (selectedStopId.value && !opts.some((o) => o.value === selectedStopId.value)) {
+    selectedStopId.value = null
+  }
+})
 
 const querySelected = computed(
   () => !!selectedAvlFeedCode.value && !!selectedStopId.value && !!selectedRouteId.value,
@@ -150,19 +185,23 @@ const waitRatio = computed(() => {
             @update:model-value="selectedRouteId = $event"
           />
           <USelectMenu
+            :model-value="selectedDirectionId"
+            :items="directionOptions"
+            value-key="value"
+            :disabled="!selectedRouteId"
+            :loading="patternsLoading && !routePatterns.length"
+            class="w-44"
+            @update:model-value="selectedDirectionId = $event"
+          />
+          <USelectMenu
             :model-value="selectedStopId"
             :items="stopOptions"
             value-key="value"
             placeholder="Select a stop"
+            :disabled="!selectedRouteId"
+            :loading="patternsLoading && !routePatterns.length"
             class="w-56"
             @update:model-value="selectedStopId = $event"
-          />
-          <USelectMenu
-            :model-value="selectedDirectionId"
-            :items="directionOptions"
-            value-key="value"
-            class="w-44"
-            @update:model-value="selectedDirectionId = $event"
           />
         </template>
       </UDashboardToolbar>

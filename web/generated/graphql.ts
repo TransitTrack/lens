@@ -1443,6 +1443,14 @@ export type HeadwayInfoQueryVariables = Exact<{
 
 export type HeadwayInfoQuery = { headway: { stopId: string, routeId: string, directionId: number | null, waitSec: number | null, gapsSec: Array<number>, scheduledHeadwaySec: number | null } };
 
+export type HeadwayRoutePatternsQueryVariables = Exact<{
+  feedCode: string;
+  routeId: string;
+}>;
+
+
+export type HeadwayRoutePatternsQuery = { tripPatterns: Array<{ patternKey: string, directionId: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, stop: { stopName: string | null } | null }> }> };
+
 export type PredictionAccuracyQueryVariables = Exact<{
   feedCode: string;
   sinceDays?: number | null | undefined;
@@ -3135,6 +3143,45 @@ export function useHeadwayInfoLazyQuery(variables?: HeadwayInfoQueryVariables | 
   return VueApolloComposable.useLazyQuery<HeadwayInfoQuery, HeadwayInfoQueryVariables>(HeadwayInfoDocument, variables, options);
 }
 export type HeadwayInfoQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<HeadwayInfoQuery, HeadwayInfoQueryVariables>;
+export const HeadwayRoutePatternsDocument = gql`
+    query HeadwayRoutePatterns($feedCode: String!, $routeId: String!) {
+  tripPatterns(feedCode: $feedCode, routeId: $routeId) {
+    patternKey
+    directionId
+    stopPaths {
+      stopPathIndex
+      stopId
+      stop {
+        stopName
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useHeadwayRoutePatternsQuery__
+ *
+ * To run a query within a Vue component, call `useHeadwayRoutePatternsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useHeadwayRoutePatternsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useHeadwayRoutePatternsQuery({
+ *   feedCode: // value for 'feedCode'
+ *   routeId: // value for 'routeId'
+ * });
+ */
+export function useHeadwayRoutePatternsQuery(variables: HeadwayRoutePatternsQueryVariables | VueCompositionApi.Ref<HeadwayRoutePatternsQueryVariables> | ReactiveFunction<HeadwayRoutePatternsQueryVariables>, options: VueApolloComposable.UseQueryOptions<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>(HeadwayRoutePatternsDocument, variables, options);
+}
+export function useHeadwayRoutePatternsLazyQuery(variables?: HeadwayRoutePatternsQueryVariables | VueCompositionApi.Ref<HeadwayRoutePatternsQueryVariables> | ReactiveFunction<HeadwayRoutePatternsQueryVariables>, options: VueApolloComposable.UseQueryOptions<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>(HeadwayRoutePatternsDocument, variables, options);
+}
+export type HeadwayRoutePatternsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>;
 export const PredictionAccuracyDocument = gql`
     query PredictionAccuracy($feedCode: String!, $sinceDays: Int) {
   predictionAccuracy(feedCode: $feedCode, sinceDays: $sinceDays) {

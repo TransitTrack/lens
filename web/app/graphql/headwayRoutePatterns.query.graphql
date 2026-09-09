@@ -1,0 +1,13 @@
+query HeadwayRoutePatterns($feedCode: String!, $routeId: String!) {
+  tripPatterns(feedCode: $feedCode, routeId: $routeId) {
+    patternKey
+    directionId
+    stopPaths {
+      stopPathIndex
+      stopId
+      stop {
+        stopName
+      }
+    }
+  }
+}
