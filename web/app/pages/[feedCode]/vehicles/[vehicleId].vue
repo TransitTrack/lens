@@ -2,12 +2,12 @@
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import SparklineChart from '~/components/SparklineChart.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
-import { usePollControl } from '~/composables/usePollControl'
-import { useAdherenceHistory } from '~/composables/useAdherenceHistory'
-import { useVehicleDetailQuery, useAvlTrailQuery } from '~~/generated/graphql'
-import { adherenceBadge } from '~/utils/adherence'
+import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
+import {usePollControl} from '~/composables/usePollControl'
+import {useAdherenceHistory} from '~/composables/useAdherenceHistory'
+import {useVehicleDetailQuery, useAvlTrailQuery} from '~~/generated/graphql'
+import {adherenceBadge} from '~/utils/adherence'
 import {
   routeLine,
   stopFeatureCollection,
@@ -20,19 +20,19 @@ import {
 } from '~/utils/vehicleDetail'
 
 const route = useRoute()
-const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
-const { intervalMs } = usePollControl()
+const {selectedFeedCode, selectedAvlFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
+const {intervalMs} = usePollControl()
 const vehicleId = computed(() => String(route.params.vehicleId))
 
-const { result, loading, error } = useVehicleDetailQuery(
-  () => ({ feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value }),
-  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
+const {result, loading, error} = useVehicleDetailQuery(
+  () => ({feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value}),
+  () => ({enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value}),
 )
 
-const { result: trailResult } = useAvlTrailQuery(
-  () => ({ feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60 }),
-  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
+const {result: trailResult} = useAvlTrailQuery(
+  () => ({feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60}),
+  () => ({enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value}),
 )
 
 const vehicle = computed(() => result.value?.vehicle ?? null)
@@ -43,7 +43,7 @@ const trail = computed(() => trailCoords(trailResult.value?.avlReports ?? []))
 const follow = ref(false)
 
 const adherenceSec = computed(() => vehicle.value?.scheduleAdherenceSec ?? null)
-const { points: adherenceHistory } = useAdherenceHistory(adherenceSec, vehicleId)
+const {points: adherenceHistory} = useAdherenceHistory(adherenceSec, vehicleId)
 const sparkValues = computed(() => adherenceHistory.value.map((p) => p.sec))
 
 const algorithms = computed(() => algorithmsIn(predictions.value))
@@ -55,7 +55,7 @@ watch(
       algorithm.value = bestAlgorithm(algos, acc)
     }
   },
-  { immediate: true },
+  {immediate: true},
 )
 const selectedAccuracy = computed(() => accuracyFor(algorithm.value, accuracy.value))
 
@@ -70,13 +70,13 @@ const stops = computed(
   () =>
     (vehicle.value
       ? stopFeatureCollection(vehicle.value)
-      : { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection,
+      : {type: 'FeatureCollection', features: []}) as GeoJSON.FeatureCollection,
 )
 const marker = computed(() => {
   const v = vehicle.value
   if (!v) return null
   const pos = v.snappedPosition ?? v.position
-  return { lng: pos.lon, lat: pos.lat, bearing: v.bearing }
+  return {lng: pos.lon, lat: pos.lat, bearing: v.bearing}
 })
 
 const rows = computed(() =>
@@ -97,7 +97,7 @@ onBeforeUnmount(() => clearInterval(timer))
 
 function hhmm(iso: string | null): string {
   if (!iso) return '—'
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(
+  return new Intl.DateTimeFormat(undefined, {hour: '2-digit', minute: '2-digit'}).format(
     new Date(iso),
   )
 }
@@ -152,7 +152,7 @@ function speedKmh(mps: number | null | undefined): string {
               @click="follow = !follow"
             />
           </UTooltip>
-          <NavbarActions :updated-at="vehicle?.reportTs" />
+          <NavbarActions :updated-at="vehicle?.reportTs"/>
         </template>
       </UDashboardNavbar>
     </template>
@@ -168,13 +168,13 @@ function speedKmh(mps: number | null | undefined): string {
         class="m-4"
       />
       <div v-else-if="loading && !vehicle" class="flex min-h-0 flex-1">
-        <USkeleton class="min-w-0 flex-1 rounded-none" />
         <div class="flex w-[26rem] shrink-0 flex-col gap-3 border-l border-default p-4">
-          <USkeleton class="h-5 w-2/3" />
-          <USkeleton class="h-6 w-full" />
-          <USkeleton class="h-9 w-full" />
-          <USkeleton v-for="i in 8" :key="i" class="h-12 w-full" />
+          <USkeleton class="h-5 w-2/3"/>
+          <USkeleton class="h-6 w-full"/>
+          <USkeleton class="h-9 w-full"/>
+          <USkeleton v-for="i in 8" :key="i" class="h-12 w-full"/>
         </div>
+        <USkeleton class="min-w-0 flex-1 rounded-none"/>
       </div>
       <UAlert
         v-else-if="!vehicle"
@@ -187,19 +187,7 @@ function speedKmh(mps: number | null | undefined): string {
       />
 
       <div v-else class="flex min-h-0 flex-1">
-        <div class="relative min-w-0 flex-1">
-          <VehicleRouteMap
-            :line="line"
-            :stops="stops"
-            :vehicle="marker"
-            :route-color="routeColor"
-            :trail="trail"
-            :follow="follow"
-            :extent="extent"
-          />
-        </div>
-
-        <aside class="flex w-[26rem] shrink-0 flex-col gap-4 overflow-y-auto border-l border-default p-4">
+        <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-l border-default p-4">
           <!-- Header -->
           <div class="flex flex-col gap-2">
             <div class="text-sm text-muted">
@@ -216,7 +204,7 @@ function speedKmh(mps: number | null | undefined): string {
                 v-if="cardinal(vehicle.bearing)"
                 class="inline-flex items-center gap-1 text-sm text-muted"
               >
-                <UIcon name="i-lucide-compass" class="size-3.5" />
+                <UIcon name="i-lucide-compass" class="size-3.5"/>
                 {{ cardinal(vehicle.bearing) }} · {{ Math.round(vehicle.bearing ?? 0) }}°
               </span>
               <UBadge v-if="vehicle.occupancyStatus" color="neutral" variant="subtle" size="sm">
@@ -305,6 +293,17 @@ function speedKmh(mps: number | null | undefined): string {
             </li>
           </ol>
         </aside>
+        <div class="relative min-w-0 flex-1">
+          <VehicleRouteMap
+            :line="line"
+            :stops="stops"
+            :vehicle="marker"
+            :route-color="routeColor"
+            :trail="trail"
+            :follow="follow"
+            :extent="extent"
+          />
+        </div>
       </div>
     </template>
   </UDashboardPanel>

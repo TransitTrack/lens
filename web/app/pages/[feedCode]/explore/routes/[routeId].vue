@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useRouteDetailQuery } from '~~/generated/graphql'
-import { routeTypeLabel, hexColor, patternLine, patternStopFeatures } from '~/utils/gtfs'
+import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
+import {useRouteDetailQuery} from '~~/generated/graphql'
+import {routeTypeLabel, hexColor, patternLine, patternStopFeatures} from '~/utils/gtfs'
 
 const route = useRoute()
-const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
+const {selectedFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
 
-const { result, loading, error } = useRouteDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading, error} = useRouteDetailQuery(
+  () => ({feedCode: selectedFeedCode.value ?? '', routeId: routeId.value}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 const gtfsRoute = computed(() => result.value?.route ?? null)
@@ -25,7 +25,7 @@ watch(patterns, (list) => {
   if (!patternKey.value || !list.some((p) => p.patternKey === patternKey.value)) {
     patternKey.value = list[0]?.patternKey ?? null
   }
-}, { immediate: true })
+}, {immediate: true})
 
 const pattern = computed(
   () => patterns.value.find((p) => p.patternKey === patternKey.value) ?? null,
@@ -42,7 +42,7 @@ const stops = computed(
   () =>
     (pattern.value
       ? patternStopFeatures(pattern.value.stopPaths)
-      : { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection,
+      : {type: 'FeatureCollection', features: []}) as GeoJSON.FeatureCollection,
 )
 const stopList = computed(() =>
   [...(pattern.value?.stopPaths ?? [])].sort((a, b) => a.stopPathIndex - b.stopPathIndex),
@@ -79,7 +79,7 @@ const patternSummary = computed(() => {
           />
         </template>
         <template #right>
-          <NavbarActions />
+          <NavbarActions/>
         </template>
       </UDashboardNavbar>
     </template>
@@ -95,23 +95,13 @@ const patternSummary = computed(() => {
         class="m-4"
       />
       <div v-else-if="loading && !gtfsRoute" class="flex min-h-0 flex-1">
-        <USkeleton class="min-w-0 flex-1 rounded-none" />
         <div class="w-96 shrink-0 border-l border-default p-4">
-          <USkeleton v-for="i in 10" :key="i" class="mb-2 h-9 w-full" />
+          <USkeleton v-for="i in 10" :key="i" class="mb-2 h-9 w-full"/>
         </div>
+        <USkeleton class="min-w-0 flex-1 rounded-none"/>
       </div>
 
       <div v-else class="flex min-h-0 flex-1">
-        <div class="relative min-w-0 flex-1">
-          <VehicleRouteMap
-            :line="line"
-            :stops="stops"
-            :vehicle="null"
-            :route-color="routeColor"
-            :extent="extent"
-          />
-        </div>
-
         <aside class="flex w-96 shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">
           <div>
             <div class="text-sm font-medium text-highlighted">{{ gtfsRoute?.routeLongName }}</div>
@@ -173,6 +163,15 @@ const patternSummary = computed(() => {
             </li>
           </ol>
         </aside>
+        <div class="relative min-w-0 flex-1">
+          <VehicleRouteMap
+            :line="line"
+            :stops="stops"
+            :vehicle="null"
+            :route-color="routeColor"
+            :extent="extent"
+          />
+        </div>
       </div>
     </template>
   </UDashboardPanel>

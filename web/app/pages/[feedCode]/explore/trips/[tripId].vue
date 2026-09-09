@@ -101,24 +101,14 @@ const runtimeSec = computed(() => {
         class="m-4"
       />
       <div v-else-if="loading && !trip" class="flex min-h-0 flex-1">
-        <USkeleton class="min-w-0 flex-1 rounded-none"/>
         <div class="w-96 shrink-0 border-l border-default p-4">
           <USkeleton v-for="i in 12" :key="i" class="mb-2 h-8 w-full"/>
         </div>
+        <USkeleton class="min-w-0 flex-1 rounded-none"/>
       </div>
 
       <div v-else class="flex min-h-0 flex-1">
-        <div class="relative min-w-0 flex-1">
-          <VehicleRouteMap
-            :line="line"
-            :stops="stops"
-            :vehicle="null"
-            :route-color="routeColor"
-            :extent="extent"
-          />
-        </div>
-
-        <aside class="flex w-[26rem] shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">
+        <aside class="flex w-104 shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">
           <div class="flex flex-col gap-1.5">
             <div class="text-xs text-muted">
               {{ trip?.tripId }} · dir {{ trip?.directionId ?? '?' }} · service {{ trip?.serviceId }}
@@ -202,6 +192,15 @@ const runtimeSec = computed(() => {
             </tbody>
           </table>
         </aside>
+        <div class="relative min-w-0 flex-1">
+          <VehicleRouteMap
+            :line="line"
+            :stops="stops"
+            :vehicle="null"
+            :route-color="routeColor"
+            :extent="extent"
+          />
+        </div>
       </div>
     </template>
   </UDashboardPanel>

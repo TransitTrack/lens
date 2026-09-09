@@ -142,17 +142,13 @@ const mapFeatures = computed(
     <template #body>
       <div v-if="stopLoading && !stop" class="flex min-h-0 flex-1">
         <USkeleton class="min-w-0 flex-1 rounded-none"/>
-        <div class="w-[26rem] shrink-0 border-l border-default p-4">
+        <div class="w-104 shrink-0 border-l border-default p-4">
           <USkeleton v-for="i in 8" :key="i" class="mb-2 h-10 w-full"/>
         </div>
       </div>
 
       <div v-else-if="stop" class="flex min-h-0 flex-1">
-        <div class="relative min-w-0 flex-1">
-          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" :extent="extent"/>
-        </div>
-
-        <aside class="flex w-[26rem] shrink-0 flex-col gap-4 overflow-y-auto border-l border-default p-4">
+        <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-l border-default p-4">
           <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
             <dt class="text-dimmed">Code</dt>
             <dd>{{ stop.stopCode ?? '—' }}</dd>
@@ -238,6 +234,9 @@ const mapFeatures = computed(
             </template>
           </div>
         </aside>
+        <div class="relative min-w-0 flex-1">
+          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" :extent="extent"/>
+        </div>
       </div>
     </template>
   </UDashboardPanel>

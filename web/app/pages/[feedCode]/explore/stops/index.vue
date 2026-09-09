@@ -1,25 +1,25 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type {TableColumn} from '@nuxt/ui'
 import NavbarActions from '~/components/NavbarActions.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
 import StopsMap from '~/components/StopsMap.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useAgencyFilter } from '~/composables/useAgencyFilter'
-import { useExplorePatterns } from '~/composables/useExplorePatterns'
-import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
+import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
+import {useAgencyFilter} from '~/composables/useAgencyFilter'
+import {useExplorePatterns} from '~/composables/useExplorePatterns'
+import {useExploreStopsQuery, type ExploreStopsQuery} from '~~/generated/graphql'
 
-const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
-const { agencyId } = useAgencyFilter()
+const {selectedFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
+const {agencyId} = useAgencyFilter()
 
-const { result, loading } = useExploreStopsQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading} = useExploreStopsQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 // only needed to resolve which stops an agency serves
-const { stopIdsForAgency } = useExplorePatterns(computed(() => !!agencyId.value))
+const {stopIdsForAgency} = useExplorePatterns(computed(() => !!agencyId.value))
 const agencyStopIds = computed(() => stopIdsForAgency(agencyId.value))
 
 type Stop = ExploreStopsQuery['stops'][number]
@@ -33,10 +33,10 @@ const inAgency = computed(() => {
 const stats = computed(() => {
   const list = inAgency.value
   return [
-    { label: 'Stops', value: list.length },
-    { label: 'Mapped', value: list.filter((s) => s.stopLat != null && s.stopLon != null).length },
-    { label: 'Stations', value: list.filter((s) => s.locationType === 1).length },
-    { label: 'Child platforms', value: list.filter((s) => !!s.parentStation).length },
+    {label: 'Stops', value: list.length},
+    {label: 'Mapped', value: list.filter((s) => s.stopLat != null && s.stopLon != null).length},
+    {label: 'Stations', value: list.filter((s) => s.locationType === 1).length},
+    {label: 'Child platforms', value: list.filter((s) => !!s.parentStation).length},
   ]
 })
 
@@ -62,21 +62,22 @@ const stopFeatures = computed(
         .filter((s) => s.stopLat != null && s.stopLon != null)
         .map((s) => ({
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [s.stopLon, s.stopLat] },
-          properties: { stopId: s.stopId, name: s.stopName ?? s.stopId },
+          geometry: {type: 'Point', coordinates: [s.stopLon, s.stopLat]},
+          properties: {stopId: s.stopId, name: s.stopName ?? s.stopId},
         })),
     }) as GeoJSON.FeatureCollection,
 )
 
 const columns: TableColumn<Stop>[] = [
-  { accessorKey: 'stopName', header: 'Stop' },
-  { accessorKey: 'stopCode', header: 'Code' },
-  { accessorKey: 'stopId', header: 'ID' },
+  {accessorKey: 'stopName', header: 'Stop'},
+  {accessorKey: 'stopCode', header: 'Code'},
+  {accessorKey: 'stopId', header: 'ID'},
 ]
 
 function onSelect(_e: Event, row: { original: Stop }) {
   focusId.value = row.original.stopId
 }
+
 function openStop(stopId: string) {
   navigateTo(feedPath(`/explore/stops/${stopId}`))
 }
@@ -87,13 +88,13 @@ function openStop(stopId: string) {
     <template #header>
       <UDashboardNavbar title="Stops">
         <template #leading>
-          <UDashboardSidebarCollapse />
+          <UDashboardSidebarCollapse/>
         </template>
         <template #right>
-          <NavbarActions />
+          <NavbarActions/>
         </template>
       </UDashboardNavbar>
-      <ExploreToolbar />
+      <ExploreToolbar/>
     </template>
 
     <template #body>
@@ -105,17 +106,8 @@ function openStop(stopId: string) {
       </div>
 
       <div class="flex min-h-0 flex-1">
-        <div class="min-w-0 flex-1">
-          <StopsMap
-            :stops="stopFeatures"
-            :focus-id="focusId"
-            :extent="extent"
-            @select="focusId = $event"
-          />
-        </div>
-
         <aside class="flex w-96 shrink-0 flex-col gap-2 border-l border-default p-3">
-          <UInput v-model="search" icon="i-lucide-search" placeholder="Search stops…" size="sm" />
+          <UInput v-model="search" icon="i-lucide-search" placeholder="Search stops…" size="sm"/>
           <div class="flex items-center justify-between text-xs text-dimmed">
             <span>{{ rows.length }} of {{ inAgency.length }} stops</span>
             <UButton
@@ -130,7 +122,7 @@ function openStop(stopId: string) {
           </div>
           <div class="min-h-0 flex-1 overflow-y-auto">
             <div v-if="loading && !rows.length" class="flex flex-col gap-2">
-              <USkeleton v-for="i in 10" :key="i" class="h-9 w-full" />
+              <USkeleton v-for="i in 10" :key="i" class="h-9 w-full"/>
             </div>
             <UTable v-else :data="rows" :columns="columns" @select="onSelect">
               <template #stopName-cell="{ row }">
@@ -145,6 +137,15 @@ function openStop(stopId: string) {
             </UTable>
           </div>
         </aside>
+
+        <div class="min-w-0 flex-1">
+          <StopsMap
+            :stops="stopFeatures"
+            :focus-id="focusId"
+            :extent="extent"
+            @select="focusId = $event"
+          />
+        </div>
       </div>
     </template>
   </UDashboardPanel>
