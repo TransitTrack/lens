@@ -27,6 +27,24 @@ const mapStyle = useMapStyle()
 
 const map = useMglMap(MAP_ID)
 
+// Capture the agency extent once — see StopsMap for why binding it live yanks
+// the view on every poll.
+const initialBounds = shallowRef(extentToBounds(props.extent))
+watch(
+  () => props.extent,
+  (e) => {
+    if (!initialBounds.value) initialBounds.value = extentToBounds(e)
+  },
+)
+
+// Stable signature of the drawn route — endpoints + length. Changes when the
+// route/trip changes, not when a poll rebuilds the same line array.
+const lineKey = computed(() => {
+  const l = props.line
+  if (!l.length) return props.vehicle ? 'v' : ''
+  return `${l.length}:${l[0]}:${l[l.length - 1]}`
+})
+
 const lineData = computed<GeoJSON.Feature>(() => ({
   type: 'Feature',
   properties: {},
@@ -54,7 +72,7 @@ function fit() {
   firstFit = false
 }
 
-watch([() => props.line, () => map.isLoaded], fit, {immediate: true})
+watch([lineKey, () => map.isLoaded], fit, {immediate: true})
 
 watch(
   () => props.vehicle,
@@ -71,7 +89,7 @@ watch(
     <MglMap
       :map-key="MAP_ID"
       :map-style="mapStyle"
-      :bounds="extentToBounds(props.extent)"
+      :bounds="initialBounds"
       :fit-bounds-options="{padding: 40, animate: false}"
       :center="[0, 0]"
       :zoom="2"

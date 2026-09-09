@@ -18,6 +18,17 @@ const MAP_ID = 'stops-map'
 const mapStyle = useMapStyle()
 const map = useMglMap(MAP_ID)
 
+// Capture the agency extent once. `useFeedExtent` hands back a fresh object on
+// every Apollo tick; binding it live would make <MglMap>'s bounds watcher snap
+// the view back on every data refresh. A real feed switch remounts this page.
+const initialBounds = shallowRef(extentToBounds(props.extent))
+watch(
+  () => props.extent,
+  (e) => {
+    if (!initialBounds.value) initialBounds.value = extentToBounds(e)
+  },
+)
+
 const allCoords = computed<LngLat[]>(() =>
   props.stops.features
     .map((f) => f.geometry)
@@ -25,8 +36,16 @@ const allCoords = computed<LngLat[]>(() =>
     .map((g) => [g.coordinates[0]!, g.coordinates[1]!]),
 )
 
+// A stable signature of *which* stops are shown — changes when the filter/route
+// changes, not when a poll rebuilds the same FeatureCollection.
+const stopsKey = computed(() =>
+  props.stops.features
+    .map((f) => f.properties?.stopId)
+    .join(','),
+)
+
 // The first fit is instant — the map already opened on the agency extent via
-// `:bounds`, so there's nothing to fly in from. Later fits (feed switch) ease.
+// `:bounds`. Later fits (the shown stop set actually changed) ease.
 let firstFit = true
 function fitAll() {
   const b = boundsOf(allCoords.value)
@@ -35,7 +54,7 @@ function fitAll() {
   map.map.fitBounds(b, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 600 })
   firstFit = false
 }
-watch([() => props.stops, () => map.isLoaded], () => {
+watch([stopsKey, () => map.isLoaded], () => {
   fitAll()
   requestAnimationFrame(fitAll)
 }, { immediate: true })
@@ -62,7 +81,7 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
     <MglMap
       :map-key="MAP_ID"
       :map-style="mapStyle"
-      :bounds="extentToBounds(props.extent)"
+      :bounds="initialBounds"
       :fit-bounds-options="{ padding: 40, animate: false }"
       :center="[0, 0]"
       :zoom="2"

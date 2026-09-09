@@ -21,6 +21,16 @@ const mapStyle = useMapStyle()
 // before that silently no-op).
 const map = useMglMap(MAP_ID)
 
+// Capture the agency extent once — `useFeedExtent` re-emits a fresh object on
+// every Apollo tick and binding it live would snap the view back on each poll.
+const initialBounds = shallowRef(extentToBounds(props.extent))
+watch(
+  () => props.extent,
+  (e) => {
+    if (!initialBounds.value) initialBounds.value = extentToBounds(e)
+  },
+)
+
 const activeVehicleId = ref<string | null>(null)
 const activeVehicle = computed(
   () => props.vehicles.find((v) => v.vehicleId === activeVehicleId.value) ?? null,
@@ -75,10 +85,17 @@ function fit() {
   firstFit = false
 }
 
-// Fit once we have both a loaded map and something to frame; re-fit if the
-// extent changes (e.g. the selected feed switches).
+// Re-fit only when the *fleet* changes (vehicles added/removed) or the map
+// finishes loading — NOT on every poll, which just nudges positions and would
+// otherwise ease the view a little each refresh. Manual re-frame: "Fit fleet".
+const fleetKey = computed(() =>
+  props.vehicles
+    .map((v) => v.vehicleId)
+    .sort()
+    .join(','),
+)
 watch(
-  [() => props.extent, () => map.isLoaded, () => props.vehicles.length > 0],
+  [fleetKey, () => map.isLoaded],
   () => {
     fit()
     requestAnimationFrame(fit)
@@ -97,7 +114,7 @@ function badge(v: VehicleRow) {
     <MglMap
       :map-key="MAP_ID"
       :map-style="mapStyle"
-      :bounds="extentToBounds(props.extent)"
+      :bounds="initialBounds"
       :fit-bounds-options="{ padding: 40, animate: false }"
     >
       <MglNavigationControl />
