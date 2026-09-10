@@ -22,6 +22,18 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
     currentStop {
       stopId
       stopName
+      stopLat
+      stopLon
+    }
+    block {
+      blockId
+      blockTrips {
+        listIndex
+        trip {
+          tripId
+          tripHeadsign
+        }
+      }
     }
     trip {
       tripId

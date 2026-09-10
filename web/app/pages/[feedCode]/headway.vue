@@ -9,6 +9,7 @@ import {
 } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
 import { usePollControl } from '~/composables/usePollControl'
+import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import BarChart from '~/components/BarChart.vue'
@@ -55,7 +56,7 @@ const stopOptions = computed(() => {
     selectedDirectionId.value == null
       ? routePatterns.value
       : routePatterns.value.filter((p) => p.directionId === selectedDirectionId.value)
-  const seen = new Map<string, { label: string, value: string, order: number }>()
+  const seen = new Map<string, { label: string; value: string; order: number }>()
   for (const p of pats) {
     for (const sp of p.stopPaths) {
       if (!seen.has(sp.stopId)) {
@@ -137,7 +138,7 @@ function formatTs(iso: string | null | undefined): string {
  */
 function confidenceRating(
   sec: number | null | undefined,
-): { label: string, color: 'success' | 'neutral' | 'warning' } | null {
+): { label: string; color: 'success' | 'neutral' | 'warning' } | null {
   if (sec == null) return null
   if (sec <= 20) return { label: 'High', color: 'success' }
   if (sec <= 60) return { label: 'Fair', color: 'neutral' }
@@ -172,132 +173,128 @@ const waitRatio = computed(() => {
 </script>
 
 <template>
-  <UDashboardPanel id="headway">
-    <template #header>
-      <UDashboardNavbar title="Headway" :ui="{ right: 'gap-3' }">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-        <template #right>
-          <NavbarActions />
-        </template>
-      </UDashboardNavbar>
-
-      <UDashboardToolbar v-if="selectedAvlFeedCode">
-        <template #left>
-          <USelectMenu
-            :model-value="selectedRouteId"
-            :items="routeOptions"
-            value-key="value"
-            placeholder="Select a route"
-            class="w-56"
-            @update:model-value="selectedRouteId = $event"
-          />
-          <USelectMenu
-            :model-value="selectedDirectionId"
-            :items="directionOptions"
-            value-key="value"
-            :disabled="!selectedRouteId"
-            :loading="patternsLoading && !routePatterns.length"
-            class="w-44"
-            @update:model-value="selectedDirectionId = $event"
-          />
-          <USelectMenu
-            :model-value="selectedStopId"
-            :items="stopOptions"
-            value-key="value"
-            placeholder="Select a stop"
-            :disabled="!selectedRouteId"
-            :loading="patternsLoading && !routePatterns.length"
-            class="w-56"
-            @update:model-value="selectedStopId = $event"
-          />
-        </template>
-      </UDashboardToolbar>
+  <AppPage title="Headway">
+    <template #actions>
+      <NavbarActions />
     </template>
 
-    <template #body>
-      <NoRealtimeState v-if="!selectedAvlFeedCode" what="headway analysis" />
+    <template v-if="selectedAvlFeedCode" #toolbar>
+      <div class="flex flex-wrap items-center gap-2 py-2">
+        <USelectMenu
+          :model-value="selectedRouteId"
+          :items="routeOptions"
+          value-key="value"
+          placeholder="Select a route"
+          class="w-56"
+          @update:model-value="selectedRouteId = $event"
+        />
+        <USelectMenu
+          :model-value="selectedDirectionId"
+          :items="directionOptions"
+          value-key="value"
+          :disabled="!selectedRouteId"
+          :loading="patternsLoading && !routePatterns.length"
+          class="w-44"
+          @update:model-value="selectedDirectionId = $event"
+        />
+        <USelectMenu
+          :model-value="selectedStopId"
+          :items="stopOptions"
+          value-key="value"
+          placeholder="Select a stop"
+          :disabled="!selectedRouteId"
+          :loading="patternsLoading && !routePatterns.length"
+          class="w-56"
+          @update:model-value="selectedStopId = $event"
+        />
+      </div>
+    </template>
 
-      <div v-else-if="!querySelected" class="text-sm text-muted">
-        Pick a route and a stop to see headway and upcoming arrivals.
+    <NoRealtimeState v-if="!selectedAvlFeedCode" what="headway analysis" />
+
+    <div v-else-if="!querySelected" class="text-sm text-muted">
+      Pick a route and a stop to see headway and upcoming arrivals.
+    </div>
+
+    <UAlert
+      v-else-if="headwayError"
+      color="error"
+      variant="soft"
+      icon="i-lucide-alert-triangle"
+      title="Headway unavailable"
+      :description="headwayError.message"
+    />
+
+    <template v-else>
+      <div v-if="headwayLoading && !headway" class="flex flex-col gap-4">
+        <USkeleton class="h-24 w-full" />
+        <USkeleton class="h-40 w-full" />
       </div>
 
-      <UAlert
-        v-else-if="headwayError"
-        color="error"
-        variant="soft"
-        icon="i-lucide-alert-triangle"
-        title="Headway unavailable"
-        :description="headwayError.message"
-      />
-
-      <template v-else>
-        <div v-if="headwayLoading && !headway" class="flex flex-col gap-4">
-          <USkeleton class="h-24 w-full" />
-          <USkeleton class="h-40 w-full" />
-        </div>
-
-        <div v-else-if="headway" class="grid gap-4 lg:grid-cols-3">
-          <UCard class="lg:col-span-1" :ui="{ body: 'flex flex-col gap-3' }">
-            <div class="text-xs font-medium text-muted">Current wait vs scheduled headway</div>
-            <div class="flex items-baseline gap-2">
-              <span class="text-3xl font-semibold text-highlighted">
-                {{ headway.waitSec != null ? formatDur(headway.waitSec) : '—' }}
-              </span>
-              <span class="text-sm text-dimmed">
-                / {{ headway.scheduledHeadwaySec != null ? formatDur(headway.scheduledHeadwaySec) : '—' }}
-              </span>
-            </div>
-            <div v-if="waitRatio" class="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
-              <div
-                class="h-full rounded-full transition-[width]"
-                :class="waitRatio.over ? 'bg-error' : 'bg-primary'"
-                :style="{ width: `${waitRatio.pct}%` }"
-              />
-            </div>
-            <p v-if="waitRatio" class="text-xs text-dimmed">
-              {{ waitRatio.over ? 'Over' : 'Under' }} scheduled headway
-              ({{ Math.round(waitRatio.ratio * 100) }}%)
-            </p>
-          </UCard>
-
-          <UCard class="lg:col-span-2" :ui="{ body: 'flex flex-col gap-3' }">
-            <div class="text-xs font-medium text-muted">Recent gaps between arrivals</div>
-            <p v-if="!gapBars.length" class="text-sm text-dimmed">No gaps recorded yet.</p>
-            <BarChart
-              v-else
-              :bars="gapBars"
-              :reference-value="headway.scheduledHeadwaySec"
-              reference-label="scheduled headway"
-              :height="150"
-              :format="formatDur"
+      <div v-else-if="headway" class="grid gap-4 lg:grid-cols-3">
+        <UCard class="lg:col-span-1" :ui="{ body: 'flex flex-col gap-3' }">
+          <div class="text-xs font-medium text-muted">Current wait vs scheduled headway</div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-3xl font-semibold text-highlighted">
+              {{ headway.waitSec != null ? formatDur(headway.waitSec) : '—' }}
+            </span>
+            <span class="text-sm text-dimmed">
+              /
+              {{
+                headway.scheduledHeadwaySec != null ? formatDur(headway.scheduledHeadwaySec) : '—'
+              }}
+            </span>
+          </div>
+          <div v-if="waitRatio" class="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
+            <div
+              class="h-full rounded-full transition-[width]"
+              :class="waitRatio.over ? 'bg-error' : 'bg-primary'"
+              :style="{ width: `${waitRatio.pct}%` }"
             />
-          </UCard>
-        </div>
+          </div>
+          <p v-if="waitRatio" class="text-xs text-dimmed">
+            {{ waitRatio.over ? 'Over' : 'Under' }} scheduled headway ({{
+              Math.round(waitRatio.ratio * 100)
+            }}%)
+          </p>
+        </UCard>
 
-        <UTable :data="board" :columns="boardColumns">
-          <template #scheduledArrival-cell="{ row }">{{
-            formatTs(row.original.scheduledArrival)
-          }}</template>
-          <template #predictedArrival-cell="{ row }">{{
-            formatTs(row.original.predictedArrival)
-          }}</template>
-          <template #confidenceSec-cell="{ row }">
-            <UBadge
-              v-if="confidenceRating(row.original.confidenceSec)"
-              :color="confidenceRating(row.original.confidenceSec)!.color"
-              variant="subtle"
-              size="sm"
-              :title="`±1σ uncertainty of the predicted arrival: ±${row.original.confidenceSec}s`"
-            >
-              {{ confidenceRating(row.original.confidenceSec)!.label }} ·
-              &#177;{{ row.original.confidenceSec }}s
-            </UBadge>
-            <span v-else class="text-dimmed">—</span>
-          </template>
-        </UTable>
-      </template>
+        <UCard class="lg:col-span-2" :ui="{ body: 'flex flex-col gap-3' }">
+          <div class="text-xs font-medium text-muted">Recent gaps between arrivals</div>
+          <p v-if="!gapBars.length" class="text-sm text-dimmed">No gaps recorded yet.</p>
+          <BarChart
+            v-else
+            :bars="gapBars"
+            :reference-value="headway.scheduledHeadwaySec"
+            reference-label="scheduled headway"
+            :height="150"
+            :format="formatDur"
+          />
+        </UCard>
+      </div>
+
+      <UTable :data="board" :columns="boardColumns">
+        <template #scheduledArrival-cell="{ row }">{{
+          formatTs(row.original.scheduledArrival)
+        }}</template>
+        <template #predictedArrival-cell="{ row }">{{
+          formatTs(row.original.predictedArrival)
+        }}</template>
+        <template #confidenceSec-cell="{ row }">
+          <UBadge
+            v-if="confidenceRating(row.original.confidenceSec)"
+            :color="confidenceRating(row.original.confidenceSec)!.color"
+            variant="subtle"
+            size="sm"
+            :title="`±1σ uncertainty of the predicted arrival: ±${row.original.confidenceSec}s`"
+          >
+            {{ confidenceRating(row.original.confidenceSec)!.label }} · &#177;{{
+              row.original.confidenceSec
+            }}s
+          </UBadge>
+          <span v-else class="text-dimmed">—</span>
+        </template>
+      </UTable>
     </template>
-  </UDashboardPanel>
+  </AppPage>
 </template>

@@ -1,48 +1,21 @@
-import { describe, expect, it, vi, beforeAll, afterAll, afterEach } from 'vitest'
+import { describe, expect, it, beforeAll, afterAll, afterEach } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
+import { h } from 'vue'
 import { server } from '../../mocks/server'
-import IndexPage from '../../app/pages/index.vue'
-import { useDashboardSelection } from '../../app/composables/useDashboardSelection'
-
-vi.mock('maplibre-gl', () => {
-  class FakeMarker {
-    element: HTMLElement
-    constructor(opts: { element: HTMLElement }) {
-      this.element = opts.element
-    }
-    setLngLat() {
-      return this
-    }
-    addTo() {
-      return this
-    }
-    remove() {
-      return this
-    }
-    getElement() {
-      return this.element
-    }
-  }
-  class FakeMap {
-    flyTo() {}
-    remove() {}
-  }
-  return { Map: FakeMap, Marker: FakeMarker }
-})
+import DefaultLayout from '../../app/layouts/default.vue'
 
 beforeAll(() => server.listen())
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
-describe('dashboard page', () => {
-  it('renders the map and vehicle list together for the selected feed', async () => {
-    // FeedPicker (which normally auto-selects the first feed) now lives in the
-    // shared layout, not in IndexPage itself — select a feed directly so this
-    // page-only mount has something to poll.
-    useDashboardSelection().selectFeed('feed-a')
-    const wrapper = await mountSuspended(IndexPage)
+describe('app shell', () => {
+  it('renders page content inside the header layout for the selected feed', async () => {
+    const wrapper = await mountSuspended(DefaultLayout, {
+      route: '/feed-a',
+      slots: { default: () => h('div', { class: 'page' }, 'page body') },
+    })
     await new Promise((r) => setTimeout(r, 0))
-    expect(wrapper.text()).toContain('bus-1')
-    expect(wrapper.text()).toContain('bus-2')
+    expect(wrapper.find('.page').text()).toBe('page body')
+    expect(wrapper.html()).toContain('Realtime')
   })
 })

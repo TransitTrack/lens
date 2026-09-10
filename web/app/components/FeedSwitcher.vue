@@ -1,59 +1,56 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from '@nuxt/ui'
-import { useFeeds } from '~/composables/useFeeds'
+import {useFeeds} from '~/composables/useFeeds'
+import {useDashboard} from '~/composables/useDashboard'
 
-const { feeds, selectedFeed } = useFeeds()
+/**
+ * Trigger for the feed drawer (see FeedDrawer.vue).
+ * - default: a floating handle pinned to the right edge of the viewport.
+ * - `block`: full-width labelled button for the mobile menu.
+ */
+withDefaults(defineProps<{ block?: boolean }>(), {block: false})
 
-function dotClass(f: { hasRealtime: boolean, realtimeHealthy: boolean }) {
-  if (!f.hasRealtime) return 'bg-dimmed'
-  return f.realtimeHealthy ? 'bg-success' : 'bg-warning'
+const {selectedFeed} = useFeeds()
+const {isFeedDrawerOpen} = useDashboard()
+
+function dotColor(f: {
+  hasRealtime: boolean
+  realtimeHealthy: boolean
+}): 'success' | 'warning' | 'neutral' {
+  if (!f.hasRealtime) return 'neutral'
+  return f.realtimeHealthy ? 'success' : 'warning'
 }
-
-const items = computed<DropdownMenuItem[][]>(() => [
-  feeds.value.map((f) => ({
-    label: f.name,
-    slot: 'feed' as const,
-    // switching feed always lands on that feed's overview
-    to: `/${f.code}`,
-    checked: f.code === selectedFeed.value?.code,
-    type: 'checkbox' as const,
-    feed: f,
-  })),
-])
 </script>
 
 <template>
-  <UDropdownMenu
-    :items="items"
-    :content="{ align: 'start', collisionPadding: 12 }"
-    :ui="{ content: 'w-64' }"
+  <UButton
+    v-if="block"
+    color="neutral"
+    variant="ghost"
+    size="sm"
+    block
+    trailing-icon="i-lucide-chevron-right"
+    :ui="{ trailingIcon: 'text-dimmed' }"
+    @click="isFeedDrawerOpen = true"
   >
-    <UButton
-      color="neutral"
-      variant="ghost"
-      size="sm"
-      trailing-icon="i-lucide-chevrons-up-down"
-      :ui="{ trailingIcon: 'text-dimmed' }"
-    >
-      <span class="flex items-center gap-2">
-        <span
-          v-if="selectedFeed"
-          class="size-2 rounded-full"
-          :class="dotClass(selectedFeed)"
-        />
-        <span class="max-w-[10rem] truncate">
-          {{ selectedFeed?.name ?? 'Select feed' }}
-        </span>
-      </span>
-    </UButton>
+    <span class="flex items-center gap-2">
+      <UChip v-if="selectedFeed" :color="dotColor(selectedFeed)" inset>
+        <UIcon name="i-lucide-rss" class="size-4"/>
+      </UChip>
+      <span class="truncate">{{ selectedFeed?.name ?? 'Select feed' }}</span>
+    </span>
+  </UButton>
 
-    <template #feed-leading="{ item }">
-      <span class="size-2 shrink-0 rounded-full" :class="dotClass((item as any).feed)" />
-    </template>
-    <template #feed-trailing="{ item }">
-      <span class="text-xs text-dimmed">
-        {{ (item as any).feed.hasRealtime ? 'realtime' : 'static' }}
-      </span>
-    </template>
-  </UDropdownMenu>
+  <button
+    v-else
+    type="button"
+    :title="`Feed: ${selectedFeed?.name ?? 'none'} (press F)`"
+    aria-label="Switch feed"
+    class="fixed right-0 top-1/4 z-100 flex -translate-y-1/2 flex-col items-center gap-2 rounded-l-lg border border-r-0 border-default bg-default/90 px-2 py-3 text-sm text-muted shadow-lg backdrop-blur transition-colors hover:bg-elevated hover:text-highlighted"
+    @click="isFeedDrawerOpen = true"
+  >
+    <UChip :color="selectedFeed ? dotColor(selectedFeed) : 'neutral'" inset>
+      <UIcon name="i-lucide-rss" class="size-5 shrink-0"/>
+    </UChip>
+    <span class="font-medium [writing-mode:vertical-rl]">Select feed</span>
+  </button>
 </template>

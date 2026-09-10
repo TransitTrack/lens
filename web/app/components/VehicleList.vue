@@ -4,10 +4,12 @@ import type { Column } from '@tanstack/table-core'
 import type { TableColumn, TableRow } from '@nuxt/ui'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge } from '../utils/adherence'
+import { useUnits } from '../composables/useUnits'
 
 const props = defineProps<{ vehicles: VehicleRow[] }>()
 const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 
+const units = useUnits()
 const sorting = ref([{ id: 'vehicleId', desc: false }])
 
 function sortableHeader(label: string, column: Column<VehicleRow>) {
@@ -38,7 +40,7 @@ const columns: TableColumn<VehicleRow>[] = [
     accessorKey: 'scheduleAdherenceSec',
     header: ({ column }) => sortableHeader('Adherence', column),
   },
-  { accessorKey: 'speedMps', header: ({ column }) => sortableHeader('Speed (m/s)', column) },
+  { accessorKey: 'speedMps', header: ({ column }) => sortableHeader('Speed', column) },
 ]
 
 function onSelect(_event: Event, row: TableRow<VehicleRow>) {
@@ -71,6 +73,9 @@ function onSelect(_event: Event, row: TableRow<VehicleRow>) {
       <UBadge :color="adherenceBadge(row.original.scheduleAdherenceSec).color">
         {{ adherenceBadge(row.original.scheduleAdherenceSec).label }}
       </UBadge>
+    </template>
+    <template #speedMps-cell="{ row }">
+      {{ units.speed(row.original.speedMps) }}
     </template>
   </UTable>
 </template>

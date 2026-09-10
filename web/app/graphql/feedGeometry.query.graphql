@@ -1,0 +1,26 @@
+query FeedGeometry($feedCode: String!) {
+  tripPatterns(feedCode: $feedCode) {
+    patternKey
+    routeId
+    headsign
+    tripCount
+    route {
+      routeId
+      routeShortName
+      routeLongName
+      routeColor
+      routeType
+    }
+    stopPaths {
+      stopPathIndex
+      pathGeometry
+    }
+  }
+  stops(feedCode: $feedCode) {
+    stopId
+    stopName
+    stopLat
+    stopLon
+    locationType
+  }
+}

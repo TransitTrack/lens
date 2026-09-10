@@ -5,15 +5,26 @@ import { colorForVehicle } from '../utils/vehicleMarker'
 import { adherenceBadge } from '../utils/adherence'
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
 import VehicleMapLegend from './VehicleMapLegend.vue'
+import FeedNetworkLayer from './FeedNetworkLayer.vue'
 import { useMapStyle } from '../composables/useMapStyle'
+import { useFeedGeometry } from '../composables/useFeedGeometry'
 import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
 
-const props = defineProps<{ vehicles: VehicleRow[]; extent?: LngLatBoundsExtent | null }>()
+const props = defineProps<{
+  vehicles: VehicleRow[]
+  extent?: LngLatBoundsExtent | null
+  /** GTFS feed code — draws the route + stop network as a base layer */
+  feedCode?: string | null
+}>()
 const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
+
+const { lines: networkLines, stops: networkStops } = useFeedGeometry(
+  toRef(props, 'feedCode') as Ref<string | null>,
+)
 
 // nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
 // back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
@@ -118,6 +129,13 @@ function badge(v: VehicleRow) {
       :fit-bounds-options="{ padding: 40, animate: false }"
     >
       <MglNavigationControl />
+
+      <FeedNetworkLayer
+        v-if="props.feedCode"
+        :lines="networkLines"
+        :stops="networkStops"
+        dim
+      />
 
       <MglMarker
         v-for="v in props.vehicles"

@@ -1135,7 +1135,7 @@ export type AvlTrailQueryVariables = Exact<{
 }>;
 
 
-export type AvlTrailQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, position: { lat: number, lon: number } }> };
+export type AvlTrailQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, currentStatus: string | null, occupancyStatus: string | null, descTripId: string | null, position: { lat: number, lon: number } }> };
 
 export type BlockDetailQueryVariables = Exact<{
   feedCode: string;
@@ -1397,7 +1397,14 @@ export type FeedDetailQueryVariables = Exact<{
 }>;
 
 
-export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: string, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, byteSize: number | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
+export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: string, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
+
+export type FeedGeometryQueryVariables = Exact<{
+  feedCode: string;
+}>;
+
+
+export type FeedGeometryQuery = { tripPatterns: Array<{ patternKey: string, routeId: string, headsign: string | null, tripCount: number, route: { routeId: string, routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeType: number | null } | null, stopPaths: Array<{ stopPathIndex: number, pathGeometry: any }> }>, stops: Array<{ stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null, locationType: number | null }> };
 
 export type IngestFeedMutationVariables = Exact<{
   feedCode: string;
@@ -1513,7 +1520,7 @@ export type TripsByRouteQueryVariables = Exact<{
 }>;
 
 
-export type TripsByRouteQuery = { trips: Array<{ tripId: string, tripHeadsign: string | null, tripShortName: string | null, directionId: number | null, serviceId: string, shapeId: string | null, blockId: string | null }> };
+export type TripsByRouteQuery = { trips: Array<{ tripId: string, tripHeadsign: string | null, tripShortName: string | null, directionId: number | null, serviceId: string, shapeId: string | null, blockId: string | null, startTimeSec: number | null, endTimeSec: number | null }> };
 
 export type VehicleDetailQueryVariables = Exact<{
   feedCode: string;
@@ -1521,7 +1528,7 @@ export type VehicleDetailQueryVariables = Exact<{
 }>;
 
 
-export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: string | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: string | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: string | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: string | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
 
 export type VehiclesQueryVariables = Exact<{
   feedCode: string;
@@ -1674,6 +1681,9 @@ export const AvlTrailDocument = gql`
     }
     speedMps
     bearing
+    currentStatus
+    occupancyStatus
+    descTripId
   }
 }
     `;
@@ -2898,7 +2908,10 @@ export const FeedDetailDocument = gql`
       createdAt
       activatedAt
       supersededAt
+      feedStartDate
+      feedEndDate
       byteSize
+      contentSha256
       errorMessage
       validationSummary {
         errorCount
@@ -2941,6 +2954,57 @@ export function useFeedDetailLazyQuery(variables?: FeedDetailQueryVariables | Vu
   return VueApolloComposable.useLazyQuery<FeedDetailQuery, FeedDetailQueryVariables>(FeedDetailDocument, variables, options);
 }
 export type FeedDetailQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<FeedDetailQuery, FeedDetailQueryVariables>;
+export const FeedGeometryDocument = gql`
+    query FeedGeometry($feedCode: String!) {
+  tripPatterns(feedCode: $feedCode) {
+    patternKey
+    routeId
+    headsign
+    tripCount
+    route {
+      routeId
+      routeShortName
+      routeLongName
+      routeColor
+      routeType
+    }
+    stopPaths {
+      stopPathIndex
+      pathGeometry
+    }
+  }
+  stops(feedCode: $feedCode) {
+    stopId
+    stopName
+    stopLat
+    stopLon
+    locationType
+  }
+}
+    `;
+
+/**
+ * __useFeedGeometryQuery__
+ *
+ * To run a query within a Vue component, call `useFeedGeometryQuery` and pass it any options that fit your needs.
+ * When your component renders, `useFeedGeometryQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useFeedGeometryQuery({
+ *   feedCode: // value for 'feedCode'
+ * });
+ */
+export function useFeedGeometryQuery(variables: FeedGeometryQueryVariables | VueCompositionApi.Ref<FeedGeometryQueryVariables> | ReactiveFunction<FeedGeometryQueryVariables>, options: VueApolloComposable.UseQueryOptions<FeedGeometryQuery, FeedGeometryQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<FeedGeometryQuery, FeedGeometryQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<FeedGeometryQuery, FeedGeometryQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<FeedGeometryQuery, FeedGeometryQueryVariables>(FeedGeometryDocument, variables, options);
+}
+export function useFeedGeometryLazyQuery(variables?: FeedGeometryQueryVariables | VueCompositionApi.Ref<FeedGeometryQueryVariables> | ReactiveFunction<FeedGeometryQueryVariables>, options: VueApolloComposable.UseQueryOptions<FeedGeometryQuery, FeedGeometryQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<FeedGeometryQuery, FeedGeometryQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<FeedGeometryQuery, FeedGeometryQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<FeedGeometryQuery, FeedGeometryQueryVariables>(FeedGeometryDocument, variables, options);
+}
+export type FeedGeometryQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<FeedGeometryQuery, FeedGeometryQueryVariables>;
 export const IngestFeedDocument = gql`
     mutation IngestFeed($feedCode: String!) {
   ingestFeed(feedCode: $feedCode) {
@@ -3521,6 +3585,8 @@ export const TripsByRouteDocument = gql`
     serviceId
     shapeId
     blockId
+    startTimeSec
+    endTimeSec
   }
 }
     `;
@@ -3573,6 +3639,18 @@ export const VehicleDetailDocument = gql`
     currentStop {
       stopId
       stopName
+      stopLat
+      stopLon
+    }
+    block {
+      blockId
+      blockTrips {
+        listIndex
+        trip {
+          tripId
+          tripHeadsign
+        }
+      }
     }
     trip {
       tripId

@@ -26,7 +26,10 @@ query FeedDetail($code: String!) {
       createdAt
       activatedAt
       supersededAt
+      feedStartDate
+      feedEndDate
       byteSize
+      contentSha256
       errorMessage
       validationSummary { errorCount warningCount }
     }

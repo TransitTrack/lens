@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import type {NavigationMenuItem} from '@nuxt/ui'
+import AppLogo from '~/components/AppLogo.vue'
 import UserMenu from '~/components/UserMenu.vue'
+import FeedSwitcher from '~/components/FeedSwitcher.vue'
+import FeedDrawer from '~/components/FeedDrawer.vue'
 import NotificationsSlideover from '~/components/NotificationsSlideover.vue'
 import {useFeeds} from '~/composables/useFeeds'
 import {useFeedAlerts} from '~/composables/useFeedAlerts'
-import Logo from "~/components/Logo.vue";
+import {useDashboard} from '~/composables/useDashboard'
 
 useFeedAlerts()
 
 const {feeds, selectedFeedCode, feedIsUnknown, feedPath} = useFeeds()
+const {isNotificationsSlideoverOpen} = useDashboard()
 
 // If the URL points at a feed that doesn't exist, fall back to the first one.
 watch(feedIsUnknown, (unknown) => {
@@ -17,38 +21,35 @@ watch(feedIsUnknown, (unknown) => {
   }
 })
 
-const open = ref(false)
-const close = () => (open.value = false)
+const searchOpen = ref(false)
 
-const links = computed<NavigationMenuItem[][]>(() => [
-  [
-    {label: 'Overview', icon: 'i-lucide-layout-dashboard', to: feedPath(), exact: true, onSelect: close},
-    {label: 'Vehicles', icon: 'i-lucide-bus', to: feedPath('/vehicles'), onSelect: close},
-    {label: 'Headway', icon: 'i-lucide-clock', to: feedPath('/headway'), onSelect: close},
-    {label: 'Drafts', icon: 'i-lucide-file-pen-line', to: feedPath('/drafts'), onSelect: close},
-    {
-      label: 'Explore',
-      icon: 'i-lucide-compass',
-      type: 'trigger',
-      defaultOpen: true,
-      children: [
-        {label: 'Routes', to: feedPath('/explore/routes'), onSelect: close},
-        {label: 'Stops', to: feedPath('/explore/stops'), onSelect: close},
-        {label: 'Trips', to: feedPath('/explore/trips'), onSelect: close},
-        {label: 'Blocks', to: feedPath('/explore/blocks'), onSelect: close},
-        {label: 'Calendar', to: feedPath('/explore/calendar'), onSelect: close},
-        {label: 'Feed', to: feedPath('/explore/feed'), onSelect: close},
-      ],
-    },
-  ],
-  // [
-  //   {label: 'Nuxt UI docs', icon: 'i-lucide-book-open', to: 'https://ui.nuxt.com', target: '_blank'},
-  //   {label: 'GitHub', icon: 'i-simple-icons-github', to: 'https://github.com/transittrack', target: '_blank'},
-  // ],
+const primaryNav = computed<NavigationMenuItem[]>(() => [
+  {label: 'Home', icon: 'i-lucide-layout-dashboard', to: feedPath(), exact: true},
+  {
+    label: 'Realtime',
+    icon: 'i-lucide-radio',
+    children: [
+      {label: 'Vehicles', icon: 'i-lucide-bus', to: feedPath('/vehicles')},
+      {label: 'Headway', icon: 'i-lucide-clock', to: feedPath('/headway')},
+    ],
+  },
+  {
+    label: 'Static',
+    icon: 'i-lucide-database',
+    children: [
+      {label: 'Routes', icon: 'i-lucide-route', to: feedPath('/explore/routes')},
+      {label: 'Stops', icon: 'i-lucide-map-pin', to: feedPath('/explore/stops')},
+      {label: 'Trips', icon: 'i-lucide-git-branch', to: feedPath('/explore/trips')},
+      {label: 'Blocks', icon: 'i-lucide-layers', to: feedPath('/explore/blocks')},
+      {label: 'Calendar', icon: 'i-lucide-calendar-days', to: feedPath('/explore/calendar')},
+      {label: 'Feed', icon: 'i-lucide-file-text', to: feedPath('/explore/feed')},
+      {label: 'Drafts', icon: 'i-lucide-file-pen-line', to: feedPath('/drafts')},
+    ],
+  },
 ])
 
 const groups = computed(() => [
-  {id: 'links', label: 'Go to', items: links.value.flat()},
+  {id: 'links', label: 'Go to', items: primaryNav.value.flatMap((i) => i.children ?? [i])},
   {
     id: 'feeds',
     label: 'Switch feed',
@@ -64,48 +65,45 @@ const groups = computed(() => [
 </script>
 
 <template>
-  <UDashboardGroup unit="rem">
-    <UDashboardSidebar
-      id="default"
-      v-model:open="open"
-      collapsible
-      resizable
-      class="bg-elevated/25"
-      :ui="{ footer: 'lg:border-t lg:border-default' }"
-    >
-      <template #header="{ collapsed }">
-        <Logo :collapsed="collapsed"/>
+  <div>
+    <UHeader mode="drawer" :ui="{ center: 'flex-1 justify-center' }">
+      <template #left>
+        <NuxtLink :to="feedPath()" aria-label="Home">
+          <AppLogo :font-size="16" :icon-only="false"/>
+        </NuxtLink>
       </template>
 
-      <template #default="{ collapsed }">
-        <UDashboardSearchButton :collapsed="collapsed" class="bg-transparent ring-default"/>
+      <UNavigationMenu :items="primaryNav" class="justify-center"/>
 
-        <UNavigationMenu
-          :collapsed="collapsed"
-          :items="links[0]"
-          orientation="vertical"
-          tooltip
-          popover
-        />
-
-        <UNavigationMenu
-          :collapsed="collapsed"
-          :items="links[1]"
-          orientation="vertical"
-          tooltip
-          class="mt-auto"
-        />
+      <template #right>
+        <UButton
+          color="neutral"
+          variant="ghost"
+          square
+          aria-label="Feed status"
+          @click="isNotificationsSlideoverOpen = true"
+        >
+          <UChip color="error" inset>
+            <UIcon name="i-lucide-bell" class="size-5 shrink-0"/>
+          </UChip>
+        </UButton>
+        <UserMenu/>
       </template>
 
-      <template #footer="{ collapsed }">
-        <UserMenu :collapsed="collapsed"/>
+      <template #content>
+        <UNavigationMenu :items="primaryNav" orientation="vertical" class="mx-auto"/>
+        <USeparator class="my-3"/>
+        <FeedSwitcher block/>
       </template>
-    </UDashboardSidebar>
+    </UHeader>
 
-    <UDashboardSearch :groups="groups"/>
+    <main>
+      <slot v-if="selectedFeedCode"/>
+    </main>
 
-    <slot v-if="selectedFeedCode"/>
-
+    <FeedSwitcher/>
+    <UDashboardSearch v-model:open="searchOpen" :groups="groups"/>
+    <FeedDrawer/>
     <NotificationsSlideover/>
-  </UDashboardGroup>
+  </div>
 </template>

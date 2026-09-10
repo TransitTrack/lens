@@ -7,5 +7,7 @@ query TripsByRoute($feedCode: String!, $routeId: String!) {
     serviceId
     shapeId
     blockId
+    startTimeSec
+    endTimeSec
   }
 }

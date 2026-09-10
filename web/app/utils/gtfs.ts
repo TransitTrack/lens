@@ -68,7 +68,7 @@ interface StopPathLike {
   stopPathIndex: number
   pathGeometry?: unknown
   stop?: { stopName?: string | null, stopLat?: number | null, stopLon?: number | null } | null
-  stopId: string
+  stopId?: string
 }
 
 /** Concatenate a pattern's per-segment pathGeometry ([lon,lat] arrays) into one line. */

@@ -4,3 +4,8 @@
 @theme static {
   --font-sans: 'Outfit', sans-serif;
 }
+
+:root {
+  /* widen the app shell past Nuxt UI's 80rem default */
+  --ui-container: 90rem;
+}
