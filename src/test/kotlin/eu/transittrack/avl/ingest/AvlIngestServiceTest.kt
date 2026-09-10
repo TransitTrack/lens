@@ -12,6 +12,7 @@ import com.google.transit.realtime.GtfsRealtime.Position
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 import org.junit.jupiter.api.AfterEach
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
@@ -39,14 +40,14 @@ class AvlIngestServiceTest(
     @Autowired val feeds: AvlFeedRepository,
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val writer: AvlWriter,
-    @Autowired val decoder: GtfsRealtimeVehiclePositionDecoder,
+    @Autowired val decoders: ObjectProvider<AvlFeedDecoder>,
 ) {
     private var bytes: ByteArray = ByteArray(0)
     private val source =
         object : AvlFeedSource {
             override fun fetch(feed: AvlFeed) = RawAvlPayload(bytes, null, Instant.parse("2026-09-04T10:00:00Z"))
         }
-    private val service by lazy { AvlIngestService(feeds, source, listOf(decoder), writer, reports) }
+    private val service by lazy { AvlIngestService(feeds, source, decoders, writer, reports) }
 
     @AfterEach
     fun cleanup() {

@@ -74,6 +74,11 @@ transittrack:
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0
       unmatch-after-failures: 5
+      # "went silent" ageing for matched vehicles that stop reporting; thresholds are
+      # feed.poll-interval-sec * cycles, floored at silent-unmatch-min-sec.
+      silent-stale-cycles: 3
+      silent-unmatch-cycles: 5
+      silent-unmatch-min-sec: 60
   predict:
     enabled: true
     learn:

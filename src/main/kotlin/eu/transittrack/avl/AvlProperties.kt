@@ -26,6 +26,16 @@ data class AvlProperties(
          * flagged `stale`, so a brief GPS/descriptor outage doesn't drop it off its trip.
          */
         val unmatchAfterFailures: Int = 5,
+        /**
+         * "Went silent" handling for a matched vehicle that stops sending reports (so the failure
+         * counter above never advances). Thresholds are `feed.pollIntervalSec` times the cycle
+         * count, floored at [silentUnmatchMinSec]. At [silentStaleCycles] the vehicle is flagged
+         * `stale` but keeps its trip/block assignment; at [silentUnmatchCycles] the assignment is
+         * dropped and `matched` goes false — the same end-state as [unmatchAfterFailures].
+         */
+        val silentStaleCycles: Int = 3,
+        val silentUnmatchCycles: Int = 5,
+        val silentUnmatchMinSec: Int = 60,
         val tripEndAdvanceGraceSec: Int = 120,
         val candidateTimeSlackSec: Int = 1_800,
         val matchIntervalMs: Long = 5_000,
