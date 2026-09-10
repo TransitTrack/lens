@@ -1,5 +1,7 @@
 package eu.transittrack
 
+import java.time.Duration
+
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
@@ -94,4 +96,15 @@ data class ScheduleProperties(
     val layoverThresholdSec: Int = 60,
     val stopProjectionMaxDeviationM: Double = 100.0,
     val tolerateNoScheduleTrips: Boolean = false,
+)
+
+/**
+ * Tuning for the AVL match read cache (see [eu.transittrack.avl.match.cache.AvlCaches]). Heap-only
+ * EhCache; one shared cap and TTL across all caches — per-cache tuning can come later if profiling
+ * demands it.
+ */
+@ConfigurationProperties("transittrack.cache")
+data class CacheProperties(
+    val ttl: Duration = Duration.ofMinutes(60),
+    val maxEntries: Long = 20_000,
 )

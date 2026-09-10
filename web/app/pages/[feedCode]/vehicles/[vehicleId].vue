@@ -18,6 +18,7 @@ import {
   cardinal,
   trailCoords,
 } from '~/utils/vehicleDetail'
+import type {GeoJSON} from "geojson";
 
 const route = useRoute()
 const {selectedFeedCode, selectedAvlFeedCode, feedPath} = useFeeds()
@@ -47,7 +48,7 @@ const {points: adherenceHistory} = useAdherenceHistory(adherenceSec, vehicleId)
 const sparkValues = computed(() => adherenceHistory.value.map((p) => p.sec))
 
 const algorithms = computed(() => algorithmsIn(predictions.value))
-const algorithm = ref<string | null>(null)
+const algorithm = ref<string | undefined>(undefined)
 watch(
   [algorithms, accuracy],
   ([algos, acc]) => {

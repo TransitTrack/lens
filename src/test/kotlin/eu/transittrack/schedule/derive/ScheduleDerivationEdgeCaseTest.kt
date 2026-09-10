@@ -56,6 +56,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.gtfs.support.noOpEventPublisher
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.model.BlockRepository
@@ -543,7 +544,7 @@ class ScheduleDerivationEdgeCaseTest(
         calendars: CalendarRepository,
         calendarDates: CalendarDateRepository,
         feedInfos: FeedInfoRepository,
-    ) : RevisionService(revisions, writer, props, calendars, calendarDates, feedInfos) {
+    ) : RevisionService(revisions, writer, props, calendars, calendarDates, feedInfos, noOpEventPublisher()) {
         override fun transition(
             revisionId: Long,
             status: GtfsRevisionStatus,

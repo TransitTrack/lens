@@ -2,11 +2,13 @@ package eu.transittrack.schedule.derive
 
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.core.annotation.AnnotationAwareOrderComparator
 import org.springframework.stereotype.Service
 
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.revision.RevisionDerivedRowsChangedEvent
 import eu.transittrack.gtfs.revision.RevisionService
 
 /**
@@ -39,6 +41,7 @@ class DerivationService(
     derivedGtfsWriterProvider: ObjectProvider<DerivedGtfsWriter>,
     private val revisionService: RevisionService,
     private val revisions: GtfsRevisionRepository,
+    private val events: ApplicationEventPublisher,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val ordered: List<IngestionPostProcessor> =
@@ -77,5 +80,8 @@ class DerivationService(
                 revisions.save(it)
             }
         }
+
+        // Derived rows for this revisionId were just rebuilt in place; signal revision-scoped caches.
+        events.publishEvent(RevisionDerivedRowsChangedEvent(revisionId))
     }
 }

@@ -20,10 +20,10 @@ const gtfsRoute = computed(() => result.value?.route ?? null)
 const patterns = computed(() => result.value?.tripPatterns ?? [])
 const routeColor = computed(() => hexColor(gtfsRoute.value?.routeColor, '#3b82f6'))
 
-const patternKey = ref<string | null>(null)
+const patternKey = ref<string | undefined>()
 watch(patterns, (list) => {
   if (!patternKey.value || !list.some((p) => p.patternKey === patternKey.value)) {
-    patternKey.value = list[0]?.patternKey ?? null
+    patternKey.value = list[0]?.patternKey ?? undefined
   }
 }, {immediate: true})
 

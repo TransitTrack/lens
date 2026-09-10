@@ -105,19 +105,19 @@ export function algorithmsIn(predictions: Prediction[]): string[] {
 }
 
 /** Default algorithm: the available one with the lowest mean absolute error. */
-export function bestAlgorithm(available: string[], accuracy: Accuracy[]): string | null {
-  if (available.length === 0) return null
+export function bestAlgorithm(available: string[], accuracy: Accuracy[]): string | undefined {
+  if (available.length === 0) return undefined
   const ranked = [...available].sort((a, b) => errFor(a, accuracy) - errFor(b, accuracy))
-  return ranked[0] ?? null
+  return ranked[0] ?? undefined
 }
 
 function errFor(algorithm: string, accuracy: Accuracy[]): number {
   return accuracy.find((a) => a.algorithm === algorithm)?.meanAbsErrorSec ?? Number.POSITIVE_INFINITY
 }
 
-export function accuracyFor(algorithm: string | null, accuracy: Accuracy[]): Accuracy | null {
-  if (!algorithm) return null
-  return accuracy.find((a) => a.algorithm === algorithm) ?? null
+export function accuracyFor(algorithm: string | undefined, accuracy: Accuracy[]): Accuracy | undefined {
+  if (!algorithm) return undefined
+  return accuracy.find((a) => a.algorithm === algorithm) ?? undefined
 }
 
 export interface StopRow {
@@ -140,7 +140,7 @@ export interface StopRow {
 export function stopRows(
   vehicle: Vehicle,
   predictions: Prediction[],
-  algorithm: string | null,
+  algorithm: string | undefined,
 ): StopRow[] {
   const byIndex = new Map<number, Prediction>()
   for (const p of predictions) {

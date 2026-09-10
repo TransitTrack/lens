@@ -2,6 +2,7 @@ package eu.transittrack.gtfs.revision
 
 import java.time.Instant
 
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -26,6 +27,7 @@ class RevisionService(
     private val calendars: CalendarRepository,
     private val calendarDates: CalendarDateRepository,
     private val feedInfos: FeedInfoRepository,
+    private val events: ApplicationEventPublisher,
 ) {
     @Transactional
     fun createPending(
@@ -125,7 +127,10 @@ class RevisionService(
             }
         r.status = GtfsRevisionStatus.ACTIVE
         r.activatedAt = Instant.now()
-        return revisions.save(r)
+        val saved = revisions.save(r)
+        // Revision-scoped read caches key on the previously active revisionId; signal the swap.
+        events.publishEvent(RevisionDerivedRowsChangedEvent(revisionId))
+        return saved
     }
 
     /**

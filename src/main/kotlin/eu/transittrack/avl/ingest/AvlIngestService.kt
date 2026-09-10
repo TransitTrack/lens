@@ -3,6 +3,7 @@ package eu.transittrack.avl.ingest
 import java.time.Instant
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -23,7 +24,7 @@ import eu.transittrack.avl.model.MatchStatus
 class AvlIngestService(
     private val feeds: AvlFeedRepository,
     private val source: AvlFeedSource,
-    decoders: List<AvlFeedDecoder>,
+    decoders: ObjectProvider<AvlFeedDecoder>,
     private val writer: AvlWriter,
     private val reports: AvlReportRowRepository,
 ) {
@@ -47,7 +48,7 @@ class AvlIngestService(
         val fresh = decoded.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: false }
         writer.insertReports(fresh.map { toRow(feed.id!!, it) })
         recordPoll(feed.id!!, status = "OK", count = fresh.size)
-        log.debug("avl feed '{}': {} decoded, {} new", feed.code, decoded.size, fresh.size)
+        log.trace("avl feed '{}': {} decoded, {} new", feed.code, decoded.size, fresh.size)
         return fresh.size
     }
 

@@ -70,11 +70,12 @@ class AvlMatchProcessor(
                 reports
                     .sortedBy { it.ts }
                     .forEachIndexed { index, report ->
-                        if (index != reports.lastIndex) {
-                            persist(feed, report, MatchOutcome.Skipped, prev, ctx)
-                        } else {
-                            persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
-                        }
+                        persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
+//                        if (index != reports.lastIndex) {
+//                            persist(feed, report, MatchOutcome.Skipped, prev, ctx)
+//                        } else {
+//                            persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
+//                        }
                         processed++
                     }
             }

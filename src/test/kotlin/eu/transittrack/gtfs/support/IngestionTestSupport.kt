@@ -3,6 +3,7 @@ package eu.transittrack.gtfs.support
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.context.ApplicationEventPublisher
 
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
@@ -10,6 +11,9 @@ import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.schedule.derive.DerivationContext
 import eu.transittrack.schedule.derive.DerivationService
 import eu.transittrack.schedule.derive.DerivedGtfsWriter
+
+/** An event publisher that drops every event — for wiring services in tests that don't assert on events. */
+fun noOpEventPublisher(): ApplicationEventPublisher = ApplicationEventPublisher {}
 
 /** An [ObjectProvider] yielding [pp] on every `stream()` call — for wiring `IngestionService` in tests. */
 fun postProcessors(vararg pp: IngestionPostProcessor): ObjectProvider<IngestionPostProcessor> {
@@ -40,4 +44,5 @@ fun derivationService(
         singletonProvider(derivedGtfsWriter),
         revisionService,
         revisions,
+        noOpEventPublisher(),
     )

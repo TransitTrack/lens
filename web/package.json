@@ -33,6 +33,7 @@
     "@graphql-codegen/typescript-operations": "^6.1.6",
     "@graphql-codegen/typescript-vue-apollo": "^5.0.1",
     "@nuxt/eslint": "^1.17.0",
+    "@types/geojson": "^7946.0.16",
     "@nuxt/test-utils": "^4.2.0",
     "@playwright/test": "^1.63.0",
     "@vue/test-utils": "^2.5.0",
