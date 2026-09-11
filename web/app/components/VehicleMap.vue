@@ -20,15 +20,45 @@ const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
 
-const {lines: networkLines, stops: networkStops} = useFeedGeometry(
-  toRef(props, 'feedCode') as Ref<string | null>,
-)
-
 // nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
 // back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
 // and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
 // before that silently no-op).
 const map = useMglMap(MAP_ID)
+
+// The route/stop network is a large, decorative underlay (a whole agency's
+// shapes can be tens of thousands of coordinate points) behind the live
+// fleet, which is what actually matters for first paint. Hold the query off
+// until the map has loaded and the browser is idle, so fetching + building
+// that GeoJSON doesn't compete with map/marker setup for CPU while the page
+// is still loading.
+const networkFeedCode = ref<string | null>(null)
+let networkArmed = false
+watch(
+  () => map.isLoaded,
+  (loaded) => {
+    if (!loaded || networkArmed) return
+    networkArmed = true
+    const start = () => {
+      networkFeedCode.value = props.feedCode ?? null
+    }
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(start, {timeout: 2000})
+    } else {
+      setTimeout(start, 300)
+    }
+  },
+  {immediate: true},
+)
+// Once armed, keep it synced to actual feed switches.
+watch(
+  () => props.feedCode,
+  (fc) => {
+    if (networkArmed) networkFeedCode.value = fc ?? null
+  },
+)
+
+const {lines: networkLines, stops: networkStops} = useFeedGeometry(networkFeedCode)
 
 // Capture the agency extent once — `useFeedExtent` re-emits a fresh object on
 // every Apollo tick and binding it live would snap the view back on each poll.
@@ -123,11 +153,13 @@ function badge(v: VehicleRow) {
 // a single symbol layer moves that work into maplibre's native `setData`,
 // which diffs/repaints on the compositor instead of the Vue tree.
 type VehicleState = 'stale' | 'matched' | 'unmatched'
+
 function stateFor(v: VehicleRow): VehicleState {
   if (v.stale) return 'stale'
   if (v.matched) return 'matched'
   return 'unmatched'
 }
+
 const STATE_COLORS: Record<VehicleState, string> = {
   stale: colorForVehicle(false, true),
   matched: colorForVehicle(true, false),
@@ -241,7 +273,7 @@ watch(
   {immediate: true},
 )
 
-function onVehicleClick(e: {features?: {properties?: Record<string, unknown>}[]}) {
+function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
   const id = e.features?.[0]?.properties?.vehicleId
   if (typeof id === 'string') activeVehicleId.value = id
 }
@@ -307,12 +339,15 @@ function onVehicleClick(e: {features?: {properties?: Record<string, unknown>}[]}
         </div>
       </MglPopup>
 
-      <!-- Added before the vehicle layer so vehicle icons stack on top of it
-           (later-added maplibre layers paint over earlier ones). -->
+      <!-- `before` pins it below the vehicle icon layer explicitly — it's
+           mounted lazily (see `networkFeedCode` above), well after the
+           vehicle layer, so relying on maplibre's default "later-added
+           layers paint on top" insertion order would put it above instead. -->
       <FeedNetworkLayer
-        v-if="props.feedCode"
+        v-if="networkFeedCode"
         :lines="networkLines"
         :stops="networkStops"
+        before="vehicles-icons"
         dim
       />
 

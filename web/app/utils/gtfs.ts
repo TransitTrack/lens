@@ -87,6 +87,62 @@ export function patternLine(stopPaths: StopPathLike[]): LngLat[] {
   return out
 }
 
+function perpendicularDistanceSq(p: LngLat, a: LngLat, b: LngLat): number {
+  const [x, y] = p
+  const [x1, y1] = a
+  const [x2, y2] = b
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const lenSq = dx * dx + dy * dy
+  if (lenSq === 0) {
+    const ex = x - x1
+    const ey = y - y1
+    return ex * ex + ey * ey
+  }
+  const t = ((x - x1) * dx + (y - y1) * dy) / lenSq
+  const cx = x1 + t * dx
+  const cy = y1 + t * dy
+  const ex = x - cx
+  const ey = y - cy
+  return ex * ex + ey * ey
+}
+
+/**
+ * Ramer–Douglas–Peucker line simplification. Route shapes come back from GTFS
+ * shape points at raw GPS resolution — mostly near-collinear points along
+ * straight road segments — so a small tolerance (in degrees; ~0.00003 is
+ * roughly 3m at mid latitudes) drops the majority of points with no visible
+ * difference at the zoom levels these lines are actually viewed at, while
+ * cutting the JS building + GeoJSON-to-worker transfer cost proportionally.
+ */
+export function simplifyLine(points: LngLat[], toleranceDeg: number): LngLat[] {
+  if (points.length <= 2) return points
+  const toleranceSq = toleranceDeg * toleranceDeg
+  const keep = new Uint8Array(points.length)
+  keep[0] = 1
+  keep[points.length - 1] = 1
+
+  const stack: [number, number][] = [[0, points.length - 1]]
+  while (stack.length) {
+    const [start, end] = stack.pop()!
+    let maxDistSq = 0
+    let maxIndex = -1
+    for (let i = start + 1; i < end; i++) {
+      const distSq = perpendicularDistanceSq(points[i]!, points[start]!, points[end]!)
+      if (distSq > maxDistSq) {
+        maxDistSq = distSq
+        maxIndex = i
+      }
+    }
+    if (maxDistSq > toleranceSq && maxIndex !== -1) {
+      keep[maxIndex] = 1
+      stack.push([start, maxIndex], [maxIndex, end])
+    }
+  }
+
+  return points.filter((_, i) => keep[i])
+}
+
 /** Pattern stops as a GeoJSON FeatureCollection (all marked "upcoming"). */
 export function patternStopFeatures(stopPaths: StopPathLike[]) {
   return {

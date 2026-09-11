@@ -1,4 +1,9 @@
-import {patternLine, hexColor, routeTypeLabel} from '~/utils/gtfs'
+import {patternLine, simplifyLine, hexColor, routeTypeLabel} from '~/utils/gtfs'
+
+/** ~3m at mid latitudes — well under what's visually distinguishable at the
+ * zoom levels this network layer is shown at, but cuts raw GPS-resolution
+ * shape points substantially (see `simplifyLine`). */
+const LINE_SIMPLIFY_TOLERANCE_DEG = 0.00003
 import {useFeedGeometryQuery} from '~~/generated/graphql'
 import type {GeoJSON} from "geojson";
 
@@ -38,7 +43,7 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
     type: 'FeatureCollection',
     features: (result.value?.tripPatterns ?? [])
       .map((p) => {
-        const coords = patternLine(p.stopPaths)
+        const coords = simplifyLine(patternLine(p.stopPaths), LINE_SIMPLIFY_TOLERANCE_DEG)
         if (coords.length < 2) return null
         const props: RouteLineProps = {
           routeId: p.routeId,

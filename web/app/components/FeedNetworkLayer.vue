@@ -19,6 +19,9 @@ const props = withDefaults(
     showStops?: boolean
     /** enable hover highlight + detail popup on routes */
     interactive?: boolean
+    /** id of an existing layer to insert these below (e.g. a live marker layer
+     * that must stay on top regardless of mount order) */
+    before?: string
   }>(),
   {dim: false, showStops: true, interactive: true},
 )
@@ -80,6 +83,7 @@ function onLeave() {
   <MglGeoJsonSource source-id="feed-network-routes" :data="lines">
     <MglLineLayer
       layer-id="feed-network-routes-line"
+      :before="before"
       :paint="linePaint"
       :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
     />
@@ -87,6 +91,7 @@ function onLeave() {
     <MglLineLayer
       v-if="interactive"
       layer-id="feed-network-routes-hit"
+      :before="before"
       :paint="{ 'line-color': '#000000', 'line-opacity': 0, 'line-width': 16 }"
       @mousemove="onMove"
       @mouseleave="onLeave"
@@ -94,7 +99,7 @@ function onLeave() {
   </MglGeoJsonSource>
 
   <MglGeoJsonSource v-if="showStops" source-id="feed-network-stops" :data="stops">
-    <MglCircleLayer layer-id="feed-network-stops-circles" :paint="stopPaint"/>
+    <MglCircleLayer layer-id="feed-network-stops-circles" :before="before" :paint="stopPaint"/>
   </MglGeoJsonSource>
 
   <MglPopup
