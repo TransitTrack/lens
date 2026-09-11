@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import 'maplibre-gl/dist/maplibre-gl.css'
 import type {VehicleRow} from '../composables/useVehiclePolling'
 import {colorForVehicle} from '../utils/vehicleMarker'
 import {adherenceBadge} from '../utils/adherence'
-import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
 import {useMapStyle} from '../composables/useMapStyle'
@@ -118,6 +116,135 @@ watch(
 function badge(v: VehicleRow) {
   return adherenceBadge(v.scheduleAdherenceSec)
 }
+
+// A fleet of ~150 `MglMarker`s is 150 real Vue components + DOM nodes, all
+// re-rendered by Vue's reactivity on every poll tick — this was the source
+// of the multi-second main-thread stall on refresh. A GeoJSON source backing
+// a single symbol layer moves that work into maplibre's native `setData`,
+// which diffs/repaints on the compositor instead of the Vue tree.
+type VehicleState = 'stale' | 'matched' | 'unmatched'
+function stateFor(v: VehicleRow): VehicleState {
+  if (v.stale) return 'stale'
+  if (v.matched) return 'matched'
+  return 'unmatched'
+}
+const STATE_COLORS: Record<VehicleState, string> = {
+  stale: colorForVehicle(false, true),
+  matched: colorForVehicle(true, false),
+  unmatched: colorForVehicle(false, false),
+}
+
+const vehiclesGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
+  type: 'FeatureCollection',
+  features: props.vehicles
+    .filter((v) => v.position)
+    .map((v) => {
+      const hasBearing = v.bearing != null && Number.isFinite(v.bearing)
+      return {
+        type: 'Feature',
+        geometry: {type: 'Point', coordinates: [v.position.lon, v.position.lat]},
+        properties: {
+          vehicleId: v.vehicleId,
+          state: stateFor(v),
+          hasBearing,
+          bearing: hasBearing ? v.bearing : 0,
+        },
+      } satisfies GeoJSON.Feature
+    }),
+}))
+
+// Same visual language as VehicleHeadingMarker.vue (`.vhm--halo`, `.vhm__arrow`,
+// `.vhm__dot`), pre-rendered to canvas: an arrow variant for vehicles with a
+// bearing, a dot variant for those without, one per status color.
+function drawVehicleIcon(color: string, arrow: boolean): ImageData {
+  const size = 40
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+
+  const cx = size / 2
+  const cy = size / 2
+  const haloR = size * 0.475
+
+  // .vhm--halo
+  ctx.beginPath()
+  ctx.arc(cx, cy, haloR, 0, Math.PI * 2)
+  ctx.fillStyle = '#ffffff'
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'
+  ctx.shadowBlur = 4
+  ctx.shadowOffsetY = 1
+  ctx.fill()
+  ctx.shadowColor = 'transparent'
+
+  if (arrow) {
+    // .vhm__arrow: SVG path `M12 2 L20 21 L12 16 L4 21 Z`, viewBox 24, ~78%
+    // of the halo diameter (matches the 18px arrow inside a 19px halo).
+    const scale = ((haloR * 2) / 24) * 0.78
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.scale(scale, scale)
+    ctx.translate(-12, -11.5)
+    ctx.beginPath()
+    ctx.moveTo(12, 2)
+    ctx.lineTo(20, 21)
+    ctx.lineTo(12, 16)
+    ctx.lineTo(4, 21)
+    ctx.closePath()
+    ctx.fillStyle = color
+    ctx.fill()
+    ctx.lineWidth = 1.5 / scale
+    ctx.strokeStyle = '#ffffff'
+    ctx.stroke()
+    ctx.restore()
+  } else {
+    // .vhm__dot: colored circle, 2px white border
+    const dotR = haloR * 0.737
+    ctx.beginPath()
+    ctx.arc(cx, cy, dotR, 0, Math.PI * 2)
+    ctx.fillStyle = color
+    ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = '#ffffff'
+    ctx.stroke()
+  }
+
+  return ctx.getImageData(0, 0, size, size)
+}
+
+function iconId(state: VehicleState, arrow: boolean): string {
+  return `vehicle-${arrow ? 'arrow' : 'dot'}-${state}`
+}
+
+const vehicleIcons: Record<string, ImageData> = {}
+for (const [state, color] of Object.entries(STATE_COLORS) as [VehicleState, string][]) {
+  vehicleIcons[iconId(state, true)] = drawVehicleIcon(color, true)
+  vehicleIcons[iconId(state, false)] = drawVehicleIcon(color, false)
+}
+
+function registerVehicleIcons() {
+  const gl = map.map
+  if (!gl) return
+  for (const [id, image] of Object.entries(vehicleIcons)) {
+    if (!gl.hasImage(id)) gl.addImage(id, image, {pixelRatio: 2})
+  }
+}
+
+watch(
+  () => map.isLoaded,
+  (loaded) => {
+    if (!loaded) return
+    registerVehicleIcons()
+    // Re-add after a style swap (e.g. light/dark basemap change) drops the sprite.
+    map.map?.on('styleimagemissing', registerVehicleIcons)
+  },
+  {immediate: true},
+)
+
+function onVehicleClick(e: {features?: {properties?: Record<string, unknown>}[]}) {
+  const id = e.features?.[0]?.properties?.vehicleId
+  if (typeof id === 'string') activeVehicleId.value = id
+}
 </script>
 
 <template>
@@ -127,7 +254,7 @@ function badge(v: VehicleRow) {
       :map-key="MAP_ID"
       :map-style="mapStyle"
       :bounds="initialBounds"
-      :fit-bounds-options="{ padding: 40, animate: false }"
+      :fit-bounds-options="{ padding: 40, animate: true }"
     >
       <MglNavigationControl/>
 
@@ -146,7 +273,6 @@ function badge(v: VehicleRow) {
             </span>
             <UBadge
               v-if="activeVehicle.trip?.route?.routeShortName"
-              size="sm"
               :style="{
                 backgroundColor: activeVehicle.trip.route.routeColor
                   ? `#${activeVehicle.trip.route.routeColor.replace('#', '')}`
@@ -160,7 +286,7 @@ function badge(v: VehicleRow) {
             {{ activeVehicle.trip.tripHeadsign }}
           </div>
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <UBadge :color="badge(activeVehicle).color" variant="subtle" size="sm">
+            <UBadge :color="badge(activeVehicle).color" variant="subtle">
               {{ badge(activeVehicle).label }}
             </UBadge>
             <span class="text-muted">
@@ -181,28 +307,36 @@ function badge(v: VehicleRow) {
         </div>
       </MglPopup>
 
-      <MglMarker
-        v-for="v in props.vehicles"
-        :key="v.vehicleId"
-        :coordinates="[v.position.lon, v.position.lat]"
-      >
-        <template #marker>
-          <VehicleHeadingMarker
-            :color="colorForVehicle(v.matched, v.stale)"
-            :bearing="v.bearing"
-            :size="18"
-            halo
-            @click="activeVehicleId = v.vehicleId"
-          />
-        </template>
-      </MglMarker>
-
+      <!-- Added before the vehicle layer so vehicle icons stack on top of it
+           (later-added maplibre layers paint over earlier ones). -->
       <FeedNetworkLayer
         v-if="props.feedCode"
         :lines="networkLines"
         :stops="networkStops"
         dim
       />
+
+      <MglGeoJsonSource source-id="vehicles" :data="vehiclesGeoJson">
+        <MglSymbolLayer
+          layer-id="vehicles-icons"
+          :layout="{
+            'icon-image': [
+              'match',
+              ['get', 'state'],
+              'stale',
+              ['case', ['get', 'hasBearing'], iconId('stale', true), iconId('stale', false)],
+              'matched',
+              ['case', ['get', 'hasBearing'], iconId('matched', true), iconId('matched', false)],
+              ['case', ['get', 'hasBearing'], iconId('unmatched', true), iconId('unmatched', false)],
+            ],
+            'icon-rotate': ['get', 'bearing'],
+            'icon-rotation-alignment': 'map',
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+          }"
+          @click="onVehicleClick"
+        />
+      </MglGeoJsonSource>
     </MglMap>
 
     <VehicleMapLegend class="absolute bottom-2 left-2"/>
@@ -211,7 +345,6 @@ function badge(v: VehicleRow) {
       class="absolute left-2 top-2 shadow"
       color="neutral"
       variant="solid"
-      size="sm"
       icon="i-lucide-scan"
       label="Fit fleet"
       @click="fit"

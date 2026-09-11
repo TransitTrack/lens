@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import AppPage from '~/components/AppPage.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useRouteDetailQuery } from '~~/generated/graphql'
-import { routeTypeLabel, hexColor, patternLine, patternStopFeatures } from '~/utils/gtfs'
+import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
+import {useRouteDetailQuery} from '~~/generated/graphql'
+import {routeTypeLabel, hexColor, patternLine, patternStopFeatures} from '~/utils/gtfs'
 
 const route = useRoute()
-const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
+const {selectedFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
 
-const { result, loading, error } = useRouteDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading, error} = useRouteDetailQuery(
+  () => ({feedCode: selectedFeedCode.value ?? '', routeId: routeId.value}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 const gtfsRoute = computed(() => result.value?.route ?? null)
@@ -28,7 +28,7 @@ watch(
       patternKey.value = list[0]?.patternKey ?? undefined
     }
   },
-  { immediate: true },
+  {immediate: true},
 )
 
 const pattern = computed(
@@ -46,7 +46,7 @@ const stops = computed(
   () =>
     (pattern.value
       ? patternStopFeatures(pattern.value.stopPaths)
-      : { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection,
+      : {type: 'FeatureCollection', features: []}) as GeoJSON.FeatureCollection,
 )
 const stopList = computed(() =>
   [...(pattern.value?.stopPaths ?? [])].sort((a, b) => a.stopPathIndex - b.stopPathIndex),
@@ -97,14 +97,14 @@ const patternSummary = computed(() => {
       class="m-4"
     />
     <div v-else-if="loading && !gtfsRoute" class="flex min-h-0 flex-1">
-      <div class="w-96 shrink-0 border-l border-default p-4">
-        <USkeleton v-for="i in 10" :key="i" class="mb-2 h-9 w-full" />
+      <div class="w-96 shrink-0 p-4">
+        <USkeleton v-for="i in 10" :key="i" class="mb-2 h-9 w-full"/>
       </div>
-      <USkeleton class="min-w-0 flex-1 rounded-none" />
+      <USkeleton class="min-w-0 flex-1 rounded-none"/>
     </div>
 
     <div v-else class="flex min-h-0 flex-1">
-      <aside class="flex w-96 shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">
+      <aside class="flex w-96 shrink-0 flex-col gap-3 overflow-y-auto p-4">
         <div>
           <div class="text-sm font-medium text-highlighted">{{ gtfsRoute?.routeLongName }}</div>
           <div class="text-xs text-muted">
@@ -119,13 +119,11 @@ const patternSummary = computed(() => {
           v-model="patternKey"
           :items="patternItems"
           value-key="value"
-          size="sm"
           placeholder="Pattern"
         />
 
         <UButton
           :to="tripsLink"
-          size="sm"
           color="neutral"
           variant="soft"
           icon="i-lucide-git-branch"
@@ -138,7 +136,7 @@ const patternSummary = computed(() => {
           <span v-if="patternSummary.km">{{ patternSummary.km }} km</span>
           <span>~{{ patternSummary.runMin }} min run</span>
           <span
-            >{{ patternSummary.timepoints }} timepoint{{
+          >{{ patternSummary.timepoints }} timepoint{{
               patternSummary.timepoints === 1 ? '' : 's'
             }}</span
           >
@@ -154,7 +152,7 @@ const patternSummary = computed(() => {
             <span class="w-5 shrink-0 text-right text-xs text-dimmed">{{ i + 1 }}</span>
             <NuxtLink
               :to="feedPath(`/explore/stops/${encodeURIComponent(sp.stopId)}`)"
-              class="truncate text-highlighted hover:text-primary hover:underline"
+              class="truncate text-highlighted hover:text-primary"
             >
               {{ sp.stop?.stopName ?? sp.stopId }}
             </NuxtLink>
@@ -178,7 +176,7 @@ const patternSummary = computed(() => {
                 title="Wait stop"
               />
               <span v-if="(sp.typicalDwellTimeSec ?? 0) > 0" class="text-[10px] text-dimmed"
-                >{{ sp.typicalDwellTimeSec }}s</span
+              >{{ sp.typicalDwellTimeSec }}s</span
               >
             </span>
           </li>

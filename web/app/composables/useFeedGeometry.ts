@@ -1,5 +1,6 @@
-import { patternLine, hexColor, routeTypeLabel } from '~/utils/gtfs'
-import { useFeedGeometryQuery } from '~~/generated/graphql'
+import {patternLine, hexColor, routeTypeLabel} from '~/utils/gtfs'
+import {useFeedGeometryQuery} from '~~/generated/graphql'
+import type {GeoJSON} from "geojson";
 
 /** Feature properties carried on each route polyline — read by hover handlers. */
 export interface RouteLineProps {
@@ -18,9 +19,19 @@ export interface RouteLineProps {
  * safe to mount behind a live-polling map as a static base layer.
  */
 export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
-  const { result, loading } = useFeedGeometryQuery(
-    () => ({ feedCode: gtfsFeedCode.value ?? '' }),
-    () => ({ enabled: !!gtfsFeedCode.value }),
+  const {result, loading} = useFeedGeometryQuery(
+    () => ({feedCode: gtfsFeedCode.value ?? ''}),
+    () => ({
+      enabled: !!gtfsFeedCode.value,
+      // This is the whole agency's trip-pattern + stop geometry — hundreds to
+      // thousands of normalized entities. Writing it through the InMemoryCache
+      // bloats the store, and every *other* query's write (e.g. the 60s
+      // avlFeeds poll) then pays store-wide dependency-tracking/GC overhead
+      // proportional to that size — a periodic multi-hundred-ms stall
+      // unrelated to what actually changed. Nobody reads this back from the
+      // cache, so skip it.
+      fetchPolicy: 'no-cache',
+    }),
   )
 
   const lines = computed<GeoJSON.FeatureCollection>(() => ({
@@ -41,7 +52,7 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
         return {
           type: 'Feature' as const,
           properties: props,
-          geometry: { type: 'LineString' as const, coordinates: coords },
+          geometry: {type: 'LineString' as const, coordinates: coords},
         }
       })
       .filter((f): f is GeoJSON.Feature => f != null),
@@ -53,10 +64,10 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
       .filter((s) => s.stopLat != null && s.stopLon != null && (s.locationType ?? 0) === 0)
       .map((s) => ({
         type: 'Feature' as const,
-        properties: { name: s.stopName ?? s.stopId },
-        geometry: { type: 'Point' as const, coordinates: [s.stopLon as number, s.stopLat as number] },
+        properties: {name: s.stopName ?? s.stopId},
+        geometry: {type: 'Point' as const, coordinates: [s.stopLon as number, s.stopLat as number]},
       })),
   }))
 
-  return { lines, stops, loading }
+  return {lines, stops, loading}
 }

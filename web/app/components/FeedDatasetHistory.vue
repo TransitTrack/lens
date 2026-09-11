@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
-import { gtfsDate } from '~/utils/gtfs'
-import type { FeedDetailQuery, RevisionStatus } from '~~/generated/graphql'
+import type {TableColumn} from '@nuxt/ui'
+import {gtfsDate} from '~/utils/gtfs'
+import type {FeedDetailQuery, RevisionStatus} from '~~/generated/graphql'
 
 type Rev = NonNullable<FeedDetailQuery['feed']>['revisions'][number]
 
@@ -22,12 +22,12 @@ function mb(bytes: number | null | undefined): string {
 }
 
 const columns: TableColumn<Rev>[] = [
-  { accessorKey: 'createdAt', header: 'Date' },
-  { id: 'service', header: 'Service range' },
-  { accessorKey: 'status', header: 'Status' },
-  { id: 'size', header: 'Size' },
-  { id: 'validation', header: 'Validation' },
-  { id: 'actions', header: '' },
+  {accessorKey: 'createdAt', header: 'Date'},
+  {id: 'service', header: 'Service range'},
+  {accessorKey: 'status', header: 'Status'},
+  {id: 'size', header: 'Size'},
+  {id: 'validation', header: 'Validation'},
+  {id: 'actions', header: ''},
 ]
 </script>
 
@@ -45,7 +45,7 @@ const columns: TableColumn<Rev>[] = [
         </span>
       </template>
       <template #status-cell="{ row }">
-        <UBadge :color="statusColor(row.original.status)" variant="subtle" size="sm">
+        <UBadge :color="statusColor(row.original.status)" variant="subtle">
           {{ row.original.status }}
         </UBadge>
       </template>
@@ -63,7 +63,6 @@ const columns: TableColumn<Rev>[] = [
                 : 'success'
           "
           variant="subtle"
-          size="sm"
         >
           {{ row.original.validationSummary.errorCount }}e /
           {{ row.original.validationSummary.warningCount }}w

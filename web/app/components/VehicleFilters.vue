@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRoutesQuery } from '../../generated/graphql'
+import {useRoutesQuery} from '../../generated/graphql'
 import {
   STATUS_OPTIONS,
   emptyFilters,
@@ -7,15 +7,15 @@ import {
 } from '../utils/vehicleFilters'
 
 const props = defineProps<{ feedCode: string | null }>()
-const model = defineModel<VehicleFilterState>({ required: true })
+const model = defineModel<VehicleFilterState>({required: true})
 
-const { result } = useRoutesQuery(
-  () => ({ feedCode: props.feedCode ?? '' }),
-  () => ({ enabled: !!props.feedCode }),
+const {result} = useRoutesQuery(
+  () => ({feedCode: props.feedCode ?? ''}),
+  () => ({enabled: !!props.feedCode}),
 )
 
 const routeItems = computed(() => [
-  { label: 'All routes', value: null },
+  {label: 'All routes', value: null},
   ...[...(result.value?.routes ?? [])]
     .sort((a, b) =>
       (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
@@ -43,7 +43,6 @@ function reset() {
       value-key="value"
       placeholder="Route"
       icon="i-lucide-route"
-      size="sm"
       class="w-44"
       @update:model-value="model = { ...model, routeId: $event }"
     />
@@ -54,7 +53,6 @@ function reset() {
       multiple
       placeholder="Status"
       icon="i-lucide-filter"
-      size="sm"
       class="w-44"
       @update:model-value="model = { ...model, statuses: $event }"
     />
@@ -62,7 +60,6 @@ function reset() {
       v-if="dirty"
       color="neutral"
       variant="ghost"
-      size="sm"
       icon="i-lucide-x"
       label="Clear"
       @click="reset"

@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import AppPage from '~/components/AppPage.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useTripDetailQuery } from '~~/generated/graphql'
-import { hexColor, type LngLat } from '~/utils/gtfs'
+import {useFeeds} from '~/composables/useFeeds'
+import {useFeedExtent} from '~/composables/useFeedExtent'
+import {useTripDetailQuery} from '~~/generated/graphql'
+import {hexColor, type LngLat} from '~/utils/gtfs'
 
 const route = useRoute()
-const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
+const {selectedFeedCode, feedPath} = useFeeds()
+const {extent} = useFeedExtent(selectedFeedCode)
 const tripId = computed(() => String(route.params.tripId))
 
-const { result, loading, error } = useTripDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', tripId: tripId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading, error} = useTripDetailQuery(
+  () => ({feedCode: selectedFeedCode.value ?? '', tripId: tripId.value}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 const trip = computed(() => result.value?.trip ?? null)
@@ -42,8 +42,8 @@ const stops = computed(
         .filter((s) => s.stop?.stopLat != null && s.stop?.stopLon != null)
         .map((s) => ({
           type: 'Feature',
-          geometry: { type: 'Point', coordinates: [s.stop!.stopLon, s.stop!.stopLat] },
-          properties: { name: s.stop!.stopName ?? s.stop!.stopId, state: 'upcoming' },
+          geometry: {type: 'Point', coordinates: [s.stop!.stopLon, s.stop!.stopLat]},
+          properties: {name: s.stop!.stopName ?? s.stop!.stopId, state: 'upcoming'},
         })),
     }) as GeoJSON.FeatureCollection,
 )
@@ -93,13 +93,13 @@ const runtimeSec = computed(() => {
     />
     <div v-else-if="loading && !trip" class="flex min-h-0 flex-1">
       <div class="w-96 shrink-0 border-l border-default p-4">
-        <USkeleton v-for="i in 12" :key="i" class="mb-2 h-8 w-full" />
+        <USkeleton v-for="i in 12" :key="i" class="mb-2 h-8 w-full"/>
       </div>
-      <USkeleton class="min-w-0 flex-1 rounded-none" />
+      <USkeleton class="min-w-0 flex-1 rounded-none"/>
     </div>
 
     <div v-else class="flex min-h-0 flex-1">
-      <aside class="flex w-104 shrink-0 flex-col gap-3 overflow-y-auto border-l border-default p-4">
+      <aside class="flex w-104 shrink-0 flex-col gap-3 overflow-y-auto p-4">
         <div class="flex flex-col gap-1.5">
           <div class="text-xs text-muted">
             {{ trip?.tripId }} · dir {{ trip?.directionId ?? '?' }} · service {{ trip?.serviceId }}
@@ -109,7 +109,6 @@ const runtimeSec = computed(() => {
               v-if="trip?.pattern"
               color="neutral"
               variant="subtle"
-              size="sm"
               icon="i-lucide-git-branch"
             >
               {{ trip.pattern.stopCount }} stops
@@ -125,14 +124,14 @@ const runtimeSec = computed(() => {
                 )
               "
             >
-              <UBadge color="primary" variant="subtle" size="sm" icon="i-lucide-layers">
+              <UBadge color="primary" variant="subtle" icon="i-lucide-layers">
                 Block {{ trip.block.blockId }}
               </UBadge>
             </NuxtLink>
-            <UBadge v-if="trip?.frequencyBased" color="warning" variant="subtle" size="sm">
+            <UBadge v-if="trip?.frequencyBased" color="warning" variant="subtle">
               frequency-based
             </UBadge>
-            <UBadge v-if="trip?.noSchedule" color="warning" variant="subtle" size="sm">
+            <UBadge v-if="trip?.noSchedule" color="warning" variant="subtle">
               no schedule
             </UBadge>
             <span v-if="runtimeSec != null" class="text-dimmed">
@@ -143,60 +142,60 @@ const runtimeSec = computed(() => {
 
         <table class="w-full text-sm">
           <thead>
-            <tr class="text-left text-xs text-dimmed">
-              <th class="py-1 pr-2 font-medium">#</th>
-              <th class="py-1 font-medium">Stop</th>
-              <th class="py-1 pl-3 text-right font-medium">Arr</th>
-              <th class="py-1 pl-3 text-right font-medium">Dep</th>
-            </tr>
+          <tr class="text-left text-xs text-dimmed">
+            <th class="py-1 pr-2 font-medium">#</th>
+            <th class="py-1 font-medium">Stop</th>
+            <th class="py-1 pl-3 text-right font-medium">Arr</th>
+            <th class="py-1 pl-3 text-right font-medium">Dep</th>
+          </tr>
           </thead>
           <tbody>
-            <tr
-              v-for="st in stopTimes"
-              :key="st.stopSequence"
-              class="border-t border-default align-top"
-            >
-              <td class="py-1.5 text-xs text-dimmed">{{ st.stopSequence }}</td>
-              <td class="py-1.5">
-                <NuxtLink
-                  v-if="st.stop?.stopId"
-                  :to="feedPath(`/explore/stops/${encodeURIComponent(st.stop.stopId)}`)"
-                  class="line-clamp-1 text-highlighted hover:text-primary hover:underline"
-                >
-                  {{ st.stop.stopName ?? st.stop.stopId }}
-                </NuxtLink>
-                <span v-else class="line-clamp-1 text-highlighted">—</span>
-                <span
-                  v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
-                  class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
-                  >interp</span
-                >
-                <span
-                  v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
-                  class="ml-1 text-[10px] text-dimmed"
-                  >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span
-                >
-              </td>
-              <td class="py-1.5 pl-3 text-right tabular-nums">
-                <div class="text-highlighted">
-                  {{
-                    schedByIndex.has(st.stopSequence - 1)
-                      ? secToHm(schedByIndex.get(st.stopSequence - 1)!.arrivalSec ?? null)
-                      : hm(st.arrivalTime)
-                  }}
-                </div>
-                <div v-if="schedByIndex.has(st.stopSequence - 1)" class="text-[10px] text-dimmed">
-                  gtfs {{ hm(st.arrivalTime) }}
-                </div>
-              </td>
-              <td class="py-1.5 pl-3 text-right tabular-nums text-muted">
+          <tr
+            v-for="st in stopTimes"
+            :key="st.stopSequence"
+            class="border-t border-default align-top"
+          >
+            <td class="py-1.5 text-xs text-dimmed">{{ st.stopSequence }}</td>
+            <td class="py-1.5">
+              <NuxtLink
+                v-if="st.stop?.stopId"
+                :to="feedPath(`/explore/stops/${encodeURIComponent(st.stop.stopId)}`)"
+                class="line-clamp-1 text-highlighted hover:text-primary hover:underline"
+              >
+                {{ st.stop.stopName ?? st.stop.stopId }}
+              </NuxtLink>
+              <span v-else class="line-clamp-1 text-highlighted">—</span>
+              <span
+                v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
+                class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
+              >interp</span
+              >
+              <span
+                v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
+                class="ml-1 text-[10px] text-dimmed"
+              >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span
+              >
+            </td>
+            <td class="py-1.5 pl-3 text-right tabular-nums">
+              <div class="text-highlighted">
                 {{
                   schedByIndex.has(st.stopSequence - 1)
-                    ? secToHm(schedByIndex.get(st.stopSequence - 1)!.departureSec ?? null)
-                    : hm(st.departureTime)
+                    ? secToHm(schedByIndex.get(st.stopSequence - 1)!.arrivalSec ?? null)
+                    : hm(st.arrivalTime)
                 }}
-              </td>
-            </tr>
+              </div>
+              <div v-if="schedByIndex.has(st.stopSequence - 1)" class="text-[10px] text-dimmed">
+                gtfs {{ hm(st.arrivalTime) }}
+              </div>
+            </td>
+            <td class="py-1.5 pl-3 text-right tabular-nums text-muted">
+              {{
+                schedByIndex.has(st.stopSequence - 1)
+                  ? secToHm(schedByIndex.get(st.stopSequence - 1)!.departureSec ?? null)
+                  : hm(st.departureTime)
+              }}
+            </td>
+          </tr>
           </tbody>
         </table>
       </aside>

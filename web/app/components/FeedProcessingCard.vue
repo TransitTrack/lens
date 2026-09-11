@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { formatTimeAgo } from '@vueuse/core'
-import { useFeeds } from '~/composables/useFeeds'
-import { useFeedDetailQuery, useAvlFeedsQuery } from '~~/generated/graphql'
-import { revisionStatusMeta, cronSummary, PIPELINE_STEPS } from '~/utils/feedStatus'
+import {formatTimeAgo} from '@vueuse/core'
+import {useFeeds} from '~/composables/useFeeds'
+import {useFeedDetailQuery, useAvlFeedsQuery} from '~~/generated/graphql'
+import {revisionStatusMeta, cronSummary, PIPELINE_STEPS} from '~/utils/feedStatus'
 
-const { selectedFeedCode, selectedFeed } = useFeeds()
+const {selectedFeedCode, selectedFeed} = useFeeds()
 
-const { result, loading, error } = useFeedDetailQuery(
-  () => ({ code: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value, pollInterval: 30_000 }),
+const {result, loading, error} = useFeedDetailQuery(
+  () => ({code: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value, pollInterval: 30_000}),
 )
-const { result: avlResult } = useAvlFeedsQuery(() => ({ pollInterval: 30_000 }))
+const {result: avlResult} = useAvlFeedsQuery(() => ({pollInterval: 30_000}))
 
 const feed = computed(() => result.value?.feed ?? null)
 
@@ -36,13 +36,13 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
 <template>
   <UCard :ui="{ body: 'flex flex-col gap-4' }">
     <div class="flex items-center gap-2 text-sm font-medium text-muted">
-      <UIcon name="i-lucide-cpu" class="size-4" />
+      <UIcon name="i-lucide-cpu" class="size-4"/>
       Processing
     </div>
 
     <div v-if="loading && !feed" class="flex flex-col gap-3">
-      <USkeleton class="h-8 w-full" />
-      <USkeleton class="h-16 w-full" />
+      <USkeleton class="h-8 w-full"/>
+      <USkeleton class="h-16 w-full"/>
     </div>
 
     <p v-else-if="error || !feed" class="text-sm text-dimmed">Feed metadata unavailable.</p>
@@ -52,9 +52,10 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between text-xs text-dimmed">
           <span>Latest ingest pipeline</span>
-          <UBadge :color="latestMeta.color" variant="subtle" size="sm">{{
-            latestMeta.label
-          }}</UBadge>
+          <UBadge :color="latestMeta.color" variant="subtle">{{
+              latestMeta.label
+            }}
+          </UBadge>
         </div>
         <div class="flex items-center gap-1">
           <template v-for="(step, i) in PIPELINE_STEPS" :key="step.key">
@@ -90,7 +91,7 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
         <dt class="text-dimmed">Schedule</dt>
         <dd class="flex items-center gap-2">
           {{ cronSummary(feed.pollingCron) }}
-          <UBadge v-if="!feed.enabled" color="neutral" variant="subtle" size="sm">disabled</UBadge>
+          <UBadge v-if="!feed.enabled" color="neutral" variant="subtle">disabled</UBadge>
         </dd>
       </dl>
 
@@ -98,7 +99,7 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
       <div v-if="avl" class="flex flex-col gap-1 border-t border-default pt-3">
         <div class="flex items-center justify-between text-xs text-dimmed">
           <span>Realtime feed · {{ avl.format }}</span>
-          <UBadge :color="avlHealthy ? 'success' : 'error'" variant="subtle" size="sm">
+          <UBadge :color="avlHealthy ? 'success' : 'error'" variant="subtle">
             {{ avl.lastPollStatus ?? 'unknown' }}
           </UBadge>
         </div>

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import 'maplibre-gl/dist/maplibre-gl.css'
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
 import {useMapStyle} from '../composables/useMapStyle'
 import {boundsOf} from '../utils/vehicleDetail'
@@ -59,6 +58,7 @@ const trailData = computed<GeoJSON.Feature>(() => ({
 
 // First fit is instant — the map opened on the agency extent via `:bounds`.
 let firstFit = true
+
 function fit() {
   const b = boundsOf(
     props.line.length

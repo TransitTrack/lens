@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type {TableColumn} from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useExploreCalendarQuery, type ExploreCalendarQuery } from '~~/generated/graphql'
-import { activeDays, serviceDaysLabel, gtfsDate } from '~/utils/gtfs'
+import {useFeeds} from '~/composables/useFeeds'
+import {useExploreCalendarQuery, type ExploreCalendarQuery} from '~~/generated/graphql'
+import {activeDays, serviceDaysLabel, gtfsDate} from '~/utils/gtfs'
 
-const { selectedFeedCode } = useFeeds()
+const {selectedFeedCode} = useFeeds()
 
-const { result, loading } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading} = useExploreCalendarQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -25,21 +25,21 @@ const exceptions = computed(() =>
 )
 
 const exColumns: TableColumn<Exception>[] = [
-  { accessorKey: 'date', header: 'Date' },
-  { accessorKey: 'serviceId', header: 'Service' },
-  { accessorKey: 'exceptionType', header: 'Change' },
+  {accessorKey: 'date', header: 'Date'},
+  {accessorKey: 'serviceId', header: 'Service'},
+  {accessorKey: 'exceptionType', header: 'Change'},
 ]
 </script>
 
 <template>
   <AppPage title="Calendar">
     <template #toolbar>
-      <ExploreToolbar :show-agency="false" />
+      <ExploreToolbar :show-agency="false"/>
     </template>
 
     <div class="text-sm font-medium text-muted">Services</div>
     <div v-if="loading && !calendars.length" class="flex flex-col gap-2">
-      <USkeleton v-for="i in 4" :key="i" class="h-12 w-full" />
+      <USkeleton v-for="i in 4" :key="i" class="h-12 w-full"/>
     </div>
     <div v-else class="flex flex-col divide-y divide-default">
       <div
@@ -75,7 +75,6 @@ const exColumns: TableColumn<Exception>[] = [
         <UBadge
           :color="row.original.exceptionType === 1 ? 'success' : 'error'"
           variant="subtle"
-          size="sm"
         >
           {{ row.original.exceptionType === 1 ? 'Added' : 'Removed' }}
         </UBadge>

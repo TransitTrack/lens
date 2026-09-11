@@ -6,8 +6,8 @@
  * markers. Hovering a route highlights every pattern of that route and shows a
  * detail popup.
  */
-import type { CircleLayerSpecification, LineLayerSpecification } from 'maplibre-gl'
-import type { RouteLineProps } from '~/composables/useFeedGeometry'
+import type {CircleLayerSpecification, LineLayerSpecification} from 'maplibre-gl'
+import type {RouteLineProps} from '~/composables/useFeedGeometry'
 
 const props = withDefaults(
   defineProps<{
@@ -20,7 +20,7 @@ const props = withDefaults(
     /** enable hover highlight + detail popup on routes */
     interactive?: boolean
   }>(),
-  { dim: false, showStops: true, interactive: true },
+  {dim: false, showStops: true, interactive: true},
 )
 
 // useMap() with no key resolves the <MglMap> we're nested inside.
@@ -94,7 +94,7 @@ function onLeave() {
   </MglGeoJsonSource>
 
   <MglGeoJsonSource v-if="showStops" source-id="feed-network-stops" :data="stops">
-    <MglCircleLayer layer-id="feed-network-stops-circles" :paint="stopPaint" />
+    <MglCircleLayer layer-id="feed-network-stops-circles" :paint="stopPaint"/>
   </MglGeoJsonSource>
 
   <MglPopup
@@ -104,7 +104,7 @@ function onLeave() {
     :close-on-click="false"
     :offset="12"
   >
-    <div class="flex min-w-[11rem] max-w-[16rem] flex-col gap-1 p-1">
+    <div class="flex min-w-44 max-w-[16rem] flex-col gap-1 p-1">
       <div class="flex items-center gap-2">
         <span
           class="inline-block size-2.5 shrink-0 rounded-full"

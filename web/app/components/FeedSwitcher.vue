@@ -26,7 +26,6 @@ function dotColor(f: {
     v-if="block"
     color="neutral"
     variant="ghost"
-    size="sm"
     block
     trailing-icon="i-lucide-chevron-right"
     :ui="{ trailingIcon: 'text-dimmed' }"

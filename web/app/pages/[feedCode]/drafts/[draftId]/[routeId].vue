@@ -11,9 +11,9 @@ import {
   useUpdateStopTimeMutation,
   useDraftEditsQuery,
 } from '~~/generated/graphql'
-import { useFeeds } from '~/composables/useFeeds'
-import { useDraftEditor } from '~/composables/useDraftEditor'
-import { useDraftEdit } from '~/composables/useDraftEdit'
+import {useFeeds} from '~/composables/useFeeds'
+import {useDraftEditor} from '~/composables/useDraftEditor'
+import {useDraftEdit} from '~/composables/useDraftEdit'
 import AppPage from '~/components/AppPage.vue'
 import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
 import DraftGrid from '~/components/draft/DraftGrid.vue'
@@ -29,7 +29,7 @@ definePageMeta({
 
 const route = useRoute()
 const toast = useToast()
-const { selectedFeedCode, feedPath } = useFeeds()
+const {selectedFeedCode, feedPath} = useFeeds()
 
 const draftId = computed(() => String(route.params.draftId))
 const routeId = computed(() => String(route.params.routeId))
@@ -83,9 +83,9 @@ function formatTime(iso: string): string {
 }
 
 // --- route / service pickers -------------------------------------------
-const { result: routesResult } = useRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result: routesResult} = useRoutesQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
@@ -100,22 +100,22 @@ const routeItems = computed(() =>
     })),
 )
 
-const { result: calendarResult } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result: calendarResult} = useExploreCalendarQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 const serviceItems = computed(() => {
   const ids = new Set<string>()
   for (const c of calendarResult.value?.calendars ?? []) ids.add(c.serviceId)
   for (const d of calendarResult.value?.calendarDates ?? []) ids.add(d.serviceId)
   return [...ids]
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    .map((id) => ({ label: id, value: id }))
+    .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}))
+    .map((id) => ({label: id, value: id}))
 })
 const directionItems = [
-  { label: 'All directions', value: '' },
-  { label: 'Direction 0', value: '0' },
-  { label: 'Direction 1', value: '1' },
+  {label: 'All directions', value: ''},
+  {label: 'Direction 0', value: '0'},
+  {label: 'Direction 1', value: '1'},
 ]
 
 function queryString(dir?: string, service?: string | null): string {
@@ -135,25 +135,25 @@ watch(routeSel, (v) => {
 })
 
 function setDirection(v: string) {
-  navigateTo({ path: route.path, query: { ...route.query, dir: v || '' } }, { replace: true })
+  navigateTo({path: route.path, query: {...route.query, dir: v || ''}}, {replace: true})
 }
 
 function setService(v: string) {
   navigateTo(
-    { path: route.path, query: { ...route.query, service: v || undefined } },
-    { replace: true },
+    {path: route.path, query: {...route.query, service: v || undefined}},
+    {replace: true},
   )
 }
 
 // --- rebuild & validate -----------------------------------------------
-const { mutate: rebuildDraft } = useRebuildDraftMutation()
+const {mutate: rebuildDraft} = useRebuildDraftMutation()
 const rebuilding = ref(false)
 const rebuildPhase = ref<string | null>(null)
 const jobId = ref<string | null>(null)
 
-const { result: jobResult } = useDraftJobQuery(
-  () => ({ jobId: jobId.value ?? '' }),
-  () => ({ enabled: !!jobId.value && rebuilding.value, pollInterval: 1000 }),
+const {result: jobResult} = useDraftJobQuery(
+  () => ({jobId: jobId.value ?? ''}),
+  () => ({enabled: !!jobId.value && rebuilding.value, pollInterval: 1000}),
 )
 
 async function finishRebuild() {
@@ -177,7 +177,7 @@ watch(
     rebuildPhase.value = job.phase
     if (job.state !== 'RUNNING') {
       if (job.error) {
-        toast.add({ title: 'Rebuild failed', description: job.error, color: 'error' })
+        toast.add({title: 'Rebuild failed', description: job.error, color: 'error'})
         rebuilding.value = false
         jobId.value = null
         rebuildPhase.value = null
@@ -193,7 +193,7 @@ async function onRebuild() {
   if (rebuilding.value) return
   rebuilding.value = true
   try {
-    const res = await rebuildDraft({ id: draftId.value })
+    const res = await rebuildDraft({id: draftId.value})
     const job = res?.data?.rebuildDraft
     if (!job) {
       rebuilding.value = false
@@ -202,7 +202,7 @@ async function onRebuild() {
     rebuildPhase.value = job.phase
     if (job.state !== 'RUNNING') {
       if (job.error) {
-        toast.add({ title: 'Rebuild failed', description: job.error, color: 'error' })
+        toast.add({title: 'Rebuild failed', description: job.error, color: 'error'})
         rebuilding.value = false
         rebuildPhase.value = null
       } else {
@@ -212,7 +212,7 @@ async function onRebuild() {
     }
     jobId.value = job.id
   } catch (e) {
-    toast.add({ title: 'Rebuild failed', description: (e as Error).message, color: 'error' })
+    toast.add({title: 'Rebuild failed', description: (e as Error).message, color: 'error'})
     rebuilding.value = false
     rebuildPhase.value = null
   }
@@ -237,7 +237,7 @@ function isLockLost(e: unknown): boolean {
 }
 
 // --- activate --------------------------------------------------------
-const { mutate: activateDraft, loading: activating } = useActivateDraftMutation()
+const {mutate: activateDraft, loading: activating} = useActivateDraftMutation()
 const activateOpen = ref(false)
 const force = ref(false)
 const canActivate = computed(
@@ -247,8 +247,8 @@ const canActivate = computed(
 
 async function confirmActivate() {
   try {
-    await activateDraft({ id: draftId.value, editor: editor.me.value ?? '', force: force.value })
-    toast.add({ title: 'Draft activated', color: 'success', icon: 'i-lucide-check' })
+    await activateDraft({id: draftId.value, editor: editor.me.value ?? '', force: force.value})
+    toast.add({title: 'Draft activated', color: 'success', icon: 'i-lucide-check'})
     activateOpen.value = false
     navigateTo(feedPath('/explore/feed'))
   } catch (e) {
@@ -259,19 +259,19 @@ async function confirmActivate() {
         icon: 'i-lucide-lock',
       })
     } else {
-      toast.add({ title: 'Activation failed', description: (e as Error).message, color: 'error' })
+      toast.add({title: 'Activation failed', description: (e as Error).message, color: 'error'})
     }
   }
 }
 
 // --- discard --------------------------------------------------------
-const { mutate: discardDraft, loading: discarding } = useDiscardDraftMutation()
+const {mutate: discardDraft, loading: discarding} = useDiscardDraftMutation()
 const discardOpen = ref(false)
 
 async function confirmDiscard() {
   try {
-    await discardDraft({ id: draftId.value, editor: editor.me.value ?? '' })
-    toast.add({ title: 'Draft discarded', color: 'success', icon: 'i-lucide-trash-2' })
+    await discardDraft({id: draftId.value, editor: editor.me.value ?? ''})
+    toast.add({title: 'Draft discarded', color: 'success', icon: 'i-lucide-trash-2'})
     discardOpen.value = false
     navigateTo(feedPath('/drafts'))
   } catch (e) {
@@ -282,29 +282,29 @@ async function confirmDiscard() {
         icon: 'i-lucide-lock',
       })
     } else {
-      toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+      toast.add({title: 'Discard failed', description: (e as Error).message, color: 'error'})
     }
   }
 }
 
 // --- undo / redo ----------------------------------------------------
-const { mutate: undoDraftEdit } = useUndoDraftEditMutation()
-const { mutate: redoDraftEdit } = useRedoDraftEditMutation()
+const {mutate: undoDraftEdit} = useUndoDraftEditMutation()
+const {mutate: redoDraftEdit} = useRedoDraftEditMutation()
 
-const { run: runEdit } = useDraftEdit(editor, {
+const {run: runEdit} = useDraftEdit(editor, {
   onChanged: () => gridRef.value?.refetch(),
 })
 
 async function onUndo() {
   await runEdit(
-    (v) => undoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+    (v) => undoDraftEdit({id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion}),
     'undoDraftEdit',
   )
 }
 
 async function onRedo() {
   await runEdit(
-    (v) => redoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+    (v) => redoDraftEdit({id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion}),
     'redoDraftEdit',
   )
 }
@@ -334,7 +334,7 @@ const gridRef = ref<{
   stops: DraftGridStop[]
   cellAt: (tripId: string, stopSequence: number) => GridCellVal
 } | null>(null)
-const { mutate: updateStopTime } = useUpdateStopTimeMutation()
+const {mutate: updateStopTime} = useUpdateStopTimeMutation()
 
 const selectedTrip = computed<DraftGridTrip | null>(
   () => gridRef.value?.trips?.find((t) => t.tripId === selectedTripId.value) ?? null,
@@ -350,9 +350,9 @@ const activeStopName = computed<string | null>(() => {
 })
 
 // --- rail: undone (redo tail) + error counts --------------------
-const { result: editsResult } = useDraftEditsQuery(
-  () => ({ id: draftId.value, limit: 200 }),
-  () => ({ enabled: !!draftId.value }),
+const {result: editsResult} = useDraftEditsQuery(
+  () => ({id: draftId.value, limit: 200}),
+  () => ({enabled: !!draftId.value}),
 )
 const undoneCount = computed(
   () => (editsResult.value?.draftEdits ?? []).filter((e) => e.undone).length,
@@ -367,7 +367,7 @@ async function onRailChanged() {
 function onRailGoto(payload: { tripId: string; stopSequence: number }) {
   navigateTo({
     path: route.path,
-    query: { ...route.query, trip: payload.tripId, stop: String(payload.stopSequence) },
+    query: {...route.query, trip: payload.tripId, stop: String(payload.stopSequence)},
   })
 }
 
@@ -420,13 +420,13 @@ function openDuplicate(tripId: string) {
     <template #leading>
       <span class="flex items-center gap-2 text-lg font-semibold text-highlighted">
         <span>{{ draft?.label ?? 'Draft' }}</span>
-        <UBadge v-if="draft" color="neutral" variant="subtle" size="sm">
+        <UBadge v-if="draft" color="neutral" variant="subtle">
           v{{ draft.version }}
         </UBadge>
-        <UBadge v-if="draft?.derivationStale" color="warning" variant="subtle" size="sm">
+        <UBadge v-if="draft?.derivationStale" color="warning" variant="subtle">
           derivation stale
         </UBadge>
-        <UBadge v-if="draft?.lock?.editor" color="neutral" variant="soft" size="sm">
+        <UBadge v-if="draft?.lock?.editor" color="neutral" variant="soft">
           🔒 {{ draft.lock.editor }}
         </UBadge>
       </span>
@@ -434,7 +434,6 @@ function openDuplicate(tripId: string) {
 
     <template #actions>
       <UButton
-        size="sm"
         color="neutral"
         variant="soft"
         icon="i-lucide-hammer"
@@ -444,7 +443,6 @@ function openDuplicate(tripId: string) {
         @click="onRebuild"
       />
       <UButton
-        size="sm"
         color="neutral"
         variant="ghost"
         icon="i-lucide-download"
@@ -453,7 +451,6 @@ function openDuplicate(tripId: string) {
         @click="onExport"
       />
       <UButton
-        size="sm"
         color="primary"
         variant="soft"
         icon="i-lucide-rocket"
@@ -462,7 +459,6 @@ function openDuplicate(tripId: string) {
         @click="activateOpen = true"
       />
       <UButton
-        size="sm"
         color="error"
         variant="ghost"
         icon="i-lucide-trash-2"
@@ -500,7 +496,6 @@ function openDuplicate(tripId: string) {
         />
         <div class="ml-auto flex items-center gap-2">
           <UButton
-            size="sm"
             color="neutral"
             variant="ghost"
             icon="i-lucide-undo-2"
@@ -509,7 +504,6 @@ function openDuplicate(tripId: string) {
             @click="onUndo"
           />
           <UButton
-            size="sm"
             color="neutral"
             variant="ghost"
             icon="i-lucide-redo-2"
@@ -518,7 +512,6 @@ function openDuplicate(tripId: string) {
             @click="onRedo"
           />
           <UButton
-            size="sm"
             color="neutral"
             variant="soft"
             icon="i-lucide-plus"
@@ -527,7 +520,6 @@ function openDuplicate(tripId: string) {
             @click="openAddTrip"
           />
           <UButton
-            size="sm"
             color="neutral"
             variant="soft"
             icon="i-lucide-move-horizontal"
@@ -539,13 +531,13 @@ function openDuplicate(tripId: string) {
       </div>
     </template>
 
-    <EditorIdentityDialog />
+    <EditorIdentityDialog/>
 
     <div
       v-if="!draft && draftLoading"
       class="flex items-center gap-3 py-16 justify-center text-muted"
     >
-      <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" />
+      <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin"/>
       <span class="text-sm">Loading editor…</span>
     </div>
 
@@ -553,10 +545,9 @@ function openDuplicate(tripId: string) {
       v-else-if="!draft"
       class="flex flex-col items-center gap-3 py-16 justify-center text-muted"
     >
-      <UIcon name="i-lucide-file-x" class="size-6" />
+      <UIcon name="i-lucide-file-x" class="size-6"/>
       <p class="text-sm">This draft no longer exists.</p>
       <UButton
-        size="sm"
         color="neutral"
         variant="soft"
         icon="i-lucide-arrow-left"
@@ -666,12 +657,12 @@ function openDuplicate(tripId: string) {
           <div v-if="(lastValidation?.errorCount ?? 0) > 0" class="text-error">
             {{ lastValidation?.errorCount }} validation error(s) outstanding.
           </div>
-          <USwitch v-model="force" label="Force activation" />
+          <USwitch v-model="force" label="Force activation"/>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="activateOpen = false" />
+          <UButton color="neutral" variant="ghost" label="Cancel" @click="activateOpen = false"/>
           <UButton
             color="primary"
             :loading="activating"
@@ -691,8 +682,8 @@ function openDuplicate(tripId: string) {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="discardOpen = false" />
-          <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard" />
+          <UButton color="neutral" variant="ghost" label="Cancel" @click="discardOpen = false"/>
+          <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard"/>
         </div>
       </template>
     </UModal>

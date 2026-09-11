@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import {computed, ref, watch} from 'vue'
 import {
   useDraftPatternsQuery,
   useAddTripMutation,
   useDuplicateTripMutation,
   type DraftGridQuery,
 } from '~~/generated/graphql'
-import type { useDraftEditor } from '~/composables/useDraftEditor'
-import { useDraftEdit } from '~/composables/useDraftEdit'
-import { parseTimeInput, parseDeltaInput, secToClock } from '~/utils/gtfsTime'
+import type {useDraftEditor} from '~/composables/useDraftEditor'
+import {useDraftEdit} from '~/composables/useDraftEdit'
+import {parseTimeInput, parseDeltaInput, secToClock} from '~/utils/gtfsTime'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
 
-const open = defineModel<boolean>('open', { default: false })
+const open = defineModel<boolean>('open', {default: false})
 
 const props = defineProps<{
   editor: ReturnType<typeof useDraftEditor>
@@ -65,7 +65,7 @@ const tripItems = computed(() =>
   })),
 )
 
-const { result: patternsResult } = useDraftPatternsQuery(
+const {result: patternsResult} = useDraftPatternsQuery(
   () => ({
     feedCode: props.feedCode,
     routeId: props.routeId,
@@ -82,7 +82,7 @@ const { result: patternsResult } = useDraftPatternsQuery(
 )
 const patterns = computed(() => patternsResult.value?.tripPatterns ?? [])
 const patternItems = computed(() =>
-  patterns.value.map((p) => ({ label: p.headsign ?? p.patternKey, value: p.patternKey })),
+  patterns.value.map((p) => ({label: p.headsign ?? p.patternKey, value: p.patternKey})),
 )
 const selectedPattern = computed(
   () => patterns.value.find((p) => p.patternKey === patternKey.value) ?? null,
@@ -102,9 +102,9 @@ const canSubmit = computed(() => {
   return !props.derivationStale && !!selectedPattern.value && !!serviceSel.value && baseSec.value != null
 })
 
-const { mutate: addTrip } = useAddTripMutation()
-const { mutate: duplicateTrip } = useDuplicateTripMutation()
-const { run } = useDraftEdit(props.editor, { onChanged: () => emit('changed') })
+const {mutate: addTrip} = useAddTripMutation()
+const {mutate: duplicateTrip} = useDuplicateTripMutation()
+const {run} = useDraftEdit(props.editor, {onChanged: () => emit('changed')})
 const submitting = ref(false)
 
 function buildStops(base: number) {
@@ -116,7 +116,7 @@ function buildStops(base: number) {
   paths.forEach((sp, i) => {
     const arrival = i === 0 ? base : prevDeparture + (sp.typicalTravelTimeSec ?? 0)
     const departure = arrival + (sp.typicalDwellTimeSec ?? 0)
-    stops.push({ stopId: sp.stopId, arrivalSec: arrival, departureSec: departure })
+    stops.push({stopId: sp.stopId, arrivalSec: arrival, departureSec: departure})
     prevDeparture = departure
   })
   return stops
@@ -180,7 +180,6 @@ async function submit() {
       <div class="flex flex-col gap-3">
         <div class="flex gap-2">
           <UButton
-            size="sm"
             :color="mode === 'new' ? 'primary' : 'neutral'"
             :variant="mode === 'new' ? 'soft' : 'ghost'"
             label="New"
@@ -188,7 +187,6 @@ async function submit() {
             @click="mode = 'new'"
           />
           <UButton
-            size="sm"
             :color="mode === 'duplicate' ? 'primary' : 'neutral'"
             :variant="mode === 'duplicate' ? 'soft' : 'ghost'"
             label="Duplicate"
@@ -218,7 +216,7 @@ async function submit() {
             />
           </UFormField>
           <UFormField label="New trip id" hint="optional">
-            <UInput v-model="newTripId" placeholder="auto" class="w-full" />
+            <UInput v-model="newTripId" placeholder="auto" class="w-full"/>
           </UFormField>
         </template>
 
@@ -246,17 +244,17 @@ async function submit() {
               />
             </UFormField>
             <UFormField label="Base departure">
-              <UInput v-model="baseRaw" placeholder="e.g. 06:15" class="w-full" />
+              <UInput v-model="baseRaw" placeholder="e.g. 06:15" class="w-full"/>
             </UFormField>
             <div class="grid grid-cols-3 gap-2">
               <UFormField label="Headsign" hint="opt">
-                <UInput v-model="headsign" class="w-full" />
+                <UInput v-model="headsign" class="w-full"/>
               </UFormField>
               <UFormField label="Direction" hint="opt">
-                <UInput v-model.number="directionRaw" type="number" class="w-full" />
+                <UInput v-model.number="directionRaw" type="number" class="w-full"/>
               </UFormField>
               <UFormField label="Block" hint="opt">
-                <UInput v-model="blockId" class="w-full" />
+                <UInput v-model="blockId" class="w-full"/>
               </UFormField>
             </div>
             <p v-if="selectedPattern && patternHasUnknownTimes" class="text-xs text-warning">
@@ -268,7 +266,7 @@ async function submit() {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false" />
+        <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false"/>
         <UButton
           :loading="submitting"
           :disabled="!canSubmit"

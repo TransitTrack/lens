@@ -41,7 +41,7 @@ const haloSize = computed(() => props.size + 1)
     <span
       v-else
       class="vhm__dot"
-      :style="{ backgroundColor: color, width: `${size - 4}px`, height: `${size - 4}px` }"
+      :style="{ backgroundColor: color, width: `${size - 8}px`, height: `${size - 8}px` }"
     />
   </div>
 </template>

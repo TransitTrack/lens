@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { formatTimeAgo } from '@vueuse/core'
-import { useAvlFeedsQuery } from '../../generated/graphql'
+import {formatTimeAgo} from '@vueuse/core'
+import {useAvlFeedsQuery} from '../../generated/graphql'
 
-const { result, loading } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
+const {result, loading} = useAvlFeedsQuery(() => ({pollInterval: 60_000}))
 
 const feeds = computed(() => result.value?.avlFeeds ?? [])
 
@@ -14,12 +14,12 @@ function healthy(status: string | null | undefined): boolean {
 <template>
   <UCard :ui="{ body: 'flex flex-col gap-3' }">
     <div class="flex items-center gap-2 text-sm font-medium text-muted">
-      <UIcon name="i-lucide-rss" class="size-4" />
+      <UIcon name="i-lucide-rss" class="size-4"/>
       Feed health
     </div>
 
     <div v-if="loading && !feeds.length" class="flex flex-col gap-2">
-      <USkeleton v-for="i in 2" :key="i" class="h-9 w-full" />
+      <USkeleton v-for="i in 2" :key="i" class="h-9 w-full"/>
     </div>
 
     <div v-else class="flex flex-col divide-y divide-default">
@@ -36,11 +36,10 @@ function healthy(status: string | null | undefined): boolean {
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <UBadge v-if="!feed.enabled" color="neutral" variant="subtle" size="sm">Disabled</UBadge>
+          <UBadge v-if="!feed.enabled" color="neutral" variant="subtle">Disabled</UBadge>
           <UBadge
             :color="healthy(feed.lastPollStatus) ? 'success' : 'error'"
             variant="subtle"
-            size="sm"
           >
             {{ feed.lastPollStatus ?? 'unknown' }}
           </UBadge>

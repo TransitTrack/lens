@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import 'maplibre-gl/dist/maplibre-gl.css'
 import FeedNetworkLayer from '~/components/FeedNetworkLayer.vue'
-import { useMapStyle } from '~/composables/useMapStyle'
-import { useFeedGeometry } from '~/composables/useFeedGeometry'
-import { extentToBounds } from '~/utils/mapBounds'
-import { routeTypeBreakdown } from '~/utils/feedFeatures'
-import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import {useMapStyle} from '~/composables/useMapStyle'
+import {useFeedGeometry} from '~/composables/useFeedGeometry'
+import {extentToBounds} from '~/utils/mapBounds'
+import {routeTypeBreakdown} from '~/utils/feedFeatures'
+import type {LngLatBoundsExtent} from '~/composables/useFeedExtent'
 
 const props = defineProps<{
   feedCode: string
@@ -19,7 +18,7 @@ const mapStyle = useMapStyle()
 const map = useMglMap(MAP_ID)
 
 const feedCode = toRef(props, 'feedCode')
-const { lines, stops, loading } = useFeedGeometry(feedCode)
+const {lines, stops, loading} = useFeedGeometry(feedCode)
 
 const initialBounds = shallowRef(extentToBounds(props.extent))
 watch(
@@ -47,7 +46,7 @@ watch([lines, () => map.isLoaded], () => {
       [Math.min(...lons), Math.min(...lats)],
       [Math.max(...lons), Math.max(...lats)],
     ],
-    { padding: 24, duration: 0 },
+    {padding: 24, duration: 0},
   )
   fitted = true
 })
@@ -64,8 +63,8 @@ watch([lines, () => map.isLoaded], () => {
         :center="[0, 0]"
         :zoom="2"
       >
-        <MglNavigationControl />
-        <FeedNetworkLayer :lines="lines" :stops="stops" />
+        <MglNavigationControl/>
+        <FeedNetworkLayer :lines="lines" :stops="stops"/>
       </MglMap>
       <div
         v-if="loading"
@@ -93,7 +92,6 @@ watch([lines, () => map.isLoaded], () => {
           :key="b.type"
           color="neutral"
           variant="subtle"
-          size="sm"
         >
           {{ b.label }} · {{ b.count }}
         </UBadge>

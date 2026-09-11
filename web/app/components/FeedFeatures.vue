@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DerivedFeature } from '~/utils/feedFeatures'
+import type {DerivedFeature} from '~/utils/feedFeatures'
 
 const props = defineProps<{ features: DerivedFeature[] }>()
 
@@ -17,7 +17,6 @@ const absent = computed(() => props.features.filter((f) => !f.present))
         :key="f.key"
         color="success"
         variant="subtle"
-        size="sm"
         icon="i-lucide-check"
       >
         {{ f.label }}
@@ -31,7 +30,6 @@ const absent = computed(() => props.features.filter((f) => !f.present))
         :key="f.key"
         color="neutral"
         variant="subtle"
-        size="sm"
         class="opacity-60"
       >
         {{ f.label }}

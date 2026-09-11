@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type {NavigationMenuItem} from '@nuxt/ui'
+import type {CommandPaletteGroup, NavigationMenuItem} from '@nuxt/ui'
 import AppLogo from '~/components/AppLogo.vue'
 import UserMenu from '~/components/UserMenu.vue'
 import FeedSwitcher from '~/components/FeedSwitcher.vue'
@@ -161,7 +161,6 @@ const groups = computed(() => [
         :ui="{
           link: 'text-sm px-2 py-2 gap-2',
           linkLeadingIcon: 'size-4',
-          content: 'sm:w-lg',
           childList: 'sm:grid-cols-1 gap-2',
           childLink: 'p-2 gap-2 data-[active]:before:bg-primary/10 data-[active]:!text-primary',
           childLinkIcon: 'size-5 mt-1 group-data-[active]:text-primary',

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { usePollControl } from '../composables/usePollControl'
+import {usePollControl} from '../composables/usePollControl'
 
 const props = defineProps<{ updatedAt?: string | number | null }>()
 
-const { paused, toggle } = usePollControl()
+const {paused, toggle} = usePollControl()
 
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | undefined
@@ -28,7 +28,6 @@ const ago = computed(() => {
     <UButton
       :color="paused ? 'warning' : 'neutral'"
       variant="ghost"
-      size="sm"
       :icon="paused ? 'i-lucide-play' : 'i-lucide-pause'"
       @click="toggle"
     >

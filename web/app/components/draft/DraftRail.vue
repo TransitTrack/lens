@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { DraftGridQuery } from '~~/generated/graphql'
-import type { useDraftEditor } from '~/composables/useDraftEditor'
+import {ref, watch} from 'vue'
+import type {DraftGridQuery} from '~~/generated/graphql'
+import type {useDraftEditor} from '~/composables/useDraftEditor'
 import DraftTripPanel from '~/components/draft/DraftTripPanel.vue'
 import DraftHistoryPanel from '~/components/draft/DraftHistoryPanel.vue'
 import DraftValidationPanel from '~/components/draft/DraftValidationPanel.vue'
@@ -50,9 +50,9 @@ watch(
 )
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'trip', label: 'Trip', icon: 'i-lucide-info' },
-  { id: 'history', label: 'History', icon: 'i-lucide-history' },
-  { id: 'validation', label: 'Validation', icon: 'i-lucide-triangle-alert' },
+  {id: 'trip', label: 'Trip', icon: 'i-lucide-info'},
+  {id: 'history', label: 'History', icon: 'i-lucide-history'},
+  {id: 'validation', label: 'Validation', icon: 'i-lucide-triangle-alert'},
 ]
 </script>
 
@@ -71,7 +71,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
         :aria-label="'Trip'"
         @click="reveal('trip')"
       />
-      <UChip :show="undoneCount > 0" :text="undoneCount" size="sm" color="neutral">
+      <UChip :show="undoneCount > 0" :text="undoneCount" color="neutral">
         <UButton
           size="xs"
           color="neutral"
@@ -81,7 +81,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
           @click="reveal('history')"
         />
       </UChip>
-      <UChip :show="errorCount > 0" :text="errorCount" size="sm" color="error">
+      <UChip :show="errorCount > 0" :text="errorCount" color="error">
         <UButton
           size="xs"
           color="neutral"

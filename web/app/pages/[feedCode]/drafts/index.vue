@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
-import { useDraftsQuery, useDiscardDraftMutation, type DraftsQuery } from '~~/generated/graphql'
-import { useFeeds } from '~/composables/useFeeds'
+import type {TableColumn, DropdownMenuItem} from '@nuxt/ui'
+import {useDraftsQuery, useDiscardDraftMutation, type DraftsQuery} from '~~/generated/graphql'
+import {useFeeds} from '~/composables/useFeeds'
 import AppPage from '~/components/AppPage.vue'
 import NewDraftDialog from '~/components/draft/NewDraftDialog.vue'
-import { gtfsDate } from '~/utils/gtfs'
-import { useEditorIdentity } from '~/composables/useEditorIdentity'
+import {gtfsDate} from '~/utils/gtfs'
+import {useEditorIdentity} from '~/composables/useEditorIdentity'
 
-const { selectedFeedCode, feedPath } = useFeeds()
-const { name: editorName } = useEditorIdentity()
+const {selectedFeedCode, feedPath} = useFeeds()
+const {name: editorName} = useEditorIdentity()
 const toast = useToast()
 
 const newOpen = ref(false)
 
-const { result, loading, error, refetch } = useDraftsQuery(
-  () => ({ feedCode: selectedFeedCode.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading, error, refetch} = useDraftsQuery(
+  () => ({feedCode: selectedFeedCode.value}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 type Draft = DraftsQuery['drafts'][number]
@@ -49,14 +49,14 @@ function validationLabel(raw: unknown): string {
 }
 
 const columns: TableColumn<Draft>[] = [
-  { accessorKey: 'label', header: 'Label' },
-  { accessorKey: 'baseRevisionId', header: 'Base rev' },
-  { id: 'version', header: 'Version' },
-  { id: 'stale', header: 'Stale' },
-  { id: 'validation', header: 'Validation' },
-  { id: 'lock', header: 'Lock' },
-  { id: 'created', header: 'Created' },
-  { id: 'actions', header: '' },
+  {accessorKey: 'label', header: 'Label'},
+  {accessorKey: 'baseRevisionId', header: 'Base rev'},
+  {id: 'version', header: 'Version'},
+  {id: 'stale', header: 'Stale'},
+  {id: 'validation', header: 'Validation'},
+  {id: 'lock', header: 'Lock'},
+  {id: 'created', header: 'Created'},
+  {id: 'actions', header: ''},
 ]
 
 function onSelect(_e: Event, row: { original: Draft }) {
@@ -79,13 +79,13 @@ const discardOpen = computed({
     if (!v) discardTarget.value = null
   },
 })
-const { mutate: discard, loading: discarding } = useDiscardDraftMutation()
+const {mutate: discard, loading: discarding} = useDiscardDraftMutation()
 
 async function confirmDiscard() {
   const target = discardTarget.value
   if (!target) return
   try {
-    await discard({ id: target.id, editor: editorName.value ?? '' })
+    await discard({id: target.id, editor: editorName.value ?? ''})
     toast.add({
       title: `Draft ${target.label ?? target.id} discarded`,
       color: 'success',
@@ -106,7 +106,7 @@ async function confirmDiscard() {
         icon: 'i-lucide-lock',
       })
     } else {
-      toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+      toast.add({title: 'Discard failed', description: (e as Error).message, color: 'error'})
     }
   }
 }
@@ -114,8 +114,8 @@ async function confirmDiscard() {
 function rowActions(row: Draft): DropdownMenuItem[][] {
   return [
     [
-      { label: 'Open', icon: 'i-lucide-square-pen', onSelect: () => openDraft(row) },
-      { label: 'Export', icon: 'i-lucide-download', onSelect: () => exportDraft(row) },
+      {label: 'Open', icon: 'i-lucide-square-pen', onSelect: () => openDraft(row)},
+      {label: 'Export', icon: 'i-lucide-download', onSelect: () => exportDraft(row)},
     ],
     [
       {
@@ -134,7 +134,6 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
     <template #actions>
       <UButton
         icon="i-lucide-plus"
-        size="sm"
         color="neutral"
         variant="soft"
         label="New draft"
@@ -143,8 +142,8 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
     </template>
 
     <div v-if="loading && !drafts.length" class="flex flex-col gap-4">
-      <USkeleton class="h-10 w-full" />
-      <USkeleton class="h-40 w-full" />
+      <USkeleton class="h-10 w-full"/>
+      <USkeleton class="h-40 w-full"/>
     </div>
 
     <UAlert
@@ -157,9 +156,9 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
     />
 
     <div v-else-if="!drafts.length" class="flex flex-col items-center gap-3 py-16 text-center">
-      <UIcon name="i-lucide-file-pen-line" class="size-8 text-dimmed" />
+      <UIcon name="i-lucide-file-pen-line" class="size-8 text-dimmed"/>
       <p class="text-sm text-muted">No drafts yet for this feed.</p>
-      <UButton icon="i-lucide-plus" label="New draft" @click="newOpen = true" />
+      <UButton icon="i-lucide-plus" label="New draft" @click="newOpen = true"/>
     </div>
 
     <UTable v-else :data="drafts" :columns="columns" @select="onSelect">
@@ -167,7 +166,7 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
       <template #baseRevisionId-cell="{ row }">{{ row.original.baseRevisionId ?? '—' }}</template>
       <template #version-cell="{ row }">v{{ row.original.version }}</template>
       <template #stale-cell="{ row }">
-        <UBadge v-if="row.original.derivationStale" color="warning" variant="subtle" size="sm">
+        <UBadge v-if="row.original.derivationStale" color="warning" variant="subtle">
           stale
         </UBadge>
         <span v-else class="text-dimmed">—</span>
@@ -202,19 +201,19 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
         <p class="text-sm text-muted">
           This permanently discards
           <span class="font-medium text-highlighted">{{
-            discardTarget?.label ?? discardTarget?.id
-          }}</span>
+              discardTarget?.label ?? discardTarget?.id
+            }}</span>
           and its edits. This cannot be undone.
         </p>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="discardTarget = null" />
-          <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard" />
+          <UButton color="neutral" variant="ghost" label="Cancel" @click="discardTarget = null"/>
+          <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard"/>
         </div>
       </template>
     </UModal>
 
-    <NewDraftDialog v-model:open="newOpen" />
+    <NewDraftDialog v-model:open="newOpen"/>
   </AppPage>
 </template>

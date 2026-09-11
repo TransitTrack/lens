@@ -1,30 +1,30 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type {TableColumn} from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
 import TripTimeFilter from '~/components/TripTimeFilter.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useAgencyFilter } from '~/composables/useAgencyFilter'
-import { useExploreQuery } from '~/composables/useExploreQuery'
+import {useFeeds} from '~/composables/useFeeds'
+import {useAgencyFilter} from '~/composables/useAgencyFilter'
+import {useExploreQuery} from '~/composables/useExploreQuery'
 import {
   useExploreRoutesQuery,
   useTripsByRouteQuery,
   type TripsByRouteQuery,
 } from '~~/generated/graphql'
-import { formatHm, parseHm, inWindow } from '~/utils/tripFilters'
+import {formatHm, parseHm, inWindow} from '~/utils/tripFilters'
 
-const { selectedFeedCode, feedPath } = useFeeds()
-const { agencyId } = useAgencyFilter()
-const { param } = useExploreQuery()
+const {selectedFeedCode, feedPath} = useFeeds()
+const {agencyId} = useAgencyFilter()
+const {param} = useExploreQuery()
 
 const routeId = param('route')
 const dir = param('dir')
 const from = param('from')
 const to = param('to')
 
-const { result: routesResult } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result: routesResult} = useExploreRoutesQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
@@ -47,9 +47,9 @@ watch(agencyId, () => {
   }
 })
 
-const { result, loading } = useTripsByRouteQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value && !!routeId.value }),
+const {result, loading} = useTripsByRouteQuery(
+  () => ({feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value && !!routeId.value}),
 )
 
 type Trip = TripsByRouteQuery['trips'][number]
@@ -58,8 +58,8 @@ const directionItems = computed(() => {
   const set = new Set<number>()
   for (const t of result.value?.trips ?? []) if (t.directionId != null) set.add(t.directionId)
   return [
-    { label: 'Both directions', value: null },
-    ...[...set].sort((a, b) => a - b).map((d) => ({ label: `Direction ${d}`, value: String(d) })),
+    {label: 'Both directions', value: null},
+    ...[...set].sort((a, b) => a - b).map((d) => ({label: `Direction ${d}`, value: String(d)})),
   ]
 })
 
@@ -86,12 +86,12 @@ const rows = computed(() => {
 })
 
 const columns: TableColumn<Trip>[] = [
-  { accessorKey: 'tripId', header: 'Trip' },
-  { accessorKey: 'tripHeadsign', header: 'Headsign' },
-  { accessorKey: 'directionId', header: 'Dir' },
-  { accessorKey: 'startTimeSec', header: 'Start' },
-  { accessorKey: 'endTimeSec', header: 'End' },
-  { accessorKey: 'serviceId', header: 'Service' },
+  {accessorKey: 'tripId', header: 'Trip'},
+  {accessorKey: 'tripHeadsign', header: 'Headsign'},
+  {accessorKey: 'directionId', header: 'Dir'},
+  {accessorKey: 'startTimeSec', header: 'Start'},
+  {accessorKey: 'endTimeSec', header: 'End'},
+  {accessorKey: 'serviceId', header: 'Service'},
 ]
 
 function onSelect(_e: Event, row: { original: Trip }) {
@@ -102,7 +102,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
 <template>
   <AppPage title="Trips">
     <template #toolbar>
-      <ExploreToolbar />
+      <ExploreToolbar/>
     </template>
 
     <div class="flex flex-wrap items-center gap-2">
@@ -120,24 +120,24 @@ function onSelect(_e: Event, row: { original: Trip }) {
           :model-value="dir"
           :items="directionItems"
           value-key="value"
-          class="w-44"
+          class="w-72"
           @update:model-value="dir = $event"
         />
         <UInput
           v-model="search"
           icon="i-lucide-search"
           placeholder="Filter trips…"
-          class="max-w-xs"
+          class="w-72"
         />
       </template>
     </div>
 
-    <TripTimeFilter v-if="routeId" />
+    <TripTimeFilter v-if="routeId"/>
 
     <p v-if="!routeId" class="text-sm text-muted">Pick a route to list its trips.</p>
 
     <div v-else-if="loading && !rows.length" class="flex flex-col gap-2">
-      <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
+      <USkeleton v-for="i in 8" :key="i" class="h-10 w-full"/>
     </div>
 
     <template v-else>

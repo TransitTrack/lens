@@ -28,6 +28,18 @@ transittrack:
   feed:
     prune-config-feeds: false
     feeds:
+      - code: poznan
+        name: ZTM
+        enabled: true
+        auto-activate: true
+        polling-cron: "0 * * * * *"
+        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
+        avl:
+          format: gtfs_rt
+          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
+          prediction-algorithm: kalman
+          prediction-mode: single
+          assignment-mode: descriptor_then_infer
       - code: stpt
         name: Societatea de transport public Timisoara
         enabled: true                  # optional, default true
