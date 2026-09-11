@@ -6,7 +6,7 @@ import java.time.ZoneId
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.gtfs.model.Trip
 
 /** Result of matching one AVL report against the derived schedule. */
@@ -35,7 +35,7 @@ interface VehicleMatcher {
 
     fun match(
         report: AvlReportRow,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         ctx: AvlMatchContext,
     ): MatchOutcome
 }
@@ -63,7 +63,7 @@ fun inferServiceDate(
  * [TrustDescriptorMatcher] and the full-inference matcher.
  */
 internal fun tryBlockAdvance(
-    prev: VehicleStateRow,
+    prev: VehicleState,
     geom: PatternGeometry,
     trip: Trip,
     actualServiceSec: Int,

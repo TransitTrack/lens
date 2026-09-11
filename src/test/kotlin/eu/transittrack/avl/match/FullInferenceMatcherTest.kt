@@ -24,7 +24,7 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.MatchStatus
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -105,8 +105,8 @@ class FullInferenceMatcherTest(
     private fun prevOnTrip(
         tripRowId: Long,
         alongM: Double,
-    ): VehicleStateRow =
-        VehicleStateRow(
+    ): VehicleState =
+        VehicleState(
             feedId = 1L,
             vehicleId = "v",
             vehicleLabel = null,

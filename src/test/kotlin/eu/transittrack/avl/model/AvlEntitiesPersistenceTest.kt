@@ -89,7 +89,7 @@ class AvlEntitiesPersistenceTest(
     private fun state(
         feedId: Long,
         vehicle: String,
-    ) = VehicleStateRow(
+    ) = VehicleState(
         feedId = feedId, vehicleId = vehicle, vehicleLabel = null,
         reportTs = Instant.parse("2026-09-04T10:00:00Z"), lat = 44.0, lon = 26.0,
         bearing = null, speedMps = null, occupancyStatus = null, matched = false, stale = false,

@@ -6,7 +6,7 @@ import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.gtfs.model.Trip
 
 /**
@@ -26,7 +26,7 @@ class FullInferenceMatcher(
 
     override fun match(
         report: AvlReportRow,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         ctx: AvlMatchContext,
     ): MatchOutcome {
         val point = Point(report.lat, report.lon)
@@ -93,7 +93,7 @@ class FullInferenceMatcher(
 
     private fun continuityOf(
         t: Trip,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         ctx: AvlMatchContext,
     ): Double {
         if (prev?.tripRowId == null) return 0.0

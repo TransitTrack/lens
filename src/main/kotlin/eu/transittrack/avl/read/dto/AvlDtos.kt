@@ -4,7 +4,7 @@ import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.ingest.VehicleStopStatus
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 
 data class LatLonDto(
     val lat: Double,
@@ -63,7 +63,7 @@ data class VehicleDto(
 ) {
     companion object {
         fun of(
-            s: VehicleStateRow,
+            s: VehicleState,
             gtfsFeedCode: String,
         ) = VehicleDto(
             vehicleId = s.vehicleId,

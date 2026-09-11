@@ -6,7 +6,7 @@ import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.gtfs.model.Trip
 
 /**
@@ -29,7 +29,7 @@ class TrustDescriptorMatcher(
 
     override fun match(
         report: AvlReportRow,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         ctx: AvlMatchContext,
     ): MatchOutcome {
         val point = Point(report.lat, report.lon)

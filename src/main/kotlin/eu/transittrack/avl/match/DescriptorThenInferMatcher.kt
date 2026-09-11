@@ -4,7 +4,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 
 /**
  * Tries [TrustDescriptorMatcher] first and falls back to [FullInferenceMatcher] whenever the
@@ -20,7 +20,7 @@ class DescriptorThenInferMatcher(
 
     override fun match(
         report: AvlReportRow,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         ctx: AvlMatchContext,
     ): MatchOutcome =
         trust

@@ -12,7 +12,7 @@ import eu.transittrack.avl.match.MatchOutcome
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleStateRow
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.learn.KalmanState
@@ -48,7 +48,7 @@ class PredictionService(
     fun onMatched(
         feed: AvlFeed,
         report: AvlReportRow,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         outcome: MatchOutcome.Matched,
         ctx: AvlMatchContext,
     ) {
@@ -90,7 +90,7 @@ class PredictionService(
     private fun processCrossings(
         feed: AvlFeed,
         report: AvlReportRow,
-        prev: VehicleStateRow,
+        prev: VehicleState,
         outcome: MatchOutcome.Matched,
         ctx: AvlMatchContext,
         now: Instant,

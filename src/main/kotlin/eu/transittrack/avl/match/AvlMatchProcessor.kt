@@ -18,8 +18,8 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.avl.model.VehicleStateRow
 import eu.transittrack.predict.PredictionService
 
 /**
@@ -87,7 +87,7 @@ class AvlMatchProcessor(
         feed: AvlFeed,
         report: AvlReportRow,
         outcome: MatchOutcome,
-        prev: VehicleStateRow?,
+        prev: VehicleState?,
         ctx: AvlMatchContext,
     ) {
         val now = Instant.now()

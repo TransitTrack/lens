@@ -11,11 +11,14 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 @Entity
 @Table(name = "vehicle_state")
-class VehicleStateRow(
+class VehicleState(
     @Column(name = "feed_id", nullable = false) var feedId: Long,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "vehicle_label") var vehicleLabel: String?,
@@ -42,13 +45,57 @@ class VehicleStateRow(
 )
 
 @Repository
-interface VehicleStateRepository : JpaRepository<VehicleStateRow, Long> {
+interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
     fun findByFeedIdAndVehicleId(
         feedId: Long,
         vehicleId: String,
-    ): VehicleStateRow?
+    ): VehicleState?
 
-    fun findByFeedIdOrderByUpdatedAtDesc(feedId: Long): List<VehicleStateRow>
+    fun findByFeedIdOrderByUpdatedAtDesc(feedId: Long): List<VehicleState>
 
-    fun findByFeedId(feedId: Long): List<VehicleStateRow>
+    fun findByFeedId(feedId: Long): List<VehicleState>
+
+    /**
+     * Drops the trip/block assignment and flips `matched -> false` for vehicles silent past
+     * `greatest(feed.pollIntervalSec * cycles, minSec)` seconds as of [asOf]. Used by
+     * [eu.transittrack.avl.match.AvlSilentVehicleSweeper]. HQL bulk update — the per-row
+     * threshold is looked up per vehicle via a correlated subquery on [AvlFeed] since
+     * [VehicleState.feedId] isn't a mapped association.
+     */
+    @Modifying
+    @Transactional
+    @Query(
+        """
+        update VehicleState vs set
+          vs.matched = false, vs.stale = true,
+          vs.revisionId = null, vs.tripRowId = null, vs.blockPk = null, vs.tripPatternId = null,
+          vs.stopPathIndex = null, vs.distanceAlongTripM = null, vs.scheduleAdherenceSec = null,
+          vs.snappedLat = null, vs.snappedLon = null
+        where vs.tripRowId is not null
+          and timestampdiff(second, vs.updatedAt, :asOf) >
+              greatest((select f.pollIntervalSec from AvlFeed f where f.id = vs.feedId) * :cycles, :minSec)
+        """,
+    )
+    fun unmatchSilent(
+        cycles: Int,
+        minSec: Int,
+        asOf: Instant,
+    ): Int
+
+    /** Flags still-matched vehicles `stale = true` once they've been silent past the same threshold. */
+    @Modifying
+    @Transactional
+    @Query(
+        """
+        update VehicleState vs set vs.stale = true
+        where vs.matched = true and vs.stale = false
+          and timestampdiff(second, vs.updatedAt, :asOf) >
+              greatest((select f.pollIntervalSec from AvlFeed f where f.id = vs.feedId) * :cycles, :minSec)
+        """,
+    )
+    fun staleSilent(
+        cycles: Int,
+        minSec: Int,
+        asOf: Instant,
+    ): Int
 }
