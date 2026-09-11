@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import 'maplibre-gl/dist/maplibre-gl.css'
-import type { VehicleRow } from '../composables/useVehiclePolling'
-import { colorForVehicle } from '../utils/vehicleMarker'
-import { adherenceBadge } from '../utils/adherence'
+import type {VehicleRow} from '../composables/useVehiclePolling'
+import {colorForVehicle} from '../utils/vehicleMarker'
+import {adherenceBadge} from '../utils/adherence'
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
-import { useMapStyle } from '../composables/useMapStyle'
-import { useFeedGeometry } from '../composables/useFeedGeometry'
-import { extentToBounds } from '../utils/mapBounds'
-import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
+import {useMapStyle} from '../composables/useMapStyle'
+import {useFeedGeometry} from '../composables/useFeedGeometry'
+import {extentToBounds} from '../utils/mapBounds'
+import type {LngLatBoundsExtent} from '../composables/useFeedExtent'
 
 const props = defineProps<{
   vehicles: VehicleRow[]
@@ -22,7 +22,7 @@ const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
 
-const { lines: networkLines, stops: networkStops } = useFeedGeometry(
+const {lines: networkLines, stops: networkStops} = useFeedGeometry(
   toRef(props, 'feedCode') as Ref<string | null>,
 )
 
@@ -85,6 +85,7 @@ function boundsForFit(): [[number, number], [number, number]] | null {
 
 // First fit is instant — the map opened on the agency extent via `:bounds`.
 let firstFit = true
+
 function fit() {
   if (!map.map || !map.isLoaded) return
   const bounds = boundsForFit()
@@ -92,7 +93,7 @@ function fit() {
   // The panel layout can still be settling when the style first loads, leaving
   // the canvas at a stale size; resize before fitting so the zoom is right.
   map.map.resize()
-  map.map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 800 })
+  map.map.fitBounds(bounds, {padding: 40, maxZoom: 15, duration: firstFit ? 0 : 800})
   firstFit = false
 }
 
@@ -111,7 +112,7 @@ watch(
     fit()
     requestAnimationFrame(fit)
   },
-  { immediate: true },
+  {immediate: true},
 )
 
 function badge(v: VehicleRow) {
@@ -128,30 +129,7 @@ function badge(v: VehicleRow) {
       :bounds="initialBounds"
       :fit-bounds-options="{ padding: 40, animate: false }"
     >
-      <MglNavigationControl />
-
-      <FeedNetworkLayer
-        v-if="props.feedCode"
-        :lines="networkLines"
-        :stops="networkStops"
-        dim
-      />
-
-      <MglMarker
-        v-for="v in props.vehicles"
-        :key="v.vehicleId"
-        :coordinates="[v.position.lon, v.position.lat]"
-      >
-        <template #marker>
-          <VehicleHeadingMarker
-            :color="colorForVehicle(v.matched, v.stale)"
-            :bearing="v.bearing"
-            :size="18"
-            halo
-            @click="activeVehicleId = v.vehicleId"
-          />
-        </template>
-      </MglMarker>
+      <MglNavigationControl/>
 
       <MglPopup
         v-if="activeVehicle"
@@ -161,7 +139,7 @@ function badge(v: VehicleRow) {
         :offset="14"
         @close="activeVehicleId = null"
       >
-        <div class="flex min-w-[12rem] flex-col gap-2 p-1">
+        <div class="flex min-w-48 flex-col gap-2 p-1">
           <div class="flex items-center justify-between gap-2">
             <span class="font-semibold text-highlighted">
               {{ activeVehicle.label ?? activeVehicle.vehicleId }}
@@ -202,9 +180,32 @@ function badge(v: VehicleRow) {
           />
         </div>
       </MglPopup>
+
+      <MglMarker
+        v-for="v in props.vehicles"
+        :key="v.vehicleId"
+        :coordinates="[v.position.lon, v.position.lat]"
+      >
+        <template #marker>
+          <VehicleHeadingMarker
+            :color="colorForVehicle(v.matched, v.stale)"
+            :bearing="v.bearing"
+            :size="18"
+            halo
+            @click="activeVehicleId = v.vehicleId"
+          />
+        </template>
+      </MglMarker>
+
+      <FeedNetworkLayer
+        v-if="props.feedCode"
+        :lines="networkLines"
+        :stops="networkStops"
+        dim
+      />
     </MglMap>
 
-    <VehicleMapLegend class="absolute bottom-2 left-2" />
+    <VehicleMapLegend class="absolute bottom-2 left-2"/>
 
     <UButton
       class="absolute left-2 top-2 shadow"

@@ -850,6 +850,7 @@ export type RevisionStatus =
   | 'ACTIVE'
   | 'DERIVING'
   | 'DOWNLOADING'
+  | 'DRAFT'
   | 'FAILED'
   | 'PARSING'
   | 'PENDING'
@@ -1126,7 +1127,7 @@ export type AgenciesDetailQuery = { agencies: Array<{ agencyId: string | null, a
 export type AvlFeedsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, enabled: boolean, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
+export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, format: string, enabled: boolean, pollIntervalSec: number, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
 
 export type AvlTrailQueryVariables = Exact<{
   feedCode: string;
@@ -1644,7 +1645,9 @@ export const AvlFeedsDocument = gql`
     code
     name
     gtfsFeedCode
+    format
     enabled
+    pollIntervalSec
     lastPollAt
     lastPollStatus
     lastPollReportCount

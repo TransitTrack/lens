@@ -22,29 +22,112 @@ watch(feedIsUnknown, (unknown) => {
 })
 
 const searchOpen = ref(false)
+const route = useRoute()
+
+/** current route is `to` or a page nested under it (e.g. a detail page) */
+function underPath(to: string): boolean {
+  return route.path === to || route.path.startsWith(`${to}/`)
+}
+
+interface NavLeaf {
+  label: string
+  icon: string
+  description: string
+  path: string
+}
+
+const REALTIME: NavLeaf[] = [
+  {
+    label: 'Vehicles',
+    icon: 'i-lucide-bus',
+    description: 'Live vehicle positions and trip matching',
+    path: '/vehicles',
+  },
+  {
+    label: 'Headway',
+    icon: 'i-lucide-clock',
+    description: 'Service gaps and wait times at a stop',
+    path: '/headway',
+  },
+]
+
+const STATIC: NavLeaf[] = [
+  {
+    label: 'Routes',
+    icon: 'i-lucide-route',
+    description: 'Browse routes, filter by type and agency',
+    path: '/explore/routes',
+  },
+  {
+    label: 'Stops',
+    icon: 'i-lucide-map-pin',
+    description: 'Every stop on the map with its patterns',
+    path: '/explore/stops',
+  },
+  {
+    label: 'Trips',
+    icon: 'i-lucide-git-branch',
+    description: 'Scheduled trips with start/end times and filters',
+    path: '/explore/trips',
+  },
+  {
+    label: 'Blocks',
+    icon: 'i-lucide-layers',
+    description: 'Vehicle blocks and peak concurrency',
+    path: '/explore/blocks',
+  },
+  {
+    label: 'Calendar',
+    icon: 'i-lucide-calendar-days',
+    description: 'Service calendars and date exceptions',
+    path: '/explore/calendar',
+  },
+  {
+    label: 'Feed',
+    icon: 'i-lucide-file-text',
+    description: 'Feed metadata, revisions and quality report',
+    path: '/explore/feed',
+  },
+  {
+    label: 'Drafts',
+    icon: 'i-lucide-file-pen-line',
+    description: 'Edit and activate schedule drafts',
+    path: '/drafts',
+  },
+]
+
+function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
+  return leaves.map((l) => ({
+    label: l.label,
+    icon: l.icon,
+    description: l.description,
+    to: feedPath(l.path),
+    active: underPath(feedPath(l.path)),
+  }))
+}
 
 const primaryNav = computed<NavigationMenuItem[]>(() => [
-  {label: 'Home', icon: 'i-lucide-layout-dashboard', to: feedPath(), exact: true},
+  {
+    label: 'Home',
+    icon: 'i-lucide-layout-dashboard',
+    description: 'Fleet overview and live map',
+    to: feedPath(),
+    exact: true,
+    active: route.path === feedPath(),
+  },
   {
     label: 'Realtime',
     icon: 'i-lucide-radio',
-    children: [
-      {label: 'Vehicles', icon: 'i-lucide-bus', to: feedPath('/vehicles')},
-      {label: 'Headway', icon: 'i-lucide-clock', to: feedPath('/headway')},
-    ],
+    description: 'Live data from the AVL feed',
+    active: REALTIME.some((l) => underPath(feedPath(l.path))),
+    children: toItems(REALTIME),
   },
   {
     label: 'Static',
     icon: 'i-lucide-database',
-    children: [
-      {label: 'Routes', icon: 'i-lucide-route', to: feedPath('/explore/routes')},
-      {label: 'Stops', icon: 'i-lucide-map-pin', to: feedPath('/explore/stops')},
-      {label: 'Trips', icon: 'i-lucide-git-branch', to: feedPath('/explore/trips')},
-      {label: 'Blocks', icon: 'i-lucide-layers', to: feedPath('/explore/blocks')},
-      {label: 'Calendar', icon: 'i-lucide-calendar-days', to: feedPath('/explore/calendar')},
-      {label: 'Feed', icon: 'i-lucide-file-text', to: feedPath('/explore/feed')},
-      {label: 'Drafts', icon: 'i-lucide-file-pen-line', to: feedPath('/drafts')},
-    ],
+    description: 'GTFS schedule data for the feed',
+    active: STATIC.some((l) => underPath(feedPath(l.path))),
+    children: toItems(STATIC),
   },
 ])
 
@@ -73,7 +156,19 @@ const groups = computed(() => [
         </NuxtLink>
       </template>
 
-      <UNavigationMenu :items="primaryNav" class="justify-center"/>
+      <UNavigationMenu
+        :items="primaryNav"
+        :ui="{
+          link: 'text-sm px-2 py-2 gap-2',
+          linkLeadingIcon: 'size-4',
+          content: 'sm:w-lg',
+          childList: 'sm:grid-cols-1 gap-2',
+          childLink: 'p-2 gap-2 data-[active]:before:bg-primary/10 data-[active]:!text-primary',
+          childLinkIcon: 'size-5 mt-1 group-data-[active]:text-primary',
+          childLinkLabel: 'group-data-[active]:text-primary',
+          childLinkDescription: 'text-sm group-data-[active]:text-primary/70',
+        }"
+      />
 
       <template #right>
         <UButton

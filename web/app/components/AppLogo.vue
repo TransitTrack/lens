@@ -83,10 +83,10 @@ const TRACK_2 = 'M 110,55 L 65,55 L 65,100'
       </g>
     </svg>
 
-    <div v-if="!iconOnly" class="flex flex-col leading-none align-middle">
+    <div v-if="!iconOnly" class="flex flex-col leading-none align-middle mt-2">
       <h1
         :style="{ fontSize: fontSize + 'px' }"
-        class="uppercase tracking-wider text-slate-800 dark:text-slate-100"
+        class="uppercase tracking-tighter text-slate-800 dark:text-slate-100"
       >
         <span class="font-black">Transit</span>
         <span class="font-light">Track</span>

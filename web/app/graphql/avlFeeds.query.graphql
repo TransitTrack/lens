@@ -3,7 +3,9 @@ query AvlFeeds {
     code
     name
     gtfsFeedCode
+    format
     enabled
+    pollIntervalSec
     lastPollAt
     lastPollStatus
     lastPollReportCount

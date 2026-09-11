@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import type {TableColumn} from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import { useFeeds } from '~/composables/useFeeds'
-import { useAgencyFilter } from '~/composables/useAgencyFilter'
-import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
-import { useExploreRoutesQuery, type ExploreRoutesQuery } from '~~/generated/graphql'
-import { routeTypeLabel, hexColor } from '~/utils/gtfs'
+import {useFeeds} from '~/composables/useFeeds'
+import {useAgencyFilter} from '~/composables/useAgencyFilter'
+import {useRouteTypeFilter} from '~/composables/useRouteTypeFilter'
+import {useExploreRoutesQuery, type ExploreRoutesQuery} from '~~/generated/graphql'
+import {routeTypeLabel, hexColor} from '~/utils/gtfs'
 
-const { selectedFeedCode, feedPath } = useFeeds()
-const { agencyId } = useAgencyFilter()
-const { typeId } = useRouteTypeFilter()
+const {selectedFeedCode, feedPath} = useFeeds()
+const {agencyId} = useAgencyFilter()
+const {typeId} = useRouteTypeFilter()
 
-const { result, loading } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
+const {result, loading} = useExploreRoutesQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
 )
 
 type Row = ExploreRoutesQuery['routes'][number]
@@ -43,10 +43,10 @@ const rows = computed(() => {
 })
 
 const columns: TableColumn<Row>[] = [
-  { accessorKey: 'routeShortName', header: 'Route' },
-  { accessorKey: 'routeLongName', header: 'Name' },
-  { accessorKey: 'routeType', header: 'Type' },
-  { id: 'agency', header: 'Agency' },
+  {accessorKey: 'routeShortName', header: 'Route'},
+  {accessorKey: 'routeLongName', header: 'Name'},
+  {accessorKey: 'routeType', header: 'Type'},
+  {id: 'agency', header: 'Agency'},
 ]
 
 function onSelect(_e: Event, row: { original: Row }) {
@@ -57,7 +57,7 @@ function onSelect(_e: Event, row: { original: Row }) {
 <template>
   <AppPage title="Routes">
     <template #toolbar>
-      <ExploreToolbar show-route-type />
+      <ExploreToolbar show-route-type/>
     </template>
 
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -71,13 +71,13 @@ function onSelect(_e: Event, row: { original: Row }) {
     </div>
 
     <div v-if="loading && !rows.length" class="flex flex-col gap-2">
-      <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
+      <USkeleton v-for="i in 8" :key="i" class="h-10 w-full"/>
     </div>
 
     <UTable v-else :data="rows" :columns="columns" @select="onSelect">
       <template #routeShortName-cell="{ row }">
         <UBadge
-          size="sm"
+          size="md"
           :style="{
             backgroundColor: hexColor(row.original.routeColor, undefined),
             color: row.original.routeTextColor ? hexColor(row.original.routeTextColor) : undefined,

@@ -12,7 +12,7 @@ const props = withDefaults(
 )
 
 const hasBearing = computed(() => props.bearing != null && Number.isFinite(props.bearing))
-const haloSize = computed(() => props.size + 4)
+const haloSize = computed(() => props.size + 1)
 </script>
 
 <template>

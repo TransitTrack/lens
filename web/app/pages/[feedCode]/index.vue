@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import AppPage from '~/components/AppPage.vue'
-import VehicleMap from '~/components/VehicleMap.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import BarChart from '~/components/BarChart.vue'
 import PredictionAccuracyChart from '~/components/PredictionAccuracyChart.vue'
 import FeedHealthCard from '~/components/FeedHealthCard.vue'
+import FeedOverviewStats from '~/components/FeedOverviewStats.vue'
+import FeedProcessingCard from '~/components/FeedProcessingCard.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useVehiclePolling } from '~/composables/useVehiclePolling'
-import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useAvlFeedsQuery } from '~~/generated/graphql'
 import { buildOverviewStats, adherenceHistogram } from '~/utils/overviewStats'
 
-const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
+const { selectedAvlFeedCode } = useFeeds()
 const { vehicles, loading, error } = useVehiclePolling(selectedAvlFeedCode)
-const { extent } = useFeedExtent(selectedFeedCode)
 const { result: feedsResult } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
 
 const hasData = computed(() => vehicles.value.length > 0)
@@ -26,10 +25,6 @@ const newestReport = computed(() =>
     null,
   ),
 )
-
-function onListSelect(vehicleId: string) {
-  navigateTo(feedPath(`/vehicles/${vehicleId}`))
-}
 </script>
 
 <template>
@@ -38,7 +33,19 @@ function onListSelect(vehicleId: string) {
       <NavbarActions :updated-at="newestReport" />
     </template>
 
-    <NoRealtimeState v-if="!selectedAvlFeedCode" what="the fleet overview" />
+    <FeedOverviewStats />
+
+    <div class="grid gap-4 lg:grid-cols-2">
+      <FeedProcessingCard />
+      <FeedHealthCard />
+    </div>
+
+    <div class="mt-2 flex items-center gap-2 text-sm font-medium text-muted">
+      <UIcon name="i-lucide-bus" class="size-4" />
+      Live fleet
+    </div>
+
+    <NoRealtimeState v-if="!selectedAvlFeedCode" what="live fleet metrics" />
 
     <template v-else>
       <UAlert
@@ -52,7 +59,7 @@ function onListSelect(vehicleId: string) {
 
       <UPageGrid class="gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <template v-if="loading && !hasData">
-          <USkeleton v-for="i in 4" :key="i" class="h-[104px] w-full" />
+          <USkeleton v-for="i in 4" :key="i" class="h-26 w-full" />
         </template>
         <UCard v-for="stat in stats" v-else :key="stat.label" :ui="{ body: 'flex flex-col gap-2' }">
           <div class="flex items-center gap-2 text-sm text-muted">
@@ -64,28 +71,17 @@ function onListSelect(vehicleId: string) {
         </UCard>
       </UPageGrid>
 
-      <div class="grid gap-4 lg:grid-cols-3">
-        <UCard class="lg:col-span-1" :ui="{ body: 'flex flex-col gap-3' }">
+      <div class="grid gap-4 lg:grid-cols-2">
+        <UCard :ui="{ body: 'flex flex-col gap-3' }">
           <div class="flex items-center gap-2 text-sm font-medium text-muted">
             <UIcon name="i-lucide-gauge" class="size-4" />
             Schedule adherence
           </div>
-          <USkeleton v-if="loading && !hasData" class="h-[130px] w-full" />
+          <USkeleton v-if="loading && !hasData" class="h-32.5 w-full" />
           <BarChart v-else :bars="histogram" :height="130" :format="(n) => `${n}`" />
         </UCard>
 
-        <PredictionAccuracyChart class="lg:col-span-1" :feed-code="selectedAvlFeedCode" />
-
-        <FeedHealthCard class="lg:col-span-1" />
-      </div>
-
-      <div class="relative h-105 overflow-hidden rounded-lg border border-default">
-        <VehicleMap
-          :vehicles="vehicles"
-          :extent="extent"
-          :feed-code="selectedFeedCode"
-          @select="onListSelect"
-        />
+        <PredictionAccuracyChart :feed-code="selectedAvlFeedCode" />
       </div>
     </template>
   </AppPage>
