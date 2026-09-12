@@ -13,6 +13,7 @@ object AvlCaches {
     const val BLOCK_TRIPS_BY_BLOCK = "avlBlockTripsByBlock"
     const val SERVICE_IDS = "avlServiceIds"
     const val PATTERN_GEOMETRY = "avlPatternGeometry"
+    const val AGENCY_TIMEZONE = "avlAgencyTimezone"
 
     val NAMES: List<String> =
         listOf(
@@ -27,5 +28,6 @@ object AvlCaches {
             BLOCK_TRIPS_BY_BLOCK,
             SERVICE_IDS,
             PATTERN_GEOMETRY,
+            AGENCY_TIMEZONE,
         )
 }

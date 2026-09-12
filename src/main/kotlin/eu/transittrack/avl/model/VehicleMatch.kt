@@ -42,4 +42,11 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
         vehicleId: String,
         pageable: Pageable,
     ): List<VehicleMatch>
+
+    fun findByFeedIdAndVehicleIdAndTsGreaterThanEqualOrderByTsDesc(
+        feedId: Long,
+        vehicleId: String,
+        ts: Instant,
+        pageable: Pageable,
+    ): List<VehicleMatch>
 }

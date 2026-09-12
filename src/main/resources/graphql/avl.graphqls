@@ -49,4 +49,18 @@ type AvlReport {
     currentStatus: String
     occupancyStatus: String
     descTripId: String
+    matchStatus: String!
+    match: AvlReportMatch
+}
+
+type AvlReportMatch {
+    stopPathIndex: Int!
+    distanceAlongTripM: Float!
+    deviationM: Float!
+    scheduleAdherenceSec: Int
+    heading: Float
+    score: Float
+    snappedPosition: LatLon!
+    trip: Trip
+    block: Block
 }

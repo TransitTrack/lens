@@ -6,6 +6,7 @@ import java.time.ZoneId
 import org.springframework.stereotype.Component
 
 import eu.transittrack.Point
+import eu.transittrack.avl.match.cache.CachedAgencyReader
 import eu.transittrack.avl.match.cache.CachedBlockTripReader
 import eu.transittrack.avl.match.cache.CachedPatternGeometryReader
 import eu.transittrack.avl.match.cache.CachedScheduleReader
@@ -26,8 +27,8 @@ import eu.transittrack.schedule.model.StopPath
  * fronted by a per-run [HashMap] L1 so the many reports in one match batch don't repeatedly cross
  * the cache proxy.
  *
- * Ruling: `zone = ZoneId.systemDefault()` — there is no per-feed timezone yet, matching the
- * service-day assumptions of `GtfsIngestScheduler` and `ServiceDateResolver`.
+ * `zone` is the feed's GTFS agency timezone (falling back to [ZoneId.systemDefault] when the feed
+ * has no `agency_timezone`) — see [AvlMatchContextFactory.open].
  */
 class AvlMatchContext(
     val revisionId: Long,
@@ -74,11 +75,8 @@ class AvlMatchContext(
     ): Boolean {
         val pattern = patternReader.byId(revisionId, tripPatternId) ?: return false
         val extent = pattern.extent
-        return if (extent.isEmpty) {
-            false
-        } else {
-            extent.isWithinDistance(p, distanceM)
-        }
+
+        return !extent.isEmpty && extent.isWithinDistance(p, distanceM)
     }
 }
 
@@ -86,6 +84,7 @@ class AvlMatchContext(
 class AvlMatchContextFactory(
     private val feeds: GtfsFeedRepository,
     private val revisionService: RevisionService,
+    private val agencyReader: CachedAgencyReader,
     private val tripReader: CachedTripReader,
     private val patternReader: CachedTripPatternReader,
     private val stopPathReader: CachedStopPathReader,
@@ -98,9 +97,10 @@ class AvlMatchContextFactory(
     fun open(feed: AvlFeed): AvlMatchContext? {
         val gtfsFeed = feeds.findByCode(feed.gtfsFeedCode) ?: return null
         val revisionId = revisionService.activeRevisionId(gtfsFeed.id!!) ?: return null
+        val zone = agencyReader.timezoneOf(revisionId) ?: ZoneId.systemDefault()
         return AvlMatchContext(
             revisionId,
-            ZoneId.systemDefault(),
+            zone,
             tripReader,
             patternReader,
             stopPathReader,

@@ -20,6 +20,13 @@ data class AvlProperties(
         val backtrackToleranceM: Double = 30.0,
         val maxDeviationM: Double = 60.0,
         /**
+         * Layover stop paths are exempt from [maxDeviationM] — a vehicle is allowed to be off-route
+         * during a scheduled layover (e.g. parked at a depot). The exemption isn't unconditional
+         * though: the vehicle must be within `max(1.5x the distance from the previous stop, this)`
+         * of the layover stop, mirroring transitclock's `SpatialMatcher.withinAllowableDistanceOfLayover`.
+         */
+        val layoverDistanceM: Double = 2_000.0,
+        /**
          * Polling cycles with no usable match for a vehicle before it is considered unmatched
          * (`vehicle_state.matched = false`) and its trip/block assignment is dropped. Until this
          * many consecutive failed cycles, a vehicle that had a live match keeps that assignment,

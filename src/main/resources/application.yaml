@@ -1,4 +1,6 @@
 spring:
+  main:
+    banner-mode: off
   application:
     name: transit-track
   graphql:
@@ -36,7 +38,8 @@ transittrack:
         url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
         avl:
           format: gtfs_rt
-          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
+          #          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
+          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=feeds.pb
           prediction-algorithm: kalman
           prediction-mode: single
           assignment-mode: descriptor_then_infer

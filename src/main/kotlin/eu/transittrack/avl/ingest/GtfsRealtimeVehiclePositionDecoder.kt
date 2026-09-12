@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 import com.google.protobuf.InvalidProtocolBufferException
+import com.google.transit.realtime.GtfsRealtime
 import com.google.transit.realtime.GtfsRealtime.FeedMessage
 import com.google.transit.realtime.GtfsRealtime.TripDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
@@ -39,16 +40,17 @@ class GtfsRealtimeVehiclePositionDecoder : AvlFeedDecoder {
         val headerTs = message.header.takeIf { it.hasTimestamp() && it.timestamp > 0 }?.timestamp
         return message.entityList.mapNotNull { entity ->
             if (!entity.hasVehicle()) return@mapNotNull null
-            toReport(entity.vehicle, headerTs, payload.fetchedAt, feed)
+            toReport(entity, headerTs, payload.fetchedAt, feed)
         }
     }
 
     private fun toReport(
-        vp: VehiclePosition,
+        fe: GtfsRealtime.FeedEntity,
         headerTs: Long?,
         fetchedAt: Instant,
         feed: AvlFeed,
     ): AvlReport? {
+        val vp = fe.vehicle
         val vehicleId = vp.vehicle.id.ifEmpty { vp.vehicle.label }
         if (vehicleId.isEmpty()) {
             log.warn("avl feed '{}': vehicle entity without id or label, skipped", feed.code)

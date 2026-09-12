@@ -64,7 +64,11 @@ class FullInferenceMatcher(
             candidates.mapNotNull { t ->
                 val geom = ctx.patternGeometry(t.tripPatternId!!) ?: return@mapNotNull null
                 val minAlong = prev?.takeIf { it.tripRowId == t.id }?.distanceAlongTripM
+
+                // spatial matching
                 val sm = spatial.match(geom, point, minAlong) ?: return@mapNotNull null
+
+                // temporal matching
                 val adherence =
                     temporal.adherenceSec(
                         ctx.scheduleOf(t.id!!),
@@ -74,8 +78,10 @@ class FullInferenceMatcher(
                         t.noSchedule == true,
                     )
                 val continuity = continuityOf(t, prev, ctx)
+
                 Scored(t, geom, sm, adherence, scorer.score(sm.deviationM, report.bearing, sm.heading, adherence, continuity))
             }
+
         if (scored.isEmpty()) return MatchOutcome.Failed
 
         // 4. pick best; re-assignment hysteresis

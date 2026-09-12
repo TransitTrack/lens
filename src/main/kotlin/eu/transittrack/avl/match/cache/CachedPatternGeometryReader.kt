@@ -26,9 +26,11 @@ class CachedPatternGeometryReader(
         if (paths.isEmpty()) return null
         val pts = ArrayList<Point>()
         val cum = DoubleArray(paths.size)
+        val layover = BooleanArray(paths.size)
         var acc = 0.0
         for ((i, sp) in paths.withIndex()) {
             cum[i] = acc
+            layover[i] = sp.layoverStop
             acc += sp.lengthM
             val raw = sp.pathGeometry ?: continue
 
@@ -41,6 +43,6 @@ class CachedPatternGeometryReader(
             }
         }
         if (pts.size < 2) return null
-        return PatternGeometry(Polyline(pts), cum)
+        return PatternGeometry(Polyline(pts), cum, layover)
     }
 }

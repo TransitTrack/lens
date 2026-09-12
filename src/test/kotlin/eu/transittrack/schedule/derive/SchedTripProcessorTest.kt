@@ -25,6 +25,7 @@ import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.ShapePointRepository
 import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
@@ -178,5 +179,30 @@ class SchedTripProcessorTest(
         assertThat(t.startTimeSec).isEqualTo(0)
         assertThat(t.endTimeSec).isEqualTo(86_400)
         assertThat(scheduleTimes.findByTripOrdered(rev, t.id!!)[0].arrivalSec).isNull()
+    }
+
+    @Test
+    fun `derived blockId falls back to tripShortName then tripId when block_id is absent`() {
+        val rev = newRevision(feeds, revisions)
+        gtfsWriter.write(
+            listOf(
+                route(rev, "R", "A"),
+                trip(rev, "R", "hasBlockId", blockId = "B"),
+                Trip(rev, "R", "S", "hasShortNameOnly", null, "SN", null, null, null, null, null),
+                trip(rev, "R", "hasNeither"),
+                stop(rev, "a", 51.10, 17.00), stop(rev, "b", 51.11, 17.00),
+                stopTime(rev, "hasBlockId", 1, "a", 0), stopTime(rev, "hasBlockId", 2, "b", 60),
+                stopTime(rev, "hasShortNameOnly", 1, "a", 0), stopTime(rev, "hasShortNameOnly", 2, "b", 60),
+                stopTime(rev, "hasNeither", 1, "a", 0), stopTime(rev, "hasNeither", 2, "b", 60),
+            ),
+        )
+
+        stage1().postProcess(rev)
+        stage2().postProcess(rev)
+
+        val derived = context.get(rev).derivedTrips.associateBy { it.tripId }
+        assertThat(derived.getValue("hasBlockId").blockId).isEqualTo("B")
+        assertThat(derived.getValue("hasShortNameOnly").blockId).isEqualTo("SN")
+        assertThat(derived.getValue("hasNeither").blockId).isEqualTo("hasNeither")
     }
 }

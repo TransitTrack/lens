@@ -65,11 +65,26 @@ export type AvlReport = {
   bearing?: Maybe<Scalars['Float']['output']>;
   currentStatus?: Maybe<Scalars['String']['output']>;
   descTripId?: Maybe<Scalars['String']['output']>;
+  match?: Maybe<AvlReportMatch>;
+  matchStatus: Scalars['String']['output'];
   occupancyStatus?: Maybe<Scalars['String']['output']>;
   position: LatLon;
   speedMps?: Maybe<Scalars['Float']['output']>;
   ts: Scalars['String']['output'];
   vehicleId: Scalars['String']['output'];
+};
+
+export type AvlReportMatch = {
+  __typename?: 'AvlReportMatch';
+  block?: Maybe<Block>;
+  deviationM: Scalars['Float']['output'];
+  distanceAlongTripM: Scalars['Float']['output'];
+  heading?: Maybe<Scalars['Float']['output']>;
+  scheduleAdherenceSec?: Maybe<Scalars['Int']['output']>;
+  score?: Maybe<Scalars['Float']['output']>;
+  snappedPosition: LatLon;
+  stopPathIndex: Scalars['Int']['output'];
+  trip?: Maybe<Trip>;
 };
 
 export type Block = {
@@ -1129,6 +1144,15 @@ export type AvlFeedsQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, format: string, enabled: boolean, pollIntervalSec: number, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
 
+export type AvlLogQueryVariables = Exact<{
+  feedCode: string;
+  vehicleId: string;
+  limit?: number | null | undefined;
+}>;
+
+
+export type AvlLogQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, matchStatus: string, descTripId: string | null, position: { lat: number, lon: number }, match: { stopPathIndex: number, distanceAlongTripM: number, deviationM: number, scheduleAdherenceSec: number | null, score: number | null, trip: { tripId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null } | null } | null } | null }> };
+
 export type AvlTrailQueryVariables = Exact<{
   feedCode: string;
   vehicleId: string;
@@ -1674,6 +1698,61 @@ export function useAvlFeedsLazyQuery(options: VueApolloComposable.UseQueryOption
   return VueApolloComposable.useLazyQuery<AvlFeedsQuery, AvlFeedsQueryVariables>(AvlFeedsDocument, {}, options);
 }
 export type AvlFeedsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AvlFeedsQuery, AvlFeedsQueryVariables>;
+export const AvlLogDocument = gql`
+    query AvlLog($feedCode: String!, $vehicleId: String!, $limit: Int) {
+  avlReports(feedCode: $feedCode, vehicleId: $vehicleId, limit: $limit) {
+    ts
+    position {
+      lat
+      lon
+    }
+    speedMps
+    bearing
+    matchStatus
+    descTripId
+    match {
+      stopPathIndex
+      distanceAlongTripM
+      deviationM
+      scheduleAdherenceSec
+      score
+      trip {
+        tripId
+        tripHeadsign
+        route {
+          routeShortName
+          routeColor
+        }
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useAvlLogQuery__
+ *
+ * To run a query within a Vue component, call `useAvlLogQuery` and pass it any options that fit your needs.
+ * When your component renders, `useAvlLogQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useAvlLogQuery({
+ *   feedCode: // value for 'feedCode'
+ *   vehicleId: // value for 'vehicleId'
+ *   limit: // value for 'limit'
+ * });
+ */
+export function useAvlLogQuery(variables: AvlLogQueryVariables | VueCompositionApi.Ref<AvlLogQueryVariables> | ReactiveFunction<AvlLogQueryVariables>, options: VueApolloComposable.UseQueryOptions<AvlLogQuery, AvlLogQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AvlLogQuery, AvlLogQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AvlLogQuery, AvlLogQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<AvlLogQuery, AvlLogQueryVariables>(AvlLogDocument, variables, options);
+}
+export function useAvlLogLazyQuery(variables?: AvlLogQueryVariables | VueCompositionApi.Ref<AvlLogQueryVariables> | ReactiveFunction<AvlLogQueryVariables>, options: VueApolloComposable.UseQueryOptions<AvlLogQuery, AvlLogQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AvlLogQuery, AvlLogQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AvlLogQuery, AvlLogQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<AvlLogQuery, AvlLogQueryVariables>(AvlLogDocument, variables, options);
+}
+export type AvlLogQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AvlLogQuery, AvlLogQueryVariables>;
 export const AvlTrailDocument = gql`
     query AvlTrail($feedCode: String!, $vehicleId: String!, $limit: Int) {
   avlReports(feedCode: $feedCode, vehicleId: $vehicleId, limit: $limit) {

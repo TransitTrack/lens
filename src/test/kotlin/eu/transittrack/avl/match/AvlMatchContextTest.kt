@@ -2,6 +2,7 @@ package eu.transittrack.avl.match
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -103,6 +104,12 @@ class AvlMatchContextTest(
         assertThat(schedule).isNotEmpty()
         val indices = schedule.map { it.stopPathIndex }
         assertThat(indices).isEqualTo(indices.sorted())
+    }
+
+    @Test
+    fun `zone comes from the feed's agency timezone, not the system default`() {
+        val ctx = factory.open(avlFeed)!!
+        assertThat(ctx.zone).isEqualTo(ZoneId.of("Europe/Warsaw"))
     }
 
     @Test

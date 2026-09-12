@@ -4,6 +4,7 @@ import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.ingest.VehicleStopStatus
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
+import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 
 data class LatLonDto(
@@ -105,24 +106,64 @@ data class AvlReportDto(
     val currentStatus: String?,
     val occupancyStatus: String?,
     val descTripId: String?,
+    val matchStatus: String,
+    val match: AvlReportMatchDto?,
 ) {
     companion object {
-        fun of(r: AvlReportRow) =
-            AvlReportDto(
-                vehicleId = r.vehicleId,
-                ts = r.ts.toString(),
-                position = LatLonDto(r.lat, r.lon),
-                bearing = r.bearing,
-                speedMps = r.speedMps,
-                currentStatus =
-                    r.currentStatus?.let {
-                        runCatching { VehicleStopStatus.entries[it].name }.getOrNull()
-                    },
-                occupancyStatus =
-                    r.occupancyStatus?.let {
-                        runCatching { AvlOccupancyStatus.entries[it].name }.getOrNull()
-                    },
-                descTripId = r.descTripId,
-            )
+        fun of(
+            r: AvlReportRow,
+            match: AvlReportMatchDto?,
+        ) = AvlReportDto(
+            vehicleId = r.vehicleId,
+            ts = r.ts.toString(),
+            position = LatLonDto(r.lat, r.lon),
+            bearing = r.bearing,
+            speedMps = r.speedMps,
+            currentStatus =
+                r.currentStatus?.let {
+                    runCatching { VehicleStopStatus.entries[it].name }.getOrNull()
+                },
+            occupancyStatus =
+                r.occupancyStatus?.let {
+                    runCatching { AvlOccupancyStatus.entries[it].name }.getOrNull()
+                },
+            descTripId = r.descTripId,
+            matchStatus = r.matchStatus.name,
+            match = match,
+        )
+    }
+}
+
+data class AvlReportMatchDto(
+    val stopPathIndex: Int,
+    val distanceAlongTripM: Double,
+    val deviationM: Double,
+    val scheduleAdherenceSec: Int?,
+    val heading: Double?,
+    val score: Double?,
+    val snappedPosition: LatLonDto,
+    // resolver-only, not exposed as schema fields:
+    val revisionId: Long,
+    val tripRowId: Long,
+    val blockPk: Long?,
+    val gtfsFeedCode: String,
+) {
+    companion object {
+        fun of(
+            m: VehicleMatch,
+            gtfsFeedCode: String,
+        ) = AvlReportMatchDto(
+            stopPathIndex = m.stopPathIndex,
+            distanceAlongTripM = m.distanceAlongTripM,
+            deviationM = m.deviationM,
+            scheduleAdherenceSec = m.scheduleAdherenceSec,
+            heading = m.heading,
+            score = m.score,
+            snappedPosition = LatLonDto(m.snappedLat, m.snappedLon),
+            revisionId = m.revisionId,
+            tripRowId = m.tripRowId,
+            blockPk = m.blockPk,
+            gtfsFeedCode = gtfsFeedCode,
+        )
     }
 }

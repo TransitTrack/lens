@@ -5,6 +5,7 @@ import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import SparklineChart from '~/components/SparklineChart.vue'
 import VehicleFactsGrid, {type Fact} from '~/components/VehicleFactsGrid.vue'
 import VehicleTelemetry from '~/components/VehicleTelemetry.vue'
+import VehicleAvlLog from '~/components/VehicleAvlLog.vue'
 import {useFeeds} from '~/composables/useFeeds'
 import {useFeedExtent} from '~/composables/useFeedExtent'
 import {usePollControl} from '~/composables/usePollControl'
@@ -58,6 +59,7 @@ const latestReport = computed(() => reports.value[0] ?? null)
 const trail = computed(() => trailCoords(reports.value))
 
 const follow = ref(false)
+const avlLogOpen = ref(false)
 
 const adherenceSec = computed(() => vehicle.value?.scheduleAdherenceSec ?? null)
 const {points: adherenceHistory} = useAdherenceHistory(adherenceSec, vehicleId)
@@ -239,6 +241,16 @@ function signedSec(sec: number | null): string {
           square
           aria-label="Follow vehicle"
           @click="follow = !follow"
+        />
+      </UTooltip>
+      <UTooltip text="AVL log">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-list"
+          square
+          aria-label="AVL log"
+          @click="avlLogOpen = true"
         />
       </UTooltip>
       <NavbarActions :updated-at="vehicle?.reportTs"/>
@@ -441,5 +453,12 @@ function signedSec(sec: number | null): string {
         />
       </div>
     </div>
+
+    <VehicleAvlLog
+      v-if="selectedAvlFeedCode"
+      v-model:open="avlLogOpen"
+      :feed-code="selectedAvlFeedCode"
+      :vehicle-id="vehicleId"
+    />
   </AppPage>
 </template>

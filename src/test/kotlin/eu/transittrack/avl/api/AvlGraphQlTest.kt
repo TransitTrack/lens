@@ -197,4 +197,27 @@ class AvlGraphQlTest(
             .entityList(Any::class.java)
             .hasSize(2)
     }
+
+    @Test
+    fun `avlReports carries matchStatus and nested match info per report`() {
+        val results =
+            tester
+                .document(
+                    """{ avlReports(feedCode:"a", vehicleId:"bus-1"){
+                         matchStatus
+                         match { stopPathIndex distanceAlongTripM deviationM trip { tripId } }
+                       } }""",
+                ).execute()
+                .path("avlReports")
+                .entityList(Map::class.java)
+                .get()
+
+        assertThat(results).isNotEmpty()
+        for (r in results) {
+            assertThat(r["matchStatus"]).isEqualTo("MATCHED")
+            @Suppress("UNCHECKED_CAST")
+            val match = r["match"] as Map<String, Any?>
+            assertThat((match["trip"] as Map<*, *>)["tripId"]).isEqualTo("T1")
+        }
+    }
 }

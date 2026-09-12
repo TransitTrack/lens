@@ -1,0 +1,28 @@
+query AvlLog($feedCode: String!, $vehicleId: String!, $limit: Int) {
+  avlReports(feedCode: $feedCode, vehicleId: $vehicleId, limit: $limit) {
+    ts
+    position {
+      lat
+      lon
+    }
+    speedMps
+    bearing
+    matchStatus
+    descTripId
+    match {
+      stopPathIndex
+      distanceAlongTripM
+      deviationM
+      scheduleAdherenceSec
+      score
+      trip {
+        tripId
+        tripHeadsign
+        route {
+          routeShortName
+          routeColor
+        }
+      }
+    }
+  }
+}

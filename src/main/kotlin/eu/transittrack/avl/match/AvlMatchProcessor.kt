@@ -63,6 +63,7 @@ class AvlMatchProcessor(
             val vehiclesPreviousStates = vehicleStates
                 .findByFeedId(feedId)
                 .associateBy { it.vehicleId }
+
             for ((vehicleId, reports) in vehiclesForFeed) {
                 val prev = vehiclesPreviousStates[vehicleId]
 
@@ -70,7 +71,8 @@ class AvlMatchProcessor(
                 reports
                     .sortedBy { it.ts }
                     .forEachIndexed { index, report ->
-                        persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
+                        val match = matcher.match(report, prev, ctx)
+                        persist(feed, report, match, prev, ctx)
 //                        if (index != reports.lastIndex) {
 //                            persist(feed, report, MatchOutcome.Skipped, prev, ctx)
 //                        } else {

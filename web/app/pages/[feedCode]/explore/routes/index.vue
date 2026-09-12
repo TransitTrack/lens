@@ -77,7 +77,6 @@ function onSelect(_e: Event, row: { original: Row }) {
     <UTable v-else :data="rows" :columns="columns" @select="onSelect">
       <template #routeShortName-cell="{ row }">
         <UBadge
-          size="md"
           :style="{
             backgroundColor: hexColor(row.original.routeColor, undefined),
             color: row.original.routeTextColor ? hexColor(row.original.routeTextColor) : undefined,
@@ -85,6 +84,9 @@ function onSelect(_e: Event, row: { original: Row }) {
         >
           {{ row.original.routeShortName ?? row.original.routeId }}
         </UBadge>
+      </template>
+      <template #routeLongName-cell="{ row }">
+        {{ row.original.routeLongName?.substring(0, 60) }}
       </template>
       <template #routeType-cell="{ row }">{{ routeTypeLabel(row.original.routeType) }}</template>
       <template #agency-cell="{ row }">

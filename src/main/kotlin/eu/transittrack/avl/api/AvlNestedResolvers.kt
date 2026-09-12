@@ -3,6 +3,7 @@ package eu.transittrack.avl.api
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.avl.read.dto.AvlReportMatchDto
 import eu.transittrack.avl.read.dto.VehicleDto
 import eu.transittrack.gtfs.api.dto.StopDto
 import eu.transittrack.gtfs.api.dto.TripDto
@@ -55,5 +56,15 @@ class AvlNestedResolvers(
         val idx = v.stopPathIndex ?: return null
         val sp = stopPaths.findByTripPatternOrdered(rev, pid).getOrNull(idx) ?: return null
         return stops.findByStopId(rev, sp.stopId)?.let { StopDto.of(it, rev, v.gtfsFeedCode) }
+    }
+
+    @SchemaMapping(typeName = "AvlReportMatch")
+    fun trip(m: AvlReportMatchDto): TripDto? =
+        trips.findById(m.tripRowId).orElse(null)?.let { TripDto.of(it, m.revisionId, m.gtfsFeedCode) }
+
+    @SchemaMapping(typeName = "AvlReportMatch")
+    fun block(m: AvlReportMatchDto): BlockDto? {
+        val pk = m.blockPk ?: return null
+        return blocks.findById(pk).orElse(null)?.let { BlockDto.of(it, m.revisionId, m.gtfsFeedCode) }
     }
 }
