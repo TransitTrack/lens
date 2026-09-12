@@ -2,6 +2,7 @@ package eu.transittrack.predict.api
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -46,6 +47,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.schedule.model.ScheduleTimeRepository
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -74,6 +76,7 @@ class PredictionGraphQlTest(
     @Autowired val travelTimeObservations: TravelTimeObservationRepository,
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
+    @Autowired val scheduleTimes: ScheduleTimeRepository,
 ) {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -170,6 +173,42 @@ class PredictionGraphQlTest(
         assertThat(first["algorithm"]).isEqualTo("SCHEDULE_ADHERENCE")
         @Suppress("UNCHECKED_CAST")
         assertThat((first["stop"] as Map<String, Any?>)["stopId"]).isNotNull()
+    }
+
+    @Test
+    fun `vehiclePredictions schedules arrivals in the agency timezone`() {
+        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        val prediction =
+            vehiclePredictions
+                .findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", state.tripRowId!!)
+                .first()
+        val schedule =
+            scheduleTimes
+                .findByTripOrdered(state.revisionId!!, state.tripRowId!!)
+                .first { it.stopPathIndex == prediction.stopPathIndex }
+        val expected =
+            prediction
+                .computedAt
+                .atZone(ZoneId.of("Europe/Warsaw"))
+                .toLocalDate()
+                .atStartOfDay(ZoneId.of("Europe/Warsaw"))
+                .plusSeconds(schedule.arrivalSec!!.toLong())
+                .toInstant()
+                .toString()
+
+        val rows =
+            tester
+                .document(
+                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1") {
+                         stopPathIndex scheduledArrival
+                       } }""",
+                ).execute()
+                .path("vehiclePredictions")
+                .entityList(Map::class.java)
+                .get()
+
+        val row = rows.first { (it["stopPathIndex"] as Number).toInt() == prediction.stopPathIndex }
+        assertThat(row["scheduledArrival"]).isEqualTo(expected)
     }
 
     @Test

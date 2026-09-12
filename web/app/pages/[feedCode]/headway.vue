@@ -152,6 +152,10 @@ function formatDur(sec: number): string {
   return s ? `${m}m ${s}s` : `${m}m`
 }
 
+function formatDelta(sec: number): string {
+  return `${sec > 0 ? '+' : sec < 0 ? '−' : ''}${formatDur(Math.abs(sec))}`
+}
+
 const gapBars = computed<Bar[]>(() => {
   const gaps = headway.value?.gapsSec ?? []
   const sched = headway.value?.scheduledHeadwaySec ?? null
@@ -170,16 +174,25 @@ const waitRatio = computed(() => {
   if (w == null || !s) return null
   return {ratio: w / s, pct: Math.min(100, (w / s) * 100), over: w > s}
 })
+
+const varianceSec = computed(() => {
+  const wait = headway.value?.waitSec
+  const scheduled = headway.value?.scheduledHeadwaySec
+  return wait != null && scheduled != null ? wait - scheduled : null
+})
+
+const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.value[0]?.scheduledArrival)
 </script>
 
 <template>
-  <AppPage title="Headway">
+  <AppPage title="Headway" description="Live spacing and arrival reliability at a selected stop">
     <template #actions>
       <NavbarActions/>
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>
-      <div class="flex flex-wrap items-center gap-2 py-2">
+      <div class="flex flex-wrap items-center gap-3 border-b border-default bg-elevated/30 px-4 py-3">
+        <div class="mr-1 text-sm font-medium text-highlighted">Analyse service</div>
         <USelectMenu
           :model-value="selectedRouteId"
           :items="routeOptions"
@@ -212,8 +225,12 @@ const waitRatio = computed(() => {
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="headway analysis"/>
 
-    <div v-else-if="!querySelected" class="text-sm text-muted">
-      Pick a route and a stop to see headway and upcoming arrivals.
+    <div v-else-if="!querySelected" class="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
+      <div class="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <UIcon name="i-lucide-timer" class="size-6"/>
+      </div>
+      <div class="text-base font-medium text-highlighted">Choose a service point</div>
+      <p class="text-sm text-muted">Pick a route and stop to review current spacing, recent gaps, and upcoming arrivals.</p>
     </div>
 
     <UAlert
@@ -231,49 +248,69 @@ const waitRatio = computed(() => {
         <USkeleton class="h-40 w-full"/>
       </div>
 
-      <div v-else-if="headway" class="grid gap-4 lg:grid-cols-3">
-        <UCard class="lg:col-span-1" :ui="{ body: 'flex flex-col gap-3' }">
-          <div class="text-xs font-medium text-muted">Current wait vs scheduled headway</div>
-          <div class="flex items-baseline gap-2">
-            <span class="text-3xl font-semibold text-highlighted">
-              {{ headway.waitSec != null ? formatDur(headway.waitSec) : '—' }}
-            </span>
-            <span class="text-sm text-dimmed">
-              /
-              {{
-                headway.scheduledHeadwaySec != null ? formatDur(headway.scheduledHeadwaySec) : '—'
-              }}
-            </span>
+      <div v-else-if="headway" class="flex flex-col gap-4">
+        <section class="grid overflow-hidden rounded-xl border border-default bg-default sm:grid-cols-2 xl:grid-cols-4">
+          <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Current wait</span>
+            <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ headway.waitSec != null ? formatDur(headway.waitSec) : '—' }}</span>
+            <span class="text-xs text-muted">Since the last observed arrival</span>
           </div>
-          <div v-if="waitRatio" class="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
-            <div
-              class="h-full rounded-full transition-[width]"
-              :class="waitRatio.over ? 'bg-error' : 'bg-primary'"
-              :style="{ width: `${waitRatio.pct}%` }"
+          <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Scheduled headway</span>
+            <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ headway.scheduledHeadwaySec != null ? formatDur(headway.scheduledHeadwaySec) : '—' }}</span>
+            <span class="text-xs text-muted">Planned service interval</span>
+          </div>
+          <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r">
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Spacing variance</span>
+            <span class="text-2xl font-semibold tabular-nums" :class="varianceSec != null && varianceSec > 0 ? 'text-error' : 'text-highlighted'">{{ varianceSec != null ? formatDelta(varianceSec) : '—' }}</span>
+            <span class="text-xs text-muted">{{ varianceSec != null && varianceSec > 0 ? 'Above planned spacing' : 'Against planned spacing' }}</span>
+          </div>
+          <div class="flex flex-col gap-1 p-4">
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Next arrival</span>
+            <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ formatTs(nextArrival) }}</span>
+            <span class="text-xs text-muted">{{ headway.gapsSec.length }} recent gap{{ headway.gapsSec.length === 1 ? '' : 's' }} sampled</span>
+          </div>
+        </section>
+
+        <div class="grid gap-4 lg:grid-cols-3">
+          <UCard class="lg:col-span-1" :ui="{ body: 'flex flex-col gap-3' }">
+            <div class="text-sm font-medium text-highlighted">Current spacing</div>
+            <div v-if="waitRatio" class="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
+              <div
+                class="h-full rounded-full transition-[width]"
+                :class="waitRatio.over ? 'bg-error' : 'bg-primary'"
+                :style="{ width: `${waitRatio.pct}%` }"
+              />
+            </div>
+            <p v-if="waitRatio" class="text-sm text-muted">
+              {{ waitRatio.over ? 'Over' : 'Under' }} scheduled headway ({{ Math.round(waitRatio.ratio * 100) }}%)
+            </p>
+            <p v-else class="text-sm text-dimmed">Waiting for enough live arrivals to compare spacing.</p>
+          </UCard>
+
+          <UCard class="lg:col-span-2" :ui="{ body: 'flex flex-col gap-3' }">
+            <div class="text-sm font-medium text-highlighted">Recent gaps between arrivals</div>
+            <p v-if="!gapBars.length" class="text-sm text-dimmed">No gaps recorded yet.</p>
+            <BarChart
+              v-else
+              :bars="gapBars"
+              :reference-value="headway.scheduledHeadwaySec"
+              reference-label="scheduled headway"
+              :height="150"
+              :format="formatDur"
             />
+          </UCard>
+        </div>
+
+      <section class="overflow-hidden rounded-xl border border-default bg-default">
+        <div class="flex items-center justify-between border-b border-default px-4 py-3">
+          <div>
+            <div class="text-sm font-medium text-highlighted">Upcoming arrivals</div>
+            <div class="text-xs text-muted">Realtime predictions for the selected route and stop</div>
           </div>
-          <p v-if="waitRatio" class="text-xs text-dimmed">
-            {{ waitRatio.over ? 'Over' : 'Under' }} scheduled headway ({{
-              Math.round(waitRatio.ratio * 100)
-            }}%)
-          </p>
-        </UCard>
-
-        <UCard class="lg:col-span-2" :ui="{ body: 'flex flex-col gap-3' }">
-          <div class="text-xs font-medium text-muted">Recent gaps between arrivals</div>
-          <p v-if="!gapBars.length" class="text-sm text-dimmed">No gaps recorded yet.</p>
-          <BarChart
-            v-else
-            :bars="gapBars"
-            :reference-value="headway.scheduledHeadwaySec"
-            reference-label="scheduled headway"
-            :height="150"
-            :format="formatDur"
-          />
-        </UCard>
-      </div>
-
-      <UTable :data="board" :columns="boardColumns">
+          <span class="text-xs text-dimmed">{{ board.length }} arrivals</span>
+        </div>
+        <UTable :data="board" :columns="boardColumns">
         <template #scheduledArrival-cell="{ row }">{{
             formatTs(row.original.scheduledArrival)
           }}
@@ -295,7 +332,9 @@ const waitRatio = computed(() => {
           </UBadge>
           <span v-else class="text-dimmed">—</span>
         </template>
-      </UTable>
+        </UTable>
+      </section>
+      </div>
     </template>
   </AppPage>
 </template>

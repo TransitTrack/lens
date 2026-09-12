@@ -11,6 +11,7 @@ import assertk.assertions.isNotEmpty
 import assertk.assertions.isNotNull
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
@@ -138,6 +139,39 @@ class AvlGraphQlTest(
         vehicleStates.deleteAll()
         reports.deleteAll()
         feeds.deleteById(feedId)
+    }
+
+    @BeforeEach
+    fun refreshVehicleReport() {
+        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        state.reportTs = Instant.now().minusSeconds(60)
+        vehicleStates.saveAndFlush(state)
+    }
+
+    @Test
+    fun `vehicles with reports older than one hour are hidden even when recently processed`() {
+        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        state.reportTs = Instant.now().minusSeconds(3601)
+        state.updatedAt = Instant.now()
+        vehicleStates.saveAndFlush(state)
+
+        tester
+            .document("""{ vehicles(feedCode:"a"){ vehicleId } }""")
+            .execute()
+            .path("vehicles")
+            .entityList(Any::class.java)
+            .hasSize(0)
+        tester
+            .document("""{ vehicles(feedCode:"a", matchedOnly:true){ vehicleId } }""")
+            .execute()
+            .path("vehicles")
+            .entityList(Any::class.java)
+            .hasSize(0)
+        tester
+            .document("""{ vehicle(feedCode:"a", vehicleId:"bus-1"){ vehicleId } }""")
+            .execute()
+            .path("vehicle")
+            .valueIsNull()
     }
 
     @Test

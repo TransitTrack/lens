@@ -49,10 +49,10 @@ const linePaint = computed<LineLayerSpecification['paint']>(() => {
 })
 
 const stopPaint = computed<CircleLayerSpecification['paint']>(() => ({
-  'circle-radius': props.dim ? 2 : 2.5,
-  'circle-color': '#3b82f6',
-  'circle-opacity': props.dim ? 0.5 : 1,
-  'circle-stroke-width': props.dim ? 0 : 0.75,
+  'circle-radius': props.dim ? 2 : 3,
+  'circle-color': '#64748b',
+  'circle-opacity': props.dim ? 0.45 : 0.8,
+  'circle-stroke-width': props.dim ? 0 : 1,
   'circle-stroke-color': '#ffffff',
 }))
 

@@ -63,6 +63,13 @@ const runtimeSec = computed(() => {
   const t = trip.value
   return t?.startTimeSec != null && t?.endTimeSec != null ? t.endTimeSec - t.startTimeSec : null
 })
+
+const tripStats = computed(() => ({
+  stops: stopTimes.value.length,
+  runtime: runtimeSec.value != null ? `${Math.round(runtimeSec.value / 60)}m` : '—',
+  length: trip.value?.pattern?.lengthM ? `${(trip.value.pattern.lengthM / 1000).toFixed(1)} km` : '—',
+  start: trip.value?.startTimeSec != null ? secToHm(trip.value.startTimeSec) : '—',
+}))
 </script>
 
 <template>
@@ -140,6 +147,30 @@ const runtimeSec = computed(() => {
           </div>
         </div>
 
+        <section class="grid grid-cols-2 overflow-hidden rounded-xl border border-default bg-default">
+          <div class="border-b border-r border-default p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ tripStats.stops }}</div>
+          </div>
+          <div class="border-b border-default p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Runtime</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ tripStats.runtime }}</div>
+          </div>
+          <div class="border-r border-default p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Length</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ tripStats.length }}</div>
+          </div>
+          <div class="p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Starts</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ tripStats.start }}</div>
+          </div>
+        </section>
+
+        <section class="overflow-hidden rounded-xl border border-default bg-default">
+          <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
+            <span class="text-sm font-medium text-highlighted">Stop timetable</span>
+            <span class="text-xs text-dimmed">Scheduled times</span>
+          </div>
         <table class="w-full text-sm">
           <thead>
           <tr class="text-left text-xs text-dimmed">
@@ -198,6 +229,7 @@ const runtimeSec = computed(() => {
           </tr>
           </tbody>
         </table>
+        </section>
       </aside>
       <div class="relative min-w-0 flex-1">
         <VehicleRouteMap

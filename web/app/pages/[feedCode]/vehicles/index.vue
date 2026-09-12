@@ -36,13 +36,13 @@ function openVehicle(vehicleId: string) {
 </script>
 
 <template>
-  <AppPage title="Vehicles" full-bleed>
+  <AppPage title="Vehicles" description="Live vehicle positions, route matching, and service status" full-bleed>
     <template #actions>
       <NavbarActions :updated-at="newestReport"/>
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>
-      <div class="flex flex-wrap items-center justify-between gap-x-5 gap-y-1 py-2">
+      <div class="flex flex-wrap items-center justify-between gap-3 py-2">
         <div class="flex flex-wrap items-center gap-x-5 gap-y-1">
           <div v-for="stat in stats" :key="stat.label" class="flex items-center gap-1.5 text-sm">
             <UIcon :name="stat.icon" class="size-4 shrink-0 text-dimmed"/>
@@ -50,7 +50,6 @@ function openVehicle(vehicleId: string) {
             <span class="text-muted">{{ stat.label }}</span>
           </div>
         </div>
-        <VehicleFilters v-model="filters" :feed-code="selectedFeedCode"/>
       </div>
     </template>
 
@@ -67,7 +66,7 @@ function openVehicle(vehicleId: string) {
     />
 
     <div v-else class="flex min-h-0 flex-1 flex-col">
-      <div class="relative min-h-0 flex-1">
+      <div class="relative min-h-0 flex-1 bg-elevated/10">
         <VehicleMap
           :vehicles="filtered"
           :extent="extent"
@@ -86,14 +85,33 @@ function openVehicle(vehicleId: string) {
         >
           {{ filtered.length }} of {{ vehicles.length }} vehicles
         </div>
+        <div
+          v-else
+          class="pointer-events-none absolute left-4 top-4 rounded-lg border border-default bg-default/90 px-3 py-2 shadow-sm backdrop-blur"
+        >
+          <div class="text-sm font-medium text-highlighted">Fleet map</div>
+          <div class="text-xs text-muted">Select a vehicle to inspect its trip and live position</div>
+        </div>
       </div>
 
-      <div class="h-[40vh] shrink-0 overflow-y-auto border-t border-default">
+      <section class="flex h-[40vh] shrink-0 flex-col border-t border-default bg-elevated/20">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default bg-default/70 px-4 py-2.5">
+          <div>
+            <div class="text-sm font-medium text-highlighted">Vehicle directory</div>
+            <div class="text-xs text-muted">Current reports from the selected realtime feed</div>
+          </div>
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <VehicleFilters v-model="filters" :feed-code="selectedFeedCode"/>
+            <span class="whitespace-nowrap text-xs text-dimmed">{{ filtered.length.toLocaleString() }} vehicles</span>
+          </div>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto">
         <div v-if="showSkeleton" class="flex flex-col gap-2 p-3">
           <USkeleton v-for="i in 6" :key="i" class="h-10 w-full"/>
         </div>
         <VehicleList v-else :vehicles="filtered" @select="openVehicle"/>
-      </div>
+        </div>
+      </section>
     </div>
   </AppPage>
 </template>

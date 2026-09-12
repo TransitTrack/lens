@@ -28,7 +28,9 @@ const routeItems = computed(() => [
     })),
 ])
 
-const dirty = computed(() => model.value.routeId != null || model.value.statuses.length > 0)
+const dirty = computed(() =>
+  model.value.query.trim().length > 0 || model.value.routeId != null || model.value.statuses.length > 0,
+)
 
 function reset() {
   model.value = emptyFilters()
@@ -37,6 +39,13 @@ function reset() {
 
 <template>
   <div class="flex flex-wrap items-center gap-2">
+    <UInput
+      :model-value="model.query"
+      icon="i-lucide-search"
+      placeholder="Search vehicle, route, destination"
+      class="w-64 max-w-full"
+      @update:model-value="model = { ...model, query: $event }"
+    />
     <USelectMenu
       :model-value="model.routeId"
       :items="routeItems"

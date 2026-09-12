@@ -1,5 +1,6 @@
 package eu.transittrack.avl.read
 
+import java.time.Duration
 import java.time.Instant
 
 import org.springframework.data.domain.PageRequest
@@ -28,8 +29,10 @@ class AvlReadService(
         matchedOnly: Boolean,
     ): List<VehicleDto> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
+        val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
             .findByFeedIdOrderByUpdatedAtDesc(feed.id!!)
+            .filter { !it.reportTs.isBefore(cutoff) }
             .filter { !matchedOnly || it.matched }
             .map { VehicleDto.of(it, feed.gtfsFeedCode) }
     }
@@ -39,9 +42,15 @@ class AvlReadService(
         vehicleId: String,
     ): VehicleDto? {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
+        val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
             .findByFeedIdAndVehicleId(feed.id!!, vehicleId)
+            ?.takeIf { !it.reportTs.isBefore(cutoff) }
             ?.let { VehicleDto.of(it, feed.gtfsFeedCode) }
+    }
+
+    private companion object {
+        val MAX_REPORT_AGE: Duration = Duration.ofHours(1)
     }
 
     fun avlReports(

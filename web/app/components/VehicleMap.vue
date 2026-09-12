@@ -377,7 +377,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
     <VehicleMapLegend class="absolute bottom-2 left-2"/>
 
     <UButton
-      class="absolute left-2 top-2 shadow"
+      class="absolute right-14 top-3 shadow"
       color="neutral"
       variant="solid"
       icon="i-lucide-scan"

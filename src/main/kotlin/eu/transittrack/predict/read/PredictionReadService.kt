@@ -6,6 +6,7 @@ import java.time.temporal.ChronoUnit
 
 import org.springframework.stereotype.Service
 
+import eu.transittrack.avl.match.cache.CachedAgencyReader
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.gtfs.read.RevisionResolver
@@ -29,6 +30,7 @@ class PredictionReadService(
     private val stopPaths: StopPathRepository,
     private val revisionResolver: RevisionResolver,
     private val tripPatternsRepo: TripPatternRepository,
+    private val agencies: CachedAgencyReader,
 ) {
     fun vehiclePredictions(
         feedCode: String,
@@ -43,7 +45,7 @@ class PredictionReadService(
         val rows = predictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feed.id!!, vehicleId, tripRowId)
         val schedule = scheduleTimes.findByTripOrdered(revisionId, tripRowId).associateBy { it.stopPathIndex }
         val stopPathsByIndex = stopPaths.findByTripPatternOrdered(revisionId, tripPatternId).associateBy { it.stopPathIndex }
-        val zone = ZoneId.systemDefault()
+        val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
 
         return rows.mapNotNull { r ->
             val stopId = stopPathsByIndex[r.stopPathIndex]?.stopId ?: return@mapNotNull null
@@ -80,7 +82,7 @@ class PredictionReadService(
         val revisionId = revisionResolver.resolve(feed.gtfsFeedCode, null)
         val patternIds = tripPatterns(revisionId, routeId, directionId).map { it.id!! }.toSet()
         val matchingStopPaths = stopPaths.findByStopId(revisionId, stopId).filter { it.tripPatternId in patternIds }
-        val zone = ZoneId.systemDefault()
+        val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
         return matchingStopPaths.flatMap { sp ->
             predictions
                 .findByTripPatternIdAndStopPathIndexAndAlgorithm(sp.tripPatternId, sp.stopPathIndex, feed.predictionAlgorithm)

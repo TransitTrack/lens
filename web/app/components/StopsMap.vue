@@ -76,81 +76,6 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
   if (typeof id === 'string') emit('select', id)
 }
 
-// Same halo treatment as VehicleHeadingMarker.vue: a white disc (with a
-// soft shadow) behind the glyph. The glyph itself is a small map-pin
-// symbol — like `.vhm__arrow` sits inside the vehicle's halo — sized to sit
-// fully within the halo rather than poking a tail out past it.
-function drawStopIcon(color: string): ImageData {
-  const size = 45
-  const canvas = document.createElement('canvas')
-  canvas.width = size
-  canvas.height = size
-  const ctx = canvas.getContext('2d')!
-
-  const cx = size / 2
-  const cy = size / 2
-  const haloR = size * 0.45
-
-  // .vhm--halo: background: white; box-shadow: 0 1px 4px rgb(0 0 0 / 0.35)
-  ctx.beginPath()
-  ctx.arc(cx, cy, haloR, 0, Math.PI * 2)
-  ctx.fillStyle = '#888888'
-  ctx.shadowColor = 'rgba(0,0,0,0.35)'
-  ctx.shadowBlur = 4
-  ctx.shadowOffsetY = 1
-  ctx.fill()
-
-  // Pin symbol: head + tapered tail, capped with a white stroke like
-  // `.vhm__arrow`'s `stroke="white"`, plus a punched-out window in the head.
-  const headR = size * 0.175
-  const headCy = cy - size * 0.1
-  const tipY = cy + haloR * 0.72
-
-  ctx.beginPath()
-  ctx.arc(cx, headCy, headR, 0, Math.PI * 2)
-  ctx.moveTo(cx - headR * 0.62, headCy + headR * 0.62)
-  ctx.lineTo(cx, tipY)
-  ctx.lineTo(cx + headR * 0.62, headCy + headR * 0.62)
-  ctx.closePath()
-  ctx.fillStyle = color
-  ctx.fill('nonzero')
-  ctx.lineWidth = 0.2
-  ctx.strokeStyle = '#ffffff'
-  ctx.stroke()
-
-  ctx.beginPath()
-  ctx.arc(cx, headCy, headR * 0.42, 0, Math.PI * 2)
-  ctx.fillStyle = '#ffffff'
-  ctx.fill()
-
-  return ctx.getImageData(0, 0, size, size)
-}
-
-const STOP_PIN = 'stop-pin'
-const STOP_PIN_FOCUSED = 'stop-pin-focused'
-const pinIcons: Record<string, ImageData> = {
-  [STOP_PIN]: drawStopIcon('#FFF'),
-  [STOP_PIN_FOCUSED]: drawStopIcon('#ef4444'),
-}
-
-function registerPinIcons() {
-  const gl = map.map
-  if (!gl) return
-  for (const [id, image] of Object.entries(pinIcons)) {
-    if (!gl.hasImage(id)) gl.addImage(id, image, {pixelRatio: 2})
-  }
-}
-
-watch(
-  () => map.isLoaded,
-  (loaded) => {
-    if (!loaded) return
-    registerPinIcons()
-    // Re-add after a style swap (e.g. light/dark basemap change) drops the sprite.
-    map.map?.on('styleimagemissing', registerPinIcons)
-  },
-  {immediate: true},
-)
 </script>
 
 <template>
@@ -165,14 +90,38 @@ watch(
     >
       <MglNavigationControl/>
       <MglGeoJsonSource source-id="all-stops" :data="props.stops">
-        <MglSymbolLayer
-          layer-id="all-stops-pins"
-          :layout="{
-            'icon-image': ['case', ['==', ['get', 'stopId'], props.focusId ?? ''], STOP_PIN_FOCUSED, STOP_PIN],
-            'icon-size': ['case', ['==', ['get', 'stopId'], props.focusId ?? ''], 1.2, 1],
-            'icon-anchor': 'center',
-            'icon-allow-overlap': true,
-            'icon-ignore-placement': true,
+        <MglCircleLayer
+          v-if="props.focusId"
+          layer-id="focused-stop-halo"
+          :filter="['==', ['get', 'stopId'], props.focusId]"
+          :paint="{
+            'circle-radius': 10,
+            'circle-color': '#ffffff',
+            'circle-opacity': 0.9,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#4f46e5',
+          }"
+        />
+        <MglCircleLayer
+          layer-id="all-stops-circles"
+          :paint="{
+            'circle-radius': 4,
+            'circle-color': '#475569',
+            'circle-opacity': 0.9,
+            'circle-stroke-width': 1.5,
+            'circle-stroke-color': '#ffffff',
+          }"
+          @click="onClick"
+        />
+        <MglCircleLayer
+          v-if="props.focusId"
+          layer-id="focused-stop-core"
+          :filter="['==', ['get', 'stopId'], props.focusId]"
+          :paint="{
+            'circle-radius': 5.5,
+            'circle-color': '#4f46e5',
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
           }"
           @click="onClick"
         />

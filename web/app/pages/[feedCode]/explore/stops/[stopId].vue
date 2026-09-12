@@ -148,6 +148,11 @@ const mapFeatures = computed(
         aria-label="Back to stops"
       />
     </template>
+    <template v-if="stop?.stopCode || stop?.platformCode" #actions>
+      <UBadge color="neutral" variant="subtle" icon="i-lucide-map-pin">
+        {{ stop.platformCode ? `Platform ${stop.platformCode}` : stop.stopCode }}
+      </UBadge>
+    </template>
 
     <div v-if="stopLoading && !stop" class="flex min-h-0 flex-1">
       <USkeleton class="min-w-0 flex-1 rounded-none"/>
@@ -157,70 +162,74 @@ const mapFeatures = computed(
     </div>
 
     <div v-else-if="stop" class="flex min-h-0 flex-1">
-      <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto p-4">
-        <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          <dt class="text-dimmed">Code</dt>
-          <dd>{{ stop.stopCode ?? '—' }}</dd>
-          <dt class="text-dimmed">ID</dt>
-          <dd class="truncate">{{ stop.stopId }}</dd>
-          <template v-if="stop.stopDesc">
-            <dt class="text-dimmed">Desc</dt>
-            <dd>{{ stop.stopDesc }}</dd>
-          </template>
-          <dt class="text-dimmed">Location</dt>
-          <dd>{{ stop.stopLat?.toFixed(5) }}, {{ stop.stopLon?.toFixed(5) }}</dd>
-          <template v-if="stop.zoneId">
-            <dt class="text-dimmed">Zone</dt>
-            <dd>{{ stop.zoneId }}</dd>
-          </template>
-          <template v-if="stop.parentStation">
-            <dt class="text-dimmed">Parent</dt>
-            <dd>{{ stop.parentStation }}</dd>
-          </template>
-          <template v-if="stop.wheelchairBoarding">
-            <dt class="text-dimmed">Wheelchair</dt>
-            <dd>{{ stop.wheelchairBoarding === 1 ? 'Accessible' : 'Not accessible' }}</dd>
-          </template>
-        </dl>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div class="rounded-md border border-default px-3 py-2">
-            <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
-            <div class="text-xs text-dimmed">routes</div>
-          </div>
-          <div class="rounded-md border border-default px-3 py-2">
-            <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
-            <div class="text-xs text-dimmed">patterns</div>
-          </div>
-          <div class="rounded-md border border-default px-3 py-2">
-            <div class="text-lg font-semibold text-highlighted">
-              {{ tripTotals.total.toLocaleString() }}
+      <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-r border-default bg-elevated/20 p-4">
+        <section class="flex flex-col gap-3 rounded-lg border border-default bg-default p-3">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="text-xs font-medium uppercase tracking-wide text-dimmed">Stop details</div>
+              <div class="mt-1 text-sm text-muted">{{ stop.stopId }}</div>
             </div>
-            <div class="text-xs text-dimmed">scheduled trips</div>
+            <UBadge v-if="stop.wheelchairBoarding === 1" color="success" variant="subtle" icon="i-lucide-accessibility">
+              Accessible
+            </UBadge>
           </div>
-          <div class="rounded-md border border-default px-3 py-2">
-            <div class="text-sm font-semibold text-highlighted">
-              {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
-            </div>
-            <div class="text-xs text-dimmed">{{ kind }} span</div>
-          </div>
-        </div>
+          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+            <dt class="text-dimmed">Code</dt>
+            <dd>{{ stop.stopCode ?? '—' }}</dd>
+            <dt class="text-dimmed">Location</dt>
+            <dd>{{ stop.stopLat?.toFixed(5) }}, {{ stop.stopLon?.toFixed(5) }}</dd>
+            <template v-if="stop.stopDesc">
+              <dt class="text-dimmed">About</dt>
+              <dd>{{ stop.stopDesc }}</dd>
+            </template>
+            <template v-if="stop.zoneId">
+              <dt class="text-dimmed">Zone</dt>
+              <dd>{{ stop.zoneId }}</dd>
+            </template>
+            <template v-if="stop.parentStation">
+              <dt class="text-dimmed">Station</dt>
+              <dd>{{ stop.parentStation }}</dd>
+            </template>
+          </dl>
+        </section>
 
-        <div v-if="routes.length" class="flex flex-wrap gap-1">
-          <UBadge
-            v-for="r in routes"
-            :key="r.id"
-            class="cursor-pointer"
-            :style="{ backgroundColor: hexColor(r.color, undefined) }"
-            @click="navigateTo(feedPath(`/explore/routes/${r.id}`))"
-          >
-            {{ r.name }}
-          </UBadge>
-        </div>
-
-        <div class="flex flex-col gap-2">
+        <section class="flex flex-col gap-3">
           <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-muted">Departures by hour</span>
+            <span class="text-sm font-medium text-highlighted">Service at this stop</span>
+            <span class="text-xs text-dimmed">{{ tripTotals.total.toLocaleString() }} trips</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="rounded-md border border-default bg-default px-3 py-2">
+              <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
+              <div class="text-xs text-dimmed">routes</div>
+            </div>
+            <div class="rounded-md border border-default bg-default px-3 py-2">
+              <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
+              <div class="text-xs text-dimmed">patterns</div>
+            </div>
+            <div class="col-span-2 rounded-md border border-default bg-default px-3 py-2">
+              <div class="text-sm font-semibold text-highlighted">
+                {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
+              </div>
+              <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
+            </div>
+          </div>
+          <div v-if="routes.length" class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="r in routes"
+              :key="r.id"
+              class="cursor-pointer"
+              :style="{ backgroundColor: hexColor(r.color, undefined) }"
+              @click="navigateTo(feedPath(`/explore/routes/${r.id}`))"
+            >
+              {{ r.name }}
+            </UBadge>
+          </div>
+        </section>
+
+        <section class="flex flex-col gap-2 rounded-lg border border-default bg-default p-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-highlighted">Departures by hour</span>
             <UFieldGroup>
               <UButton
                 v-for="k in kindItems"
@@ -240,9 +249,12 @@ const mapFeatures = computed(
               estimated from typical segment times
             </p>
           </template>
-        </div>
+        </section>
       </aside>
       <div class="relative min-w-0 flex-1">
+        <div class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur">
+          {{ stop.stopName ?? stop.stopId }}
+        </div>
         <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" :extent="extent"/>
       </div>
     </div>

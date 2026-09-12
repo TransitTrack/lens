@@ -12,12 +12,13 @@ export const STATUS_OPTIONS: { value: VehicleStatus, label: string }[] = [
 ]
 
 export interface VehicleFilterState {
+  query: string
   routeId: string | null
   statuses: VehicleStatus[]
 }
 
 export function emptyFilters(): VehicleFilterState {
-  return { routeId: null, statuses: [] }
+  return { query: '', routeId: null, statuses: [] }
 }
 
 function matchesStatus(v: VehicleRow, status: VehicleStatus): boolean {
@@ -42,7 +43,20 @@ export function filterVehicles(
   vehicles: VehicleRow[],
   filters: VehicleFilterState,
 ): VehicleRow[] {
+  const query = filters.query.trim().toLocaleLowerCase()
+
   return vehicles.filter((v) => {
+    if (query) {
+      const searchable = [
+        v.vehicleId,
+        v.label,
+        v.trip?.routeId,
+        v.trip?.route?.routeShortName,
+        v.trip?.route?.routeLongName,
+        v.trip?.tripHeadsign,
+      ]
+      if (!searchable.some((value) => value?.toLocaleLowerCase().includes(query))) return false
+    }
     if (filters.routeId && v.trip?.routeId !== filters.routeId) return false
     if (filters.statuses.length && !filters.statuses.every((s) => matchesStatus(v, s))) {
       return false

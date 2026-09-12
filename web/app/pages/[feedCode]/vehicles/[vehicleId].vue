@@ -11,7 +11,7 @@ import {useFeedExtent} from '~/composables/useFeedExtent'
 import {usePollControl} from '~/composables/usePollControl'
 import {useUnits} from '~/composables/useUnits'
 import {useAdherenceHistory} from '~/composables/useAdherenceHistory'
-import {useVehicleDetailQuery, useAvlTrailQuery} from '~~/generated/graphql'
+import {useVehicleDetailQuery, useAvlTrailQuery, useAgenciesDetailQuery} from '~~/generated/graphql'
 import {adherenceBadge} from '~/utils/adherence'
 import {
   haversineM,
@@ -47,6 +47,13 @@ const {result, loading, error} = useVehicleDetailQuery(
 const {result: trailResult} = useAvlTrailQuery(
   () => ({feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60}),
   () => ({enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value}),
+)
+const {result: agenciesResult} = useAgenciesDetailQuery(
+  () => ({feedCode: selectedFeedCode.value ?? ''}),
+  () => ({enabled: !!selectedFeedCode.value}),
+)
+const agencyTimezone = computed(() =>
+  agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )
 
 const vehicle = computed(() => result.value?.vehicle ?? null)
@@ -190,9 +197,11 @@ const facts = computed<Fact[]>(() => {
 
 function hhmm(iso: string | null): string {
   if (!iso) return '—'
-  return new Intl.DateTimeFormat(undefined, {hour: '2-digit', minute: '2-digit'}).format(
-    new Date(iso),
-  )
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: agencyTimezone.value,
+  }).format(new Date(iso))
 }
 
 function relative(iso: string | null): string {
@@ -285,7 +294,7 @@ function signedSec(sec: number | null): string {
     />
 
     <div v-else class="flex min-h-0 flex-1">
-      <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto shadow-2xl p-3">
+      <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-r border-default bg-elevated/20 p-4">
 
         <UAlert
           v-if="descMismatch"
@@ -295,12 +304,15 @@ function signedSec(sec: number | null): string {
           :description="`Feed reports trip ${descMismatch.declared}; matched to ${descMismatch.matched}.`"
         />
 
-        <div class="flex flex-col gap-2">
-          <div class="flex flex-1 flex-row justify-between">
-            <div class="text-md font-bold text-muted">
-              {{ vehicle.trip?.tripHeadsign ?? vehicle.trip?.route?.routeLongName ?? 'Unknown trip' }}
+        <section class="flex flex-col gap-3 rounded-lg border border-default bg-default p-3">
+          <div class="flex flex-1 flex-row justify-between gap-3">
+            <div class="min-w-0">
+              <div class="text-xs font-medium uppercase tracking-wide text-dimmed">Live assignment</div>
+              <div class="mt-1 truncate text-sm font-semibold text-highlighted">
+                {{ vehicle.trip?.tripHeadsign ?? vehicle.trip?.route?.routeLongName ?? 'Unknown trip' }}
+              </div>
             </div>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex shrink-0 flex-wrap justify-end gap-1.5">
               <UBadge :color="adherenceBadge(vehicle.scheduleAdherenceSec).color" variant="subtle">
                 {{ adherenceBadge(vehicle.scheduleAdherenceSec).label }}
               </UBadge>
@@ -332,13 +344,16 @@ function signedSec(sec: number | null): string {
               "
             />
           </div>
-        </div>
+        </section>
 
-        <VehicleFactsGrid :items="facts"/>
+        <section class="rounded-lg border border-default bg-default p-3">
+          <div class="mb-2 text-sm font-medium text-highlighted">Vehicle &amp; trip</div>
+          <VehicleFactsGrid :items="facts"/>
+        </section>
 
         <!-- Position & progress -->
-        <div class="flex flex-col gap-1">
-          <div class="text-sm font-medium text-muted">Position &amp; progress</div>
+        <section class="flex flex-col gap-2 rounded-lg border border-default bg-default p-3">
+          <div class="text-sm font-medium text-highlighted">Position &amp; progress</div>
           <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             <dt class="text-dimmed">Along trip</dt>
             <dd class="text-muted">{{ units.distance(vehicle.distanceAlongTripM) }}</dd>
@@ -367,18 +382,21 @@ function signedSec(sec: number | null): string {
             <UIcon name="i-lucide-copy" class="size-3"/>
             {{ coords }}
           </button>
-        </div>
+        </section>
 
-        <VehicleTelemetry
-          :speed="units.speed(vehicle.speedMps)"
-          :speed-trail="speedTrail"
-          :report-age-sec="reportAgeSec"
-          :avg-interval-sec="avgInterval"
-          :trail-count="trail.length"
-        />
+        <section class="rounded-lg border border-default bg-default p-3">
+          <VehicleTelemetry
+            :speed="units.speed(vehicle.speedMps)"
+            :speed-trail="speedTrail"
+            :report-age-sec="reportAgeSec"
+            :avg-interval-sec="avgInterval"
+            :trail-count="trail.length"
+          />
+        </section>
 
         <!-- Algorithm -->
-        <div class="flex flex-col gap-1">
+        <section class="flex flex-col gap-2 rounded-lg border border-default bg-default p-3">
+          <div class="text-sm font-medium text-highlighted">Prediction model</div>
           <USelectMenu
             v-model="algorithm"
             :items="algorithms"
@@ -389,10 +407,17 @@ function signedSec(sec: number | null): string {
             {{ signedSec(selectedAccuracy.meanErrorSec) }}) over
             {{ selectedAccuracy.sampleCount.toLocaleString() }} samples · 7d
           </p>
-        </div>
+        </section>
 
         <!-- Stop list -->
-        <ol class="flex flex-col">
+        <section class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-highlighted">Trip stops</span>
+            <span class="text-xs text-dimmed">
+              {{ agencyTimezone ? `Service time · ${agencyTimezone}` : `${rows.length} stops` }}
+            </span>
+          </div>
+        <ol class="overflow-hidden rounded-lg border border-default bg-default">
           <li
             v-for="r in rows"
             :key="r.stopPathIndex"
@@ -440,8 +465,12 @@ function signedSec(sec: number | null): string {
             </div>
           </li>
         </ol>
+        </section>
       </aside>
       <div class="relative min-w-0 flex-1">
+        <div class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur">
+          Live route view
+        </div>
         <VehicleRouteMap
           :line="line"
           :stops="stops"

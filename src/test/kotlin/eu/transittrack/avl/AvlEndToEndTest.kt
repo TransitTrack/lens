@@ -197,6 +197,9 @@ class AvlEndToEndTest(
         assertThat(s3.tripRowId).isEqualTo(trip.id)
 
         // --- GraphQL surface ---
+        // The schedule fixture uses a fixed date; expose a current vehicle state for this read.
+        s3.reportTs = Instant.now()
+        vehicleStates.saveAndFlush(s3)
         val v =
             tester
                 .document(

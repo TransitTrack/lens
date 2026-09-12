@@ -84,27 +84,41 @@ function openStop(stopId: string) {
 </script>
 
 <template>
-  <AppPage title="Stops" full-bleed>
+  <AppPage title="Stops" description="Search the network and inspect each stop in context" full-bleed>
     <template #toolbar>
       <ExploreToolbar/>
     </template>
 
-    <div class="flex flex-wrap gap-x-6 gap-y-1 border-b border-default px-4 py-2">
-      <div v-for="s in stats" :key="s.label" class="flex items-baseline gap-1.5 text-sm">
-        <span class="font-semibold text-highlighted">{{ s.value.toLocaleString() }}</span>
-        <span class="text-muted">{{ s.label }}</span>
+    <div class="grid grid-cols-2 border-b border-default sm:grid-cols-4">
+      <div
+        v-for="s in stats"
+        :key="s.label"
+        class="border-b border-r border-default px-4 py-2.5 last:border-r-0 sm:border-b-0"
+      >
+        <div class="text-lg font-semibold tracking-tight text-highlighted">{{ s.value.toLocaleString() }}</div>
+        <div class="text-xs text-muted">{{ s.label }}</div>
       </div>
     </div>
 
     <div class="flex min-h-0 flex-1">
-      <aside class="flex w-96 shrink-0 flex-col gap-2 p-3">
-        <UInput v-model="search" icon="i-lucide-search" placeholder="Search stops…"/>
-        <div class="flex items-center justify-between text-xs text-dimmed">
-          <span>{{ rows.length }} of {{ inAgency.length }} stops</span>
+      <aside class="flex w-96 shrink-0 flex-col gap-3 border-r border-default bg-elevated/20 p-3">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-highlighted">Stop directory</span>
+            <span class="text-xs text-dimmed">{{ rows.length.toLocaleString() }} shown</span>
+          </div>
+          <UInput
+            v-model="search"
+            icon="i-lucide-search"
+            placeholder="Search name, code, or ID…"
+          />
+        </div>
+        <div class="flex items-center justify-between border-y border-default py-2 text-xs text-dimmed">
+          <span>{{ inAgency.length.toLocaleString() }} stops in this view</span>
           <UButton
             v-if="focusId"
             size="xs"
-            variant="link"
+            variant="soft"
             color="primary"
             label="Open detail"
             trailing-icon="i-lucide-arrow-right"
@@ -115,10 +129,17 @@ function openStop(stopId: string) {
           <div v-if="loading && !rows.length" class="flex flex-col gap-2">
             <USkeleton v-for="i in 10" :key="i" class="h-9 w-full"/>
           </div>
-          <UTable v-else :data="rows" :columns="columns" @select="onSelect">
+          <UTable
+            v-else
+            :data="rows"
+            :columns="columns"
+            :virtualize="{estimateSize: 48, overscan: 10}"
+            class="h-full overflow-auto"
+            @select="onSelect"
+          >
             <template #stopName-cell="{ row }">
               <button
-                class="text-left hover:text-primary"
+                class="text-left transition-colors hover:text-primary"
                 :class="{ 'font-medium text-primary': row.original.stopId === focusId }"
                 @click.stop="openStop(row.original.stopId)"
               >
@@ -129,7 +150,10 @@ function openStop(stopId: string) {
         </div>
       </aside>
 
-      <div class="min-w-0 flex-1">
+      <div class="relative min-w-0 flex-1">
+        <div class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur">
+          Select a stop on the map or in the directory
+        </div>
         <StopsMap
           :stops="stopFeatures"
           :focus-id="focusId"

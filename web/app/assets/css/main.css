@@ -9,4 +9,64 @@
 :root {
   /* widen the app shell past Nuxt UI's 80rem default */
   --ui-container: 90rem;
+  --map-popup-bg: #fff;
+  --map-popup-text: #18181b;
+  --map-popup-muted: #52525b;
+  --map-popup-border: #e4e4e7;
+  --map-popup-hover: #f4f4f5;
+}
+
+.dark {
+  --map-popup-bg: #18181b;
+  --map-popup-text: #fafafa;
+  --map-popup-muted: #a1a1aa;
+  --map-popup-border: #3f3f46;
+  --map-popup-hover: #27272a;
+}
+
+/* MapLibre ships its popups with a fixed white card. Keep the map's
+ * interaction surfaces in step with the active application theme instead. */
+.maplibregl-popup-content {
+  overflow: hidden;
+  padding: 0;
+  color: var(--map-popup-text);
+  background: var(--map-popup-bg) !important;
+  border: 1px solid var(--map-popup-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 24%);
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--map-popup-bg);
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--map-popup-bg);
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--map-popup-bg);
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--map-popup-bg);
+}
+
+.maplibregl-popup-close-button {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  color: var(--map-popup-muted);
+  border-radius: 0 0.65rem 0 0.65rem;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.maplibregl-popup-close-button:hover {
+  color: var(--map-popup-text);
+  background: var(--map-popup-hover);
 }

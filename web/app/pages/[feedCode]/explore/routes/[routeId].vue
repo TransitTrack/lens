@@ -122,6 +122,25 @@ const patternSummary = computed(() => {
           placeholder="Pattern"
         />
 
+        <section v-if="patternSummary && pattern" class="grid grid-cols-2 overflow-hidden rounded-xl border border-default bg-default">
+          <div class="border-b border-r border-default p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Patterns</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ patterns.length }}</div>
+          </div>
+          <div class="border-b border-default p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Trips</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ pattern.tripCount }}</div>
+          </div>
+          <div class="border-r border-default p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ pattern.stopCount }}</div>
+          </div>
+          <div class="p-3">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Typical run</div>
+            <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">{{ patternSummary.runMin }}m</div>
+          </div>
+        </section>
+
         <UButton
           :to="tripsLink"
           color="neutral"
@@ -134,15 +153,15 @@ const patternSummary = computed(() => {
 
         <div v-if="patternSummary" class="flex flex-wrap gap-x-3 text-xs text-dimmed">
           <span v-if="patternSummary.km">{{ patternSummary.km }} km</span>
-          <span>~{{ patternSummary.runMin }} min run</span>
-          <span
-          >{{ patternSummary.timepoints }} timepoint{{
-              patternSummary.timepoints === 1 ? '' : 's'
-            }}</span
-          >
+          <span>{{ patternSummary.timepoints }} timepoint{{ patternSummary.timepoints === 1 ? '' : 's' }}</span>
         </div>
 
-        <ol class="flex flex-col">
+        <div class="flex items-center justify-between pt-1">
+          <span class="text-sm font-medium text-highlighted">Stop sequence</span>
+          <span class="text-xs text-dimmed">{{ stopList.length }} stops</span>
+        </div>
+
+        <ol class="flex flex-col rounded-xl border border-default bg-default px-3 py-1">
           <li
             v-for="(sp, i) in stopList"
             :key="sp.stopPathIndex"
