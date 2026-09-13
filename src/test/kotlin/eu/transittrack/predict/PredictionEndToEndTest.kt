@@ -192,6 +192,7 @@ class PredictionEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p25, svcTs(5).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
+        processor.awaitPredictionsIdle()
 
         val predictionsAfterPoll1 =
             tester
@@ -211,6 +212,7 @@ class PredictionEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p60, svcTs(12).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
+        processor.awaitPredictionsIdle()
 
         val predictionsAfterPoll2 =
             tester

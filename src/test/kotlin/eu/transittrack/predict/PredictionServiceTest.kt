@@ -166,6 +166,7 @@ class PredictionServiceTest(
         // Not asserting the raw processed count: processBatch() claims PENDING reports across every
         // enabled AVL feed (including the config-seeded live feed), not just the one seeded here.
         processor.processBatch()
+        processor.awaitPredictionsIdle()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
         assertThat(preds).isNotEmpty()
@@ -180,8 +181,10 @@ class PredictionServiceTest(
 
         insertReport("bus-1", geom.line.pointAt(0.25 * len), ts(8, 5))
         processor.processBatch()
+        processor.awaitPredictionsIdle()
         insertReport("bus-1", geom.line.pointAt(0.60 * len), ts(8, 12))
         processor.processBatch()
+        processor.awaitPredictionsIdle()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
         assertThat(preds.any { it.actualArrivalTs != null }).isTrue()
@@ -206,6 +209,7 @@ class PredictionServiceTest(
         insertReport("bus-2", geom.line.pointAt(0.25 * len), ts(8, 5))
 
         processor.processBatch()
+        processor.awaitPredictionsIdle()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-2", trip.id!!)
         assertThat(preds).isNotEmpty()

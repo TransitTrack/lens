@@ -3,6 +3,7 @@ package eu.transittrack.avl.match
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.RejectedExecutionHandler
 import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 
@@ -67,6 +69,25 @@ class AvlMatchProcessor(
         }
     private val tasks = ConcurrentHashMap<Long, ScheduledFuture<*>>()
 
+    /**
+     * Runs [PredictionService.onMatched] off the match thread so a feed's prediction cost (in
+     * particular `prediction-mode: evaluation`, which runs every registered algorithm) can never slow
+     * down match throughput for its own feed or, via per-feed scheduling, any other feed. A full queue
+     * drops and logs rather than blocking the caller — predictions are informational, not part of
+     * vehicle-position correctness.
+     */
+    private val predictionExecutor =
+        ThreadPoolTaskExecutor().apply {
+            corePoolSize = 1
+            maxPoolSize = 2
+            queueCapacity = 200
+            setThreadNamePrefix("avl-predict-")
+            setRejectedExecutionHandler(
+                RejectedExecutionHandler { _, _ -> log.warn("avl prediction queue full, dropping a prediction task") },
+            )
+            initialize()
+        }
+
     @EventListener(ApplicationReadyEvent::class)
     fun start() = reconcile()
 
@@ -97,7 +118,20 @@ class AvlMatchProcessor(
     fun runningFeedIds(): Set<Long> = tasks.keys.toSet()
 
     @PreDestroy
-    fun shutdown() = scheduler.shutdown()
+    fun shutdown() {
+        scheduler.shutdown()
+        predictionExecutor.shutdown()
+    }
+
+    /** Test hook: blocks until every currently-queued/running prediction dispatch has completed. */
+    fun awaitPredictionsIdle(timeout: Duration = Duration.ofSeconds(5)) {
+        val deadline = Instant.now().plus(timeout)
+        val pool = predictionExecutor.threadPoolExecutor
+        while (pool.activeCount > 0 || !pool.queue.isEmpty()) {
+            check(Instant.now().isBefore(deadline)) { "prediction executor did not drain within $timeout" }
+            Thread.sleep(10)
+        }
+    }
 
     /**
      * Processes every currently-enabled feed once, synchronously, and returns the total number of
@@ -226,7 +260,14 @@ class AvlMatchProcessor(
                         ),
                     )
                     matchedIds.add(report.id!!)
-                    predictionService.ifAvailable { it.onMatched(feed, report, prev, outcome, ctx) }
+                    predictionService.ifAvailable { svc ->
+                        predictionExecutor.execute {
+                            runCatching { svc.onMatched(feed, report, prev, outcome, ctx) }
+                                .onFailure {
+                                    log.warn("avl prediction for feed '{}' vehicle '{}' failed", feed.code, report.vehicleId, it)
+                                }
+                        }
+                    }
                 }
 
                 MatchOutcome.Failed -> {
