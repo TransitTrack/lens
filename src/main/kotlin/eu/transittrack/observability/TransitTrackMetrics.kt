@@ -47,7 +47,10 @@ class TransitTrackMetrics(
 
     enum class MatchMetricOutcome { MATCHED, FAILED, SKIPPED }
 
-    enum class ApplyOutcome { SUCCESS, CONFLICT, FAILURE }
+    /** REJECTED = the caller's input/state was invalid (bad ids, wrong run state, stale target) —
+     * distinct from FAILURE (an unexpected exception during the apply pipeline itself), so an
+     * operator can tell "clients are sending bad requests" from "the apply pipeline is broken". */
+    enum class ApplyOutcome { SUCCESS, CONFLICT, REJECTED, FAILURE }
 
     fun gtfsImportStarted(feed: String) = setGauge("transittrack.gtfs.import.in.progress", tags("feed", feed), 1)
 

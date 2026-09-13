@@ -155,6 +155,12 @@ class ScheduleOptimizationService(
         } catch (e: RecommendationConflictException) {
             metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.CONFLICT)
             throw e
+        } catch (e: IllegalArgumentException) {
+            metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.REJECTED)
+            throw e
+        } catch (e: IllegalStateException) {
+            metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.REJECTED)
+            throw e
         } catch (e: Exception) {
             metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.FAILURE)
             throw e
