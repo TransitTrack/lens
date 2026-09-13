@@ -74,18 +74,18 @@ class DraftEditServiceTest(
         object : EditOp {
             override val op = "TEST_BUMP"
 
-            override fun plan(c: EditContext): PlannedEdit {
-                val row = c.stopTimes.findByTripId(c.revisionId, tripId).single { it.stopSequence == seq }
+            override fun plan(ctx: EditContext): PlannedEdit {
+                val row = ctx.stopTimes.findByTripId(ctx.revisionId, tripId).single { it.stopSequence == seq }
                 val before = row.arrivalTime
                 return PlannedEdit(
                     summary = "bump $tripId#$seq",
-                    forward = c.json
+                    forward = ctx.json
                         .createObjectNode()
                         .put("tripId", tripId)
                         .put("seq", seq)
                         .put("delta", 60),
                     inverse =
-                        c.json
+                        ctx.json
                             .createObjectNode()
                             .put("tripId", tripId)
                             .put("seq", seq)
@@ -93,7 +93,7 @@ class DraftEditServiceTest(
                             .put("was", before),
                     mutate = {
                         row.arrivalTime = (row.arrivalTime ?: 0) + 60
-                        c.stopTimes.save(row)
+                        ctx.stopTimes.save(row)
                     },
                 )
             }

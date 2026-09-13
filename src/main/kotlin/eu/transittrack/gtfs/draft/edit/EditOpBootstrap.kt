@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component
 @Component
 class EditOpBootstrap {
     @PostConstruct
+    @Suppress("UNUSED_EXPRESSION")
     fun boot() {
         UpdateStopTimeOp
         ShiftTripOp

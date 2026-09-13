@@ -119,7 +119,6 @@ class GtfsRealtimeVehiclePositionDecoder : AvlFeedDecoder {
             VehiclePosition.VehicleStopStatus.INCOMING_AT -> VehicleStopStatus.INCOMING_AT
             VehiclePosition.VehicleStopStatus.STOPPED_AT -> VehicleStopStatus.STOPPED_AT
             VehiclePosition.VehicleStopStatus.IN_TRANSIT_TO -> VehicleStopStatus.IN_TRANSIT_TO
-            else -> null
         }
 
     private fun mapOccupancy(o: VehiclePosition.OccupancyStatus): AvlOccupancyStatus? =
