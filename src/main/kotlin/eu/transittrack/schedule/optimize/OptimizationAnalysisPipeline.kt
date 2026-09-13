@@ -154,6 +154,10 @@ class OptimizationAnalysisPipeline(
                 val proposed = mutableListOf<Map<String, Any?>>()
                 for (i in pos until schedule.size) {
                     val s = schedule[i]
+                    // A cell the GTFS feed itself left blank (interpolated by the deriver, not
+                    // explicitly declared) must never be silently pinned to a concrete published
+                    // value — skip emitting a target for it entirely.
+                    if (s.interpolated) continue
                     val seq = stopSeqByIndex[s.stopPathIndex] ?: s.stopPathIndex
                     current +=
                         linkedMapOf(
@@ -170,6 +174,9 @@ class OptimizationAnalysisPipeline(
                             "departureSec" to s.departureSec?.plus(delta),
                         )
                 }
+                // If every downstream cell for this trip was interpolated, this trip contributes no
+                // target at all — it must not appear in perTrip (not a broken/empty op).
+                if (current.isEmpty()) continue
                 perTrip += Triple(aff.trip, current, proposed)
             }
             if (perTrip.isEmpty()) continue

@@ -8,6 +8,7 @@ import assertk.assertions.contains
 import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import org.springframework.beans.factory.annotation.Autowired
 import tools.jackson.databind.json.JsonMapper
 
@@ -172,6 +173,62 @@ class OptimizationAnalysisPipelineTest(
         scheduleTimes.save(
             ScheduleTime(
                 revisionId, tripRowId, 1, startTimeSec + segmentTravelSec, startTimeSec + segmentTravelSec,
+                interpolated = false, schedTravelTimeSec = segmentTravelSec, schedDwellTimeSec = 0,
+            ),
+        )
+    }
+
+    /** 3-stop variant of [stopPathsFor] for the interpolated-cell test. */
+    private fun stopPathsFor3(
+        revisionId: Long,
+        patternId: Long,
+    ) {
+        stopPaths.save(
+            StopPath(
+                revisionId, patternId, 0, "S1", "R1", 1, 0.0, null, null, null, waitStop = true,
+                scheduleAdherenceStop = true, layoverStop = true, breakTimeSec = null,
+            ),
+        )
+        stopPaths.save(
+            StopPath(
+                revisionId, patternId, 1, "S2", "R1", 2, 1000.0, null, null, null, waitStop = false,
+                scheduleAdherenceStop = true, layoverStop = false, breakTimeSec = null,
+            ),
+        )
+        stopPaths.save(
+            StopPath(
+                revisionId, patternId, 2, "S3", "R1", 3, 2000.0, null, null, null, waitStop = false,
+                scheduleAdherenceStop = true, layoverStop = false, breakTimeSec = null,
+            ),
+        )
+    }
+
+    /**
+     * 3-stop schedule with the middle cell (stop-path index 1 — the very segment the evidence below
+     * targets) marked `interpolated = true`: the GTFS feed never declared it explicitly, only the
+     * deriver filled it in. Index 0 and index 2 are explicit (`interpolated = false`).
+     */
+    private fun scheduleTimesWithInterpolatedMiddle(
+        revisionId: Long,
+        tripRowId: Long,
+        startTimeSec: Int,
+        segmentTravelSec: Int,
+    ) {
+        scheduleTimes.save(
+            ScheduleTime(
+                revisionId, tripRowId, 0, startTimeSec, startTimeSec, interpolated = false,
+                schedTravelTimeSec = null, schedDwellTimeSec = 0,
+            ),
+        )
+        scheduleTimes.save(
+            ScheduleTime(
+                revisionId, tripRowId, 1, startTimeSec + segmentTravelSec, startTimeSec + segmentTravelSec,
+                interpolated = true, schedTravelTimeSec = segmentTravelSec, schedDwellTimeSec = 0,
+            ),
+        )
+        scheduleTimes.save(
+            ScheduleTime(
+                revisionId, tripRowId, 2, startTimeSec + 2 * segmentTravelSec, startTimeSec + 2 * segmentTravelSec,
                 interpolated = false, schedTravelTimeSec = segmentTravelSec, schedDwellTimeSec = 0,
             ),
         )
@@ -361,5 +418,34 @@ class OptimizationAnalysisPipelineTest(
         val result = pipeline().analyze(run)
 
         assertThat(result.filter { it.kind == OptimizationRecommendationKind.TRIP_SHIFT }).isEmpty()
+    }
+
+    @Test
+    fun `omits an interpolated cell from a stop-time recommendation's targets while keeping downstream explicit cells`() {
+        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val tp = pattern(revisionId)
+        stopPathsFor3(revisionId, tp.id!!)
+
+        // Evidence is at stop-path index 1 (segment stop0 -> stop1); that cell (stopSequence 2) is
+        // interpolated and must be dropped, while the downstream stop2 (stopSequence 3) is explicit
+        // and must still receive the cascaded delta.
+        val selected = trip(revisionId, tp.id!!, "T1", "R1", "WK", 28_800)
+        scheduleTimesWithInterpolatedMiddle(revisionId, selected.id!!, 28_800, segmentTravelSec = 300)
+
+        val at = Instant.parse("2026-09-02T08:00:00Z")
+        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
+
+        val run = baseRun(feedId, revisionId)
+        val result = pipeline().analyze(run)
+
+        val stopTime = result.filter { it.kind == OptimizationRecommendationKind.STOP_TIME }
+        assertThat(stopTime).hasSize(1)
+        val recommendation = stopTime.single()
+        // stopSequence 2 (interpolated, index 1) must be absent from both current and proposed targets.
+        assertThat(recommendation.currentValue!!).contains("\"stopSequence\":3")
+        assertThat(recommendation.proposedValue!!).contains("\"stopSequence\":3")
+        assertThat(recommendation.currentValue!!.contains("\"stopSequence\":2")).isFalse()
+        assertThat(recommendation.proposedValue!!.contains("\"stopSequence\":2")).isFalse()
     }
 }
