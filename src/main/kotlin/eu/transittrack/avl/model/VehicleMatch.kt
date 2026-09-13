@@ -8,9 +8,18 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
+
+/** Ordinal 0 = PENDING must match the `vehicle_match.prediction_status` column default. */
+enum class PredictionStatus { PENDING, DONE, FAILED }
 
 @Entity
 @Table(name = "vehicle_match")
@@ -32,8 +41,18 @@ class VehicleMatch(
     @Column var heading: Double?,
     @Column var score: Double?,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
+    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Column(name = "prediction_status", nullable = false)
+    var predictionStatus: PredictionStatus = PredictionStatus.PENDING,
+    @Column(name = "predicted_at") var predictedAt: Instant? = null,
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
 )
+
+interface PendingPredictionMetrics {
+    val feedId: Long
+    val pendingCount: Long
+    val oldestCreatedAt: Instant?
+}
 
 @Repository
 interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
@@ -49,4 +68,35 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
         ts: Instant,
         pageable: Pageable,
     ): List<VehicleMatch>
+
+    /** The vehicle's last DONE-or-FAILED match strictly before [ts] — the crossing-detection "prev". */
+    fun findTopByFeedIdAndVehicleIdAndTsLessThanOrderByTsDesc(
+        feedId: Long,
+        vehicleId: String,
+        ts: Instant,
+    ): VehicleMatch?
+
+    @Query(
+        "select t from VehicleMatch t where t.predictionStatus = 0 and t.feedId = :feedId " +
+            "order by t.vehicleId, t.ts limit :limit",
+    )
+    fun findClaimBatch(
+        @Param("feedId") feedId: Long,
+        @Param("limit") limit: Int,
+    ): List<VehicleMatch>
+
+    @Modifying
+    @Transactional
+    @Query("update VehicleMatch set predictionStatus = :status, predictedAt = :at where id in :ids")
+    fun markPredicted(
+        ids: List<Long>,
+        status: PredictionStatus,
+        at: Instant,
+    )
+
+    @Query(
+        "select r.feedId as feedId, count(r) as pendingCount, min(r.createdAt) as oldestCreatedAt " +
+            "from VehicleMatch r where r.predictionStatus = 0 group by r.feedId",
+    )
+    fun pendingPredictionMetricsByFeed(): List<PendingPredictionMetrics>
 }
