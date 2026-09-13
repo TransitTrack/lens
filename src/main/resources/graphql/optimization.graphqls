@@ -1,0 +1,44 @@
+input OptimizationRunInput {
+    feedCode: String!
+    serviceId: String
+    routeId: String
+    directionId: Int
+    windowFromSec: Int
+    windowToSec: Int
+    "ISO-8601 instant"
+    observedFrom: String!
+    "ISO-8601 instant"
+    observedTo: String!
+    minimumSamples: Int!
+}
+
+type OptimizationRun {
+    id: ID!
+    revisionId: ID!
+    state: String!
+    error: String
+    createdAt: String!
+    completedAt: String
+}
+
+type OptimizationRecommendation {
+    id: ID!
+    kind: String!
+    status: String!
+    sampleCount: Int!
+    deltaSec: Int!
+    currentValue: JSON!
+    proposedValue: JSON!
+    evidence: JSON!
+    reason: String!
+}
+
+extend type Query {
+    optimizationRun(id: ID!): OptimizationRun
+    optimizationRecommendations(runId: ID!, status: String, offset: Int = 0, limit: Int = 100): [OptimizationRecommendation!]!
+}
+
+extend type Mutation {
+    startOptimizationRun(input: OptimizationRunInput!): OptimizationRun!
+    applyOptimizationRecommendations(runId: ID!, recommendationIds: [ID!]!, label: String, editor: String!): Draft!
+}

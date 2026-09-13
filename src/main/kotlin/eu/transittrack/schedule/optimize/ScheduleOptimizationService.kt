@@ -1,5 +1,6 @@
 package eu.transittrack.schedule.optimize
 
+import java.time.Duration
 import java.time.Instant
 
 import org.slf4j.LoggerFactory
@@ -18,6 +19,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
@@ -89,6 +91,7 @@ class ScheduleOptimizationService(
     private val draftService: DraftService,
     private val draftEditService: DraftEditService,
     private val json: JsonMapper,
+    private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -140,6 +143,25 @@ class ScheduleOptimizationService(
      */
     @Transactional
     fun apply(
+        runId: Long,
+        recommendationIds: Set<Long>,
+        label: String?,
+        editor: String,
+    ): GtfsRevision {
+        try {
+            val updated = applyInternal(runId, recommendationIds, label, editor)
+            metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.SUCCESS)
+            return updated
+        } catch (e: RecommendationConflictException) {
+            metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.CONFLICT)
+            throw e
+        } catch (e: Exception) {
+            metrics.optimizationApply(TransitTrackMetrics.ApplyOutcome.FAILURE)
+            throw e
+        }
+    }
+
+    private fun applyInternal(
         runId: Long,
         recommendationIds: Set<Long>,
         label: String?,
@@ -285,6 +307,7 @@ class ScheduleOptimizationService(
             run.state = OptimizationRunState.SUCCEEDED
             run.completedAt = Instant.now()
             runs.save(run)
+            metrics.optimizationRunFinished(OptimizationRunState.SUCCEEDED, Duration.between(run.startedAt, run.completedAt))
         } catch (t: Exception) {
             log.error("optimization run {} failed", runId, t)
             markFailed(runId)
@@ -298,7 +321,10 @@ class ScheduleOptimizationService(
      */
     private fun runAnalysis(run: OptimizationRunRow) {
         val candidates = pipeline.analyze(run)
-        if (candidates.isNotEmpty()) recommendations.saveAll(candidates)
+        if (candidates.isNotEmpty()) {
+            recommendations.saveAll(candidates)
+            candidates.forEach { metrics.optimizationRecommendation(it.kind, it.status) }
+        }
     }
 
     /** Best-effort terminal FAILED with an operator-safe (sanitized) message; the real cause is logged, not stored. */
@@ -309,6 +335,8 @@ class ScheduleOptimizationService(
                 run.completedAt = Instant.now()
                 run.error = SANITIZED_FAILURE_MESSAGE
                 runs.save(run)
+                val started = run.startedAt ?: run.completedAt!!
+                metrics.optimizationRunFinished(OptimizationRunState.FAILED, Duration.between(started, run.completedAt))
             }
         }.onFailure { log.error("optimization run {} could not be marked FAILED", runId, it) }
     }

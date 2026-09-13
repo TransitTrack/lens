@@ -18,6 +18,9 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.match.MatchOutcome
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
+import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
+import eu.transittrack.schedule.optimize.model.OptimizationRunState
 
 /**
  * The sole owner of TransitTrack business metrics. Keep labels bounded: feeds and configuration
@@ -43,6 +46,8 @@ class TransitTrackMetrics(
     enum class ImportStage { DOWNLOAD, VALIDATE, PARSE, DERIVE, ACTIVATE }
 
     enum class MatchMetricOutcome { MATCHED, FAILED, SKIPPED }
+
+    enum class ApplyOutcome { SUCCESS, CONFLICT, FAILURE }
 
     fun gtfsImportStarted(feed: String) = setGauge("transittrack.gtfs.import.in.progress", tags("feed", feed), 1)
 
@@ -242,6 +247,35 @@ class TransitTrackMetrics(
             .register(registry)
             .record(kotlin.math.abs(errorSec).toDouble())
     }
+
+    /**
+     * A [eu.transittrack.schedule.optimize.ScheduleOptimizationService] run reached a terminal
+     * state (`SUCCEEDED`/`FAILED`). Only the bounded state name is tagged — never the run id, feed,
+     * or planner identity.
+     */
+    fun optimizationRunFinished(
+        state: OptimizationRunState,
+        elapsed: Duration,
+    ) = safely("optimization_run_finished") {
+        val tags = tags("state", state.tag())
+        counter("transittrack.schedule.optimization.runs", tags).increment()
+        timer("transittrack.schedule.optimization.run.duration", tags).record(elapsed)
+    }
+
+    /** One [eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow] persisted by a run's analysis. */
+    fun optimizationRecommendation(
+        kind: OptimizationRecommendationKind,
+        status: OptimizationRecommendationStatus,
+    ) = safely("optimization_recommendation") {
+        counter("transittrack.schedule.optimization.recommendations", tags("kind", kind.tag(), "status", status.tag()))
+            .increment()
+    }
+
+    /** Outcome of one [eu.transittrack.schedule.optimize.ScheduleOptimizationService.apply] call. */
+    fun optimizationApply(outcome: ApplyOutcome) =
+        safely("optimization_apply") {
+            counter("transittrack.schedule.optimization.apply", tags("outcome", outcome.tag())).increment()
+        }
 
     fun outboundHttp(
         purpose: String,

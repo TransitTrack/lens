@@ -34,6 +34,7 @@ import eu.transittrack.gtfs.feed.FeedConflictException
 import eu.transittrack.gtfs.feed.FeedNotFoundException
 import eu.transittrack.gtfs.feed.FeedProtectedException
 import eu.transittrack.schedule.optimize.OptimizationProperties
+import eu.transittrack.schedule.optimize.RecommendationConflictException
 
 @Configuration
 @EnableScheduling
@@ -176,6 +177,18 @@ class GraphQlConfiguration {
                     .message(ex.message ?: "draft was modified concurrently")
                     .extensions(mapOf("code" to "STALE_DRAFT", "currentVersion" to ex.currentVersion))
                     .build()
+            }
+            if (ex is RecommendationConflictException) {
+                return GraphqlErrorBuilder
+                    .newError(env)
+                    .errorType(ErrorType.BAD_REQUEST)
+                    .message(ex.message ?: "conflicting optimization recommendations selected")
+                    .extensions(
+                        mapOf(
+                            "code" to "RECOMMENDATION_CONFLICT",
+                            "conflictingRecommendationIds" to ex.conflictingRecommendationIds.toList(),
+                        ),
+                    ).build()
             }
             if (ex is LockNotHeldException) {
                 return GraphqlErrorBuilder

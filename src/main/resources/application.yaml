@@ -110,6 +110,13 @@ transittrack:
     enabled: true
     layover-threshold-sec: 60
     stop-projection-max-deviation-m: 100
+    optimize:
+      executor:
+        queue-capacity: 50
+      materiality-sec: 30
+      retention:
+        results-retention-days: 90
+        sweep-cron: "0 30 3 * * *"
   draft:
     editor-lease-minutes: 15
   export:
