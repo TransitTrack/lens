@@ -274,7 +274,7 @@ class OptimizationAnalysisPipeline(
                     "scheduledStartSec" to scheduledStart,
                     "dispersionMad" to RobustStatistics.filter(observedStartSamples).mad,
                     "targetHeadwaySec" to targetHeadway,
-                ).apply { putAll(predictionEvidence(run, avlFeedIds, listOf(tripRowId), 0)) }
+                ).apply { putAll(predictionEvidence(run, avlFeedIds, listOf(tripRowId), firstIndex)) }
 
             results +=
                 OptimizationRecommendationRow(

@@ -317,6 +317,15 @@ class OptimizationAnalysisPipelineTest(
         val at = Instant.parse("2026-09-02T08:00:00Z")
         crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
         crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
+        // Evidence must be looked up at the same stop-path index the shift itself was derived from
+        // (the earliest crossed segment, index 1 here) — avl_stop_crossing never has an index-0 row,
+        // so a lookup hardcoded to index 0 would silently never match and this would fail.
+        accuracies.save(
+            PredictionAccuracy(
+                avlFeedId, "v1", t2.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                at, at.plusSeconds(3), errorSec = 3, absErrorSec = 3, createdAt = at,
+            ),
+        )
 
         val run = baseRun(feedId, revisionId)
         val result = pipeline().analyze(run)
@@ -327,6 +336,7 @@ class OptimizationAnalysisPipelineTest(
         assertThat(recommendation.deltaSec).isEqualTo(-150)
         assertThat(recommendation.conflictKey!!).isEqualTo("shift:T2")
         assertThat(recommendation.proposedValue!!).contains("850")
+        assertThat(recommendation.evidence!!).contains("\"predictionMeanAbsErrorSec\":3.0")
     }
 
     @Test
