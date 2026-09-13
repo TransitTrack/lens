@@ -58,6 +58,17 @@ class AvlEntitiesPersistenceTest(
     }
 
     @Test
+    fun `claim batch is scoped to one feed`() {
+        reports.save(report(1L, "a", Instant.parse("2026-09-04T10:00:00Z")))
+        reports.save(report(2L, "b", Instant.parse("2026-09-04T10:00:00Z")))
+
+        val batch = reports.findClaimBatch(1L, 10)
+
+        assertThat(batch).hasSize(1)
+        assertThat(batch.first().feedId).isEqualTo(1L)
+    }
+
+    @Test
     fun `latest ts per vehicle`() {
         reports.save(report(2L, "x", Instant.parse("2026-09-04T10:00:00Z")))
         reports.save(report(2L, "x", Instant.parse("2026-09-04T10:00:30Z")))

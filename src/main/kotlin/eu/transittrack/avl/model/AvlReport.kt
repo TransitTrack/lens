@@ -75,6 +75,15 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
     ): List<AvlReportRow>
 
     @Query(
+        "select t from AvlReportRow t where t.matchStatus = 0 and t.feedId = :feedId " +
+            "order by t.vehicleId, t.ts limit :limit",
+    )
+    fun findClaimBatch(
+        @Param("feedId") feedId: Long,
+        @Param("limit") limit: Int,
+    ): List<AvlReportRow>
+
+    @Query(
         "select r.vehicleId as vehicleId, max(r.ts) as ts from AvlReportRow r " +
             "where r.feedId = :feedId group by r.vehicleId",
     )
