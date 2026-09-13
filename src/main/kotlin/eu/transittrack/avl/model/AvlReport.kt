@@ -104,7 +104,7 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
 
     @Modifying
     @Transactional
-    @Query("update AvlReportRow set ts = :at, matchStatus = :status where id in :ids")
+    @Query("update AvlReportRow set matchedAt = :at, matchStatus = :status where id in :ids")
     fun markMatchedBatch(
         ids: List<Long>,
         status: MatchStatus,

@@ -103,7 +103,9 @@ class ScheduleGraphQlTest(
             ).execute()
             .path("blocksOnDate")
             .entityList(Any::class.java)
-            .hasSize(2)
+            // B1, B2 plus a singleton block per blockless trip (T3, and T5's frequency block) —
+            // every trip gets a block (see SchedTripProcessor's blockId fallback).
+            .hasSize(4)
         tester
             .document(
                 """{ blocksOnDate(feedCode:"g", date:"2026-01-06"){ blockId } }""",

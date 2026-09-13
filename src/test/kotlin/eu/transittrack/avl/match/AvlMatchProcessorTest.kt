@@ -149,7 +149,7 @@ class AvlMatchProcessorTest(
     }
 
     @Test
-    fun `a batch matches only the newest report per vehicle and state reflects it`() {
+    fun `a batch matches every report per vehicle and state reflects the newest`() {
         val (trip, geom) = t1Geom()
         val len = geom.line.lengthM
 
@@ -158,21 +158,24 @@ class AvlMatchProcessorTest(
 
         assertThat(processor.processBatch()).isEqualTo(2)
 
-        // only the newest report is a real match attempt; the earlier one is skipped
+        // every claimed report for the vehicle is matched individually, oldest-first; there's no
+        // "skip all but the newest" behavior (see AvlMatchProcessor.processFeed).
         assertThat(reports.findAll().map { it.matchStatus }.toSet())
-            .isEqualTo(setOf(MatchStatus.SKIPPED, MatchStatus.MATCHED))
+            .isEqualTo(setOf(MatchStatus.MATCHED))
 
+        // vehicle_state is upserted once per report in the same oldest-first order, so it ends up
+        // reflecting the last (newest) one processed.
         val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
         assertThat(state.matched).isTrue()
         assertThat(state.consecutiveFailures).isEqualTo(0)
         assertThat(state.tripRowId).isEqualTo(trip.id)
         assertThat(state.distanceAlongTripM!!).isCloseTo(0.60 * len, 0.1 * len)
 
-        assertThat(vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())).hasSize(1)
+        assertThat(vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())).hasSize(2)
     }
 
     @Test
-    fun `a garbage report fails the newest attempt and never matches the vehicle`() {
+    fun `garbage reports fail every attempt and never match the vehicle`() {
         val (_, geom) = t1Geom()
         val mid = geom.line.pointAt(0.5 * geom.line.lengthM)
         val garbage = Point(mid.lat + 0.05, mid.lon + 0.05)
@@ -183,8 +186,10 @@ class AvlMatchProcessorTest(
 
         processor.processBatch()
 
+        // every claimed report for the vehicle is matched individually; all three are off the
+        // candidates' extent so all three come back UNMATCHED (see AvlMatchProcessor.processFeed).
         assertThat(reports.findAll().map { it.matchStatus }.toSet())
-            .isEqualTo(setOf(MatchStatus.SKIPPED, MatchStatus.UNMATCHED))
+            .isEqualTo(setOf(MatchStatus.UNMATCHED))
 
         val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-2")!!
         // a vehicle that never had a trip assignment stays unmatched from the first failure

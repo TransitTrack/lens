@@ -1,0 +1,130 @@
+spring:
+  main:
+    banner-mode: off
+  application:
+    name: transit-track
+  graphql:
+    graphiql:
+      enabled: true
+  kotlinx:
+    serialization:
+      json:
+        ignore-unknown-keys: true
+        pretty-print: false
+        encode-defaults: true
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_PORT_5432_TCP_ADDR:localhost}:${POSTGRES_PORT_5432_TCP_PORT:5432}/explorer
+    username: postgres
+    password: ${POSTGRES_PASSWORD:password}
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.batch_size: 100
+      hibernate.order_inserts: true
+      hibernate.generate_statistics: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        transittrack.gtfs.import.duration: true
+        transittrack.gtfs.import.stage.duration: true
+        transittrack.avl.poll.duration: true
+        transittrack.avl.match.batch.duration: true
+        transittrack.avl.match.duration: true
+        transittrack.prediction.run.duration: true
+        transittrack.http.client.duration: true
+    enable:
+      cache: true
+      hibernate: true
+      hikaricp: true
+
+transittrack:
+  observability:
+    gauge-refresh-ms: 30000
+  http:
+    connect-timeout-ms: 10000
+    read-timeout-ms: 60000
+    max-size-bytes: 524288000
+    user-agent: "transittrack/0.0.1"
+  feed:
+    prune-config-feeds: false
+    feeds:
+  gtfs:
+    ingest:
+      auto-activate: true
+      strict-validation: false
+      batch-size: 1000
+      temp-dir: "/tmp"
+    retention:
+      keep-revisions-per-feed: 5
+    polling:
+      enabled: true
+      sweep-cron: "0 */15 * * * *"
+    title-sanitizing:
+      enabled: false
+  schedule:
+    enabled: true
+    layover-threshold-sec: 60
+    stop-projection-max-deviation-m: 100
+  draft:
+    editor-lease-minutes: 15
+  export:
+    temp-sweep-cron: "0 */5 * * * *"
+    temp-file-max-age-minutes: 15
+  avl:
+    enabled: true
+    retention:
+      report-hours: 24
+      match-hours: 72
+      stale-vehicle-hours: 12
+      sweep-cron: "0 0 * * * *"
+    match:
+      backtrack-tolerance-m: 30.0
+      max-deviation-m: 60.0
+      unmatch-after-failures: 5
+      # "went silent" ageing for matched vehicles that stop reporting; thresholds are
+      # feed.poll-interval-sec * cycles, floored at silent-unmatch-min-sec.
+      silent-stale-cycles: 3
+      silent-unmatch-cycles: 5
+      silent-unmatch-min-sec: 60
+  predict:
+    enabled: true
+    learn:
+      max-plausible-travel-time-sec: 1800
+      kalman-measurement-noise-sec2: 400.0
+      kalman-initial-variance-sec2: 3600.0
+    retention:
+      prediction-hours: 6
+      accuracy-days: 30
+      sweep-cron: "0 15 * * * *"
+  cache:
+    # AVL match read cache (EhCache, heap-only). See eu.transittrack.avl.match.cache.AvlCaches.
+    ttl: 60m
+    max-entries: 20000
+
+logging:
+  pattern:
+    level: '%5p'
+    dateformat: dd-MM-YYYY' 'HH:mm:ss
+    correlation: "[%X{traceId:-}%X{spanId:-}]"
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:-}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-30.30logger{29}){cyan} %clr(:){faint} %m%n"
+  level:
+    eu.transittrack: debug
+    root: warn

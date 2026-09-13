@@ -67,7 +67,6 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.willowtreeapps.assertk:assertk:0.28.1")
-    testImplementation("org.testcontainers:testcontainers-grafana")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

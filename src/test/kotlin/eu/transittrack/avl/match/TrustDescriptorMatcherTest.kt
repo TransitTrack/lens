@@ -156,8 +156,17 @@ class TrustDescriptorMatcherTest(
             .atZone(ctx.zone)
             .toInstant()
 
-        assertThat(matcher.match(report(mid.lat + 0.02, mid.lon + 0.02, "T1", ts), null, ctx))
-            .isEqualTo(MatchOutcome.Failed)
+        // Offset perpendicular to the shape (not extended toward S4) and anchored past S3 via the
+        // current-stop hint: T1's first stop path (S1) and last stop path (S4, this block's layover
+        // into T4) are both spatially-exempt "deadheading" ends (see SpatialMatcher), so a point must
+        // be pushed past those allowances — not merely off the line near either end — to genuinely fail.
+        assertThat(
+            matcher.match(
+                report(mid.lat + 0.02, mid.lon - 0.02, "T1", ts, currentStopId = "S3", currentStopSequence = 3),
+                null,
+                ctx,
+            ),
+        ).isEqualTo(MatchOutcome.Failed)
     }
 
     @Test

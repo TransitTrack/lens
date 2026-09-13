@@ -52,7 +52,9 @@ class ScheduleReadServiceTest(
                 .distinct(),
         ).hasSize(1)
         assertThat(read.block("sd", "B1", "WK", null)!!.tripCount).isEqualTo(2)
-        assertThat(read.blocksOnDate("sd", "2026-01-05", null)).hasSize(2) // Monday, WK
+        // B1, B2 plus a singleton block per blockless trip (T3, and T5's frequency block) — every
+        // trip gets a block (see SchedTripProcessor's blockId fallback).
+        assertThat(read.blocksOnDate("sd", "2026-01-05", null)).hasSize(4) // Monday, WK
         assertThat(read.blocksOnDate("sd", "2026-01-06", null)).isEmpty() // WK removed
         assertThat(read.tripsOnDate("sd", "2026-01-05", null, null)).hasSize(5)
         assertThat(

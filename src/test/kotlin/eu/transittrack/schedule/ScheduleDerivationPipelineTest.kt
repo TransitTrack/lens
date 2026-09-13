@@ -49,7 +49,9 @@ class ScheduleDerivationPipelineTest(
         val rev = ingestion.ingestBlocking("p1")
         assertThat(rev.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         assertThat(patterns.findByRevisionId(rev.id!!)).hasSize(4)
-        assertThat(blocks.findByRevisionId(rev.id!!)).hasSize(2)
+        // B1, B2 (real block_id trips) plus a singleton block per blockless trip (T3, and T5's
+        // frequency block) — every trip gets a block (see SchedTripProcessor's blockId fallback).
+        assertThat(blocks.findByRevisionId(rev.id!!)).hasSize(4)
         val counts = revisionService.revision(rev.id!!).rowCounts
         assertThat(counts).key("trip_patterns").isEqualTo(4L)
         assertThat(counts).key("derived_trip").isEqualTo(5L)
