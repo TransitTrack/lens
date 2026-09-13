@@ -100,7 +100,7 @@ data class ScheduleProperties(
 
 /**
  * Tuning for the AVL match read cache (see [eu.transittrack.avl.match.cache.AvlCaches]). Heap-only
- * EhCache; one shared cap and TTL across all caches — per-cache tuning can come later if profiling
+ * Caffeine; one shared cap and TTL across all caches — per-cache tuning can come later if profiling
  * demands it.
  */
 @ConfigurationProperties("transittrack.cache")

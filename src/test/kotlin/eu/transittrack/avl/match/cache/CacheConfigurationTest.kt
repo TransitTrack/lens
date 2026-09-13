@@ -8,7 +8,7 @@ import assertk.assertions.isNotNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.cache.CacheManager
-import org.springframework.cache.jcache.JCacheCacheManager
+import org.springframework.cache.caffeine.CaffeineCacheManager
 import org.springframework.context.annotation.Import
 
 import eu.transittrack.TestcontainersConfiguration
@@ -19,8 +19,8 @@ class CacheConfigurationTest(
     @Autowired val cacheManager: CacheManager,
 ) {
     @Test
-    fun `a JCache-backed cache manager is configured`() {
-        assertThat(cacheManager).isInstanceOf(JCacheCacheManager::class)
+    fun `a Caffeine-backed cache manager is configured`() {
+        assertThat(cacheManager).isInstanceOf(CaffeineCacheManager::class)
     }
 
     @Test

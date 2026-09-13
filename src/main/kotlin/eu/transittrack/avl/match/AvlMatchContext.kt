@@ -23,7 +23,7 @@ import eu.transittrack.schedule.model.StopPath
 
 /**
  * Per-feed, single-run view over one GTFS revision's derived schedule. Each accessor delegates to a
- * process-wide, revision-scoped cached reader (EhCache — see `eu.transittrack.avl.match.cache`),
+ * process-wide, revision-scoped cached reader (Caffeine — see `eu.transittrack.avl.match.cache`),
  * fronted by a per-run [HashMap] L1 so the many reports in one match batch don't repeatedly cross
  * the cache proxy.
  *

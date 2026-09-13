@@ -115,7 +115,7 @@ transittrack:
       accuracy-days: 30
       sweep-cron: "0 15 * * * *"
   cache:
-    # AVL match read cache (EhCache, heap-only). See eu.transittrack.avl.match.cache.AvlCaches.
+    # AVL match read cache (Caffeine, heap-only). See eu.transittrack.avl.match.cache.AvlCaches.
     ttl: 60m
     max-entries: 20000
 
