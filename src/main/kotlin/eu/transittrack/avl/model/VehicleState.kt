@@ -75,7 +75,9 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
           vs.stopPathIndex = null, vs.distanceAlongTripM = null, vs.scheduleAdherenceSec = null,
           vs.snappedLat = null, vs.snappedLon = null
         where vs.tripRowId is not null
-          and timestampdiff(second, vs.updatedAt, :asOf) >
+          and timestampdiff(second,
+                (select max(r.ts) from AvlReportRow r where r.feedId = vs.feedId and r.vehicleId = vs.vehicleId),
+                :asOf) >
               greatest((select f.pollIntervalSec from AvlFeed f where f.id = vs.feedId) * :cycles, :minSec)
         """,
     )
@@ -92,7 +94,9 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
         """
         update VehicleState vs set vs.stale = true
         where vs.matched = true and vs.stale = false
-          and timestampdiff(second, vs.updatedAt, :asOf) >
+          and timestampdiff(second,
+                (select max(r.ts) from AvlReportRow r where r.feedId = vs.feedId and r.vehicleId = vs.vehicleId),
+                :asOf) >
               greatest((select f.pollIntervalSec from AvlFeed f where f.id = vs.feedId) * :cycles, :minSec)
         """,
     )
