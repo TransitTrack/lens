@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0008-predict-decouple-1
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: vehicle_match
+            columns:
+              - column: { name: prediction_status, type: SMALLINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: predicted_at, type: "TIMESTAMP WITH TIME ZONE" }
+        - createIndex:
+            indexName: ix_vehicle_match_prediction_status
+            tableName: vehicle_match
+            columns: [ { column: { name: feed_id } }, { column: { name: prediction_status } } ]
