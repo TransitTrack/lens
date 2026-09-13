@@ -5,6 +5,7 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.containsAll
+import assertk.assertions.containsAtLeast
 import assertk.assertions.isEqualTo
 
 import eu.transittrack.gtfs.draft.DraftRawTables
@@ -34,7 +35,7 @@ class GtfsFileSchemaTest {
     fun `stop_times file has spec headers and maps arrival_time`() {
         val f = GtfsFileSchema.FILES.single { it.name == "stop_times.txt" }
         assertThat(f.table).isEqualTo("stop_times")
-        assertThat(f.columns.map { it.header }).containsAll("trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence")
+        assertThat(f.columns.map { it.header }).containsAtLeast("trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence")
         val arr = f.columns.single { it.header == "arrival_time" }
         assertThat(arr.sqlColumn).isEqualTo("arrival_time")
         assertThat(arr.kind).isEqualTo(ColKind.TIME)

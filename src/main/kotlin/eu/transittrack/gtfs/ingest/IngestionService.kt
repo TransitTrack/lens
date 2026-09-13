@@ -2,6 +2,8 @@ package eu.transittrack.gtfs.ingest
 
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
+import java.time.Instant
 import kotlin.io.path.createTempDirectory
 
 import org.mobilitydata.gtfsvalidator.table.GtfsEntity
@@ -31,6 +33,7 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.haversineMeters
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.schedule.derive.DerivationService
 
 interface IngestionPostProcessor {
@@ -73,6 +76,7 @@ class IngestionService(
     private val eventPublisher: ApplicationEventPublisher,
     private val derivationService: DerivationService,
     postProcessors: ObjectProvider<IngestionPostProcessor>,
+    private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val postProcessors: List<IngestionPostProcessor> = postProcessors
@@ -85,6 +89,7 @@ class IngestionService(
      */
     fun ingest(feedCode: String): GtfsRevision {
         val revision = openRevision(feedCode)
+        metrics.gtfsImportStarted(feedCode)
         gtfsIngestExecutor.execute {
             runPipeline(revision.id!!)
         }
@@ -94,6 +99,7 @@ class IngestionService(
     /** Synchronous ingest: runs the pipeline inline and returns the finished revision. */
     fun ingestBlocking(feedCode: String): GtfsRevision {
         val revision = openRevision(feedCode)
+        metrics.gtfsImportStarted(feedCode)
         runPipeline(revision.id!!)
         return revisionService.revision(revision.id!!)
     }
@@ -113,10 +119,29 @@ class IngestionService(
         val feed = feeds.findById(feedId).orElseThrow()
         val tempDir = createTempDirectory(tempRoot(), "gtfs-$revisionId-")
         val zipPath = tempDir.resolve("feed.zip")
+        val startedAt = Instant.now()
         try {
             log.info("Starting download of ${feed.code}")
             revisionService.transition(revisionId, GtfsRevisionStatus.DOWNLOADING)
-            val dl = downloader.download(feed.url, zipPath)
+            val downloadStartedAt = Instant.now()
+            val dl =
+                runCatching { downloader.download(feed.url, zipPath) }
+                    .onSuccess {
+                        metrics
+                            .gtfsStageFinished(
+                                feed.code, TransitTrackMetrics.ImportStage.DOWNLOAD, TransitTrackMetrics.Outcome.SUCCESS,
+                                Duration
+                                    .between(downloadStartedAt, Instant.now()),
+                            )
+                    }.onFailure {
+                        metrics
+                            .gtfsStageFinished(
+                                feed.code, TransitTrackMetrics.ImportStage.DOWNLOAD, TransitTrackMetrics.Outcome.FAILED,
+                                Duration
+                                    .between(downloadStartedAt, Instant.now()),
+                            )
+                    }.getOrThrow()
+            metrics.gtfsDownloadBytes(feed.code, dl.byteSize)
 
             val activeSha =
                 revisionService.activeRevisionId(feed.id!!)?.let {
@@ -129,6 +154,8 @@ class IngestionService(
                 }
                 revisionService.markUnchanged(revisionId)
                 feedService.markIngested(feed.id!!)
+                metrics
+                    .gtfsImportFinished(feed.code, TransitTrackMetrics.ImportOutcome.UNCHANGED, Duration.between(startedAt, Instant.now()))
                 log.info("Finished download and detected no changes for ${feed.code}")
                 return
             }
@@ -139,7 +166,24 @@ class IngestionService(
                 it.byteSize = dl.byteSize
             }
 
-            val loadReport = feedLoader.load(zipPath)
+            val validationStartedAt = Instant.now()
+            val loadReport =
+                runCatching { feedLoader.load(zipPath) }
+                    .onSuccess {
+                        metrics
+                            .gtfsStageFinished(
+                                feed.code, TransitTrackMetrics.ImportStage.VALIDATE, TransitTrackMetrics.Outcome.SUCCESS,
+                                Duration
+                                    .between(validationStartedAt, Instant.now()),
+                            )
+                    }.onFailure {
+                        metrics
+                            .gtfsStageFinished(
+                                feed.code, TransitTrackMetrics.ImportStage.VALIDATE, TransitTrackMetrics.Outcome.FAILED,
+                                Duration
+                                    .between(validationStartedAt, Instant.now()),
+                            )
+                    }.getOrThrow()
             revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
                 it.validationReport = loadReport.toJson()
             }
@@ -165,6 +209,7 @@ class IngestionService(
                         GtfsFileDef.Kind.SHAPES -> loadShapes(revisionId, entities, def)
                         GtfsFileDef.Kind.GEOJSON -> loadGeoJson(revisionId, tempDir)
                     }
+                metrics.gtfsRowsWritten(feed.code, def.entityType, rowCounts.getValue(def.entityType))
             }
 
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING) {
@@ -172,7 +217,23 @@ class IngestionService(
                 it.rowCounts = rowCounts
             }
 
-            derivationService.rederive(revisionId)
+            val derivationStartedAt = Instant.now()
+            runCatching { derivationService.rederive(revisionId) }
+                .onSuccess {
+                    metrics
+                        .gtfsStageFinished(
+                            feed.code, TransitTrackMetrics.ImportStage.DERIVE, TransitTrackMetrics.Outcome.SUCCESS,
+                            Duration
+                                .between(derivationStartedAt, Instant.now()),
+                        )
+                }.onFailure {
+                    metrics
+                        .gtfsStageFinished(
+                            feed.code, TransitTrackMetrics.ImportStage.DERIVE, TransitTrackMetrics.Outcome.FAILED,
+                            Duration
+                                .between(derivationStartedAt, Instant.now()),
+                        )
+                }.getOrThrow()
 
             log.info("Marking feed ${feed.code} READY")
             revisionService.transition(revisionId, GtfsRevisionStatus.READY)
@@ -183,6 +244,7 @@ class IngestionService(
             }
             feedService.markIngested(feed.id!!)
             eventPublisher.publishEvent(IngestionFinishedEvent(revisionId))
+            metrics.gtfsImportFinished(feed.code, TransitTrackMetrics.ImportOutcome.READY, Duration.between(startedAt, Instant.now()))
         } catch (e: Exception) {
             log.warn("ingest failed for revision {}: {}", revisionId, e.message, e)
             // RevisionService.fail / RevisionWriter only know the gtfs_* tables. A failure
@@ -192,6 +254,7 @@ class IngestionService(
             postProcessors.forEach { runCatching { it.onIngestionFailure(revisionId) } }
             eventPublisher.publishEvent(IngestionFailedEvent(revisionId))
             revisionService.fail(revisionId, e.message ?: e.javaClass.simpleName)
+            metrics.gtfsImportFinished(feed.code, TransitTrackMetrics.ImportOutcome.FAILED, Duration.between(startedAt, Instant.now()))
         } finally {
             runCatching { tempDir.toFile().deleteRecursively() }
         }

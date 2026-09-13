@@ -1,5 +1,6 @@
 package eu.transittrack.avl.match
 
+import java.time.Duration
 import java.time.Instant
 
 import org.slf4j.LoggerFactory
@@ -20,6 +21,7 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.PredictionService
 
 /**
@@ -38,6 +40,7 @@ class AvlMatchProcessor(
     matchers: List<VehicleMatcher>,
     private val writer: AvlWriter,
     private val predictionService: ObjectProvider<PredictionService>,
+    private val metrics: TransitTrackMetrics,
     props: AvlProperties,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -51,8 +54,12 @@ class AvlMatchProcessor(
 
     /** Returns the number of reports processed. Public so tests can drive it directly. */
     fun processBatch(): Int {
+        val batchStartedAt = Instant.now()
         val batch = reports.findClaimBatch(cfg.claimBatchSize)
-        if (batch.isEmpty()) return 0
+        if (batch.isEmpty()) {
+            metrics.avlMatchBatch(TransitTrackMetrics.Outcome.SUCCESS, Duration.between(batchStartedAt, Instant.now()), 0)
+            return 0
+        }
         val byFeed = batch.groupBy { it.feedId }
         var processed = 0
         for ((feedId, feedReports) in byFeed) {
@@ -71,8 +78,19 @@ class AvlMatchProcessor(
                 reports
                     .sortedBy { it.ts }
                     .forEachIndexed { index, report ->
+                        val reportStartedAt = Instant.now()
                         val match = matcher.match(report, prev, ctx)
                         persist(feed, report, match, prev, ctx)
+                        metrics.avlReportMatched(
+                            feed,
+                            when (match) {
+                                is MatchOutcome.Matched -> TransitTrackMetrics.MatchMetricOutcome.MATCHED
+                                MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
+                                MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
+                            },
+                            Duration.between(reportStartedAt, Instant.now()),
+                            match,
+                        )
 //                        if (index != reports.lastIndex) {
 //                            persist(feed, report, MatchOutcome.Skipped, prev, ctx)
 //                        } else {
@@ -82,6 +100,7 @@ class AvlMatchProcessor(
                     }
             }
         }
+        metrics.avlMatchBatch(TransitTrackMetrics.Outcome.SUCCESS, Duration.between(batchStartedAt, Instant.now()), processed)
         return processed
     }
 

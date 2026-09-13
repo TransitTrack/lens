@@ -30,6 +30,7 @@ dependencyManagement {
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.ehcache:ehcache:3.11.1:jakarta") // brings javax.cache:cache-api transitively (compile scope)
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
@@ -53,6 +54,7 @@ dependencies {
 
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.15.0")
 
     // annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

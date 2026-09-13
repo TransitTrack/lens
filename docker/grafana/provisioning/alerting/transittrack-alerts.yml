@@ -1,0 +1,79 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: transittrack-availability
+    folder: TransitTrack
+    interval: 1m
+    rules:
+      - uid: transittrack-scrape-down
+        title: TransitTrack scrape unavailable
+        condition: A
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: up{job="transittrack"} == 0
+              refId: A
+        for: 2m
+        noDataState: NoData
+        execErrState: Error
+        annotations:
+          summary: TransitTrack is unavailable to Prometheus
+          description: Check the application health endpoint and Prometheus target status.
+          dashboard_uid: transittrack-overview
+        labels:
+          severity: critical
+  - orgId: 1
+    name: transittrack-avl
+    folder: TransitTrack
+    interval: 1m
+    rules:
+      - uid: transittrack-avl-feed-stale
+        title: AVL feed is stale
+        condition: A
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: transittrack_avl_feed_age > 180
+              refId: A
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        annotations:
+          summary: AVL feed {{ $labels.feed }} has not polled recently
+          description: Check provider availability, decoding errors, and the AVL polling dashboard.
+          dashboard_uid: transittrack-avl
+        labels:
+          severity: critical
+      - uid: transittrack-avl-match-backlog
+        title: AVL matching backlog is aging
+        condition: A
+        data:
+          - refId: A
+            queryType: ""
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: transittrack_avl_oldest_pending_report_age > 10
+              refId: A
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: AVL matching cannot keep up for {{ $labels.feed }}
+          description: Inspect pending depth, match latency, database capacity, and matcher failures.
+          dashboard_uid: transittrack-avl
+        labels:
+          severity: warning

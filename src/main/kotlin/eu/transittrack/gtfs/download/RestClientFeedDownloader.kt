@@ -4,6 +4,8 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.security.DigestInputStream
 import java.security.MessageDigest
+import java.time.Duration
+import java.time.Instant
 import java.util.HexFormat
 
 import okhttp3.OkHttpClient
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
 import eu.transittrack.HttpClientProperties
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * Streaming [FeedDownloader] built on Spring's [RestClient] over the JDK HTTP client.
@@ -24,11 +27,13 @@ import eu.transittrack.HttpClientProperties
 @Component
 class RestClientFeedDownloader(
     private val okHttpClient: OkHttpClient,
+    private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) : FeedDownloader {
     override fun download(
         url: String,
         into: Path,
     ): DownloadedFeed {
+        val startedAt = Instant.now()
         val digest = MessageDigest.getInstance("SHA-256")
         val request = Request
             .Builder()
@@ -55,9 +60,16 @@ class RestClientFeedDownloader(
                     }
                 }
 
+                metrics
+                    .outboundHttp(
+                        "gtfs_download", url, response.code, TransitTrackMetrics.Outcome.SUCCESS,
+                        Duration
+                            .between(startedAt, Instant.now()),
+                    )
                 return DownloadedFeed(into, HexFormat.of().formatHex(digest.digest()), total)
             }
         } catch (e: Exception) {
+            metrics.outboundHttp("gtfs_download", url, null, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
             Files.deleteIfExists(into)
             val unwrapped = generateSequence(e as Throwable?) {
                 it.cause

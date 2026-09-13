@@ -55,8 +55,20 @@ interface VehicleTsProjection {
     val ts: Instant
 }
 
+interface PendingAvlMetrics {
+    val feedId: Long
+    val pendingCount: Long
+    val oldestCreatedAt: Instant?
+}
+
 @Repository
 interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
+    @Query(
+        "select r.feedId as feedId, count(r) as pendingCount, min(r.createdAt) as oldestCreatedAt " +
+            "from AvlReportRow r where r.matchStatus = 0 group by r.feedId",
+    )
+    fun pendingMetricsByFeed(): List<PendingAvlMetrics>
+
     @Query("select t from AvlReportRow t where t.matchStatus = 0 order by t.feedId, t.vehicleId, t.ts limit :limit")
     fun findClaimBatch(
         @Param("limit") limit: Int,

@@ -1,5 +1,6 @@
 package eu.transittrack.avl.feed
 
+import java.time.Duration
 import java.time.Instant
 
 import okhttp3.CacheControl
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.HttpClientProperties
 import eu.transittrack.avl.ingest.AvlFetchException
 import eu.transittrack.avl.model.AvlFeed
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * okhttp-backed [AvlFeedSource]. GET the feed URL with the feed's configured headers, enforce
@@ -19,8 +21,10 @@ import eu.transittrack.avl.model.AvlFeed
 @Component
 class HttpAvlFeedSource(
     private val client: OkHttpClient,
+    private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) : AvlFeedSource {
     override fun fetch(feed: AvlFeed): RawAvlPayload {
+        val startedAt = Instant.now()
         val builder = Request
             .Builder()
             .get()
@@ -34,11 +38,19 @@ class HttpAvlFeedSource(
                     throw AvlFetchException("GET ${feed.url} returned HTTP ${response.code}")
                 }
                 val body = response.body.bytes()
+                metrics
+                    .outboundHttp(
+                        "avl_poll", feed.url, response.code, TransitTrackMetrics.Outcome.SUCCESS,
+                        Duration
+                            .between(startedAt, Instant.now()),
+                    )
                 return RawAvlPayload(body, response.body.contentType()?.toString(), Instant.now())
             }
         } catch (e: AvlFetchException) {
+            metrics.outboundHttp("avl_poll", feed.url, null, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
             throw e
         } catch (e: Exception) {
+            metrics.outboundHttp("avl_poll", feed.url, null, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
             throw AvlFetchException("fetch of ${feed.url} failed", e)
         }
     }

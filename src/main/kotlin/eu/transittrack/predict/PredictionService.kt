@@ -13,6 +13,7 @@ import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.VehicleState
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.learn.KalmanState
@@ -42,6 +43,7 @@ class PredictionService(
     private val writer: PredictionWriter,
     strategyList: List<PredictionStrategy>,
     private val props: PredictProperties,
+    private val metrics: TransitTrackMetrics,
 ) {
     private val strategies: Map<PredictionAlgorithm, PredictionStrategy> = strategyList.associateBy { it.algorithm }
 
@@ -64,26 +66,46 @@ class PredictionService(
         val algorithmsToRun =
             if (feed.predictionMode == PredictionMode.EVALUATION) strategies.values else listOfNotNull(strategies[feed.predictionAlgorithm])
         for (strategy in algorithmsToRun) {
-            val generated = strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec ?: 0, report.ts, ctx)
-            for (p in generated) {
-                writer.upsertPrediction(
-                    VehiclePredictionUpsert(
-                        feedId = feed.id!!,
-                        vehicleId = report.vehicleId,
-                        tripRowId = p.tripRowId,
-                        blockPk = outcome.blockPk,
-                        tripPatternId = p.tripPatternId,
-                        stopPathIndex = p.stopPathIndex,
-                        algorithm = strategy.algorithm,
-                        predictedArrivalTs = p.predictedArrivalTs,
-                        predictedDepartureTs = p.predictedDepartureTs,
-                        actualArrivalTs = null,
-                        actualDepartureTs = null,
-                        confidenceSec = p.confidenceSec,
-                        computedAt = now,
-                    ),
+            val startedAt = Instant.now()
+            runCatching {
+                val generated = strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec ?: 0, report.ts, ctx)
+                for (p in generated) {
+                    writer.upsertPrediction(
+                        VehiclePredictionUpsert(
+                            feedId = feed.id!!,
+                            vehicleId = report.vehicleId,
+                            tripRowId = p.tripRowId,
+                            blockPk = outcome.blockPk,
+                            tripPatternId = p.tripPatternId,
+                            stopPathIndex = p.stopPathIndex,
+                            algorithm = strategy.algorithm,
+                            predictedArrivalTs = p.predictedArrivalTs,
+                            predictedDepartureTs = p.predictedDepartureTs,
+                            actualArrivalTs = null,
+                            actualDepartureTs = null,
+                            confidenceSec = p.confidenceSec,
+                            computedAt = now,
+                        ),
+                    )
+                }
+                generated.size
+            }.onSuccess { generated ->
+                metrics.predictionRun(
+                    feed,
+                    strategy.algorithm,
+                    TransitTrackMetrics.Outcome.SUCCESS,
+                    Duration.between(startedAt, Instant.now()),
+                    generated,
                 )
-            }
+            }.onFailure {
+                metrics.predictionRun(
+                    feed,
+                    strategy.algorithm,
+                    TransitTrackMetrics.Outcome.FAILED,
+                    Duration.between(startedAt, Instant.now()),
+                    0,
+                )
+            }.getOrThrow()
         }
     }
 
@@ -106,12 +128,14 @@ class PredictionService(
                 geom.line.lengthM,
                 props.learn.maxPlausibleTravelTimeSec,
             )
+        metrics.predictionCrossings(feed, crossings.size)
         var cursor = prev.reportTs
         val algorithmsToScore =
             if (feed.predictionMode == PredictionMode.EVALUATION) PredictionAlgorithm.entries else listOf(feed.predictionAlgorithm)
         for (crossing in crossings) {
             cursor = cursor.plusSeconds(crossing.observedTravelTimeSec.toLong())
             learn(outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, ctx, now)
+            metrics.predictionLearningSamples(feed, 1)
             fillActualAndScoreAccuracy(feed, report.vehicleId, outcome.tripRowId, crossing.stopPathIndex, cursor, now, algorithmsToScore)
         }
     }
@@ -191,6 +215,7 @@ class PredictionService(
                     createdAt = now,
                 ),
             )
+            metrics.predictionAccuracy(feed, algorithm, errorSec)
         }
     }
 }

@@ -1,5 +1,6 @@
 package eu.transittrack.avl.ingest
 
+import java.time.Duration
 import java.time.Instant
 
 import org.slf4j.LoggerFactory
@@ -14,6 +15,7 @@ import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * One poll cycle for one AVL feed: fetch -> decode -> drop `(vehicleId, ts)` duplicates already
@@ -27,12 +29,14 @@ class AvlIngestService(
     decoders: ObjectProvider<AvlFeedDecoder>,
     private val writer: AvlWriter,
     private val reports: AvlReportRowRepository,
+    private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val decoders: Map<AvlFormat, AvlFeedDecoder> = decoders.associateBy { it.format }
 
     @Transactional
     fun pollOnce(feed: AvlFeed): Int {
+        val startedAt = Instant.now()
         val decoder =
             decoders[feed.format]
                 ?: error("no AvlFeedDecoder for format ${feed.format} (feed '${feed.code}')")
@@ -40,6 +44,7 @@ class AvlIngestService(
             try {
                 decoder.decode(source.fetch(feed), feed)
             } catch (e: Exception) {
+                metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
                 recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
                 throw e
             }
@@ -48,6 +53,8 @@ class AvlIngestService(
         val fresh = decoded.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: true }
         writer.insertReports(fresh.map { toRow(feed.id!!, it) })
         recordPoll(feed.id!!, status = "OK", count = fresh.size)
+        metrics.avlReports(feed, decoded.size, fresh.size)
+        metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()))
         log.trace("avl feed '{}': {} decoded, {} new", feed.code, decoded.size, fresh.size)
         return fresh.size
     }

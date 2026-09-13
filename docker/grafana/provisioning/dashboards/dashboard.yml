@@ -3,9 +3,9 @@ apiVersion: 1
 providers:
   - name: TransitTrack
     orgId: 1
-    folder: ""
+    folder: TransitTrack
     type: file
-    disableDeletion: false
+    disableDeletion: true
     updateIntervalSeconds: 30
     options:
       path: /var/lib/grafana/dashboards

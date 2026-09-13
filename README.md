@@ -1,5 +1,9 @@
 # transittrack-explorer
 
+## Monitoring
+
+Prometheus scrapes the backend at [http://localhost:8088/actuator/prometheus](http://localhost:8088/actuator/prometheus); its local UI is [http://localhost:9090](http://localhost:9090). Grafana is provisioned at [http://localhost:4000](http://localhost:4000) (local credentials: `admin` / `admin`) with overview, GTFS import, AVL/matching, and prediction dashboards. Alert rules currently remain in the Grafana UI; no external notification channel is configured.
+
 A Kotlin / Spring Boot 4 service for ingesting public-transit schedule data and
 serving it over GraphQL.
 

@@ -1,12 +1,9 @@
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: local-transit-clock
+  - job_name: transittrack
     metrics_path: /actuator/prometheus
     static_configs:
-      - targets: [ "host.docker.internal:8088" ]
-  - job_name: docker-transit-clock
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: [ "transitclock:8088" ]
+      - targets: [ "host.docker.internal:8080" ]
