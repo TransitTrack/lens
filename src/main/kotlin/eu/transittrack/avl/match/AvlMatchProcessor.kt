@@ -125,37 +125,34 @@ class AvlMatchProcessor(
         val matcher = matchers[feed.assignmentMode] ?: return finish(0)
 
         val vehiclesForFeed = batch.groupBy { it.vehicleId }
+        val vehiclesPreviousStates = vehicleStates.findByFeedId(feedId).associateBy { it.vehicleId }
         val stats = BatchProcessingStats(feed)
         var processed = 0
 
         for ((vehicleId, vehicleReports) in vehiclesForFeed) {
+            val prev = vehiclesPreviousStates[vehicleId]
+
             // oldest-first so the sequential constraint sees a vehicle's reports in order
-            val sortedReports = vehicleReports.sortedBy { it.ts }
-            sortedReports.forEachIndexed { index, report ->
-                val reportStartedAt = Instant.now()
-                val prev = vehicleStates.findByFeedIdAndVehicleId(feedId, vehicleId)
+            vehicleReports
+                .sortedBy { it.ts }
+                .forEach { report ->
+                    val reportStartedAt = Instant.now()
+                    val match = matcher.match(report, prev, ctx)
 
-                val match = if (index != sortedReports.lastIndex) {
-                    // skip all but the newest report for each vehicle
-                    MatchOutcome.Skipped
-                } else {
-                    matcher.match(report, prev, ctx)
+                    stats.accumulate(report, match, prev, ctx)
+
+                    metrics.avlReportMatched(
+                        feed,
+                        when (match) {
+                            is MatchOutcome.Matched -> TransitTrackMetrics.MatchMetricOutcome.MATCHED
+                            MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
+                            MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
+                        },
+                        Duration.between(reportStartedAt, Instant.now()),
+                        match,
+                    )
+                    processed++
                 }
-
-                stats.accumulate(report, match, prev, ctx)
-
-                metrics.avlReportMatched(
-                    feed,
-                    when (match) {
-                        is MatchOutcome.Matched -> TransitTrackMetrics.MatchMetricOutcome.MATCHED
-                        MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
-                        MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
-                    },
-                    Duration.between(reportStartedAt, Instant.now()),
-                    match,
-                )
-                processed++
-            }
         }
 
         stats.flush()
