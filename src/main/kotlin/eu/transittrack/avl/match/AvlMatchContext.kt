@@ -97,6 +97,12 @@ class AvlMatchContextFactory(
     fun open(feed: AvlFeed): AvlMatchContext? {
         val gtfsFeed = feeds.findByCode(feed.gtfsFeedCode) ?: return null
         val revisionId = revisionService.activeRevisionId(gtfsFeed.id!!) ?: return null
+        return openForRevision(revisionId)
+    }
+
+    /** Opens a context bound to a specific, already-known revision — e.g. re-opening the revision a
+     * persisted `vehicle_match` row was made under, which may no longer be the feed's active one. */
+    fun openForRevision(revisionId: Long): AvlMatchContext {
         val zone = agencyReader.timezoneOf(revisionId) ?: ZoneId.systemDefault()
         return AvlMatchContext(
             revisionId,
