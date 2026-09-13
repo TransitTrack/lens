@@ -18,16 +18,6 @@ repositories {
     mavenCentral()
 }
 
-extra["springCloudVersion"] = "2025.1.3"
-
-dependencyManagement {
-    imports {
-        mavenBom(
-            "org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}",
-        )
-    }
-}
-
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -35,7 +25,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
-    implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
 
     implementation("com.graphql-java:graphql-java-extended-scalars:24.0")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -55,7 +44,7 @@ dependencies {
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
-    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.15.0")
+    // runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.17.0")
 
     // annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
