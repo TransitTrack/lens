@@ -10,9 +10,15 @@ enum class PredictionMode { SINGLE, EVALUATION }
 @ConfigurationProperties("transittrack.predict")
 data class PredictProperties(
     val enabled: Boolean = false,
+    @NestedConfigurationProperty val run: Run = Run(),
     @NestedConfigurationProperty val learn: Learn = Learn(),
     @NestedConfigurationProperty val retention: Retention = Retention(),
 ) {
+    data class Run(
+        val intervalMs: Long = 5_000,
+        val claimBatchSize: Int = 500,
+    )
+
     data class Learn(
         val maxPlausibleTravelTimeSec: Int = 1_800,
         val kalmanMeasurementNoiseSec2: Double = 400.0,
