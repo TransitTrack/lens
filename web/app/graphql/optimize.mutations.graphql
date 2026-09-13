@@ -1,0 +1,8 @@
+mutation StartOptimizationRun($input: OptimizationRunInput!) {
+  startOptimizationRun(input: $input) { id revisionId state error createdAt completedAt }
+}
+mutation ApplyOptimizationRecommendations($runId: ID!, $recommendationIds: [ID!]!, $label: String, $editor: String!) {
+  applyOptimizationRecommendations(runId: $runId, recommendationIds: $recommendationIds, label: $label, editor: $editor) {
+    id feedCode label status kind
+  }
+}

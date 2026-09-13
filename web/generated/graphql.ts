@@ -326,6 +326,7 @@ export type Mutation = {
   activateDraft: Revision;
   activateRevision: Revision;
   addTrip: DraftEditResult;
+  applyOptimizationRecommendations: Draft;
   bulkShiftTrips: DraftEditResult;
   claimDraftEditor: DraftLock;
   deleteFeed: Scalars['Boolean']['output'];
@@ -346,6 +347,7 @@ export type Mutation = {
   revertDraftToFork: Draft;
   setStopDwell: DraftEditResult;
   shiftTrip: DraftEditResult;
+  startOptimizationRun: OptimizationRun;
   undoDraftEdit: DraftEditResult;
   updateFeed: Feed;
   updateStopTime: DraftEditResult;
@@ -366,6 +368,14 @@ export type MutationActivateRevisionArgs = {
 
 export type MutationAddTripArgs = {
   input: AddTripInput;
+};
+
+
+export type MutationApplyOptimizationRecommendationsArgs = {
+  editor: Scalars['String']['input'];
+  label?: InputMaybe<Scalars['String']['input']>;
+  recommendationIds: Array<Scalars['ID']['input']>;
+  runId: Scalars['ID']['input'];
 };
 
 
@@ -477,6 +487,11 @@ export type MutationShiftTripArgs = {
 };
 
 
+export type MutationStartOptimizationRunArgs = {
+  input: OptimizationRunInput;
+};
+
+
 export type MutationUndoDraftEditArgs = {
   editor: Scalars['String']['input'];
   expectedVersion: Scalars['Long']['input'];
@@ -498,6 +513,43 @@ export type NewStopTimeInput = {
   arrivalSec: Scalars['Int']['input'];
   departureSec: Scalars['Int']['input'];
   stopId: Scalars['String']['input'];
+};
+
+export type OptimizationRecommendation = {
+  __typename?: 'OptimizationRecommendation';
+  currentValue: Scalars['JSON']['output'];
+  deltaSec: Scalars['Int']['output'];
+  evidence: Scalars['JSON']['output'];
+  id: Scalars['ID']['output'];
+  kind: Scalars['String']['output'];
+  proposedValue: Scalars['JSON']['output'];
+  reason: Scalars['String']['output'];
+  sampleCount: Scalars['Int']['output'];
+  status: Scalars['String']['output'];
+};
+
+export type OptimizationRun = {
+  __typename?: 'OptimizationRun';
+  completedAt?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['String']['output'];
+  error?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  revisionId: Scalars['ID']['output'];
+  state: Scalars['String']['output'];
+};
+
+export type OptimizationRunInput = {
+  directionId?: InputMaybe<Scalars['Int']['input']>;
+  feedCode: Scalars['String']['input'];
+  minimumSamples: Scalars['Int']['input'];
+  /** ISO-8601 instant */
+  observedFrom: Scalars['String']['input'];
+  /** ISO-8601 instant */
+  observedTo: Scalars['String']['input'];
+  routeId?: InputMaybe<Scalars['String']['input']>;
+  serviceId?: InputMaybe<Scalars['String']['input']>;
+  windowFromSec?: InputMaybe<Scalars['Int']['input']>;
+  windowToSec?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type Pathway = {
@@ -545,6 +597,9 @@ export type Query = {
   frequencies: Array<Frequency>;
   headway: Headway;
   levels: Array<Level>;
+  optimizationRecommendations: Array<OptimizationRecommendation>;
+  optimizationRun?: Maybe<OptimizationRun>;
+  optimizationRuns: Array<OptimizationRun>;
   pathways: Array<Pathway>;
   predictionAccuracy: Array<PredictionAccuracySummary>;
   records: Array<Scalars['JSON']['output']>;
@@ -675,6 +730,26 @@ export type QueryHeadwayArgs = {
 export type QueryLevelsArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryOptimizationRecommendationsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  runId: Scalars['ID']['input'];
+  status?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryOptimizationRunArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryOptimizationRunsArgs = {
+  feedCode: Scalars['String']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -1482,6 +1557,49 @@ export type HeadwayRoutePatternsQueryVariables = Exact<{
 
 
 export type HeadwayRoutePatternsQuery = { tripPatterns: Array<{ patternKey: string, directionId: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, stop: { stopName: string | null } | null }> }> };
+
+export type StartOptimizationRunMutationVariables = Exact<{
+  input: OptimizationRunInput;
+}>;
+
+
+export type StartOptimizationRunMutation = { startOptimizationRun: { id: string, revisionId: string, state: string, error: string | null, createdAt: string, completedAt: string | null } };
+
+export type ApplyOptimizationRecommendationsMutationVariables = Exact<{
+  runId: string | number;
+  recommendationIds: Array<string | number> | string | number;
+  label?: string | null | undefined;
+  editor: string;
+}>;
+
+
+export type ApplyOptimizationRecommendationsMutation = { applyOptimizationRecommendations: { id: string, feedCode: string, label: string | null, status: string, kind: string } };
+
+export type OptimizationRunsQueryVariables = Exact<{
+  feedCode: string;
+  limit?: number | null | undefined;
+  offset?: number | null | undefined;
+}>;
+
+
+export type OptimizationRunsQuery = { optimizationRuns: Array<{ id: string, revisionId: string, state: string, error: string | null, createdAt: string, completedAt: string | null }> };
+
+export type OptimizationRunQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type OptimizationRunQuery = { optimizationRun: { id: string, revisionId: string, state: string, error: string | null, createdAt: string, completedAt: string | null } | null };
+
+export type OptimizationRecommendationsQueryVariables = Exact<{
+  runId: string | number;
+  status?: string | null | undefined;
+  offset?: number | null | undefined;
+  limit?: number | null | undefined;
+}>;
+
+
+export type OptimizationRecommendationsQuery = { optimizationRecommendations: Array<{ id: string, kind: string, status: string, sampleCount: number, deltaSec: number, currentValue: any, proposedValue: any, evidence: any, reason: string }> };
 
 export type PredictionAccuracyQueryVariables = Exact<{
   feedCode: string;
@@ -3328,6 +3446,199 @@ export function useHeadwayRoutePatternsLazyQuery(variables?: HeadwayRoutePattern
   return VueApolloComposable.useLazyQuery<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>(HeadwayRoutePatternsDocument, variables, options);
 }
 export type HeadwayRoutePatternsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables>;
+export const StartOptimizationRunDocument = gql`
+    mutation StartOptimizationRun($input: OptimizationRunInput!) {
+  startOptimizationRun(input: $input) {
+    id
+    revisionId
+    state
+    error
+    createdAt
+    completedAt
+  }
+}
+    `;
+
+/**
+ * __useStartOptimizationRunMutation__
+ *
+ * To run a mutation, you first call `useStartOptimizationRunMutation` within a Vue component and pass it any options that fit your needs.
+ * When your component renders, `useStartOptimizationRunMutation` returns an object that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - Several other properties: https://v4.apollo.vuejs.org/api/use-mutation.html#return
+ *
+ * @param options that will be passed into the mutation, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/mutation.html#options;
+ *
+ * @example
+ * const { mutate, loading, error, onDone } = useStartOptimizationRunMutation({
+ *   variables: {
+ *     input: // value for 'input'
+ *   },
+ * });
+ */
+export function useStartOptimizationRunMutation(options: VueApolloComposable.UseMutationOptions<StartOptimizationRunMutation, StartOptimizationRunMutationVariables> | ReactiveFunction<VueApolloComposable.UseMutationOptions<StartOptimizationRunMutation, StartOptimizationRunMutationVariables>> = {}) {
+  return VueApolloComposable.useMutation<StartOptimizationRunMutation, StartOptimizationRunMutationVariables>(StartOptimizationRunDocument, options);
+}
+export type StartOptimizationRunMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<StartOptimizationRunMutation, StartOptimizationRunMutationVariables>;
+export const ApplyOptimizationRecommendationsDocument = gql`
+    mutation ApplyOptimizationRecommendations($runId: ID!, $recommendationIds: [ID!]!, $label: String, $editor: String!) {
+  applyOptimizationRecommendations(
+    runId: $runId
+    recommendationIds: $recommendationIds
+    label: $label
+    editor: $editor
+  ) {
+    id
+    feedCode
+    label
+    status
+    kind
+  }
+}
+    `;
+
+/**
+ * __useApplyOptimizationRecommendationsMutation__
+ *
+ * To run a mutation, you first call `useApplyOptimizationRecommendationsMutation` within a Vue component and pass it any options that fit your needs.
+ * When your component renders, `useApplyOptimizationRecommendationsMutation` returns an object that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - Several other properties: https://v4.apollo.vuejs.org/api/use-mutation.html#return
+ *
+ * @param options that will be passed into the mutation, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/mutation.html#options;
+ *
+ * @example
+ * const { mutate, loading, error, onDone } = useApplyOptimizationRecommendationsMutation({
+ *   variables: {
+ *     runId: // value for 'runId'
+ *     recommendationIds: // value for 'recommendationIds'
+ *     label: // value for 'label'
+ *     editor: // value for 'editor'
+ *   },
+ * });
+ */
+export function useApplyOptimizationRecommendationsMutation(options: VueApolloComposable.UseMutationOptions<ApplyOptimizationRecommendationsMutation, ApplyOptimizationRecommendationsMutationVariables> | ReactiveFunction<VueApolloComposable.UseMutationOptions<ApplyOptimizationRecommendationsMutation, ApplyOptimizationRecommendationsMutationVariables>> = {}) {
+  return VueApolloComposable.useMutation<ApplyOptimizationRecommendationsMutation, ApplyOptimizationRecommendationsMutationVariables>(ApplyOptimizationRecommendationsDocument, options);
+}
+export type ApplyOptimizationRecommendationsMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<ApplyOptimizationRecommendationsMutation, ApplyOptimizationRecommendationsMutationVariables>;
+export const OptimizationRunsDocument = gql`
+    query OptimizationRuns($feedCode: String!, $limit: Int, $offset: Int) {
+  optimizationRuns(feedCode: $feedCode, limit: $limit, offset: $offset) {
+    id
+    revisionId
+    state
+    error
+    createdAt
+    completedAt
+  }
+}
+    `;
+
+/**
+ * __useOptimizationRunsQuery__
+ *
+ * To run a query within a Vue component, call `useOptimizationRunsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useOptimizationRunsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useOptimizationRunsQuery({
+ *   feedCode: // value for 'feedCode'
+ *   limit: // value for 'limit'
+ *   offset: // value for 'offset'
+ * });
+ */
+export function useOptimizationRunsQuery(variables: OptimizationRunsQueryVariables | VueCompositionApi.Ref<OptimizationRunsQueryVariables> | ReactiveFunction<OptimizationRunsQueryVariables>, options: VueApolloComposable.UseQueryOptions<OptimizationRunsQuery, OptimizationRunsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<OptimizationRunsQuery, OptimizationRunsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<OptimizationRunsQuery, OptimizationRunsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<OptimizationRunsQuery, OptimizationRunsQueryVariables>(OptimizationRunsDocument, variables, options);
+}
+export function useOptimizationRunsLazyQuery(variables?: OptimizationRunsQueryVariables | VueCompositionApi.Ref<OptimizationRunsQueryVariables> | ReactiveFunction<OptimizationRunsQueryVariables>, options: VueApolloComposable.UseQueryOptions<OptimizationRunsQuery, OptimizationRunsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<OptimizationRunsQuery, OptimizationRunsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<OptimizationRunsQuery, OptimizationRunsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<OptimizationRunsQuery, OptimizationRunsQueryVariables>(OptimizationRunsDocument, variables, options);
+}
+export type OptimizationRunsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<OptimizationRunsQuery, OptimizationRunsQueryVariables>;
+export const OptimizationRunDocument = gql`
+    query OptimizationRun($id: ID!) {
+  optimizationRun(id: $id) {
+    id
+    revisionId
+    state
+    error
+    createdAt
+    completedAt
+  }
+}
+    `;
+
+/**
+ * __useOptimizationRunQuery__
+ *
+ * To run a query within a Vue component, call `useOptimizationRunQuery` and pass it any options that fit your needs.
+ * When your component renders, `useOptimizationRunQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useOptimizationRunQuery({
+ *   id: // value for 'id'
+ * });
+ */
+export function useOptimizationRunQuery(variables: OptimizationRunQueryVariables | VueCompositionApi.Ref<OptimizationRunQueryVariables> | ReactiveFunction<OptimizationRunQueryVariables>, options: VueApolloComposable.UseQueryOptions<OptimizationRunQuery, OptimizationRunQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<OptimizationRunQuery, OptimizationRunQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<OptimizationRunQuery, OptimizationRunQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<OptimizationRunQuery, OptimizationRunQueryVariables>(OptimizationRunDocument, variables, options);
+}
+export function useOptimizationRunLazyQuery(variables?: OptimizationRunQueryVariables | VueCompositionApi.Ref<OptimizationRunQueryVariables> | ReactiveFunction<OptimizationRunQueryVariables>, options: VueApolloComposable.UseQueryOptions<OptimizationRunQuery, OptimizationRunQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<OptimizationRunQuery, OptimizationRunQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<OptimizationRunQuery, OptimizationRunQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<OptimizationRunQuery, OptimizationRunQueryVariables>(OptimizationRunDocument, variables, options);
+}
+export type OptimizationRunQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<OptimizationRunQuery, OptimizationRunQueryVariables>;
+export const OptimizationRecommendationsDocument = gql`
+    query OptimizationRecommendations($runId: ID!, $status: String, $offset: Int, $limit: Int) {
+  optimizationRecommendations(
+    runId: $runId
+    status: $status
+    offset: $offset
+    limit: $limit
+  ) {
+    id
+    kind
+    status
+    sampleCount
+    deltaSec
+    currentValue
+    proposedValue
+    evidence
+    reason
+  }
+}
+    `;
+
+/**
+ * __useOptimizationRecommendationsQuery__
+ *
+ * To run a query within a Vue component, call `useOptimizationRecommendationsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useOptimizationRecommendationsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useOptimizationRecommendationsQuery({
+ *   runId: // value for 'runId'
+ *   status: // value for 'status'
+ *   offset: // value for 'offset'
+ *   limit: // value for 'limit'
+ * });
+ */
+export function useOptimizationRecommendationsQuery(variables: OptimizationRecommendationsQueryVariables | VueCompositionApi.Ref<OptimizationRecommendationsQueryVariables> | ReactiveFunction<OptimizationRecommendationsQueryVariables>, options: VueApolloComposable.UseQueryOptions<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>(OptimizationRecommendationsDocument, variables, options);
+}
+export function useOptimizationRecommendationsLazyQuery(variables?: OptimizationRecommendationsQueryVariables | VueCompositionApi.Ref<OptimizationRecommendationsQueryVariables> | ReactiveFunction<OptimizationRecommendationsQueryVariables>, options: VueApolloComposable.UseQueryOptions<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>(OptimizationRecommendationsDocument, variables, options);
+}
+export type OptimizationRecommendationsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables>;
 export const PredictionAccuracyDocument = gql`
     query PredictionAccuracy($feedCode: String!, $sinceDays: Int) {
   predictionAccuracy(feedCode: $feedCode, sinceDays: $sinceDays) {
