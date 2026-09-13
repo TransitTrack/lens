@@ -141,10 +141,31 @@ class TransitTrackMetrics(
             .record(count.toDouble())
     }
 
-    fun avlPredictionDropped(feed: AvlFeed) =
-        safely("avl_prediction_dropped") {
-            counter("transittrack.avl.prediction.dropped", tags("feed", feed.code)).increment()
-        }
+    fun predictionBatch(
+        feed: AvlFeed,
+        outcome: Outcome,
+        elapsed: Duration,
+        count: Int,
+    ) = safely("prediction_batch") {
+        val tags = tags("feed", feed.code, "outcome", outcome.tag())
+        counter("transittrack.prediction.batches", tags).increment()
+        timer("transittrack.prediction.batch.duration", tags).record(elapsed)
+        DistributionSummary
+            .builder("transittrack.prediction.batch.size")
+            .tags(tags)
+            .register(registry)
+            .record(count.toDouble())
+    }
+
+    fun predictionQueue(
+        feedCode: String,
+        pending: Long,
+        oldestCreatedAt: Instant?,
+    ) {
+        setGauge("transittrack.prediction.pending.matches", tags("feed", feedCode), pending)
+        val ageSeconds = oldestCreatedAt?.let { Duration.between(it, Instant.now()).seconds.coerceAtLeast(0) } ?: 0
+        setGauge("transittrack.prediction.oldest.pending.match.age", tags("feed", feedCode), ageSeconds)
+    }
 
     fun avlReportMatched(
         feed: AvlFeed,
