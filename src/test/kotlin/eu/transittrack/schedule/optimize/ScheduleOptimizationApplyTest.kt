@@ -38,8 +38,9 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunState
 /**
  * Drives [ScheduleOptimizationService.apply] (design section 7, "Apply workflow") against a real
  * Postgres schema and a genuinely ingested fixture — like [eu.transittrack.gtfs.draft.edit.DraftEditServiceTest],
- * `DraftService.fork`/ingestion commit on their own connections, so this must not run inside a
- * rollback transaction.
+ * `IngestionTestFactory.ingest` and this class's own `@AfterEach` cleanup commit on their own
+ * connections, so this must not run inside a rollback transaction. (`DraftService.fork` itself joins
+ * the ambient transaction — that's what makes `apply`'s atomicity guarantee work in production.)
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
 @Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
@@ -264,5 +265,37 @@ class ScheduleOptimizationApplyTest(
         assertThat(
             stopTimes.findByTripId(base, cellTarget.tripId).single { it.stopSequence == cellTarget.stopSequence }.arrivalTime,
         ).isEqualTo(cellTarget.arrivalTime)
+    }
+
+    @Test
+    fun `a recommendation with no proposed targets is rejected rather than silently marked applied`() {
+        val (feedCode, base) = ingestFactory.ingest("schedule-sample")
+        clean += base
+        val feedId = feeds.findByCode(feedCode)!!.id!!
+
+        val run = successfulRun(feedId, base)
+        // Not producible by OptimizationAnalysisPipeline today (it never persists an empty `targets`
+        // array), but the apply endpoint must not paper over corrupt/malformed data by reporting
+        // success — see ScheduleOptimizationService.apply's noOp check.
+        val empty =
+            recommendations.save(
+                OptimizationRecommendationRow(
+                    runId = run.id!!,
+                    kind = OptimizationRecommendationKind.STOP_TIME,
+                    sampleCount = 5,
+                    deltaSec = 30,
+                    reason = "test",
+                    proposedValue = json.writeValueAsString(linkedMapOf("targets" to emptyList<Any>())),
+                    conflictKey = "cell:none:0",
+                ),
+            )
+
+        val revisionsBefore = revisions.count()
+
+        assertFailure { service.apply(run.id!!, setOf(empty.id!!), "proposal", "planner") }
+
+        assertThat(revisions.count()).isEqualTo(revisionsBefore)
+        assertThat(recommendations.findById(empty.id!!).orElseThrow().status)
+            .isEqualTo(OptimizationRecommendationStatus.PENDING)
     }
 }

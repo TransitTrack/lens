@@ -169,6 +169,20 @@ class ScheduleOptimizationService(
         }
         val ops = groupedTargets.values.map { it.first().op } // one op per target, dedup applied
 
+        // Every selected recommendation must contribute at least one expanded target — a PENDING row
+        // with a missing/empty `proposedValue` would otherwise be silently marked APPLIED below despite
+        // no draft edit ever being made on its behalf. Not reachable given the analysis pipeline's own
+        // invariants (it never persists an empty `targets` array), but this endpoint must not paper over
+        // corrupt data by reporting success.
+        val contributingIds = groupedTargets.values
+            .flatten()
+            .map { it.recommendationId }
+            .toSet()
+        val noOp = selected.filterNot { it.id in contributingIds }
+        check(noOp.isEmpty()) {
+            "recommendation(s) ${noOp.map { it.id }} have no proposed targets to apply"
+        }
+
         val draft = draftService.fork(feed.code, run.revisionId, label, editor)
         val lock = draftService.claimEditor(draft.id!!, editor)
         // claimEditor commits its lock via a bulk UPDATE (see GtfsRevisionRepository.tryClaimEditor),
