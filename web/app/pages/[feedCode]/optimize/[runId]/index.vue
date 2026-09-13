@@ -2,12 +2,25 @@
 import {useOptimizationRunQuery} from '~~/generated/graphql'
 import AppPage from '~/components/AppPage.vue'
 import RecommendationList from '~/components/optimize/RecommendationList.vue'
+import ApplyRecommendationsBar from '~/components/optimize/ApplyRecommendationsBar.vue'
 import {gtfsDate} from '~/utils/gtfs'
 
 const route = useRoute()
 const runId = computed(() => String(route.params.runId))
 
 const selectedIds = ref<string[]>([])
+const conflictIds = ref<string[]>([])
+const recommendationList = ref<InstanceType<typeof RecommendationList> | null>(null)
+
+function onApplied() {
+  selectedIds.value = []
+  conflictIds.value = []
+  recommendationList.value?.refetch()
+}
+
+function onConflict(ids: string[]) {
+  conflictIds.value = ids
+}
 
 const TERMINAL_STATES = ['SUCCEEDED', 'FAILED']
 
@@ -74,7 +87,21 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
         :description="run.error ?? 'see server logs'"
       />
 
-      <RecommendationList v-else :run-id="runId" v-model:selected="selectedIds" />
+      <template v-else>
+        <RecommendationList
+          ref="recommendationList"
+          :run-id="runId"
+          v-model:selected="selectedIds"
+          v-model:conflict-ids="conflictIds"
+        />
+        <ApplyRecommendationsBar
+          v-if="selectedIds.length"
+          :run-id="runId"
+          :selected-ids="selectedIds"
+          @applied="onApplied"
+          @conflict="onConflict"
+        />
+      </template>
     </div>
   </AppPage>
 </template>
