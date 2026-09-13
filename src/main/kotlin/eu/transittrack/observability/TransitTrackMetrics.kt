@@ -126,11 +126,12 @@ class TransitTrackMetrics(
     }
 
     fun avlMatchBatch(
+        feed: AvlFeed,
         outcome: Outcome,
         elapsed: Duration,
         count: Int,
     ) = safely("avl_match_batch") {
-        val tags = tags("outcome", outcome.tag())
+        val tags = tags("feed", feed.code, "outcome", outcome.tag())
         counter("transittrack.avl.match.batches", tags).increment()
         timer("transittrack.avl.match.batch.duration", tags).record(elapsed)
         DistributionSummary

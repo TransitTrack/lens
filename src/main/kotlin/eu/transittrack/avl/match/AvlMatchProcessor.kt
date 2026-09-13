@@ -2,11 +2,17 @@ package eu.transittrack.avl.match
 
 import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ScheduledFuture
+import jakarta.annotation.PreDestroy
 
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.event.ApplicationReadyEvent
+import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
@@ -25,11 +31,16 @@ import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.PredictionService
 
 /**
- * Claims PENDING `avl_report` rows, dispatches each to the [VehicleMatcher] for its feed's assignment
- * mode, and accumulates the outcome (a `vehicle_match` row plus a `vehicle_state` upsert on success; a
- * stale `vehicle_state` upsert on failure). Outcomes for a feed are flushed as a single batch once all
- * of its reports are processed, followed by a summary log line. Runs on a fixed delay; [processBatch]
- * is public so tests can drive it directly.
+ * Claims PENDING `avl_report` rows for one feed at a time, dispatches each to the [VehicleMatcher] for
+ * its feed's assignment mode, and accumulates the outcome (a `vehicle_match` row plus a `vehicle_state`
+ * upsert on success; a stale `vehicle_state` upsert on failure). Outcomes for a feed are flushed as a
+ * single batch once all of its claimed reports are processed, followed by a summary log line.
+ *
+ * Mirrors [eu.transittrack.avl.ingest.AvlPoller]'s shape: one `scheduleWithFixedDelay` task per enabled
+ * feed on a dedicated [ThreadPoolTaskScheduler], reconciled every 60s against [AvlFeedRepository], so a
+ * slow or high-volume feed can never delay or starve another feed's claim/processing turn. [processBatch]
+ * stays as a synchronous, deterministic entry point driving every enabled feed once — used by tests and
+ * manual/ops triggers; it does not touch the scheduler.
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
@@ -48,63 +59,107 @@ class AvlMatchProcessor(
     private val cfg = props.match
     private val matchers: Map<AvlAssignmentMode, VehicleMatcher> = matchers.associateBy { it.mode }
 
-    @Scheduled(fixedDelayString = "\${transittrack.avl.match.match-interval-ms:5000}")
-    fun run() {
-        runCatching { processBatch() }.onFailure { log.warn("avl match batch failed", it) }
+    private val scheduler =
+        ThreadPoolTaskScheduler().apply {
+            poolSize = 4
+            setThreadNamePrefix("avl-match-")
+            initialize()
+        }
+    private val tasks = ConcurrentHashMap<Long, ScheduledFuture<*>>()
+
+    @EventListener(ApplicationReadyEvent::class)
+    fun start() = reconcile()
+
+    @Scheduled(fixedDelay = 60_000)
+    @Synchronized
+    fun reconcile() {
+        val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
+        tasks.keys
+            .filter { it !in enabled }
+            .forEach { id -> tasks.remove(id)?.cancel(false) }
+        for (id in enabled) {
+            if (!tasks.containsKey(id)) {
+                tasks[id] =
+                    scheduler.scheduleWithFixedDelay(
+                        { runFeed(id) },
+                        Duration.ofMillis(cfg.matchIntervalMs),
+                    )
+            }
+        }
     }
 
-    /** Returns the number of reports processed. Public so tests can drive it directly. */
-    fun processBatch(): Int {
-        val batchStartedAt = Instant.now()
-        val batch = reports.findClaimBatch(cfg.claimBatchSize)
-        if (batch.isEmpty()) {
-            metrics.avlMatchBatch(TransitTrackMetrics.Outcome.SUCCESS, Duration.between(batchStartedAt, Instant.now()), 0)
-            return 0
+    private fun runFeed(feedId: Long) {
+        runCatching { processFeed(feedId) }
+            .onFailure { log.warn("avl match for feed '{}' failed", feedId, it) }
+    }
+
+    /** test hook */
+    fun runningFeedIds(): Set<Long> = tasks.keys.toSet()
+
+    @PreDestroy
+    fun shutdown() = scheduler.shutdown()
+
+    /**
+     * Processes every currently-enabled feed once, synchronously, and returns the total number of
+     * reports processed. Used by tests and manual/ops triggers; the scheduled path drives each feed
+     * independently via [processFeed] instead.
+     */
+    fun processBatch(): Int =
+        feeds
+            .findAllEnabled()
+            .sumOf { processFeed(it.id!!) }
+
+    /** Claims and processes one feed's own PENDING batch. Returns the number of reports processed. */
+    private fun processFeed(feedId: Long): Int {
+        val startedAt = Instant.now()
+        val feed = feeds.findById(feedId).orElse(null) ?: return 0
+
+        fun finish(processed: Int): Int {
+            metrics.avlMatchBatch(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()), processed)
+            return processed
         }
 
-        val byFeed = batch.groupBy { it.feedId }
+        val batch = reports.findClaimBatch(feedId, cfg.claimBatchSize)
+        if (batch.isEmpty()) return finish(0)
+        val ctx = contextFactory.open(feed) ?: return finish(0) // leave rows PENDING when no active revision
+        val matcher = matchers[feed.assignmentMode] ?: return finish(0)
+
+        val vehiclesForFeed = batch.groupBy { it.vehicleId }
+        val stats = BatchProcessingStats(feed)
         var processed = 0
-        for ((feedId, feedReports) in byFeed) {
-            val feed = feeds.findById(feedId).orElse(null) ?: continue
-            val ctx = contextFactory.open(feed) ?: continue // leave rows PENDING when no active revision
-            val matcher = matchers[feed.assignmentMode] ?: continue
-            val vehiclesForFeed = feedReports.groupBy { it.vehicleId }
-            val vehiclesPreviousStates = vehicleStates
-                .findByFeedId(feedId)
-                .associateBy { it.vehicleId }
 
-            val stats = BatchProcessingStats(feed)
+        for ((vehicleId, vehicleReports) in vehiclesForFeed) {
+            // oldest-first so the sequential constraint sees a vehicle's reports in order
+            val sortedReports = vehicleReports.sortedBy { it.ts }
+            sortedReports.forEachIndexed { index, report ->
+                val reportStartedAt = Instant.now()
+                val prev = vehicleStates.findByFeedIdAndVehicleId(feedId, vehicleId)
 
-            for ((vehicleId, vehicleReports) in vehiclesForFeed) {
-                val prev = vehiclesPreviousStates[vehicleId]
+                val match = if (index != sortedReports.lastIndex) {
+                    // skip all but the newest report for each vehicle
+                    MatchOutcome.Skipped
+                } else {
+                    matcher.match(report, prev, ctx)
+                }
 
-                // oldest-first so the sequential constraint sees a vehicle's reports in order
-                vehicleReports
-                    .sortedBy { it.ts }
-                    .forEach { report ->
-                        val reportStartedAt = Instant.now()
-                        val match = matcher.match(report, prev, ctx)
+                stats.accumulate(report, match, prev, ctx)
 
-                        stats.accumulate(report, match, prev, ctx)
-
-                        metrics.avlReportMatched(
-                            feed,
-                            when (match) {
-                                is MatchOutcome.Matched -> TransitTrackMetrics.MatchMetricOutcome.MATCHED
-                                MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
-                                MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
-                            },
-                            Duration.between(reportStartedAt, Instant.now()),
-                            match,
-                        )
-                        processed++
-                    }
+                metrics.avlReportMatched(
+                    feed,
+                    when (match) {
+                        is MatchOutcome.Matched -> TransitTrackMetrics.MatchMetricOutcome.MATCHED
+                        MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
+                        MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
+                    },
+                    Duration.between(reportStartedAt, Instant.now()),
+                    match,
+                )
+                processed++
             }
-
-            stats.flush()
         }
-        metrics.avlMatchBatch(TransitTrackMetrics.Outcome.SUCCESS, Duration.between(batchStartedAt, Instant.now()), processed)
-        return processed
+
+        stats.flush()
+        return finish(processed)
     }
 
     /** Accumulates one feed's persistence side effects so they can be flushed as a single batch. */
