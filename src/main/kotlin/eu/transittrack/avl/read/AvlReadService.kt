@@ -32,7 +32,7 @@ class AvlReadService(
         val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
             .findByFeedIdOrderByUpdatedAtDesc(feed.id!!)
-            .filter { !it.reportTs.isBefore(cutoff) }
+            .filter { it.reportTs.isAfter(cutoff) }
             .filter { !matchedOnly || it.matched }
             .map { VehicleDto.of(it, feed.gtfsFeedCode) }
     }
@@ -45,7 +45,7 @@ class AvlReadService(
         val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
             .findByFeedIdAndVehicleId(feed.id!!, vehicleId)
-            ?.takeIf { !it.reportTs.isBefore(cutoff) }
+            ?.takeIf { it.reportTs.isAfter(cutoff) }
             ?.let { VehicleDto.of(it, feed.gtfsFeedCode) }
     }
 

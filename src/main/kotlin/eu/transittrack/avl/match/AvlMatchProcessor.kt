@@ -77,7 +77,7 @@ class AvlMatchProcessor(
                 // oldest-first so the sequential constraint sees a vehicle's reports in order
                 reports
                     .sortedBy { it.ts }
-                    .forEachIndexed { index, report ->
+                    .forEach { report ->
                         val reportStartedAt = Instant.now()
                         val match = matcher.match(report, prev, ctx)
                         persist(feed, report, match, prev, ctx)
@@ -91,11 +91,6 @@ class AvlMatchProcessor(
                             Duration.between(reportStartedAt, Instant.now()),
                             match,
                         )
-//                        if (index != reports.lastIndex) {
-//                            persist(feed, report, MatchOutcome.Skipped, prev, ctx)
-//                        } else {
-//                            persist(feed, report, matcher.match(report, prev, ctx), prev, ctx)
-//                        }
                         processed++
                     }
             }

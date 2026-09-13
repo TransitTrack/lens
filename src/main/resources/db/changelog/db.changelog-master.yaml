@@ -5,3 +5,4 @@ databaseChangeLog:
   - include: { file: db/changelog/0004-draft.yaml }
   - include: { file: db/changelog/0005-draft-fk-ondelete.yaml }
   - include: { file: db/changelog/0006-schedule-optimization.yaml }
+  - include: { file: db/changelog/0007-optimization-runs.yaml }

@@ -46,13 +46,16 @@ class VehicleState(
 
 @Repository
 interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
+    @Query("from VehicleState where feedId = :feedId and vehicleId = :vehicleId order by updatedAt desc")
     fun findByFeedIdAndVehicleId(
         feedId: Long,
         vehicleId: String,
     ): VehicleState?
 
+    @Query("from VehicleState where feedId = :feedId order by updatedAt desc")
     fun findByFeedIdOrderByUpdatedAtDesc(feedId: Long): List<VehicleState>
 
+    @Query("from VehicleState where feedId = :feedId")
     fun findByFeedId(feedId: Long): List<VehicleState>
 
     /**
