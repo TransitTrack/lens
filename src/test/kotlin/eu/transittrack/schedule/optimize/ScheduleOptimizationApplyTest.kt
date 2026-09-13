@@ -24,7 +24,9 @@ import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
+import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
@@ -296,6 +298,44 @@ class ScheduleOptimizationApplyTest(
 
         assertThat(revisions.count()).isEqualTo(revisionsBefore)
         assertThat(recommendations.findById(empty.id!!).orElseThrow().status)
+            .isEqualTo(OptimizationRecommendationStatus.PENDING)
+    }
+
+    @Test
+    fun `apply rejects a run whose frozen revision has been superseded by a newer ACTIVE import`() {
+        val (feedCode, base) = ingestFactory.ingest("schedule-sample")
+        clean += base
+        val feedId = feeds.findByCode(feedCode)!!.id!!
+        val cellTarget = stopTimes.findByRevisionId(base).first()
+
+        val run = successfulRun(feedId, base)
+        val rec =
+            stopTimeRecommendation(
+                run.id!!,
+                cellTarget.tripId,
+                cellTarget.stopSequence,
+                (cellTarget.arrivalTime ?: 0) + 30,
+                (cellTarget.departureTime ?: 0) + 30,
+            )
+
+        // Simulate a newer GTFS import superseding the run's frozen revision: flip `base` to
+        // SUPERSEDED and introduce a fresh ACTIVE revision for the same feed.
+        val baseRevision = revisions.findById(base).orElseThrow()
+        baseRevision.status = GtfsRevisionStatus.SUPERSEDED
+        revisions.save(baseRevision)
+        val newerActive =
+            revisions.save(
+                GtfsRevision(feedId = feedId, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "http://x/newer.zip"),
+            )
+        clean += newerActive.id!!
+
+        val revisionsBefore = revisions.count()
+
+        val ex = assertFailure { service.apply(run.id!!, setOf(rec.id!!), "proposal", "planner") }
+        ex.isInstanceOf(IllegalStateException::class)
+
+        assertThat(revisions.count()).isEqualTo(revisionsBefore)
+        assertThat(recommendations.findById(rec.id!!).orElseThrow().status)
             .isEqualTo(OptimizationRecommendationStatus.PENDING)
     }
 }

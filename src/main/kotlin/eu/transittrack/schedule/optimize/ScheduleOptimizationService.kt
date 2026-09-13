@@ -177,7 +177,10 @@ class ScheduleOptimizationService(
         val run = runs.findById(runId).orElseThrow { IllegalArgumentException("no run $runId") }
         check(run.state == OptimizationRunState.SUCCEEDED) { "run $runId has not succeeded" }
 
-        val selected = recommendations.findAllById(recommendationIds).toList()
+        // Locks the selected rows for the duration of this transaction so a concurrent apply of an
+        // overlapping recommendation-id set serializes on the shared rows instead of racing to
+        // fork two drafts from the same PENDING selection (see the repository method's doc).
+        val selected = recommendations.findAllByIdForUpdate(recommendationIds).toList()
         require(selected.size == recommendationIds.size) { "one or more recommendation ids do not exist" }
         require(selected.all { it.runId == runId }) { "one or more recommendations do not belong to run $runId" }
         require(selected.all { it.status == OptimizationRecommendationStatus.PENDING }) {
@@ -187,6 +190,10 @@ class ScheduleOptimizationService(
         val revision = revisions.findById(run.revisionId).orElse(null)
         checkNotNull(revision) { "run $runId's frozen revision ${run.revisionId} no longer exists" }
         check(revision.feedId == run.feedId) { "run $runId's frozen revision no longer belongs to its feed" }
+        check(revision.status == GtfsRevisionStatus.ACTIVE) {
+            "run $runId's frozen revision ${run.revisionId} is no longer the active revision " +
+                "(status ${revision.status}); a newer import has superseded it"
+        }
         val feed = feeds.findById(run.feedId).orElseThrow { IllegalStateException("feed ${run.feedId} no longer exists") }
 
         val groupedTargets = expandTargets(selected)

@@ -129,4 +129,46 @@ class OptimizationEntitiesPersistenceTest(
         val pendingOnly = recommendations.page(run.id!!, OptimizationRecommendationStatus.PENDING.name, 0, 10)
         assertThat(pendingOnly.map { it.id }).containsExactly(pendingA.id, pendingB.id)
     }
+
+    /**
+     * `findAllByIdForUpdate` (used by `ScheduleOptimizationService.apply` to serialize concurrent
+     * applies of overlapping recommendation selections — see the repository method's doc) must
+     * return the exact same rows as the plain `findAllById` it replaces there, proving it is a safe
+     * drop-in besides the extra row lock it takes. True concurrent-double-apply is not covered by an
+     * automated test: this codebase has no existing Thread/ExecutorService/CountDownLatch pattern for
+     * asserting a real serialization race, and a sleep-based test would be flaky, so this is a
+     * code-level guarantee (the lock query runs before the PENDING-status check in `applyInternal`
+     * and is held for the rest of that `@Transactional` method) rather than an exercised race.
+     */
+    @Test
+    fun `findAllByIdForUpdate returns the same rows as findAllById`() {
+        val run = newRun()
+        val a =
+            recommendations.save(
+                OptimizationRecommendationRow(
+                    runId = run.id!!,
+                    kind = OptimizationRecommendationKind.STOP_TIME,
+                    sampleCount = 5,
+                    deltaSec = 10,
+                    reason = "a",
+                ),
+            )
+        val b =
+            recommendations.save(
+                OptimizationRecommendationRow(
+                    runId = run.id!!,
+                    kind = OptimizationRecommendationKind.TRIP_SHIFT,
+                    sampleCount = 5,
+                    deltaSec = 10,
+                    reason = "b",
+                ),
+            )
+
+        val ids = setOf(a.id!!, b.id!!)
+        val viaPlain = recommendations.findAllById(ids).map { it.id }.toSet()
+        val viaLocking = recommendations.findAllByIdForUpdate(ids).map { it.id }.toSet()
+
+        assertThat(viaLocking).isEqualTo(viaPlain)
+        assertThat(viaLocking).isEqualTo(ids)
+    }
 }

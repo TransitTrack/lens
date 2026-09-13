@@ -8,11 +8,13 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.LockModeType
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 
@@ -79,6 +81,19 @@ class OptimizationRecommendationRow(
 )
 
 interface OptimizationRecommendationRepository : JpaRepository<OptimizationRecommendationRow, Long> {
+    /**
+     * Row-locking read for `ScheduleOptimizationService.apply`: a `PESSIMISTIC_WRITE` lock on every
+     * selected recommendation row so two concurrent `apply` calls whose recommendation-id sets
+     * overlap serialize on the shared rows, turning the `PENDING`-status check that follows into a
+     * true compare-and-swap rather than a TOCTOU race that could fork two drafts from one selection.
+     * Disjoint selections (no shared row) still proceed concurrently — this locks the individual
+     * recommendation rows, not the whole run. Modeled on
+     * [eu.transittrack.gtfs.revision.GtfsRevisionRepository.findByIdForUpdate].
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from OptimizationRecommendationRow r where r.id in :ids")
+    fun findAllByIdForUpdate(ids: Collection<Long>): List<OptimizationRecommendationRow>
+
     /**
      * Stable `(run_id, status, id)` pagination for `ScheduleOptimizationService.listRecommendations`.
      * A native query (rather than a `Pageable`-based derived query) so an arbitrary `offset`/`limit`
