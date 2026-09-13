@@ -139,9 +139,11 @@ class PredictionGraphQlTest(
 
         insert(geom.line.pointAt(0.25 * len), ts(8, 10))
         processor.processBatch()
+        processor.awaitPredictionsIdle()
 
         insert(geom.line.pointAt(0.60 * len), ts(8, 12))
         processor.processBatch()
+        processor.awaitPredictionsIdle()
     }
 
     @AfterAll

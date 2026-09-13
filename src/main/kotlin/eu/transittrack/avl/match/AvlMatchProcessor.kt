@@ -3,7 +3,7 @@ package eu.transittrack.avl.match
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.RejectedExecutionHandler
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
@@ -74,7 +74,10 @@ class AvlMatchProcessor(
      * particular `prediction-mode: evaluation`, which runs every registered algorithm) can never slow
      * down match throughput for its own feed or, via per-feed scheduling, any other feed. A full queue
      * drops and logs rather than blocking the caller — predictions are informational, not part of
-     * vehicle-position correctness.
+     * vehicle-position correctness. Rejection is left on the executor's default `AbortPolicy`, which
+     * throws [RejectedExecutionException] synchronously from `execute()`; the dispatch call site in
+     * [BatchProcessingStats.accumulate] catches it there, where the feed/vehicle context needed for a
+     * useful log line and metric is actually in scope.
      */
     private val predictionExecutor =
         ThreadPoolTaskExecutor().apply {
@@ -82,9 +85,6 @@ class AvlMatchProcessor(
             maxPoolSize = 2
             queueCapacity = 200
             setThreadNamePrefix("avl-predict-")
-            setRejectedExecutionHandler(
-                RejectedExecutionHandler { _, _ -> log.warn("avl prediction queue full, dropping a prediction task") },
-            )
             initialize()
         }
 
@@ -261,11 +261,16 @@ class AvlMatchProcessor(
                     )
                     matchedIds.add(report.id!!)
                     predictionService.ifAvailable { svc ->
-                        predictionExecutor.execute {
-                            runCatching { svc.onMatched(feed, report, prev, outcome, ctx) }
-                                .onFailure {
-                                    log.warn("avl prediction for feed '{}' vehicle '{}' failed", feed.code, report.vehicleId, it)
-                                }
+                        try {
+                            predictionExecutor.execute {
+                                runCatching { svc.onMatched(feed, report, prev, outcome, ctx) }
+                                    .onFailure {
+                                        log.warn("avl prediction for feed '{}' vehicle '{}' failed", feed.code, report.vehicleId, it)
+                                    }
+                            }
+                        } catch (e: RejectedExecutionException) {
+                            log.warn("avl prediction dropped for feed '{}' vehicle '{}': queue full", feed.code, report.vehicleId)
+                            metrics.avlPredictionDropped(feed)
                         }
                     }
                 }

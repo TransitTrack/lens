@@ -147,6 +147,7 @@ class HeadwayReadServiceTest(
         insert("bus-2", "T2", t2Geom.line.pointAt(0.02 * t2Geom.line.lengthM), ts(8, 57))
 
         processor.processBatch()
+        processor.awaitPredictionsIdle()
     }
 
     @AfterAll

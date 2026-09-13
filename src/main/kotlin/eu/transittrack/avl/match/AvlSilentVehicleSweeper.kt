@@ -16,9 +16,10 @@ import eu.transittrack.avl.model.VehicleStateRepository
  * [AvlMatchProcessor] only re-evaluates a vehicle when a fresh `avl_report` arrives, so its
  * `consecutive_failures` counter never advances for a vehicle that simply goes silent — the
  * `vehicle_state` keeps `matched = true` and its trip/block assignment until age-based retention
- * hard-deletes the row hours later. This sweep closes that gap in two phases, keyed on
- * `vehicle_state.updated_at` (wall-clock, set only when a real report outcome is persisted, and
- * deliberately not touched here):
+ * hard-deletes the row hours later. This sweep closes that gap in two phases, keyed on the newest
+ * `avl_report.ts` per vehicle (a correlated `max(ts)` subquery in the two update queries below)
+ * rather than `vehicle_state.updated_at`, so that a processing backlog — reports queued but not
+ * yet claimed or matched — can never be mistaken for genuine vehicle silence:
  *
  * - **stale** — silent for `feed.poll_interval_sec * silentStaleCycles` (floored at
  *   `silentUnmatchMinSec`): flag `stale`, keep the assignment.

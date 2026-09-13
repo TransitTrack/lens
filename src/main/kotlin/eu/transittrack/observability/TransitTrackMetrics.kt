@@ -141,6 +141,11 @@ class TransitTrackMetrics(
             .record(count.toDouble())
     }
 
+    fun avlPredictionDropped(feed: AvlFeed) =
+        safely("avl_prediction_dropped") {
+            counter("transittrack.avl.prediction.dropped", tags("feed", feed.code)).increment()
+        }
+
     fun avlReportMatched(
         feed: AvlFeed,
         outcome: MatchMetricOutcome,
