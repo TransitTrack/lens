@@ -27,3 +27,30 @@ databaseChangeLog:
             tableName: schedule_optimization_recommendation
             indexName: ix_optimization_recommendation_run
             columns: [ { column: { name: run_id } }, { column: { name: id } } ]
+  - changeSet:
+      id: 0007-optimization-runs-filters-lifecycle-status
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: schedule_optimization_run
+            columns:
+              - column: { name: service_id, type: TEXT }
+              - column: { name: route_id, type: TEXT }
+              - column: { name: direction_id, type: INT }
+              - column: { name: window_from_sec, type: INT }
+              - column: { name: window_to_sec, type: INT }
+              - column: { name: started_at, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: completed_at, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: error, type: TEXT }
+        - addColumn:
+            tableName: schedule_optimization_recommendation
+            columns:
+              - column: { name: status, type: VARCHAR(16), defaultValue: PENDING, constraints: { nullable: false } }
+              - column: { name: current_value, type: JSONB }
+              - column: { name: proposed_value, type: JSONB }
+              - column: { name: evidence, type: JSONB }
+              - column: { name: conflict_key, type: TEXT }
+        - createIndex:
+            tableName: schedule_optimization_recommendation
+            indexName: ix_optimization_recommendation_run_status
+            columns: [ { column: { name: run_id } }, { column: { name: status } }, { column: { name: id } } ]

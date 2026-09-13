@@ -33,10 +33,13 @@ import eu.transittrack.gtfs.draft.edit.StaleDraftException
 import eu.transittrack.gtfs.feed.FeedConflictException
 import eu.transittrack.gtfs.feed.FeedNotFoundException
 import eu.transittrack.gtfs.feed.FeedProtectedException
+import eu.transittrack.schedule.optimize.OptimizationProperties
 
 @Configuration
 @EnableScheduling
-class AsyncConfiguration {
+class AsyncConfiguration(
+    private val optimizeProps: OptimizationProperties,
+) {
     @Bean
     fun gtfsIngestExecutor(): ThreadPoolTaskExecutor =
         ThreadPoolTaskExecutor().apply {
@@ -44,6 +47,22 @@ class AsyncConfiguration {
             maxPoolSize = 4
             queueCapacity = 50
             setThreadNamePrefix("gtfs-ingest-")
+            setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
+            initialize()
+        }
+
+    /**
+     * Dedicated one-core bounded executor for [eu.transittrack.schedule.optimize.ScheduleOptimizationService]
+     * analysis jobs: exactly one run analyzed at a time, isolated from `gtfsIngestExecutor` so a
+     * long-running optimization never delays ingest/rebuild jobs (and vice versa).
+     */
+    @Bean
+    fun scheduleOptimizationExecutor(): ThreadPoolTaskExecutor =
+        ThreadPoolTaskExecutor().apply {
+            corePoolSize = 1
+            maxPoolSize = 1
+            queueCapacity = optimizeProps.executor.queueCapacity
+            setThreadNamePrefix("schedule-optimize-")
             setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
             initialize()
         }
