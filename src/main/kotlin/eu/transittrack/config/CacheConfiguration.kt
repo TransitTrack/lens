@@ -1,6 +1,9 @@
 package eu.transittrack.config
 
 import com.github.benmanes.caffeine.cache.Caffeine
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.binder.cache.CaffeineStatsCounter
+import org.springframework.boot.cache.autoconfigure.CacheManagerCustomizer
 import org.springframework.cache.CacheManager
 import org.springframework.cache.annotation.EnableCaching
 import org.springframework.cache.caffeine.CaffeineCacheManager
@@ -23,14 +26,14 @@ class CacheConfiguration(
     private val props: CacheProperties,
 ) {
     @Bean
-    fun cacheManager(): CacheManager {
-        val manager = CaffeineCacheManager(*AvlCaches.NAMES.toTypedArray())
-        manager.setCaffeine(
-            Caffeine
-                .newBuilder()
-                .expireAfterWrite(props.ttl)
-                .maximumSize(props.maxEntries),
-        )
-        return manager
-    }
+    fun cacheManagerCustomizer(): CacheManagerCustomizer<CaffeineCacheManager> =
+        CacheManagerCustomizer { cacheManager ->
+            cacheManager.setCaffeine(
+                Caffeine
+                    .newBuilder()
+                    .maximumSize(props.maxEntries)
+                    .expireAfterWrite(props.ttl)
+                    .recordStats(), // Required for Micrometer to fetch hit/miss metrics
+            )
+        }
 }
