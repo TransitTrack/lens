@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManagerFactory
 import org.hibernate.SessionFactory
 import org.springframework.stereotype.Component
 
+import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.PredictionAccuracy
 
 data class VehiclePredictionUpsert(
@@ -102,6 +103,10 @@ class PredictionWriter(
 
     fun insertAccuracy(a: PredictionAccuracy) {
         sessionFactory.inStatelessTransaction { session -> session.insert(a) }
+    }
+
+    fun insertCrossing(crossing: AvlStopCrossing) {
+        sessionFactory.inStatelessTransaction { session -> session.insert(crossing) }
     }
 
     private companion object {

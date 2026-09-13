@@ -21,6 +21,7 @@ import eu.transittrack.predict.learn.RunningAverageState
 import eu.transittrack.predict.learn.detectCrossings
 import eu.transittrack.predict.learn.updateKalman
 import eu.transittrack.predict.learn.updateRunningAverage
+import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.TravelTimeObservationRepository
@@ -59,7 +60,7 @@ class PredictionService(
         val now = Instant.now()
 
         if (prev != null && prev.tripRowId == outcome.tripRowId && prev.stopPathIndex != null) {
-            processCrossings(feed, report, prev, outcome, ctx, now)
+            processCrossings(feed, report, prev, outcome, trip, ctx, now)
         }
 
         val horizon = buildHorizon(outcome.tripRowId, outcome.tripPatternId, outcome.stopPathIndex, ctx)
@@ -114,6 +115,7 @@ class PredictionService(
         report: AvlReportRow,
         prev: VehicleState,
         outcome: MatchOutcome.Matched,
+        trip: eu.transittrack.gtfs.model.Trip,
         ctx: AvlMatchContext,
         now: Instant,
     ) {
@@ -135,6 +137,22 @@ class PredictionService(
         for (crossing in crossings) {
             cursor = cursor.plusSeconds(crossing.observedTravelTimeSec.toLong())
             learn(outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, ctx, now)
+            writer.insertCrossing(
+                AvlStopCrossing(
+                    feedId = feed.id!!,
+                    vehicleId = report.vehicleId,
+                    tripRowId = outcome.tripRowId,
+                    tripPatternId = outcome.tripPatternId,
+                    stopPathIndex = crossing.stopPathIndex,
+                    observedAt = cursor,
+                    observedTravelTimeSec = crossing.observedTravelTimeSec,
+                    serviceId = trip.serviceId,
+                    tripStartSec = trip.startTimeSec,
+                    routeId = trip.routeId,
+                    directionId = trip.directionId,
+                    revisionId = ctx.revisionId,
+                ),
+            )
             metrics.predictionLearningSamples(feed, 1)
             fillActualAndScoreAccuracy(feed, report.vehicleId, outcome.tripRowId, crossing.stopPathIndex, cursor, now, algorithmsToScore)
         }

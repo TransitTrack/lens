@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0006-avl-stop-crossing
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: avl_stop_crossing
+            columns:
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: feed_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_avl_stop_crossing_feed, references: "avl_feed(id)", deleteCascade: true } }
+              - column: { name: vehicle_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: trip_row_id, type: BIGINT, constraints: { nullable: false } }
+              - column: { name: trip_pattern_id, type: BIGINT, constraints: { nullable: false } }
+              - column: { name: stop_path_index, type: INT, constraints: { nullable: false } }
+              - column: { name: observed_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: observed_travel_time_sec, type: DOUBLE PRECISION, constraints: { nullable: false } }
+              - column: { name: service_id, type: TEXT }
+              - column: { name: trip_start_sec, type: INT }
+              - column: { name: route_id, type: TEXT }
+              - column: { name: direction_id, type: SMALLINT }
+              - column: { name: revision_id, type: BIGINT, constraints: { nullable: false } }
+        - createIndex:
+            tableName: avl_stop_crossing
+            indexName: ix_avl_stop_crossing_feed_observed
+            columns: [ { column: { name: feed_id } }, { column: { name: observed_at } } ]
+        - createIndex:
+            tableName: avl_stop_crossing
+            indexName: ix_avl_stop_crossing_pattern_stop_observed
+            columns: [ { column: { name: trip_pattern_id } }, { column: { name: stop_path_index } }, { column: { name: observed_at } } ]
+        - createIndex:
+            tableName: avl_stop_crossing
+            indexName: ix_avl_stop_crossing_trip_observed
+            columns: [ { column: { name: trip_row_id } }, { column: { name: observed_at } } ]

@@ -1,7 +1,9 @@
 package eu.transittrack.predict
 
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
+import java.time.temporal.TemporalAdjusters
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -41,6 +43,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
@@ -51,6 +54,8 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
     properties = [
         "transittrack.avl.enabled=true",
         "transittrack.avl.match.match-interval-ms=3600000",
+        "transittrack.avl.match.claim-batch-size=2000",
+        "transittrack.feed.feeds=",
         "transittrack.predict.enabled=true",
     ],
 )
@@ -69,6 +74,7 @@ class PredictionServiceTest(
     @Autowired val travelTimeObservations: TravelTimeObservationRepository,
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
+    @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
 ) {
     @TestConfiguration(proxyBeanMethods = false)
@@ -104,6 +110,7 @@ class PredictionServiceTest(
     @AfterEach
     fun cleanup() {
         predictionAccuracies.deleteAll()
+        crossings.deleteAll()
         vehiclePredictions.deleteAll()
         travelTimeObservations.deleteAll()
         kalmanStates.deleteAll()
@@ -117,7 +124,8 @@ class PredictionServiceTest(
         minute: Int,
     ): Instant =
         LocalDate
-            .of(2026, 9, 7)
+            .now(factory.open(feedRow())!!.zone)
+            .with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY))
             .atTime(hour, minute)
             .atZone(factory.open(feedRow())!!.zone)
             .toInstant()
@@ -140,7 +148,7 @@ class PredictionServiceTest(
                 feedId = feedId, vehicleId = vehicleId, vehicleLabel = null, ts = at,
                 lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
                 descTripId = null, descRouteId = null, descDirectionId = null,
-                descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
+                descStartDate = at.atZone(factory.open(feedRow())!!.zone).toLocalDate(), descStartTimeSec = null,
                 descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
                 currentStatus = null, occupancyStatus = null, congestionLevel = null,
                 matchStatus = MatchStatus.PENDING, matchedAt = null, createdAt = at,
@@ -171,8 +179,8 @@ class PredictionServiceTest(
         val len = geom.line.lengthM
 
         insertReport("bus-1", geom.line.pointAt(0.25 * len), ts(8, 5))
+        processor.processBatch()
         insertReport("bus-1", geom.line.pointAt(0.60 * len), ts(8, 12))
-
         processor.processBatch()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
@@ -181,6 +189,9 @@ class PredictionServiceTest(
         val patternId = trip.tripPatternId!!
         assertThat(travelTimeObservations.findAll().any { it.tripPatternId == patternId }).isTrue()
         assertThat(predictionAccuracies.findAll().any { it.tripRowId == trip.id }).isTrue()
+        val observed = crossings.findAll()
+        assertThat(observed).isNotEmpty()
+        assertThat(observed.all { it.feedId == feedId && it.tripRowId == trip.id && it.tripPatternId == patternId }).isTrue()
     }
 
     @Test

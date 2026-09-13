@@ -26,6 +26,7 @@ class PredictionRetentionScheduler(
     data class PruneCounts(
         val predictions: Int,
         val accuracy: Int,
+        val crossings: Int,
         val orphanObservations: Int,
         val orphanKalman: Int,
     )
@@ -48,12 +49,16 @@ class PredictionRetentionScheduler(
             "delete from prediction_accuracy where created_at < ?",
             Timestamp.from(now.minus(cfg.accuracyDays, ChronoUnit.DAYS)),
         )
+        val crossings = jdbc.update(
+            "delete from avl_stop_crossing where observed_at < ?",
+            Timestamp.from(now.minus(cfg.rawCrossingDays, ChronoUnit.DAYS)),
+        )
         val orphanObservations = jdbc.update(
             "delete from travel_time_observation where trip_pattern_id not in (select id from trip_patterns)",
         )
         val orphanKalman = jdbc.update(
             "delete from kalman_travel_time_state where trip_pattern_id not in (select id from trip_patterns)",
         )
-        return PruneCounts(predictions, accuracy, orphanObservations, orphanKalman)
+        return PruneCounts(predictions, accuracy, crossings, orphanObservations, orphanKalman)
     }
 }

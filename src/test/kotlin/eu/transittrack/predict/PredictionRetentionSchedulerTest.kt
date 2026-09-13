@@ -98,6 +98,21 @@ class PredictionRetentionSchedulerTest(
                 "values (1, 'v2', 2, 0, 0, ?, ?, 10, 10, ?)",
             youngAccuracyTs, youngAccuracyTs, youngAccuracyTs,
         )
+
+        jdbc.update(
+            "insert into avl_stop_crossing " +
+                "(feed_id, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
+                "observed_travel_time_sec, revision_id) " +
+                "values (1, 'v1', 1, 100, 0, ?, 30.0, 1)",
+            Timestamp.from(now.minus(100, ChronoUnit.DAYS)),
+        )
+        jdbc.update(
+            "insert into avl_stop_crossing " +
+                "(feed_id, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
+                "observed_travel_time_sec, revision_id) " +
+                "values (1, 'v2', 2, 100, 0, ?, 30.0, 1)",
+            Timestamp.from(now.minus(1, ChronoUnit.DAYS)),
+        )
     }
 
     @Test
@@ -106,7 +121,7 @@ class PredictionRetentionSchedulerTest(
 
         assertThat(counts).isEqualTo(
             PredictionRetentionScheduler.PruneCounts(
-                predictions = 1, accuracy = 1, orphanObservations = 1, orphanKalman = 1,
+                predictions = 1, accuracy = 1, crossings = 1, orphanObservations = 1, orphanKalman = 1,
             ),
         )
 
@@ -121,6 +136,9 @@ class PredictionRetentionSchedulerTest(
         ).containsExactly("v2")
         assertThat(
             jdbc.queryForList("select vehicle_id from prediction_accuracy", String::class.java),
+        ).containsExactly("v2")
+        assertThat(
+            jdbc.queryForList("select vehicle_id from avl_stop_crossing", String::class.java),
         ).containsExactly("v2")
     }
 }

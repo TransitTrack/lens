@@ -22,6 +22,7 @@ data class PredictProperties(
     data class Retention(
         val predictionHours: Long = 6,
         val accuracyDays: Long = 30,
+        val rawCrossingDays: Long = 90,
         val sweepCron: String = "0 15 * * * *",
     )
 }
