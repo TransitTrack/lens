@@ -34,6 +34,7 @@ type OptimizationRecommendation {
 }
 
 extend type Query {
+    optimizationRuns(feedCode: String!, limit: Int = 50, offset: Int = 0): [OptimizationRun!]!
     optimizationRun(id: ID!): OptimizationRun
     optimizationRecommendations(runId: ID!, status: String, offset: Int = 0, limit: Int = 100): [OptimizationRecommendation!]!
 }

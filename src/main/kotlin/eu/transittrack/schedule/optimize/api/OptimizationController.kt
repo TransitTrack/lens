@@ -36,6 +36,13 @@ class OptimizationController(
     private val json: JsonMapper,
 ) {
     @QueryMapping
+    fun optimizationRuns(
+        @Argument feedCode: String,
+        @Argument limit: Int,
+        @Argument offset: Int,
+    ): List<OptimizationRunDto> = service.listRuns(feedCode, limit, offset).map(::toDto)
+
+    @QueryMapping
     fun optimizationRun(
         @Argument id: String,
     ): OptimizationRunDto? = service.get(id.toLong())?.let(::toDto)

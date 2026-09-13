@@ -122,6 +122,15 @@ class ScheduleOptimizationService(
 
     fun get(runId: Long): OptimizationRunRow? = runs.findById(runId).orElse(null)
 
+    fun listRuns(
+        feedCode: String,
+        limit: Int,
+        offset: Int,
+    ): List<OptimizationRunRow> {
+        val feed = feeds.findByCode(feedCode) ?: throw IllegalArgumentException("no feed '$feedCode'")
+        return runs.page(feed.id!!, offset, limit)
+    }
+
     /** Stable `(run_id, status, id)` pagination; `status` null returns every status. */
     fun listRecommendations(
         runId: Long,
