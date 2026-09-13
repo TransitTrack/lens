@@ -5,6 +5,7 @@ plugins {
     kotlin("plugin.spring") version "2.4.20"
     kotlin("plugin.jpa") version "2.4.20"
     kotlin("kapt") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.20"
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.10.2"
@@ -31,7 +32,14 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.squareup.okhttp3:okhttp:5.5.0")
     implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
-    implementation("tools.jackson.module:jackson-module-kotlin")
+    // implementation("tools.jackson.module:jackson-module-kotlin")
+    implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
+    modules {
+        // Explicitly exclude jackson if you want to completely move away
+        module("org.springframework.boot:spring-boot-starter-json") {
+            replacedBy("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json", "Use Kotlinx Serialization instead")
+        }
+    }
 
     implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:8.0.1")
     implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:8.0.1")

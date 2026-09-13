@@ -2,49 +2,53 @@ package eu.transittrack.avl.ingest
 
 import java.time.Instant
 
-import com.fasterxml.jackson.annotation.JsonProperty
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.util.kmphToMps
 
+@Serializable
 private data class StptVehiclePositionResponse(
     val success: Boolean,
     val data: Data,
 )
 
+@Serializable
 private data class Data(
     val vehicles: List<Vehicle>,
     val total: Long,
-    @JsonProperty("generated_at")
+    @SerialName("generated_at")
     val generatedAt: Long,
-    @JsonProperty("server_time")
+    @SerialName("server_time")
     val serverTime: Long,
-    @JsonProperty("age_seconds")
+    @SerialName("age_seconds")
     val ageSeconds: Long,
-    @JsonProperty("is_stale")
+    @SerialName("is_stale")
     val isStale: Boolean,
-    @JsonProperty("service_expected_now")
+    @SerialName("service_expected_now")
     val serviceExpectedNow: Boolean,
-    @JsonProperty("service_window")
+    @SerialName("service_window")
     val serviceWindow: ServiceWindow,
-    @JsonProperty("upstream_status")
+    @SerialName("upstream_status")
     val upstreamStatus: String,
-    @JsonProperty("upstream_status_reason")
-    val upstreamStatusReason: Any?,
-    @JsonProperty("live_status")
+//    @SerialName("upstream_status_reason")
+//    val upstreamStatusReason: Any?,
+    @SerialName("live_status")
     val liveStatus: String,
-    @JsonProperty("live_status_reason")
-    val liveStatusReason: Any?,
-    @JsonProperty("newest_vehicle_ts")
+//    @SerialName("live_status_reason")
+//    val liveStatusReason: Any?,
+    @SerialName("newest_vehicle_ts")
     val newestVehicleTs: Long,
-    @JsonProperty("vehicle_data_age_seconds")
+    @SerialName("vehicle_data_age_seconds")
     val vehicleDataAgeSeconds: Long,
 )
 
+@Serializable
 private data class Vehicle(
     val id: String,
     val lat: Double,
@@ -62,16 +66,17 @@ private data class Vehicle(
     val shapeId: String,
 )
 
+@Serializable
 private data class ServiceWindow(
-    @JsonProperty("first_departure")
+    @SerialName("first_departure")
     val firstDeparture: String,
-    @JsonProperty("last_arrival")
+    @SerialName("last_arrival")
     val lastArrival: String,
 )
 
 @Component
 class StptVehiclePositionDecoder(
-    val jsonMapper: JsonMapper,
+    val jsonMapper: Json,
 ) : AvlFeedDecoder {
     override val format: AvlFormat
         get() = AvlFormat.STPT
@@ -82,7 +87,7 @@ class StptVehiclePositionDecoder(
     ): List<AvlReport> {
         val response = payload.bytes
             .toString(Charsets.UTF_8)
-            .let { jsonMapper.readValue(it, StptVehiclePositionResponse::class.java) }
+            .let { jsonMapper.decodeFromString<StptVehiclePositionResponse>(it) }
             .takeIf { it.success }
 
         return response
