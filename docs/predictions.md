@@ -18,6 +18,12 @@ Builds directly on top of the AVL subsystem — see [`docs/avl.md`](avl.md) firs
 AvlMatchProcessor.persist()  (Matched branch, per report)
         │
         ▼
+vehicle_match row written, prediction_status = PENDING
+        │
+        ▼  (independent schedule, transittrack.predict.run.interval-ms)
+PredictionProcessor.processFeed()
+        │  claims a batch of PENDING rows per feed (transittrack.predict.run.claim-batch-size)
+        ▼
 PredictionService.onMatched()
         │
         ├─ crossing detection ──▶ travel_time_observation / kalman_travel_time_state (learn)
@@ -27,14 +33,25 @@ PredictionService.onMatched()
         └─ generation ──────────▶ vehicle_prediction (upserted, current trip + up to 2 block-trips)
                                         │
                                     GraphQL: vehiclePredictions / stopPredictions / headway / predictionAccuracy
+        │
+        ▼
+vehicle_match row marked DONE (or FAILED), decoupled from the AVL match cycle
+
 ```
 
-There is **no separate scheduler**. Predictions are computed inline, right
-after each AVL match, inside `AvlMatchProcessor.persist(...)` — the same place
-`vehicle_match`/`vehicle_state` are written. `PredictionService` is looked up
-via `ObjectProvider<PredictionService>` so the AVL module has zero compile-time
-dependency on `predict`, and predictions are a true no-op when
-`transittrack.predict.enabled = false`.
+Prediction generation runs on its **own independent scheduler**,
+`PredictionProcessor`, decoupled from `AvlMatchProcessor`. Every successful
+AVL match writes exactly one `vehicle_match` row with `prediction_status =
+PENDING`; `PredictionProcessor` polls each enabled feed on its own cadence
+(`transittrack.predict.run.interval-ms`, default 5000ms), claims a batch of
+that feed's PENDING rows (`transittrack.predict.run.claim-batch-size`, default
+500), dispatches each to `PredictionService.onMatched` in order, and marks
+each row `DONE` or `FAILED`. A feed with a large backlog just takes longer to
+drain, or drains across several cycles — nothing is silently dropped under
+load, unlike the fixed-capacity executor this replaces. Predictions are a true
+no-op when `transittrack.predict.enabled = false`: `PredictionProcessor` isn't
+even registered as a bean, and PENDING rows simply accumulate unprocessed in
+`vehicle_match` (see the `transittrack.prediction.pending.matches` gauge).
 
 Three pluggable algorithms compute an ETA for each stop path ahead of a
 vehicle:
@@ -77,6 +94,9 @@ transittrack:
           prediction-mode: SINGLE                    # SINGLE | EVALUATION, default SINGLE
   predict:
     enabled: false
+    run:
+      interval-ms: 5000                            # PredictionProcessor's own poll cadence, independent of avl.match.match-interval-ms
+      claim-batch-size: 500
     learn:
       max-plausible-travel-time-sec: 1800          # samples outside (0, this] are discarded, not learned from
       kalman-measurement-noise-sec2: 400.0         # ~20s std-dev of a single observation

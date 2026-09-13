@@ -104,16 +104,21 @@ class PredictionProcessor(
         val startedAt = Instant.now()
         val feed = feeds.findById(feedId).orElse(null) ?: return 0
 
-        fun finish(processed: Int): Int {
-            metrics.predictionBatch(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()), processed)
+        fun finish(
+            processed: Int,
+            failed: Int,
+        ): Int {
+            val outcome = if (failed > 0) TransitTrackMetrics.Outcome.FAILED else TransitTrackMetrics.Outcome.SUCCESS
+            metrics.predictionBatch(feed, outcome, Duration.between(startedAt, Instant.now()), processed)
             return processed
         }
 
         val batch = vehicleMatches.findClaimBatch(feedId, cfg.claimBatchSize)
-        if (batch.isEmpty()) return finish(0)
+        if (batch.isEmpty()) return finish(0, 0)
 
         val doneIds = mutableListOf<Long>()
         val failedIds = mutableListOf<Long>()
+        val contextsByRevision = HashMap<Long, eu.transittrack.avl.match.AvlMatchContext>()
 
         for ((vehicleId, vehicleMatchesForVehicle) in batch.groupBy { it.vehicleId }) {
             val sorted = vehicleMatchesForVehicle.sortedBy { it.ts }
@@ -127,11 +132,11 @@ class PredictionProcessor(
                     continue
                 }
                 val report = reports.findById(row.avlReportId).orElse(null)
-                val ctx = contextFactory.openForRevision(row.revisionId)
                 if (report == null) {
                     failedIds.add(row.id!!)
                     continue
                 }
+                val ctx = contextsByRevision.getOrPut(row.revisionId) { contextFactory.openForRevision(row.revisionId) }
 
                 runCatching { predictionService.onMatched(feed, report, prev, outcome, ctx) }
                     .onFailure {
@@ -147,7 +152,7 @@ class PredictionProcessor(
         if (doneIds.isNotEmpty()) vehicleMatches.markPredicted(doneIds, PredictionStatus.DONE, at)
         if (failedIds.isNotEmpty()) vehicleMatches.markPredicted(failedIds, PredictionStatus.FAILED, at)
 
-        return finish(doneIds.size + failedIds.size)
+        return finish(doneIds.size + failedIds.size, failedIds.size)
     }
 }
 

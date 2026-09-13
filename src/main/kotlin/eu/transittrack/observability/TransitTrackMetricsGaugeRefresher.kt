@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.predict.PredictProperties
 
 /** Refreshes database-derived queue gauges outside Prometheus's scrape thread. */
 @Component
@@ -16,6 +17,7 @@ class TransitTrackMetricsGaugeRefresher(
     private val feeds: AvlFeedRepository,
     private val reports: AvlReportRowRepository,
     private val vehicleMatches: VehicleMatchRepository,
+    private val predictProps: PredictProperties,
     private val metrics: TransitTrackMetrics,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -33,6 +35,7 @@ class TransitTrackMetricsGaugeRefresher(
 
     @Scheduled(fixedDelayString = "\${transittrack.observability.gauge-refresh-ms:30000}")
     fun refreshPredictionQueue() {
+        if (!predictProps.enabled) return
         runCatching {
             val pending = vehicleMatches.pendingPredictionMetricsByFeed().associateBy { it.feedId }
             feeds.findAllEnabled().forEach { feed ->

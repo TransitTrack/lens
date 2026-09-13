@@ -69,7 +69,10 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
         pageable: Pageable,
     ): List<VehicleMatch>
 
-    /** The vehicle's last DONE-or-FAILED match strictly before [ts] — the crossing-detection "prev". */
+    /** The vehicle's most recent match strictly before [ts] — used as the crossing-detection "prev"
+     * when a claimed batch's oldest row for this vehicle isn't the vehicle's very first match. Relies
+     * on [findClaimBatch] claiming PENDING rows oldest-first per vehicle: any earlier row for the same
+     * vehicle was necessarily already processed in a prior batch, so this is never itself PENDING. */
     fun findTopByFeedIdAndVehicleIdAndTsLessThanOrderByTsDesc(
         feedId: Long,
         vehicleId: String,

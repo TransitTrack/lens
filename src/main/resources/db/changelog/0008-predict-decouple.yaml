@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 0008-predict-decouple-1
+      id: 0008-predict-decouple
       author: transittrack
       changes:
         - addColumn:
@@ -8,6 +8,8 @@ databaseChangeLog:
             columns:
               - column: { name: prediction_status, type: SMALLINT, defaultValueNumeric: 0, constraints: { nullable: false } }
               - column: { name: predicted_at, type: "TIMESTAMP WITH TIME ZONE" }
+        - sql:
+            sql: "update vehicle_match set prediction_status = 1, predicted_at = now() where prediction_status = 0"
         - createIndex:
             indexName: ix_vehicle_match_prediction_status
             tableName: vehicle_match

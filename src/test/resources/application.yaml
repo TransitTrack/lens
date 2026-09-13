@@ -48,6 +48,7 @@ management:
         transittrack.avl.poll.duration: true
         transittrack.avl.match.batch.duration: true
         transittrack.avl.match.duration: true
+        transittrack.prediction.batch.duration: true
         transittrack.prediction.run.duration: true
         transittrack.http.client.duration: true
     enable:
@@ -106,6 +107,11 @@ transittrack:
       silent-unmatch-min-sec: 60
   predict:
     enabled: true
+    run:
+      # Independent poll cadence for PredictionProcessor, decoupled from avl.match.match-interval-ms —
+      # a feed's prediction backlog drains at this rate regardless of how fast it's being matched.
+      interval-ms: 5000
+      claim-batch-size: 500
     learn:
       max-plausible-travel-time-sec: 1800
       kalman-measurement-noise-sec2: 400.0
