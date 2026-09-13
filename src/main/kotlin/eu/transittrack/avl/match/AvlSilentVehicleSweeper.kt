@@ -46,7 +46,7 @@ class AvlSilentVehicleSweeper(
     fun sweep() {
         val c = sweep(Instant.now())
         if (c.staled > 0 || c.unmatched > 0) {
-            log.info("avl silent sweep: {} vehicles flagged stale, {} unmatched", c.staled, c.unmatched)
+            log.info("avl silent sweep: ⚠️ {} vehicles flagged stale, ‼️ {} unmatched", c.staled, c.unmatched)
         }
     }
 
