@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import {useOptimizationRunQuery} from '~~/generated/graphql'
 import AppPage from '~/components/AppPage.vue'
+import RecommendationList from '~/components/optimize/RecommendationList.vue'
 import {gtfsDate} from '~/utils/gtfs'
 
 const route = useRoute()
 const runId = computed(() => String(route.params.runId))
+
+const selectedIds = ref<string[]>([])
 
 const TERMINAL_STATES = ['SUCCEEDED', 'FAILED']
 
@@ -71,15 +74,7 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
         :description="run.error ?? 'see server logs'"
       />
 
-      <!-- Task 5 replaces this with <RecommendationList :run-id="runId" /> -->
-      <UAlert
-        v-else
-        color="success"
-        variant="soft"
-        icon="i-lucide-check-circle"
-        title="Run succeeded"
-        description="Recommendation review is added in the next task."
-      />
+      <RecommendationList v-else :run-id="runId" v-model:selected="selectedIds" />
     </div>
   </AppPage>
 </template>
