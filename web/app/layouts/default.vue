@@ -116,6 +116,13 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     active: route.path === feedPath(),
   },
   {
+    label: 'Optimize',
+    icon: 'i-lucide-sparkles',
+    description: 'AVL-informed schedule optimization',
+    to: feedPath('/optimize'),
+    active: underPath(feedPath('/optimize')),
+  },
+  {
     label: 'Realtime',
     icon: 'i-lucide-radio',
     description: 'Live data from the AVL feed',
