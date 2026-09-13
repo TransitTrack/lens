@@ -51,9 +51,9 @@ data class OptimizationRunRequest(
  * `revisionId` is frozen at submission and never re-read from the feed afterward, so a later
  * activation cannot change which revision an in-flight run analyzes.
  *
- * The analysis body itself ([runAnalysis]) is a placeholder for this task: it always succeeds with
- * zero recommendations. A later task wires in the real pipeline (`RecommendationEngine`,
- * `RobustStatistics`, `avl_stop_crossing` queries) without changing this lifecycle.
+ * The analysis body itself ([runAnalysis]) delegates the actual query/partition/trim/generate work
+ * (design section 5 steps 2-6) to [OptimizationAnalysisPipeline], keeping this class focused on the
+ * QUEUED/RUNNING/SUCCEEDED/FAILED lifecycle.
  */
 @Service
 class ScheduleOptimizationService(
@@ -61,6 +61,7 @@ class ScheduleOptimizationService(
     private val revisions: GtfsRevisionRepository,
     private val runs: OptimizationRunRepository,
     private val recommendations: OptimizationRecommendationRepository,
+    private val pipeline: OptimizationAnalysisPipeline,
     private val scheduleOptimizationExecutor: TaskExecutor,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -130,12 +131,13 @@ class ScheduleOptimizationService(
     }
 
     /**
-     * Placeholder analysis body: no-op, always succeeds with zero recommendations. An empty eligible
-     * population is a successful run per the design's error-handling rules, not an error — the real
-     * pipeline (later task) must preserve that outcome once it queries `avl_stop_crossing`.
+     * Runs the real pipeline and persists only the resulting candidates. An empty eligible
+     * population or insufficient evidence yields an empty list — a successful run with zero
+     * recommendations, per the design's error-handling rules, not an error.
      */
     private fun runAnalysis(run: OptimizationRunRow) {
-        // Intentionally empty for this task; see class doc.
+        val candidates = pipeline.analyze(run)
+        if (candidates.isNotEmpty()) recommendations.saveAll(candidates)
     }
 
     /** Best-effort terminal FAILED with an operator-safe (sanitized) message; the real cause is logged, not stored. */

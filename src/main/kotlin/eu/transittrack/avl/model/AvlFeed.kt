@@ -59,4 +59,12 @@ interface AvlFeedRepository : JpaRepository<AvlFeed, Long> {
 
     @Query("select f from AvlFeed f where f.enabled = true")
     fun findAllEnabled(): List<AvlFeed>
+
+    /**
+     * Used by [eu.transittrack.schedule.optimize.OptimizationAnalysisPipeline] to translate an
+     * optimization run's `gtfs_feed` id into the `avl_feed` id(s) whose crossings/prediction-accuracy
+     * evidence belong to it — `avl_stop_crossing`/`prediction_accuracy` are keyed by `avl_feed.id`,
+     * not `gtfs_feed.id`.
+     */
+    fun findByGtfsFeedCode(gtfsFeedCode: String): List<AvlFeed>
 }

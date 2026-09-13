@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 @ConfigurationProperties("transittrack.schedule.optimize")
 data class OptimizationProperties(
     @NestedConfigurationProperty val executor: Executor = Executor(),
+    /** Minimum absolute delta (seconds) a stop-time/trip-shift candidate must clear to be proposed (design 6.1). */
+    val materialitySec: Int = 30,
 ) {
     /** Sizing for the dedicated one-core bounded executor that runs queued analysis jobs. */
     data class Executor(

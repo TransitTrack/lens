@@ -11,6 +11,7 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 
 @Entity
@@ -32,4 +33,32 @@ class AvlStopCrossing(
 )
 
 @Repository
-interface AvlStopCrossingRepository : JpaRepository<AvlStopCrossing, Long>
+interface AvlStopCrossingRepository : JpaRepository<AvlStopCrossing, Long> {
+    /**
+     * Bounded projection for the optimization analysis pipeline
+     * ([eu.transittrack.schedule.optimize.OptimizationAnalysisPipeline]): filters at the query
+     * level by feed, the run's frozen revision, the requested observed-date range, and the
+     * optional service/route/direction/scheduled-departure-window filters, so a run never loads
+     * crossings outside its own scope into memory.
+     */
+    @Query(
+        "select c from AvlStopCrossing c where c.feedId in :feedIds and c.revisionId = :revisionId " +
+            "and c.observedAt >= :from and c.observedAt < :to " +
+            "and (:serviceId is null or c.serviceId = :serviceId) " +
+            "and (:routeId is null or c.routeId = :routeId) " +
+            "and (:directionId is null or c.directionId = :directionId) " +
+            "and (:windowFromSec is null or c.tripStartSec >= :windowFromSec) " +
+            "and (:windowToSec is null or c.tripStartSec <= :windowToSec)",
+    )
+    fun findForAnalysis(
+        feedIds: Collection<Long>,
+        revisionId: Long,
+        from: Instant,
+        to: Instant,
+        serviceId: String?,
+        routeId: String?,
+        directionId: Int?,
+        windowFromSec: Int?,
+        windowToSec: Int?,
+    ): List<AvlStopCrossing>
+}

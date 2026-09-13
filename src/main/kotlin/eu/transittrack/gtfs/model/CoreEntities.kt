@@ -259,6 +259,29 @@ interface TripRepository : RevisionScopedRepository<Trip, Long> {
         routeId: String,
         serviceIds: Collection<String>,
     ): List<Trip>
+
+    /**
+     * Bounded schedule-population projection for the optimization analysis pipeline
+     * ([eu.transittrack.schedule.optimize.OptimizationAnalysisPipeline]): only derived trips (a
+     * pattern assigned) within the requested optional service/route/direction/scheduled-departure
+     * window filters.
+     */
+    @Query(
+        "select t from Trip t where t.revisionId = :revisionId and t.tripPatternId is not null " +
+            "and (:serviceId is null or t.serviceId = :serviceId) " +
+            "and (:routeId is null or t.routeId = :routeId) " +
+            "and (:directionId is null or t.directionId = :directionId) " +
+            "and (:windowFromSec is null or t.startTimeSec >= :windowFromSec) " +
+            "and (:windowToSec is null or t.startTimeSec <= :windowToSec)",
+    )
+    fun findEligible(
+        revisionId: Long,
+        serviceId: String?,
+        routeId: String?,
+        directionId: Int?,
+        windowFromSec: Int?,
+        windowToSec: Int?,
+    ): List<Trip>
 }
 
 interface StopTimeRepository : RevisionScopedRepository<StopTime, Long> {

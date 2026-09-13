@@ -75,10 +75,11 @@ class ScheduleOptimizationServiceTest {
         val revisions = mock<GtfsRevisionRepository>()
         val runs = FakeRunRepository()
         val recommendations = mock<OptimizationRecommendationRepository>()
+        val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision())
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, CapturingExecutor())
+        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, CapturingExecutor())
         val result = service.submit(validRequest())
 
         assertThat(result.revisionId).isEqualTo(11)
@@ -91,10 +92,11 @@ class ScheduleOptimizationServiceTest {
         val revisions = mock<GtfsRevisionRepository>()
         val runs = FakeRunRepository()
         val recommendations = mock<OptimizationRecommendationRepository>()
+        val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(null)
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, CapturingExecutor())
+        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, CapturingExecutor())
 
         assertThrows<IllegalArgumentException> { service.submit(validRequest()) }
     }
@@ -148,11 +150,12 @@ class ScheduleOptimizationServiceTest {
         val revisions = mock<GtfsRevisionRepository>()
         val runs = FakeRunRepository()
         val recommendations = mock<OptimizationRecommendationRepository>()
+        val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision(id = 11))
         val executor = CapturingExecutor()
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, executor)
+        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, executor)
         val run = service.submit(validRequest())
 
         // A newer revision is activated after submission but before the queued job runs.
@@ -168,11 +171,12 @@ class ScheduleOptimizationServiceTest {
         val revisions = mock<GtfsRevisionRepository>()
         val runs = FakeRunRepository()
         val recommendations = mock<OptimizationRecommendationRepository>()
+        val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision())
         val executor = CapturingExecutor()
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, executor)
+        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, executor)
         val run = service.submit(validRequest())
         executor.runAll()
 
@@ -189,6 +193,7 @@ class ScheduleOptimizationServiceTest {
         val feeds = mock<GtfsFeedRepository>()
         val revisions = mock<GtfsRevisionRepository>()
         val recommendations = mock<OptimizationRecommendationRepository>()
+        val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision())
 
@@ -213,7 +218,7 @@ class ScheduleOptimizationServiceTest {
             }
         val executor = CapturingExecutor()
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, executor)
+        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, executor)
         val run = service.submit(validRequest())
         executor.runAll()
 
@@ -229,9 +234,10 @@ class ScheduleOptimizationServiceTest {
         val revisions = mock<GtfsRevisionRepository>()
         val runs = mock<OptimizationRunRepository>()
         val recommendations = mock<OptimizationRecommendationRepository>()
+        val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(recommendations.page(any(), any(), any(), any())).thenReturn(emptyList())
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, CapturingExecutor())
+        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, CapturingExecutor())
         service.listRecommendations(42, eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus.PENDING, 10, 25)
 
         org.mockito.kotlin
