@@ -12,7 +12,6 @@ import eu.transittrack.avl.match.MatchOutcome
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
@@ -27,6 +26,15 @@ import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
+
+/** The vehicle's previous match, as needed for crossing detection — deliberately not a full
+ * [eu.transittrack.avl.model.VehicleState], since [PredictionService] is reconstructed from
+ * persisted `vehicle_match` history, not a live mutable state row. */
+data class PrevVehicleMatch(
+    val tripRowId: Long,
+    val stopPathIndex: Int,
+    val reportTs: Instant,
+)
 
 /**
  * Orchestration hub wiring prediction generation into AVL matching: on every matched report it
@@ -51,7 +59,7 @@ class PredictionService(
     fun onMatched(
         feed: AvlFeed,
         report: AvlReportRow,
-        prev: VehicleState?,
+        prev: PrevVehicleMatch?,
         outcome: MatchOutcome.Matched,
         ctx: AvlMatchContext,
     ) {
@@ -59,7 +67,7 @@ class PredictionService(
         val serviceDate = inferServiceDate(report, trip, ctx.zone)
         val now = Instant.now()
 
-        if (prev != null && prev.tripRowId == outcome.tripRowId && prev.stopPathIndex != null) {
+        if (prev != null && prev.tripRowId == outcome.tripRowId) {
             processCrossings(feed, report, prev, outcome, trip, ctx, now)
         }
 
@@ -113,7 +121,7 @@ class PredictionService(
     private fun processCrossings(
         feed: AvlFeed,
         report: AvlReportRow,
-        prev: VehicleState,
+        prev: PrevVehicleMatch,
         outcome: MatchOutcome.Matched,
         trip: eu.transittrack.gtfs.model.Trip,
         ctx: AvlMatchContext,
@@ -123,7 +131,7 @@ class PredictionService(
         val elapsedSec = Duration.between(prev.reportTs, report.ts).seconds.toDouble()
         val crossings =
             detectCrossings(
-                prev.stopPathIndex!!,
+                prev.stopPathIndex,
                 outcome.stopPathIndex,
                 elapsedSec,
                 geom.stopPathCumM,
