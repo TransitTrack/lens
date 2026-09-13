@@ -24,6 +24,7 @@ dependencies {
     implementation("org.ehcache:ehcache:3.11.1:jakarta") // brings javax.cache:cache-api transitively (compile scope)
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
+    implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
 
     implementation("com.graphql-java:graphql-java-extended-scalars:24.0")
