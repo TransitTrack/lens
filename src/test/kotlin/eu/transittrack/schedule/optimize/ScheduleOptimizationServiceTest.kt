@@ -12,6 +12,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.core.task.TaskExecutor
+import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
@@ -79,7 +80,13 @@ class ScheduleOptimizationServiceTest {
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision())
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, CapturingExecutor())
+        val service =
+            ScheduleOptimizationService(
+                feeds, revisions, runs, recommendations, pipeline, CapturingExecutor(), mock(), mock(),
+                JsonMapper
+                    .builder()
+                    .build(),
+            )
         val result = service.submit(validRequest())
 
         assertThat(result.revisionId).isEqualTo(11)
@@ -96,7 +103,13 @@ class ScheduleOptimizationServiceTest {
         whenever(feeds.findByCode("g")).thenReturn(feed())
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(null)
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, CapturingExecutor())
+        val service =
+            ScheduleOptimizationService(
+                feeds, revisions, runs, recommendations, pipeline, CapturingExecutor(), mock(), mock(),
+                JsonMapper
+                    .builder()
+                    .build(),
+            )
 
         assertThrows<IllegalArgumentException> { service.submit(validRequest()) }
     }
@@ -155,7 +168,13 @@ class ScheduleOptimizationServiceTest {
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision(id = 11))
         val executor = CapturingExecutor()
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, executor)
+        val service =
+            ScheduleOptimizationService(
+                feeds, revisions, runs, recommendations, pipeline, executor, mock(), mock(),
+                JsonMapper
+                    .builder()
+                    .build(),
+            )
         val run = service.submit(validRequest())
 
         // A newer revision is activated after submission but before the queued job runs.
@@ -176,7 +195,13 @@ class ScheduleOptimizationServiceTest {
         whenever(revisions.findByFeedAndStatus(7, GtfsRevisionStatus.ACTIVE)).thenReturn(revision())
         val executor = CapturingExecutor()
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, executor)
+        val service =
+            ScheduleOptimizationService(
+                feeds, revisions, runs, recommendations, pipeline, executor, mock(), mock(),
+                JsonMapper
+                    .builder()
+                    .build(),
+            )
         val run = service.submit(validRequest())
         executor.runAll()
 
@@ -218,7 +243,13 @@ class ScheduleOptimizationServiceTest {
             }
         val executor = CapturingExecutor()
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, executor)
+        val service =
+            ScheduleOptimizationService(
+                feeds, revisions, runs, recommendations, pipeline, executor, mock(), mock(),
+                JsonMapper
+                    .builder()
+                    .build(),
+            )
         val run = service.submit(validRequest())
         executor.runAll()
 
@@ -237,7 +268,13 @@ class ScheduleOptimizationServiceTest {
         val pipeline = mock<OptimizationAnalysisPipeline>()
         whenever(recommendations.page(any(), any(), any(), any())).thenReturn(emptyList())
 
-        val service = ScheduleOptimizationService(feeds, revisions, runs, recommendations, pipeline, CapturingExecutor())
+        val service =
+            ScheduleOptimizationService(
+                feeds, revisions, runs, recommendations, pipeline, CapturingExecutor(), mock(), mock(),
+                JsonMapper
+                    .builder()
+                    .build(),
+            )
         service.listRecommendations(42, eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus.PENDING, 10, 25)
 
         org.mockito.kotlin

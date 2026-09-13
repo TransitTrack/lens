@@ -5,16 +5,39 @@ import java.time.Instant
 import org.slf4j.LoggerFactory
 import org.springframework.core.task.TaskExecutor
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import tools.jackson.databind.JsonNode
+import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.gtfs.draft.DraftService
+import eu.transittrack.gtfs.draft.edit.DraftEditService
+import eu.transittrack.gtfs.draft.edit.EditOp
+import eu.transittrack.gtfs.draft.edit.ShiftTripOp
+import eu.transittrack.gtfs.draft.edit.UpdateStopTimeOp
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunState
+
+/**
+ * Thrown by [ScheduleOptimizationService.apply] when two selected recommendations, once expanded
+ * into concrete edit targets, assign different values to the same `(tripId, stopSequence)` cell or
+ * the same shifted trip. Carries every recommendation id involved in a conflicting group so a
+ * caller can report the whole conflict, not just the first offender. Nothing is applied when this
+ * is thrown — the caller's `@Transactional` boundary has not persisted anything at that point.
+ */
+class RecommendationConflictException(
+    val conflictingRecommendationIds: Set<Long>,
+) : RuntimeException(
+        "recommendations $conflictingRecommendationIds propose different values for the same target",
+    )
 
 /**
  * Normalized analysis request. Validated eagerly in [init] — before any repository access — so a
@@ -63,6 +86,9 @@ class ScheduleOptimizationService(
     private val recommendations: OptimizationRecommendationRepository,
     private val pipeline: OptimizationAnalysisPipeline,
     private val scheduleOptimizationExecutor: TaskExecutor,
+    private val draftService: DraftService,
+    private val draftEditService: DraftEditService,
+    private val json: JsonMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -100,6 +126,127 @@ class ScheduleOptimizationService(
         offset: Int,
         limit: Int,
     ): List<OptimizationRecommendationRow> = recommendations.page(runId, status?.name, offset, limit)
+
+    /**
+     * Design section 7 ("Apply workflow"): one atomic orchestration. Locks/reads the successful run
+     * and the selected pending recommendations, expands their JSON `proposedValue` into concrete
+     * [UpdateStopTimeOp]/[ShiftTripOp] targets, de-duplicates identical edits and rejects divergent
+     * assignments to the same target (design section 6.3 — grouped by expanded target, not by
+     * `conflictKey`), then forks a new draft from the run's frozen revision, claims [editor] as its
+     * lock holder, applies every op in one [DraftEditService.applyBatch] call, and marks the source
+     * recommendations `APPLIED`. The whole method is one `@Transactional` boundary so a failure at
+     * any step — including a later op in the batch — rolls back the fork, every journal entry, and
+     * every version bump; no half-created draft or partial recommendation status change survives.
+     */
+    @Transactional
+    fun apply(
+        runId: Long,
+        recommendationIds: Set<Long>,
+        label: String?,
+        editor: String,
+    ): GtfsRevision {
+        require(recommendationIds.isNotEmpty()) { "no recommendations selected" }
+        val run = runs.findById(runId).orElseThrow { IllegalArgumentException("no run $runId") }
+        check(run.state == OptimizationRunState.SUCCEEDED) { "run $runId has not succeeded" }
+
+        val selected = recommendations.findAllById(recommendationIds).toList()
+        require(selected.size == recommendationIds.size) { "one or more recommendation ids do not exist" }
+        require(selected.all { it.runId == runId }) { "one or more recommendations do not belong to run $runId" }
+        require(selected.all { it.status == OptimizationRecommendationStatus.PENDING }) {
+            "only PENDING recommendations can be applied"
+        }
+
+        val revision = revisions.findById(run.revisionId).orElse(null)
+        checkNotNull(revision) { "run $runId's frozen revision ${run.revisionId} no longer exists" }
+        check(revision.feedId == run.feedId) { "run $runId's frozen revision no longer belongs to its feed" }
+        val feed = feeds.findById(run.feedId).orElseThrow { IllegalStateException("feed ${run.feedId} no longer exists") }
+
+        val groupedTargets = expandTargets(selected)
+        val conflicting =
+            groupedTargets.values.filter { group -> group.map { it.valueKey }.distinct().size > 1 }
+        if (conflicting.isNotEmpty()) {
+            throw RecommendationConflictException(conflicting.flatten().map { it.recommendationId }.toSet())
+        }
+        val ops = groupedTargets.values.map { it.first().op } // one op per target, dedup applied
+
+        val draft = draftService.fork(feed.code, run.revisionId, label, editor)
+        val lock = draftService.claimEditor(draft.id!!, editor)
+        // claimEditor commits its lock via a bulk UPDATE (see GtfsRevisionRepository.tryClaimEditor),
+        // which does not refresh Hibernate's already-managed `draft` instance from this same
+        // transaction's persistence context. DraftEditService.applyBatch's guard re-reads this same
+        // managed row (identity map), so it would otherwise see the pre-claim, unlocked state and
+        // reject with LockNotHeldException. Sync the in-memory fields to what was just committed.
+        draft.editorClaimBy = lock.editor
+        draft.editorClaimExpiresAt = lock.expiresAt
+        val updated = draftEditService.applyBatch(draft.id!!, editor, draft.version, ops)
+
+        selected.forEach { it.status = OptimizationRecommendationStatus.APPLIED }
+        recommendations.saveAll(selected)
+
+        return updated
+    }
+
+    /** One expanded concrete edit target, grouped by [key] (`cell:<tripId>:<seq>` or `shift:<tripId>`). */
+    private data class ExpandedTarget(
+        val recommendationId: Long,
+        val key: String,
+        val valueKey: String,
+        val op: EditOp,
+    )
+
+    /** Design 6.3: group by the *expanded* target, not by a recommendation's own `conflictKey` string. */
+    private fun expandTargets(selected: List<OptimizationRecommendationRow>): Map<String, List<ExpandedTarget>> {
+        val all = mutableListOf<ExpandedTarget>()
+        for (row in selected) {
+            val proposed = row.proposedValue ?: continue
+            val targets: JsonNode = json.readTree(proposed).path("targets")
+            when (row.kind) {
+                OptimizationRecommendationKind.STOP_TIME -> {
+                    targets.forEach { t -> stopTimeTarget(row, t)?.let(all::add) }
+                }
+
+                OptimizationRecommendationKind.TRIP_SHIFT -> {
+                    targets.forEach { t -> all += tripShiftTarget(row, t) }
+                }
+            }
+        }
+        return all.groupBy { it.key }
+    }
+
+    private fun stopTimeTarget(
+        row: OptimizationRecommendationRow,
+        t: JsonNode,
+    ): ExpandedTarget? {
+        val tripId = t.path("tripId").asString()
+        val seq = t.path("stopSequence").asInt()
+        val arrNode = t.path("arrivalSec")
+        val depNode = t.path("departureSec")
+        // A target whose proposed arrival/departure are both null carries no actual change (see
+        // UpdateStopTimeOp's doc: a null arg means "set to NULL", not "leave unchanged") — skip it
+        // defensively rather than clobber the cell.
+        if (arrNode.isNull && depNode.isNull) return null
+        val arr = if (arrNode.isNull) null else arrNode.asInt()
+        val dep = if (depNode.isNull) null else depNode.asInt()
+        return ExpandedTarget(
+            recommendationId = row.id!!,
+            key = "cell:$tripId:$seq",
+            valueKey = "$arr|$dep",
+            op = UpdateStopTimeOp(tripId, seq, arr, dep),
+        )
+    }
+
+    private fun tripShiftTarget(
+        row: OptimizationRecommendationRow,
+        t: JsonNode,
+    ): ExpandedTarget {
+        val tripId = t.path("tripId").asString()
+        return ExpandedTarget(
+            recommendationId = row.id!!,
+            key = "shift:$tripId",
+            valueKey = row.deltaSec.toString(),
+            op = ShiftTripOp(tripId, row.deltaSec),
+        )
+    }
 
     private fun dispatch(runId: Long) {
         try {

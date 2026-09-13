@@ -74,29 +74,34 @@ class DraftEditService(
         revisions.save(d)
     }
 
+    /**
+     * The shared batch template: guard (status + lock + version) ONCE, then plan + mutate + journal
+     * + bump version for each op in [operations] in sequence, all within one transaction. Each op
+     * still becomes its own `draft_edit` row (so it remains individually undoable), and each bump
+     * mirrors the single-op `apply`'s per-edit version semantics exactly — just looped.
+     */
     @Transactional
-    fun apply(
+    fun applyBatch(
         draftId: Long,
         editor: String,
         expectedVersion: Long,
-        opFactory: (EditContext) -> EditOp,
-    ): DraftEditResultData {
+        operations: List<EditOp>,
+    ): GtfsRevision {
         val d = guard(draftId, editor, expectedVersion)
         val c = ctx(draftId)
-        val op = opFactory(c)
-        check(!(op.needsFreshDerivation && d.derivationStale)) { "rebuild the draft before filtering by pattern" }
-        val planned = op.plan(c)
+        for (op in operations) {
+            check(!(op.needsFreshDerivation && d.derivationStale)) { "rebuild the draft before filtering by pattern" }
+            val planned = op.plan(c)
 
-        edits.deleteByRevisionIdAndUndoneTrue(draftId) // truncate redo tail
-        planned.mutate()
+            edits.deleteByRevisionIdAndUndoneTrue(draftId) // truncate redo tail
+            planned.mutate()
 
-        // Ordering is safe: the findByRevisionIdOrderBySeqAsc query below forces a Hibernate flush,
-        // and within one flush Hibernate runs INSERTs before DELETEs — so the queued redo-tail
-        // deletes are applied before nextSeq is computed, and it cannot collide with
-        // uq_draft_edit_revision_seq. A future `select max(seq)` projection must keep that property:
-        // it must stay a query over draft_edit (which auto-flushes), not an in-memory shortcut.
-        val nextSeq = (edits.findByRevisionIdOrderBySeqAsc(draftId).maxOfOrNull { it.seq } ?: 0) + 1
-        val row =
+            // Ordering is safe: the findByRevisionIdOrderBySeqAsc query below forces a Hibernate flush,
+            // and within one flush Hibernate runs INSERTs before DELETEs — so the queued redo-tail
+            // deletes are applied before nextSeq is computed, and it cannot collide with
+            // uq_draft_edit_revision_seq. A future `select max(seq)` projection must keep that property:
+            // it must stay a query over draft_edit (which auto-flushes), not an in-memory shortcut.
+            val nextSeq = (edits.findByRevisionIdOrderBySeqAsc(draftId).maxOfOrNull { it.seq } ?: 0) + 1
             edits.save(
                 DraftEdit(
                     revisionId = draftId,
@@ -108,8 +113,21 @@ class DraftEditService(
                     appliedAt = Instant.now(),
                 ),
             )
-        bump(d)
-        return result(d, row)
+            bump(d)
+        }
+        return d
+    }
+
+    @Transactional
+    fun apply(
+        draftId: Long,
+        editor: String,
+        expectedVersion: Long,
+        opFactory: (EditContext) -> EditOp,
+    ): DraftEditResultData {
+        val op = opFactory(ctx(draftId))
+        val d = applyBatch(draftId, editor, expectedVersion, listOf(op))
+        return result(d, edits.findTopByRevisionIdAndUndoneFalseOrderBySeqDesc(draftId))
     }
 
     @Transactional
