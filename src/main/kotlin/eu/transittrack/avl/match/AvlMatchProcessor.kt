@@ -26,9 +26,10 @@ import eu.transittrack.predict.PredictionService
 
 /**
  * Claims PENDING `avl_report` rows, dispatches each to the [VehicleMatcher] for its feed's assignment
- * mode, and persists the outcome (a `vehicle_match` row plus a `vehicle_state` upsert on success; a
- * stale `vehicle_state` upsert on failure). Runs on a fixed delay; [processBatch] is public so tests
- * can drive it directly.
+ * mode, and accumulates the outcome (a `vehicle_match` row plus a `vehicle_state` upsert on success; a
+ * stale `vehicle_state` upsert on failure). Outcomes for a feed are flushed as a single batch once all
+ * of its reports are processed, followed by a summary log line. Runs on a fixed delay; [processBatch]
+ * is public so tests can drive it directly.
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
@@ -60,6 +61,7 @@ class AvlMatchProcessor(
             metrics.avlMatchBatch(TransitTrackMetrics.Outcome.SUCCESS, Duration.between(batchStartedAt, Instant.now()), 0)
             return 0
         }
+
         val byFeed = batch.groupBy { it.feedId }
         var processed = 0
         for ((feedId, feedReports) in byFeed) {
@@ -71,16 +73,20 @@ class AvlMatchProcessor(
                 .findByFeedId(feedId)
                 .associateBy { it.vehicleId }
 
-            for ((vehicleId, reports) in vehiclesForFeed) {
+            val stats = BatchProcessingStats(feed)
+
+            for ((vehicleId, vehicleReports) in vehiclesForFeed) {
                 val prev = vehiclesPreviousStates[vehicleId]
 
                 // oldest-first so the sequential constraint sees a vehicle's reports in order
-                reports
+                vehicleReports
                     .sortedBy { it.ts }
                     .forEach { report ->
                         val reportStartedAt = Instant.now()
                         val match = matcher.match(report, prev, ctx)
-                        persist(feed, report, match, prev, ctx)
+
+                        stats.accumulate(report, match, prev, ctx)
+
                         metrics.avlReportMatched(
                             feed,
                             when (match) {
@@ -94,116 +100,146 @@ class AvlMatchProcessor(
                         processed++
                     }
             }
+
+            stats.flush()
         }
         metrics.avlMatchBatch(TransitTrackMetrics.Outcome.SUCCESS, Duration.between(batchStartedAt, Instant.now()), processed)
         return processed
     }
 
-    private fun persist(
-        feed: AvlFeed,
-        report: AvlReportRow,
-        outcome: MatchOutcome,
-        prev: VehicleState?,
-        ctx: AvlMatchContext,
+    /** Accumulates one feed's persistence side effects so they can be flushed as a single batch. */
+    private inner class BatchProcessingStats(
+        val feed: AvlFeed,
     ) {
-        val now = Instant.now()
-        when (outcome) {
-            is MatchOutcome.Matched -> {
-                writer.insertMatch(
-                    VehicleMatch(
-                        avlReportId = report.id!!,
-                        feedId = feed.id!!,
-                        vehicleId = report.vehicleId,
-                        ts = report.ts,
-                        revisionId = outcome.revisionId,
-                        tripRowId = outcome.tripRowId,
-                        blockPk = outcome.blockPk,
-                        tripPatternId = outcome.tripPatternId,
-                        stopPathIndex = outcome.stopPathIndex,
-                        distanceAlongTripM = outcome.distanceAlongTripM,
-                        deviationM = outcome.deviationM,
-                        scheduleAdherenceSec = outcome.scheduleAdherenceSec,
-                        snappedLat = outcome.snapped.lat,
-                        snappedLon = outcome.snapped.lon,
-                        heading = outcome.heading,
-                        score = outcome.score,
-                        createdAt = now,
-                    ),
-                )
-                writer.upsertState(
-                    VehicleStateUpsert(
-                        feedId = feed.id!!,
-                        vehicleId = report.vehicleId,
-                        vehicleLabel = report.vehicleLabel,
-                        reportTs = report.ts,
-                        lat = report.lat,
-                        lon = report.lon,
-                        bearing = report.bearing,
-                        speedMps = report.speedMps,
-                        occupancyStatus = report.occupancyStatus,
-                        matched = true,
-                        stale = false,
-                        consecutiveFailures = 0,
-                        revisionId = outcome.revisionId,
-                        tripRowId = outcome.tripRowId,
-                        blockPk = outcome.blockPk,
-                        tripPatternId = outcome.tripPatternId,
-                        stopPathIndex = outcome.stopPathIndex,
-                        distanceAlongTripM = outcome.distanceAlongTripM,
-                        scheduleAdherenceSec = outcome.scheduleAdherenceSec,
-                        snappedLat = outcome.snapped.lat,
-                        snappedLon = outcome.snapped.lon,
-                        updatedAt = now,
-                    ),
-                )
-                markReport(report.id!!, MatchStatus.MATCHED, now)
-                predictionService.ifAvailable { it.onMatched(feed, report, prev, outcome, ctx) }
-            }
+        val matches = mutableListOf<VehicleMatch>()
+        val stateUpserts = mutableListOf<VehicleStateUpsert>()
+        val matchedIds = mutableListOf<Long>()
+        val unmatchedIds = mutableListOf<Long>()
+        val skippedIds = mutableListOf<Long>()
 
-            MatchOutcome.Failed -> {
-                val failures = (prev?.consecutiveFailures ?: 0) + 1
-                val cleared = failures >= cfg.unmatchAfterFailures
-                writer.upsertState(
-                    VehicleStateUpsert(
-                        feedId = feed.id!!,
-                        vehicleId = report.vehicleId,
-                        vehicleLabel = report.vehicleLabel,
-                        reportTs = report.ts,
-                        lat = report.lat,
-                        lon = report.lon,
-                        bearing = report.bearing,
-                        speedMps = report.speedMps,
-                        occupancyStatus = report.occupancyStatus,
-                        matched = false,
-                        stale = true,
-                        consecutiveFailures = failures,
-                        revisionId = if (cleared) null else prev?.revisionId,
-                        tripRowId = if (cleared) null else prev?.tripRowId,
-                        blockPk = if (cleared) null else prev?.blockPk,
-                        tripPatternId = if (cleared) null else prev?.tripPatternId,
-                        stopPathIndex = if (cleared) null else prev?.stopPathIndex,
-                        distanceAlongTripM = if (cleared) null else prev?.distanceAlongTripM,
-                        scheduleAdherenceSec = if (cleared) null else prev?.scheduleAdherenceSec,
-                        snappedLat = if (cleared) null else prev?.snappedLat,
-                        snappedLon = if (cleared) null else prev?.snappedLon,
-                        updatedAt = now,
-                    ),
-                )
+        fun accumulate(
+            report: AvlReportRow,
+            outcome: MatchOutcome,
+            prev: VehicleState?,
+            ctx: AvlMatchContext,
+        ) {
+            val now = Instant.now()
+            when (outcome) {
+                is MatchOutcome.Matched -> {
+                    matches.add(
+                        VehicleMatch(
+                            avlReportId = report.id!!,
+                            feedId = feed.id!!,
+                            vehicleId = report.vehicleId,
+                            ts = report.ts,
+                            revisionId = outcome.revisionId,
+                            tripRowId = outcome.tripRowId,
+                            blockPk = outcome.blockPk,
+                            tripPatternId = outcome.tripPatternId,
+                            stopPathIndex = outcome.stopPathIndex,
+                            distanceAlongTripM = outcome.distanceAlongTripM,
+                            deviationM = outcome.deviationM,
+                            scheduleAdherenceSec = outcome.scheduleAdherenceSec,
+                            snappedLat = outcome.snapped.lat,
+                            snappedLon = outcome.snapped.lon,
+                            heading = outcome.heading,
+                            score = outcome.score,
+                            createdAt = now,
+                        ),
+                    )
+                    stateUpserts.add(
+                        VehicleStateUpsert(
+                            feedId = feed.id!!,
+                            vehicleId = report.vehicleId,
+                            vehicleLabel = report.vehicleLabel,
+                            reportTs = report.ts,
+                            lat = report.lat,
+                            lon = report.lon,
+                            bearing = report.bearing,
+                            speedMps = report.speedMps,
+                            occupancyStatus = report.occupancyStatus,
+                            matched = true,
+                            stale = false,
+                            consecutiveFailures = 0,
+                            revisionId = outcome.revisionId,
+                            tripRowId = outcome.tripRowId,
+                            blockPk = outcome.blockPk,
+                            tripPatternId = outcome.tripPatternId,
+                            stopPathIndex = outcome.stopPathIndex,
+                            distanceAlongTripM = outcome.distanceAlongTripM,
+                            scheduleAdherenceSec = outcome.scheduleAdherenceSec,
+                            snappedLat = outcome.snapped.lat,
+                            snappedLon = outcome.snapped.lon,
+                            updatedAt = now,
+                        ),
+                    )
+                    matchedIds.add(report.id!!)
+                    predictionService.ifAvailable { it.onMatched(feed, report, prev, outcome, ctx) }
+                }
 
-                markReport(report.id!!, MatchStatus.UNMATCHED, now)
-            }
+                MatchOutcome.Failed -> {
+                    val failures = (prev?.consecutiveFailures ?: 0) + 1
+                    val cleared = failures >= cfg.unmatchAfterFailures
+                    stateUpserts.add(
+                        VehicleStateUpsert(
+                            feedId = feed.id!!,
+                            vehicleId = report.vehicleId,
+                            vehicleLabel = report.vehicleLabel,
+                            reportTs = report.ts,
+                            lat = report.lat,
+                            lon = report.lon,
+                            bearing = report.bearing,
+                            speedMps = report.speedMps,
+                            occupancyStatus = report.occupancyStatus,
+                            matched = false,
+                            stale = true,
+                            consecutiveFailures = failures,
+                            revisionId = if (cleared) null else prev?.revisionId,
+                            tripRowId = if (cleared) null else prev?.tripRowId,
+                            blockPk = if (cleared) null else prev?.blockPk,
+                            tripPatternId = if (cleared) null else prev?.tripPatternId,
+                            stopPathIndex = if (cleared) null else prev?.stopPathIndex,
+                            distanceAlongTripM = if (cleared) null else prev?.distanceAlongTripM,
+                            scheduleAdherenceSec = if (cleared) null else prev?.scheduleAdherenceSec,
+                            snappedLat = if (cleared) null else prev?.snappedLat,
+                            snappedLon = if (cleared) null else prev?.snappedLon,
+                            updatedAt = now,
+                        ),
+                    )
 
-            MatchOutcome.Skipped -> {
-                markReport(report.id!!, MatchStatus.SKIPPED, now)
+                    unmatchedIds.add(report.id!!)
+                }
+
+                MatchOutcome.Skipped -> {
+                    skippedIds.add(report.id!!)
+                }
             }
         }
-    }
 
-    private fun markReport(
-        id: Long,
-        status: MatchStatus,
-        at: Instant,
-    ) {
-        reports.markMatched(id, status, at)
+        fun flush() {
+            writer.insertMatches(matches)
+            writer.upsertStates(stateUpserts)
+            val at = Instant.now()
+
+            if (matchedIds.isNotEmpty()) {
+                reports.markMatchedBatch(matchedIds, MatchStatus.MATCHED, at)
+            }
+
+            if (unmatchedIds.isNotEmpty()) {
+                reports.markMatchedBatch(unmatchedIds, MatchStatus.UNMATCHED, at)
+            }
+
+            if (skippedIds.isNotEmpty()) {
+                reports.markMatchedBatch(skippedIds, MatchStatus.SKIPPED, at)
+            }
+
+            log.info(
+                "avl match feed={} ✅ matched={} ⚠️ skipped={} ‼️ rejected={}",
+                feed.code,
+                matchedIds.size,
+                skippedIds.size,
+                unmatchedIds.size,
+            )
+        }
     }
 }

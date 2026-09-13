@@ -4,6 +4,7 @@ import java.time.Instant
 import jakarta.persistence.EntityManagerFactory
 
 import org.hibernate.SessionFactory
+import org.hibernate.StatelessSession
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.model.AvlReportRow
@@ -51,38 +52,49 @@ class AvlWriter(
         sessionFactory.inStatelessTransaction { session -> rows.forEach(session::insert) }
     }
 
-    fun insertMatch(m: VehicleMatch) {
-        sessionFactory.inStatelessTransaction { session -> session.insert(m) }
+    fun insertMatches(matches: List<VehicleMatch>) {
+        if (matches.isEmpty()) return
+        sessionFactory.inStatelessTransaction { session -> matches.forEach(session::insert) }
     }
 
     fun upsertState(s: VehicleStateUpsert) {
-        sessionFactory.inStatelessTransaction { session ->
-            session
-                .createNativeMutationQuery(UPSERT_SQL)
-                .setParameter("feed_id", s.feedId)
-                .setParameter("vehicle_id", s.vehicleId)
-                .setParameter("vehicle_label", s.vehicleLabel)
-                .setParameter("report_ts", s.reportTs)
-                .setParameter("lat", s.lat)
-                .setParameter("lon", s.lon)
-                .setParameter("bearing", s.bearing)
-                .setParameter("speed_mps", s.speedMps)
-                .setParameter("occupancy_status", s.occupancyStatus)
-                .setParameter("matched", s.matched)
-                .setParameter("stale", s.stale)
-                .setParameter("consecutive_failures", s.consecutiveFailures)
-                .setParameter("revision_id", s.revisionId)
-                .setParameter("trip_row_id", s.tripRowId)
-                .setParameter("block_pk", s.blockPk)
-                .setParameter("trip_pattern_id", s.tripPatternId)
-                .setParameter("stop_path_index", s.stopPathIndex)
-                .setParameter("distance_along_trip_m", s.distanceAlongTripM)
-                .setParameter("schedule_adherence_sec", s.scheduleAdherenceSec)
-                .setParameter("snapped_lat", s.snappedLat)
-                .setParameter("snapped_lon", s.snappedLon)
-                .setParameter("updated_at", s.updatedAt)
-                .executeUpdate()
-        }
+        sessionFactory.inStatelessTransaction { session -> upsertState(session, s) }
+    }
+
+    fun upsertStates(states: List<VehicleStateUpsert>) {
+        if (states.isEmpty()) return
+        sessionFactory.inStatelessTransaction { session -> states.forEach { upsertState(session, it) } }
+    }
+
+    private fun upsertState(
+        session: StatelessSession,
+        s: VehicleStateUpsert,
+    ) {
+        session
+            .createNativeMutationQuery(UPSERT_SQL)
+            .setParameter("feed_id", s.feedId)
+            .setParameter("vehicle_id", s.vehicleId)
+            .setParameter("vehicle_label", s.vehicleLabel)
+            .setParameter("report_ts", s.reportTs)
+            .setParameter("lat", s.lat)
+            .setParameter("lon", s.lon)
+            .setParameter("bearing", s.bearing)
+            .setParameter("speed_mps", s.speedMps)
+            .setParameter("occupancy_status", s.occupancyStatus)
+            .setParameter("matched", s.matched)
+            .setParameter("stale", s.stale)
+            .setParameter("consecutive_failures", s.consecutiveFailures)
+            .setParameter("revision_id", s.revisionId)
+            .setParameter("trip_row_id", s.tripRowId)
+            .setParameter("block_pk", s.blockPk)
+            .setParameter("trip_pattern_id", s.tripPatternId)
+            .setParameter("stop_path_index", s.stopPathIndex)
+            .setParameter("distance_along_trip_m", s.distanceAlongTripM)
+            .setParameter("schedule_adherence_sec", s.scheduleAdherenceSec)
+            .setParameter("snapped_lat", s.snappedLat)
+            .setParameter("snapped_lon", s.snappedLon)
+            .setParameter("updated_at", s.updatedAt)
+            .executeUpdate()
     }
 
     private companion object {
