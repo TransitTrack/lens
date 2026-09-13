@@ -60,6 +60,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
         "transittrack.avl.enabled=true",
         "transittrack.avl.match.match-interval-ms=3600000",
         "transittrack.predict.enabled=true",
+        "transittrack.predict.run.interval-ms=3600000",
     ],
 )
 @Import(TestcontainersConfiguration::class, HeadwayReadServiceTest.Stub::class)
@@ -70,6 +71,7 @@ class HeadwayReadServiceTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val processor: AvlMatchProcessor,
+    @Autowired val predictionProcessor: eu.transittrack.predict.PredictionProcessor,
     @Autowired val factory: AvlMatchContextFactory,
     @Autowired val trips: TripRepository,
     @Autowired val feeds: AvlFeedRepository,
@@ -147,7 +149,7 @@ class HeadwayReadServiceTest(
         insert("bus-2", "T2", t2Geom.line.pointAt(0.02 * t2Geom.line.lengthM), ts(8, 57))
 
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
     }
 
     @AfterAll

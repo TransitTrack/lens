@@ -78,6 +78,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
         "transittrack.avl.enabled=true",
         "transittrack.avl.match.match-interval-ms=3600000",
         "transittrack.predict.enabled=true",
+        "transittrack.predict.run.interval-ms=3600000",
     ],
 )
 @Import(TestcontainersConfiguration::class, PredictionEndToEndTest.Stub::class)
@@ -90,6 +91,7 @@ class PredictionEndToEndTest(
     @Autowired val ingestion: IngestionService,
     @Autowired val ingestService: AvlIngestService,
     @Autowired val processor: AvlMatchProcessor,
+    @Autowired val predictionProcessor: eu.transittrack.predict.PredictionProcessor,
     @Autowired val contextFactory: AvlMatchContextFactory,
     @Autowired val trips: TripRepository,
     @Autowired val feeds: AvlFeedRepository,
@@ -192,7 +194,7 @@ class PredictionEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p25, svcTs(5).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
 
         val predictionsAfterPoll1 =
             tester
@@ -212,7 +214,7 @@ class PredictionEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p60, svcTs(12).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
 
         val predictionsAfterPoll2 =
             tester

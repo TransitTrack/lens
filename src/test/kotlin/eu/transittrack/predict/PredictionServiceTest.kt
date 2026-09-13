@@ -57,6 +57,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
         "transittrack.avl.match.claim-batch-size=2000",
         "transittrack.feed.feeds=",
         "transittrack.predict.enabled=true",
+        "transittrack.predict.run.interval-ms=3600000",
     ],
 )
 @Import(TestcontainersConfiguration::class, PredictionServiceTest.Stub::class)
@@ -64,6 +65,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PredictionServiceTest(
     @Autowired val processor: AvlMatchProcessor,
+    @Autowired val predictionProcessor: eu.transittrack.predict.PredictionProcessor,
     @Autowired val factory: AvlMatchContextFactory,
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
@@ -166,7 +168,7 @@ class PredictionServiceTest(
         // Not asserting the raw processed count: processBatch() claims PENDING reports across every
         // enabled AVL feed (including the config-seeded live feed), not just the one seeded here.
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
         assertThat(preds).isNotEmpty()
@@ -181,10 +183,10 @@ class PredictionServiceTest(
 
         insertReport("bus-1", geom.line.pointAt(0.25 * len), ts(8, 5))
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
         insertReport("bus-1", geom.line.pointAt(0.60 * len), ts(8, 12))
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
         assertThat(preds.any { it.actualArrivalTs != null }).isTrue()
@@ -209,7 +211,7 @@ class PredictionServiceTest(
         insertReport("bus-2", geom.line.pointAt(0.25 * len), ts(8, 5))
 
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
 
         val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-2", trip.id!!)
         assertThat(preds).isNotEmpty()

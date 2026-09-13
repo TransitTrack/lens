@@ -56,6 +56,7 @@ import eu.transittrack.schedule.model.ScheduleTimeRepository
         "transittrack.avl.enabled=true",
         "transittrack.avl.match.match-interval-ms=3600000",
         "transittrack.predict.enabled=true",
+        "transittrack.predict.run.interval-ms=3600000",
     ],
 )
 @Import(TestcontainersConfiguration::class, PredictionGraphQlTest.Stub::class)
@@ -67,6 +68,7 @@ class PredictionGraphQlTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val processor: AvlMatchProcessor,
+    @Autowired val predictionProcessor: eu.transittrack.predict.PredictionProcessor,
     @Autowired val factory: AvlMatchContextFactory,
     @Autowired val trips: TripRepository,
     @Autowired val feeds: AvlFeedRepository,
@@ -139,11 +141,11 @@ class PredictionGraphQlTest(
 
         insert(geom.line.pointAt(0.25 * len), ts(8, 10))
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
 
         insert(geom.line.pointAt(0.60 * len), ts(8, 12))
         processor.processBatch()
-        processor.awaitPredictionsIdle()
+        predictionProcessor.processBatch()
     }
 
     @AfterAll

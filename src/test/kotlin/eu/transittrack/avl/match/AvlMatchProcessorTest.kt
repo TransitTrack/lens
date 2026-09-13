@@ -9,17 +9,11 @@ import assertk.assertions.hasSize
 import assertk.assertions.isCloseTo
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
-import assertk.assertions.isLessThan
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
-import org.mockito.kotlin.any
-import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.doAnswer
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -27,7 +21,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.data.domain.Pageable
-import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -71,9 +64,6 @@ class AvlMatchProcessorTest(
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
 ) {
-    @MockitoBean
-    lateinit var predictionService: eu.transittrack.predict.PredictionService
-
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -225,24 +215,5 @@ class AvlMatchProcessorTest(
                 assertThat(state.tripRowId).isNull()
             }
         }
-    }
-
-    @Test
-    fun `prediction dispatch does not block the match cycle`() {
-        val latch = java.util.concurrent.CountDownLatch(1)
-        doAnswer {
-            latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
-            null
-        }.whenever(predictionService).onMatched(any(), any(), anyOrNull(), any(), any())
-
-        val (_, geom) = t1Geom()
-        insertReport("bus-predict", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 10))
-
-        val elapsedMs = kotlin.system.measureTimeMillis { processor.processBatch() }
-        assertThat(elapsedMs).isLessThan(1_500L)
-
-        latch.countDown()
-        processor.awaitPredictionsIdle()
-        verify(predictionService).onMatched(any(), any(), anyOrNull(), any(), any())
     }
 }
