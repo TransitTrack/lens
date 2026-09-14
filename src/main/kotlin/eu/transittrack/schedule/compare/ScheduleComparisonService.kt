@@ -2,6 +2,9 @@ package eu.transittrack.schedule.compare
 
 import org.springframework.stereotype.Service
 
+import eu.transittrack.gtfs.model.Calendar
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
@@ -12,6 +15,8 @@ class ScheduleComparisonService(
     private val revisions: GtfsRevisionRepository,
     private val trips: TripRepository,
     private val stopTimes: StopTimeRepository,
+    private val calendars: CalendarRepository,
+    private val calendarDates: CalendarDateRepository,
 ) {
     fun compare(
         fromRevisionId: Long,
@@ -31,13 +36,29 @@ class ScheduleComparisonService(
         val tripChanges =
             compareTrips(fromRevisionId, toRevisionId, fromTrips, toTrips, from.derivationStale, to.derivationStale)
 
+        val calendarServiceIds: Set<String>? =
+            when {
+                serviceId != null -> {
+                    setOf(serviceId)
+                }
+
+                routeId != null || directionId != null -> {
+                    (fromTrips.map { it.serviceId } + toTrips.map { it.serviceId }).toSet()
+                }
+
+                else -> {
+                    null
+                }
+            }
+        val calendarChanges = compareCalendars(fromRevisionId, toRevisionId, calendarServiceIds)
+
         return ScheduleComparison(
             fromRevisionId = fromRevisionId,
             toRevisionId = toRevisionId,
             fromDerivationStale = from.derivationStale,
             toDerivationStale = to.derivationStale,
             tripChanges = tripChanges,
-            calendarChanges = emptyList(),
+            calendarChanges = calendarChanges,
             headwaySummaries = emptyList(),
         )
     }
@@ -150,6 +171,103 @@ class ScheduleComparisonService(
                     if (stopChanged || timeChanged) {
                         out += StopTimeChange(seq, StopChangeKind.STOP_TIME_CHANGED, t.stopId, arrDelta, depDelta)
                     }
+                }
+            }
+        }
+        return out
+    }
+
+    private fun compareCalendars(
+        fromRevisionId: Long,
+        toRevisionId: Long,
+        serviceIds: Set<String>?,
+    ): List<CalendarChange> {
+        val fromCals = loadCalendars(fromRevisionId, serviceIds).associateBy { it.serviceId }
+        val toCals = loadCalendars(toRevisionId, serviceIds).associateBy { it.serviceId }
+        val allServiceIds = (fromCals.keys + toCals.keys).sorted()
+        val out = mutableListOf<CalendarChange>()
+        for (svc in allServiceIds) {
+            val f = fromCals[svc]
+            val t = toCals[svc]
+            val exceptionChanges = compareExceptions(fromRevisionId, toRevisionId, svc)
+            when {
+                f == null && t != null -> {
+                    out += CalendarChange(svc, CalendarChangeKind.ADDED, emptyMap(), exceptionChanges)
+                }
+
+                f != null && t == null -> {
+                    out += CalendarChange(svc, CalendarChangeKind.REMOVED, emptyMap(), exceptionChanges)
+                }
+
+                f != null && t != null -> {
+                    val fields = calendarFieldChanges(f, t)
+                    if (fields.isNotEmpty() || exceptionChanges.isNotEmpty()) {
+                        out += CalendarChange(svc, CalendarChangeKind.MODIFIED, fields, exceptionChanges)
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    private fun loadCalendars(
+        revisionId: Long,
+        serviceIds: Set<String>?,
+    ): List<Calendar> =
+        if (serviceIds == null) {
+            calendars.findByRevisionId(revisionId)
+        } else {
+            serviceIds.mapNotNull { calendars.findByServiceId(revisionId, it) }
+        }
+
+    private fun calendarFieldChanges(
+        f: Calendar,
+        t: Calendar,
+    ): Map<String, Pair<String?, String?>> {
+        val m = mutableMapOf<String, Pair<String?, String?>>()
+
+        fun cmp(
+            name: String,
+            fv: Any?,
+            tv: Any?,
+        ) {
+            if (fv != tv) m[name] = fv?.toString() to tv?.toString()
+        }
+        cmp("monday", f.monday, t.monday)
+        cmp("tuesday", f.tuesday, t.tuesday)
+        cmp("wednesday", f.wednesday, t.wednesday)
+        cmp("thursday", f.thursday, t.thursday)
+        cmp("friday", f.friday, t.friday)
+        cmp("saturday", f.saturday, t.saturday)
+        cmp("sunday", f.sunday, t.sunday)
+        cmp("startDate", f.startDate, t.startDate)
+        cmp("endDate", f.endDate, t.endDate)
+        return m
+    }
+
+    private fun compareExceptions(
+        fromRevisionId: Long,
+        toRevisionId: Long,
+        serviceId: String,
+    ): List<CalendarExceptionChange> {
+        val fromEx = calendarDates.findByServiceId(fromRevisionId, serviceId).associateBy { it.date }
+        val toEx = calendarDates.findByServiceId(toRevisionId, serviceId).associateBy { it.date }
+        val allDates = (fromEx.keys + toEx.keys).sorted()
+        val out = mutableListOf<CalendarExceptionChange>()
+        for (date in allDates) {
+            val f = fromEx[date]
+            val t = toEx[date]
+            when {
+                f == null && t != null -> {
+                    out += CalendarExceptionChange(date, ExceptionChangeKind.EXCEPTION_ADDED, null, t.exceptionType)
+                }
+
+                f != null && t == null -> {
+                    out += CalendarExceptionChange(date, ExceptionChangeKind.EXCEPTION_REMOVED, f.exceptionType, null)
+                }
+
+                f != null && t != null && f.exceptionType != t.exceptionType -> {
+                    out += CalendarExceptionChange(date, ExceptionChangeKind.EXCEPTION_CHANGED, f.exceptionType, t.exceptionType)
                 }
             }
         }
