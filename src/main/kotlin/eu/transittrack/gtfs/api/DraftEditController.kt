@@ -12,6 +12,8 @@ import eu.transittrack.gtfs.api.dto.DuplicateTripInput
 import eu.transittrack.gtfs.api.dto.InsertTripStopInput
 import eu.transittrack.gtfs.api.dto.RemoveTripStopInput
 import eu.transittrack.gtfs.api.dto.ReorderTripStopsInput
+import eu.transittrack.gtfs.api.dto.SetCalendarExceptionInput
+import eu.transittrack.gtfs.api.dto.SetCalendarInput
 import eu.transittrack.gtfs.api.dto.SetStopDwellInput
 import eu.transittrack.gtfs.api.dto.ShiftTripInput
 import eu.transittrack.gtfs.api.dto.UpdateStopTimeInput
@@ -25,6 +27,8 @@ import eu.transittrack.gtfs.draft.edit.InsertTripStopOp
 import eu.transittrack.gtfs.draft.edit.NewStopTime
 import eu.transittrack.gtfs.draft.edit.RemoveTripStopOp
 import eu.transittrack.gtfs.draft.edit.ReorderTripStopsOp
+import eu.transittrack.gtfs.draft.edit.SetCalendarExceptionOp
+import eu.transittrack.gtfs.draft.edit.SetCalendarOp
 import eu.transittrack.gtfs.draft.edit.SetStopDwellOp
 import eu.transittrack.gtfs.draft.edit.ShiftTripOp
 import eu.transittrack.gtfs.draft.edit.UpdateStopTimeOp
@@ -161,6 +165,33 @@ class DraftEditController(
         toResult(
             editService.apply(input.draftId.toLong(), input.editor, input.expectedVersion) { _ ->
                 ReorderTripStopsOp(input.tripId, input.stopIdOrder)
+            },
+        )
+
+    @MutationMapping
+    fun setCalendar(
+        @Argument input: SetCalendarInput,
+    ): DraftEditResultDto =
+        toResult(
+            editService.apply(input.draftId.toLong(), input.editor, input.expectedVersion) { _ ->
+                SetCalendarOp(
+                    serviceId = input.serviceId,
+                    monday = input.monday, tuesday = input.tuesday, wednesday = input.wednesday,
+                    thursday = input.thursday, friday = input.friday, saturday = input.saturday,
+                    sunday = input.sunday,
+                    startDate = java.time.LocalDate.parse(input.startDate),
+                    endDate = java.time.LocalDate.parse(input.endDate),
+                )
+            },
+        )
+
+    @MutationMapping
+    fun setCalendarException(
+        @Argument input: SetCalendarExceptionInput,
+    ): DraftEditResultDto =
+        toResult(
+            editService.apply(input.draftId.toLong(), input.editor, input.expectedVersion) { _ ->
+                SetCalendarExceptionOp(input.serviceId, java.time.LocalDate.parse(input.date), input.exceptionType)
             },
         )
 

@@ -57,6 +57,8 @@ extend type Mutation {
     insertTripStop(input: InsertTripStopInput!): DraftEditResult!
     removeTripStop(input: RemoveTripStopInput!): DraftEditResult!
     reorderTripStops(input: ReorderTripStopsInput!): DraftEditResult!
+    setCalendar(input: SetCalendarInput!): DraftEditResult!
+    setCalendarException(input: SetCalendarExceptionInput!): DraftEditResult!
     undoDraftEdit(id: ID!, editor: String!, expectedVersion: Long!): DraftEditResult!
     redoDraftEdit(id: ID!, editor: String!, expectedVersion: Long!): DraftEditResult!
 }
@@ -163,6 +165,32 @@ input ReorderTripStopsInput {
     expectedVersion: Long!
     tripId: String!
     stopIdOrder: [String!]!
+}
+
+input SetCalendarInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    serviceId: String!
+    monday: Boolean!
+    tuesday: Boolean!
+    wednesday: Boolean!
+    thursday: Boolean!
+    friday: Boolean!
+    saturday: Boolean!
+    sunday: Boolean!
+    startDate: String!
+    endDate: String!
+}
+
+input SetCalendarExceptionInput {
+    draftId: ID!
+    editor: String!
+    expectedVersion: Long!
+    serviceId: String!
+    date: String!
+    "1 = service added, 2 = service removed, null = delete the exception"
+    exceptionType: Int
 }
 
 type Draft {

@@ -104,6 +104,31 @@ data class ReorderTripStopsInput(
     val stopIdOrder: List<String> = emptyList(),
 )
 
+data class SetCalendarInput(
+    val draftId: String,
+    val editor: String,
+    val expectedVersion: Long,
+    val serviceId: String,
+    val monday: Boolean,
+    val tuesday: Boolean,
+    val wednesday: Boolean,
+    val thursday: Boolean,
+    val friday: Boolean,
+    val saturday: Boolean,
+    val sunday: Boolean,
+    val startDate: String,
+    val endDate: String,
+)
+
+data class SetCalendarExceptionInput(
+    val draftId: String,
+    val editor: String,
+    val expectedVersion: Long,
+    val serviceId: String,
+    val date: String,
+    val exceptionType: Int? = null,
+)
+
 data class DraftEditResultDto(
     val draft: DraftDto,
     val edit: DraftEditDto?,
