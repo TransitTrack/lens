@@ -3,6 +3,7 @@ import {useOptimizationRunQuery} from '~~/generated/graphql'
 import AppPage from '~/components/AppPage.vue'
 import RecommendationList from '~/components/optimize/RecommendationList.vue'
 import ApplyRecommendationsBar from '~/components/optimize/ApplyRecommendationsBar.vue'
+import NewOptimizationRunDialog from '~/components/optimize/NewOptimizationRunDialog.vue'
 import {gtfsDate} from '~/utils/gtfs'
 
 const route = useRoute()
@@ -11,6 +12,7 @@ const runId = computed(() => String(route.params.runId))
 const selectedIds = ref<string[]>([])
 const conflictIds = ref<string[]>([])
 const recommendationList = ref<InstanceType<typeof RecommendationList> | null>(null)
+const newOpen = ref(false)
 
 function onApplied() {
   selectedIds.value = []
@@ -36,8 +38,10 @@ const {result, loading} = useOptimizationRunQuery(
 const run = computed(() => result.value?.optimizationRun ?? null)
 const isTerminal = computed(() => !!run.value && TERMINAL_STATES.includes(run.value.state))
 
-watch(run, (r) => {
-  if (r && TERMINAL_STATES.includes(r.state)) polling.value = false
+watch(result, (r) => {
+  if (!r) return
+  const optimizationRun = r.optimizationRun
+  if (!optimizationRun || TERMINAL_STATES.includes(optimizationRun.state)) polling.value = false
 })
 
 const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
@@ -78,14 +82,16 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
         description="This page updates automatically."
       />
 
-      <UAlert
-        v-else-if="run.state === 'FAILED'"
-        color="error"
-        variant="soft"
-        icon="i-lucide-x-circle"
-        title="Run failed"
-        :description="run.error ?? 'see server logs'"
-      />
+      <template v-else-if="run.state === 'FAILED'">
+        <UAlert
+          color="error"
+          variant="soft"
+          icon="i-lucide-x-circle"
+          title="Run failed"
+          :description="run.error ?? 'see server logs'"
+        />
+        <UButton label="Start a new run" icon="i-lucide-plus" @click="newOpen = true" />
+      </template>
 
       <template v-else>
         <RecommendationList
@@ -103,5 +109,7 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
         />
       </template>
     </div>
+
+    <NewOptimizationRunDialog v-model:open="newOpen" />
   </AppPage>
 </template>

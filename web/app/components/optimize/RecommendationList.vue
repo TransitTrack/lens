@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {TableColumn} from '@nuxt/ui'
 import {useOptimizationRecommendationsQuery, type OptimizationRecommendationsQuery} from '~~/generated/graphql'
+import {secToHm} from '~/utils/gtfs'
 
 const props = defineProps<{ runId: string }>()
 const selected = defineModel<string[]>('selected', {default: () => []})
@@ -21,6 +22,7 @@ const conflictIds = defineModel<string[]>('conflictIds', {default: () => []})
 const columns: TableColumn<Recommendation>[] = [
   {id: 'select', header: ''},
   {accessorKey: 'kind', header: 'Kind'},
+  {id: 'diff', header: 'Current → Proposed'},
   {accessorKey: 'deltaSec', header: 'Delta (s)'},
   {accessorKey: 'sampleCount', header: 'Samples'},
   {accessorKey: 'reason', header: 'Reason'},
@@ -41,6 +43,23 @@ function target(row: Recommendation): string {
   return targets
     .map((t) => (t.stopSequence != null ? `${t.tripId}#${t.stopSequence}` : String(t.tripId)))
     .join(', ')
+}
+
+/** A short "current → proposed" summary for the representative target, so planners see a
+ * readable diff instead of raw JSON. STOP_TIME recommendations may touch several stops; this
+ * summarizes only the first (representative) one — the full list is still shown via target(). */
+function diff(row: Recommendation): string {
+  const current = row.currentValue as { targets?: Array<Record<string, unknown>> }
+  const proposed = row.proposedValue as { targets?: Array<Record<string, unknown>> }
+  const currentTargets = current?.targets ?? []
+  const proposedTargets = proposed?.targets ?? []
+  if (!currentTargets.length || !proposedTargets.length) return '—'
+  const c = currentTargets[0]!
+  const p = proposedTargets[0]!
+  if (row.kind === 'TRIP_SHIFT') {
+    return `${secToHm(c.startTimeSec as number | null)} → ${secToHm(p.startTimeSec as number | null)}`
+  }
+  return `${secToHm((c.arrivalSec ?? c.departureSec) as number | null)} → ${secToHm((p.arrivalSec ?? p.departureSec) as number | null)}`
 }
 </script>
 
@@ -75,6 +94,9 @@ function target(row: Recommendation): string {
       </template>
       <template #kind-cell="{ row }">
         <UBadge variant="subtle">{{ row.original.kind }}</UBadge>
+      </template>
+      <template #diff-cell="{ row }">
+        <span class="text-sm">{{ diff(row.original) }}</span>
       </template>
       <template #deltaSec-cell="{ row }">
         <span :class="row.original.deltaSec >= 0 ? 'text-success' : 'text-error'">
