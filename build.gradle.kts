@@ -22,17 +22,10 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
-
-    implementation("com.graphql-java:graphql-java-extended-scalars:24.0")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
-    // implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
     modules {
         // Explicitly exclude jackson if you want to completely move away
@@ -40,6 +33,12 @@ dependencies {
             replacedBy("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json", "Use Kotlinx Serialization instead")
         }
     }
+
+    implementation("com.graphql-java:graphql-java-extended-scalars:24.0")
+    implementation("com.github.ben-manes.caffeine:caffeine")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
 
     implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:8.0.1")
     implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:8.0.1")
@@ -55,7 +54,6 @@ dependencies {
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.17.0")
 
-    // annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-cache-test")
