@@ -27,6 +27,7 @@ import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.schedule.derive.DerivationService
 import eu.transittrack.support.PostgresPerMethodTest
 
 /** Ingestion + fork commit on their own connections — must not run inside a rollback tx, same as
@@ -43,6 +44,7 @@ class ScheduleComparisonServiceTest(
     @Autowired val calendars: CalendarRepository,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val feedService: GtfsFeedService,
+    @Autowired val derivation: DerivationService,
 ) : PostgresPerMethodTest() {
     private fun forkDraft(): Pair<Long, Long> {
         val (feedCode, base) = ingestFactory.ingest("schedule-sample")
@@ -165,5 +167,29 @@ class ScheduleComparisonServiceTest(
     fun `unedited fork compares with no calendar changes`() {
         val (base, draftId) = forkDraft()
         assertThat(comparisonService.compare(base, draftId).calendarChanges).isEmpty()
+    }
+
+    @Test
+    fun `headway summaries are empty while either side is stale`() {
+        val (base, draftId) = forkDraft()
+        // base is READY/ACTIVE (non-stale by construction); draft starts stale until rebuilt
+        val cmp = comparisonService.compare(base, draftId)
+        assertThat(cmp.headwaySummaries).isEmpty()
+    }
+
+    @Test
+    fun `headway summaries are populated once both sides are rebuilt`() {
+        val (base, draftId) = forkDraft()
+        derivation.rederive(draftId)
+        val fresh = revisions.findById(draftId).orElseThrow()
+        assertThat(fresh.derivationStale).isEqualTo(false)
+
+        val cmp = comparisonService.compare(base, draftId)
+        assertThat(cmp.headwaySummaries.isNotEmpty()).isEqualTo(true)
+        // groups with fewer than 2 trips report null gap stats, never a misleading number
+        cmp.headwaySummaries.filter { it.fromTripCount < 2 }.forEach {
+            assertThat(it.fromMeanGapSec).isNull()
+            assertThat(it.fromMaxGapSec).isNull()
+        }
     }
 }

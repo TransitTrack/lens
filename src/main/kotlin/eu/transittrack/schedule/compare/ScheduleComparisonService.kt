@@ -52,6 +52,13 @@ class ScheduleComparisonService(
             }
         val calendarChanges = compareCalendars(fromRevisionId, toRevisionId, calendarServiceIds)
 
+        val headwaySummaries =
+            if (!from.derivationStale && !to.derivationStale) {
+                computeHeadwaySummaries(fromTrips, toTrips)
+            } else {
+                emptyList()
+            }
+
         return ScheduleComparison(
             fromRevisionId = fromRevisionId,
             toRevisionId = toRevisionId,
@@ -59,7 +66,7 @@ class ScheduleComparisonService(
             toDerivationStale = to.derivationStale,
             tripChanges = tripChanges,
             calendarChanges = calendarChanges,
-            headwaySummaries = emptyList(),
+            headwaySummaries = headwaySummaries,
         )
     }
 
@@ -273,4 +280,45 @@ class ScheduleComparisonService(
         }
         return out
     }
+
+    private data class HeadwayKey(
+        val routeId: String,
+        val directionId: Int?,
+        val serviceId: String,
+    )
+
+    private fun computeHeadwaySummaries(
+        fromTrips: List<Trip>,
+        toTrips: List<Trip>,
+    ): List<HeadwaySummary> {
+        val fromGroups = groupStarts(fromTrips)
+        val toGroups = groupStarts(toTrips)
+        val allKeys = fromGroups.keys + toGroups.keys
+        return allKeys
+            .map { key ->
+                val fromStarts = fromGroups[key] ?: emptyList()
+                val toStarts = toGroups[key] ?: emptyList()
+                val fromGaps = gaps(fromStarts)
+                val toGaps = gaps(toStarts)
+                HeadwaySummary(
+                    routeId = key.routeId,
+                    directionId = key.directionId,
+                    serviceId = key.serviceId,
+                    fromTripCount = fromStarts.size,
+                    toTripCount = toStarts.size,
+                    fromMeanGapSec = fromGaps.takeIf { it.isNotEmpty() }?.let { it.sum() / it.size },
+                    toMeanGapSec = toGaps.takeIf { it.isNotEmpty() }?.let { it.sum() / it.size },
+                    fromMaxGapSec = fromGaps.maxOrNull(),
+                    toMaxGapSec = toGaps.maxOrNull(),
+                )
+            }.sortedWith(compareBy({ it.routeId }, { it.directionId ?: -1 }, { it.serviceId }))
+    }
+
+    private fun groupStarts(trips: List<Trip>): Map<HeadwayKey, List<Int>> =
+        trips
+            .filter { it.startTimeSec != null }
+            .groupBy { HeadwayKey(it.routeId, it.directionId, it.serviceId) }
+            .mapValues { (_, ts) -> ts.map { it.startTimeSec!! }.sorted() }
+
+    private fun gaps(sortedStarts: List<Int>): List<Int> = sortedStarts.zipWithNext { a, b -> b - a }
 }
