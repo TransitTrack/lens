@@ -82,4 +82,76 @@ class CalendarEditGraphQlTest(
             .entity(Boolean::class.java)
             .isEqualTo(true)
     }
+
+    @Test
+    fun `setCalendar rejects a malformed startDate as BAD_REQUEST`() {
+        tester
+            .document(
+                """
+                mutation {
+                  setCalendar(input: {
+                    draftId: "5", editor: "alice", expectedVersion: 4, serviceId: "WD",
+                    monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
+                    saturday: false, sunday: false, startDate: "not-a-date", endDate: "2026-12-31"
+                  }) { draft { id } }
+                }
+                """.trimIndent(),
+            ).execute()
+            .errors()
+            .satisfy { errors -> assert(errors.isNotEmpty()) { "expected an error for a malformed startDate" } }
+    }
+
+    @Test
+    fun `setCalendar rejects a malformed endDate as BAD_REQUEST`() {
+        tester
+            .document(
+                """
+                mutation {
+                  setCalendar(input: {
+                    draftId: "5", editor: "alice", expectedVersion: 4, serviceId: "WD",
+                    monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
+                    saturday: false, sunday: false, startDate: "2026-01-01", endDate: "2026-13-45"
+                  }) { draft { id } }
+                }
+                """.trimIndent(),
+            ).execute()
+            .errors()
+            .satisfy { errors -> assert(errors.isNotEmpty()) { "expected an error for a malformed endDate" } }
+    }
+
+    @Test
+    fun `setCalendarException rejects a malformed date as BAD_REQUEST`() {
+        tester
+            .document(
+                """
+                mutation {
+                  setCalendarException(input: {
+                    draftId: "5", editor: "alice", expectedVersion: 4, serviceId: "WD",
+                    date: "not-a-date", exceptionType: 2
+                  }) { canUndo }
+                }
+                """.trimIndent(),
+            ).execute()
+            .errors()
+            .satisfy { errors -> assert(errors.isNotEmpty()) { "expected an error for a malformed date" } }
+    }
+
+    @Test
+    fun `setCalendarException deletes exception when exceptionType is null`() {
+        whenever(editService.apply(any(), any(), any(), any())).thenReturn(canned())
+        tester
+            .document(
+                """
+                mutation {
+                  setCalendarException(input: {
+                    draftId: "5", editor: "alice", expectedVersion: 4, serviceId: "WD",
+                    date: "2026-12-25"
+                  }) { canUndo }
+                }
+                """.trimIndent(),
+            ).execute()
+            .path("setCalendarException.canUndo")
+            .entity(Boolean::class.java)
+            .isEqualTo(true)
+    }
 }

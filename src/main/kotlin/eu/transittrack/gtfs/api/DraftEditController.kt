@@ -1,5 +1,9 @@
 package eu.transittrack.gtfs.api
 
+import java.time.DateTimeException
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
+
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.stereotype.Controller
@@ -51,6 +55,19 @@ class DraftEditController(
             canUndo = r.canUndo,
             canRedo = r.canRedo,
         )
+
+    /** `LocalDate.parse` throws [DateTimeParseException], which is not one of the resolver's generically
+     * mapped types — rewrap as [IllegalArgumentException] here so a malformed date surfaces as `BAD_REQUEST`
+     * like every other validation failure in this mutation, rather than `INTERNAL_ERROR`. */
+    private fun parseDate(
+        value: String,
+        field: String,
+    ): LocalDate =
+        try {
+            LocalDate.parse(value)
+        } catch (e: DateTimeParseException) {
+            throw IllegalArgumentException("$field is not a valid ISO-8601 date: '$value'", e)
+        }
 
     @MutationMapping
     fun updateStopTime(
@@ -179,8 +196,8 @@ class DraftEditController(
                     monday = input.monday, tuesday = input.tuesday, wednesday = input.wednesday,
                     thursday = input.thursday, friday = input.friday, saturday = input.saturday,
                     sunday = input.sunday,
-                    startDate = java.time.LocalDate.parse(input.startDate),
-                    endDate = java.time.LocalDate.parse(input.endDate),
+                    startDate = parseDate(input.startDate, "startDate"),
+                    endDate = parseDate(input.endDate, "endDate"),
                 )
             },
         )
@@ -191,7 +208,7 @@ class DraftEditController(
     ): DraftEditResultDto =
         toResult(
             editService.apply(input.draftId.toLong(), input.editor, input.expectedVersion) { _ ->
-                SetCalendarExceptionOp(input.serviceId, java.time.LocalDate.parse(input.date), input.exceptionType)
+                SetCalendarExceptionOp(input.serviceId, parseDate(input.date, "date"), input.exceptionType)
             },
         )
 
