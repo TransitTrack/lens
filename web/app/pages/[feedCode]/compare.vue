@@ -146,8 +146,7 @@ const comparison = computed(() => result.value?.compareRevisions ?? null)
         </UBadge>
       </div>
 
-      <!-- Tasks 10-11 replace these with CompareTripChanges / CompareCalendarChanges / CompareHeadwaySummary -->
-      <CompareTripChanges :changes="comparison.tripChanges" />
+      <CompareTripChanges :changes="comparison.tripChanges" :total-count="comparison.tripChangeCount" />
       <CompareCalendarChanges :changes="comparison.calendarChanges" />
       <CompareHeadwaySummary v-if="!comparison.fromDerivationStale && !comparison.toDerivationStale" :summaries="comparison.headwaySummaries" />
     </div>

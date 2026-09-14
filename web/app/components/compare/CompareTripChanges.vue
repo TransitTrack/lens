@@ -3,13 +3,21 @@ import type { CompareRevisionsQuery } from '~~/generated/graphql'
 
 type TripChange = CompareRevisionsQuery['compareRevisions']['tripChanges'][number]
 
-defineProps<{ changes: TripChange[] }>()
+const props = defineProps<{ changes: TripChange[]; totalCount?: number }>()
 
 const expanded = ref<Set<string>>(new Set())
 function toggle(tripId: string) {
   if (expanded.value.has(tripId)) expanded.value.delete(tripId)
   else expanded.value.add(tripId)
 }
+
+function isExpandable(c: TripChange): boolean {
+  return c.kind === 'MODIFIED'
+}
+
+const truncated = computed(
+  () => props.totalCount != null && props.totalCount > props.changes.length,
+)
 
 function fieldEntries(
   fieldChanges: unknown,
@@ -28,16 +36,21 @@ function kindColor(kind: string): 'success' | 'error' | 'neutral' {
 <template>
   <div>
     <h2 class="mb-2 text-sm font-semibold text-highlighted">Trip changes</h2>
+    <p v-if="truncated" class="mb-2 text-xs text-dimmed">
+      Showing first {{ changes.length }} of {{ totalCount }} changed trips.
+    </p>
     <div v-if="!changes.length" class="text-sm text-muted">No trip differences in this filter.</div>
     <div v-else class="divide-y divide-default rounded-lg border border-default">
       <div v-for="c in changes" :key="c.tripId">
         <button
           type="button"
-          class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left hover:bg-elevated"
-          @click="toggle(c.tripId)"
+          class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
+          :class="isExpandable(c) ? 'hover:bg-elevated' : 'cursor-default'"
+          @click="isExpandable(c) && toggle(c.tripId)"
         >
           <div class="flex items-center gap-2">
             <UIcon
+              v-if="isExpandable(c)"
               :name="expanded.has(c.tripId) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
               class="size-4 text-dimmed"
             />
@@ -52,7 +65,7 @@ function kindColor(kind: string): 'success' | 'error' | 'neutral' {
             {{ c.runTimeDeltaSec > 0 ? '+' : '' }}{{ c.runTimeDeltaSec }}s run time
           </span>
         </button>
-        <div v-if="expanded.has(c.tripId)" class="space-y-2 bg-elevated/50 px-6 py-3 text-xs">
+        <div v-if="isExpandable(c) && expanded.has(c.tripId)" class="space-y-2 bg-elevated/50 px-6 py-3 text-xs">
           <div v-for="[field, v] in fieldEntries(c.fieldChanges)" :key="field">
             <span class="text-muted">{{ field }}:</span> {{ v.from ?? '—' }} → {{ v.to ?? '—' }}
           </div>
