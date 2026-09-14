@@ -1,0 +1,60 @@
+query CompareRevisions(
+  $fromRevisionId: ID!
+  $toRevisionId: ID!
+  $routeId: String
+  $directionId: Int
+  $serviceId: String
+  $offset: Int
+  $limit: Int
+) {
+  compareRevisions(
+    fromRevisionId: $fromRevisionId
+    toRevisionId: $toRevisionId
+    routeId: $routeId
+    directionId: $directionId
+    serviceId: $serviceId
+    offset: $offset
+    limit: $limit
+  ) {
+    fromRevisionId
+    toRevisionId
+    fromDerivationStale
+    toDerivationStale
+    tripChangeCount
+    tripChanges {
+      tripId
+      kind
+      fieldChanges
+      runTimeDeltaSec
+      stopChanges {
+        stopSequence
+        kind
+        stopId
+        arrivalDeltaSec
+        departureDeltaSec
+      }
+    }
+    calendarChanges {
+      serviceId
+      kind
+      fieldChanges
+      exceptionChanges {
+        date
+        kind
+        fromType
+        toType
+      }
+    }
+    headwaySummaries {
+      routeId
+      directionId
+      serviceId
+      fromTripCount
+      toTripCount
+      fromMeanGapSec
+      toMeanGapSec
+      fromMaxGapSec
+      toMaxGapSec
+    }
+  }
+}

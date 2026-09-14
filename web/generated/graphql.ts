@@ -134,11 +134,27 @@ export type Calendar = {
   wednesday?: Maybe<Scalars['Boolean']['output']>;
 };
 
+export type CalendarChange = {
+  __typename?: 'CalendarChange';
+  exceptionChanges: Array<CalendarExceptionChange>;
+  fieldChanges: Scalars['JSON']['output'];
+  kind: Scalars['String']['output'];
+  serviceId: Scalars['String']['output'];
+};
+
 export type CalendarDate = {
   __typename?: 'CalendarDate';
   date: Scalars['String']['output'];
   exceptionType?: Maybe<Scalars['Int']['output']>;
   serviceId: Scalars['String']['output'];
+};
+
+export type CalendarExceptionChange = {
+  __typename?: 'CalendarExceptionChange';
+  date: Scalars['String']['output'];
+  fromType?: Maybe<Scalars['Int']['output']>;
+  kind: Scalars['String']['output'];
+  toType?: Maybe<Scalars['Int']['output']>;
 };
 
 export type DeleteTripInput = {
@@ -297,6 +313,19 @@ export type Headway = {
   waitSec?: Maybe<Scalars['Int']['output']>;
 };
 
+export type HeadwaySummary = {
+  __typename?: 'HeadwaySummary';
+  directionId?: Maybe<Scalars['Int']['output']>;
+  fromMaxGapSec?: Maybe<Scalars['Int']['output']>;
+  fromMeanGapSec?: Maybe<Scalars['Int']['output']>;
+  fromTripCount: Scalars['Int']['output'];
+  routeId: Scalars['String']['output'];
+  serviceId: Scalars['String']['output'];
+  toMaxGapSec?: Maybe<Scalars['Int']['output']>;
+  toMeanGapSec?: Maybe<Scalars['Int']['output']>;
+  toTripCount: Scalars['Int']['output'];
+};
+
 export type InsertTripStopInput = {
   afterStopSequence: Scalars['Int']['input'];
   arrivalSec?: InputMaybe<Scalars['Int']['input']>;
@@ -345,6 +374,8 @@ export type Mutation = {
   renewDraftEditor: DraftLock;
   reorderTripStops: DraftEditResult;
   revertDraftToFork: Draft;
+  setCalendar: DraftEditResult;
+  setCalendarException: DraftEditResult;
   setStopDwell: DraftEditResult;
   shiftTrip: DraftEditResult;
   startOptimizationRun: OptimizationRun;
@@ -477,6 +508,16 @@ export type MutationRevertDraftToForkArgs = {
 };
 
 
+export type MutationSetCalendarArgs = {
+  input: SetCalendarInput;
+};
+
+
+export type MutationSetCalendarExceptionArgs = {
+  input: SetCalendarExceptionInput;
+};
+
+
 export type MutationSetStopDwellArgs = {
   input: SetStopDwellInput;
 };
@@ -586,6 +627,7 @@ export type Query = {
   blocksOnDate: Array<Block>;
   calendarDates: Array<CalendarDate>;
   calendars: Array<Calendar>;
+  compareRevisions: ScheduleComparison;
   draft?: Maybe<Draft>;
   draftEdits: Array<DraftEdit>;
   draftGrid: DraftGrid;
@@ -669,6 +711,17 @@ export type QueryCalendarDatesArgs = {
 export type QueryCalendarsArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryCompareRevisionsArgs = {
+  directionId?: InputMaybe<Scalars['Int']['input']>;
+  fromRevisionId: Scalars['ID']['input'];
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  routeId?: InputMaybe<Scalars['String']['input']>;
+  serviceId?: InputMaybe<Scalars['String']['input']>;
+  toRevisionId: Scalars['ID']['input'];
 };
 
 
@@ -968,6 +1021,18 @@ export type Route = {
   trips: Array<Trip>;
 };
 
+export type ScheduleComparison = {
+  __typename?: 'ScheduleComparison';
+  calendarChanges: Array<CalendarChange>;
+  fromDerivationStale: Scalars['Boolean']['output'];
+  fromRevisionId: Scalars['ID']['output'];
+  headwaySummaries: Array<HeadwaySummary>;
+  toDerivationStale: Scalars['Boolean']['output'];
+  toRevisionId: Scalars['ID']['output'];
+  tripChangeCount: Scalars['Int']['output'];
+  tripChanges: Array<TripChange>;
+};
+
 export type ScheduleTime = {
   __typename?: 'ScheduleTime';
   arrivalSec?: Maybe<Scalars['Int']['output']>;
@@ -976,6 +1041,32 @@ export type ScheduleTime = {
   schedDwellTimeSec?: Maybe<Scalars['Int']['output']>;
   schedTravelTimeSec?: Maybe<Scalars['Int']['output']>;
   stopPathIndex: Scalars['Int']['output'];
+};
+
+export type SetCalendarExceptionInput = {
+  date: Scalars['String']['input'];
+  draftId: Scalars['ID']['input'];
+  editor: Scalars['String']['input'];
+  /** 1 = service added, 2 = service removed, null = delete the exception */
+  exceptionType?: InputMaybe<Scalars['Int']['input']>;
+  expectedVersion: Scalars['Long']['input'];
+  serviceId: Scalars['String']['input'];
+};
+
+export type SetCalendarInput = {
+  draftId: Scalars['ID']['input'];
+  editor: Scalars['String']['input'];
+  endDate: Scalars['String']['input'];
+  expectedVersion: Scalars['Long']['input'];
+  friday: Scalars['Boolean']['input'];
+  monday: Scalars['Boolean']['input'];
+  saturday: Scalars['Boolean']['input'];
+  serviceId: Scalars['String']['input'];
+  startDate: Scalars['String']['input'];
+  sunday: Scalars['Boolean']['input'];
+  thursday: Scalars['Boolean']['input'];
+  tuesday: Scalars['Boolean']['input'];
+  wednesday: Scalars['Boolean']['input'];
 };
 
 export type SetStopDwellInput = {
@@ -1078,6 +1169,15 @@ export type StopTime = {
   tripId: Scalars['String']['output'];
 };
 
+export type StopTimeChange = {
+  __typename?: 'StopTimeChange';
+  arrivalDeltaSec?: Maybe<Scalars['Int']['output']>;
+  departureDeltaSec?: Maybe<Scalars['Int']['output']>;
+  kind: Scalars['String']['output'];
+  stopId?: Maybe<Scalars['String']['output']>;
+  stopSequence: Scalars['Int']['output'];
+};
+
 export type Table =
   | 'AREAS'
   | 'ATTRIBUTIONS'
@@ -1134,6 +1234,15 @@ export type Trip = {
   tripPatternId?: Maybe<Scalars['ID']['output']>;
   tripShortName?: Maybe<Scalars['String']['output']>;
   wheelchairAccessible?: Maybe<Scalars['Int']['output']>;
+};
+
+export type TripChange = {
+  __typename?: 'TripChange';
+  fieldChanges: Scalars['JSON']['output'];
+  kind: Scalars['String']['output'];
+  runTimeDeltaSec?: Maybe<Scalars['Int']['output']>;
+  stopChanges: Array<StopTimeChange>;
+  tripId: Scalars['String']['output'];
 };
 
 export type TripPattern = {
@@ -1252,6 +1361,19 @@ export type BlocksListQueryVariables = Exact<{
 
 
 export type BlocksListQuery = { blocks: Array<{ blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, tripCount: number, routeIds: Array<string> }> };
+
+export type CompareRevisionsQueryVariables = Exact<{
+  fromRevisionId: string | number;
+  toRevisionId: string | number;
+  routeId?: string | null | undefined;
+  directionId?: number | null | undefined;
+  serviceId?: string | null | undefined;
+  offset?: number | null | undefined;
+  limit?: number | null | undefined;
+}>;
+
+
+export type CompareRevisionsQuery = { compareRevisions: { fromRevisionId: string, toRevisionId: string, fromDerivationStale: boolean, toDerivationStale: boolean, tripChangeCount: number, tripChanges: Array<{ tripId: string, kind: string, fieldChanges: any, runTimeDeltaSec: number | null, stopChanges: Array<{ stopSequence: number, kind: string, stopId: string | null, arrivalDeltaSec: number | null, departureDeltaSec: number | null }> }>, calendarChanges: Array<{ serviceId: string, kind: string, fieldChanges: any, exceptionChanges: Array<{ date: string, kind: string, fromType: number | null, toType: number | null }> }>, headwaySummaries: Array<{ routeId: string, directionId: number | null, serviceId: string, fromTripCount: number, toTripCount: number, fromMeanGapSec: number | null, toMeanGapSec: number | null, fromMaxGapSec: number | null, toMaxGapSec: number | null }> } };
 
 export type DraftEditResultFFragment = { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null };
 
@@ -1608,6 +1730,13 @@ export type PredictionAccuracyQueryVariables = Exact<{
 
 
 export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+
+export type RevisionsQueryVariables = Exact<{
+  feedCode: string;
+}>;
+
+
+export type RevisionsQuery = { revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null }> };
 
 export type RouteDetailQueryVariables = Exact<{
   feedCode: string;
@@ -2002,6 +2131,89 @@ export function useBlocksListLazyQuery(variables?: BlocksListQueryVariables | Vu
   return VueApolloComposable.useLazyQuery<BlocksListQuery, BlocksListQueryVariables>(BlocksListDocument, variables, options);
 }
 export type BlocksListQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<BlocksListQuery, BlocksListQueryVariables>;
+export const CompareRevisionsDocument = gql`
+    query CompareRevisions($fromRevisionId: ID!, $toRevisionId: ID!, $routeId: String, $directionId: Int, $serviceId: String, $offset: Int, $limit: Int) {
+  compareRevisions(
+    fromRevisionId: $fromRevisionId
+    toRevisionId: $toRevisionId
+    routeId: $routeId
+    directionId: $directionId
+    serviceId: $serviceId
+    offset: $offset
+    limit: $limit
+  ) {
+    fromRevisionId
+    toRevisionId
+    fromDerivationStale
+    toDerivationStale
+    tripChangeCount
+    tripChanges {
+      tripId
+      kind
+      fieldChanges
+      runTimeDeltaSec
+      stopChanges {
+        stopSequence
+        kind
+        stopId
+        arrivalDeltaSec
+        departureDeltaSec
+      }
+    }
+    calendarChanges {
+      serviceId
+      kind
+      fieldChanges
+      exceptionChanges {
+        date
+        kind
+        fromType
+        toType
+      }
+    }
+    headwaySummaries {
+      routeId
+      directionId
+      serviceId
+      fromTripCount
+      toTripCount
+      fromMeanGapSec
+      toMeanGapSec
+      fromMaxGapSec
+      toMaxGapSec
+    }
+  }
+}
+    `;
+
+/**
+ * __useCompareRevisionsQuery__
+ *
+ * To run a query within a Vue component, call `useCompareRevisionsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useCompareRevisionsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useCompareRevisionsQuery({
+ *   fromRevisionId: // value for 'fromRevisionId'
+ *   toRevisionId: // value for 'toRevisionId'
+ *   routeId: // value for 'routeId'
+ *   directionId: // value for 'directionId'
+ *   serviceId: // value for 'serviceId'
+ *   offset: // value for 'offset'
+ *   limit: // value for 'limit'
+ * });
+ */
+export function useCompareRevisionsQuery(variables: CompareRevisionsQueryVariables | VueCompositionApi.Ref<CompareRevisionsQueryVariables> | ReactiveFunction<CompareRevisionsQueryVariables>, options: VueApolloComposable.UseQueryOptions<CompareRevisionsQuery, CompareRevisionsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<CompareRevisionsQuery, CompareRevisionsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<CompareRevisionsQuery, CompareRevisionsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<CompareRevisionsQuery, CompareRevisionsQueryVariables>(CompareRevisionsDocument, variables, options);
+}
+export function useCompareRevisionsLazyQuery(variables?: CompareRevisionsQueryVariables | VueCompositionApi.Ref<CompareRevisionsQueryVariables> | ReactiveFunction<CompareRevisionsQueryVariables>, options: VueApolloComposable.UseQueryOptions<CompareRevisionsQuery, CompareRevisionsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<CompareRevisionsQuery, CompareRevisionsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<CompareRevisionsQuery, CompareRevisionsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<CompareRevisionsQuery, CompareRevisionsQueryVariables>(CompareRevisionsDocument, variables, options);
+}
+export type CompareRevisionsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<CompareRevisionsQuery, CompareRevisionsQueryVariables>;
 export const UpdateStopTimeDocument = gql`
     mutation UpdateStopTime($input: UpdateStopTimeInput!) {
   updateStopTime(input: $input) {
@@ -3673,6 +3885,39 @@ export function usePredictionAccuracyLazyQuery(variables?: PredictionAccuracyQue
   return VueApolloComposable.useLazyQuery<PredictionAccuracyQuery, PredictionAccuracyQueryVariables>(PredictionAccuracyDocument, variables, options);
 }
 export type PredictionAccuracyQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<PredictionAccuracyQuery, PredictionAccuracyQueryVariables>;
+export const RevisionsDocument = gql`
+    query Revisions($feedCode: String!) {
+  revisions(feedCode: $feedCode) {
+    id
+    status
+    createdAt
+    activatedAt
+  }
+}
+    `;
+
+/**
+ * __useRevisionsQuery__
+ *
+ * To run a query within a Vue component, call `useRevisionsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useRevisionsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useRevisionsQuery({
+ *   feedCode: // value for 'feedCode'
+ * });
+ */
+export function useRevisionsQuery(variables: RevisionsQueryVariables | VueCompositionApi.Ref<RevisionsQueryVariables> | ReactiveFunction<RevisionsQueryVariables>, options: VueApolloComposable.UseQueryOptions<RevisionsQuery, RevisionsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<RevisionsQuery, RevisionsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<RevisionsQuery, RevisionsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<RevisionsQuery, RevisionsQueryVariables>(RevisionsDocument, variables, options);
+}
+export function useRevisionsLazyQuery(variables?: RevisionsQueryVariables | VueCompositionApi.Ref<RevisionsQueryVariables> | ReactiveFunction<RevisionsQueryVariables>, options: VueApolloComposable.UseQueryOptions<RevisionsQuery, RevisionsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<RevisionsQuery, RevisionsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<RevisionsQuery, RevisionsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<RevisionsQuery, RevisionsQueryVariables>(RevisionsDocument, variables, options);
+}
+export type RevisionsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<RevisionsQuery, RevisionsQueryVariables>;
 export const RouteDetailDocument = gql`
     query RouteDetail($feedCode: String!, $routeId: String!) {
   route(feedCode: $feedCode, routeId: $routeId) {

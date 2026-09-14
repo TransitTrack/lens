@@ -1,0 +1,8 @@
+query Revisions($feedCode: String!) {
+  revisions(feedCode: $feedCode) {
+    id
+    status
+    createdAt
+    activatedAt
+  }
+}
