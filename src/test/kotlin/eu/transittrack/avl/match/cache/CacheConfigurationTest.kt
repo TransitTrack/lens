@@ -9,15 +9,13 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.cache.CacheManager
 import org.springframework.cache.caffeine.CaffeineCacheManager
-import org.springframework.context.annotation.Import
 
-import eu.transittrack.TestcontainersConfiguration
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class)
 class CacheConfigurationTest(
     @Autowired val cacheManager: CacheManager,
-) {
+) : PostgresPerMethodTest() {
     @Test
     fun `a Caffeine-backed cache manager is configured`() {
         assertThat(cacheManager).isInstanceOf(CaffeineCacheManager::class)

@@ -7,7 +7,6 @@ import kotlin.test.assertFailsWith
 import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.Trip
@@ -24,9 +22,10 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class StopSequenceOpsTest(
     @Autowired val svc: DraftEditService,
@@ -38,18 +37,9 @@ class StopSequenceOpsTest(
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
     @Autowired dataSource: DataSource,
-) {
+) : PostgresPerMethodTest() {
     private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
-
-    @AfterEach
-    fun c() {
-        clean.forEach {
-            runCatching { writer.deleteAllForRevision(it) }
-            runCatching { revisions.deleteById(it) }
-        }
-        clean.clear()
-    }
 
     private fun forkDraft(): Long {
         val (feedCode, base) = ingestFactory.ingest("schedule-sample")

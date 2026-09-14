@@ -52,10 +52,18 @@ abstract class PostgresContainerSupport {
     }
 }
 
-/** Extend this for a test class that needs a fresh (truncated) database per `@Test` method. */
+/**
+ * Extend this for a test class that needs a fresh (truncated) database per `@Test` method.
+ *
+ * [truncateBeforeEachTest] is `open` so a class whose Spring context kicks off async work at
+ * context-startup time (e.g. a `@PostConstruct`-triggered background ingest reacting to
+ * config-driven feed properties) can override it to wait for that work to settle *before*
+ * truncating — otherwise the truncate can race an in-flight write the startup hook is still
+ * making, which never happened when every test class had its own short-lived container.
+ */
 abstract class PostgresPerMethodTest : PostgresContainerSupport() {
     @BeforeEach
-    fun truncateBeforeEachTest() = truncateAllTables()
+    open fun truncateBeforeEachTest() = truncateAllTables()
 }
 
 /**

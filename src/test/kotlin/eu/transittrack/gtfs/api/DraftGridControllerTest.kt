@@ -7,7 +7,6 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -15,16 +14,16 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DraftGridControllerTest(
     @Autowired val controller: DraftGridController,
@@ -35,18 +34,9 @@ class DraftGridControllerTest(
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired dataSource: DataSource,
-) {
+) : PostgresPerMethodTest() {
     private val jdbc = JdbcTemplate(dataSource)
     private val cleanupRevs = mutableListOf<Long>()
-
-    @AfterEach
-    fun cleanup() {
-        for (id in cleanupRevs) runCatching { scheduleWriter.deleteForRevision(id) }
-        for (id in cleanupRevs) runCatching { writer.deleteAllForRevision(id) }
-        for (id in cleanupRevs) runCatching { revisions.deleteById(id) }
-        runCatching { feeds.findByCode("schedule-sample")?.id?.let { feeds.deleteById(it) } }
-        cleanupRevs.clear()
-    }
 
     @Test
     fun `draftGrid projects raw trips and stop_times for a route`() {

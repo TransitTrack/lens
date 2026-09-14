@@ -13,13 +13,13 @@ import org.springframework.context.annotation.Primary
 import org.springframework.graphql.test.tester.HttpGraphQlTester
 import org.springframework.graphql.test.tester.entity
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Whole-subsystem acceptance test: a real [eu.transittrack.Application] context (pinned via `classes` so the `GtfsSliceTestApplication` is not picked up first), Testcontainers Postgres + LGTM, a stubbed [FeedDownloader] serving the
@@ -36,14 +36,25 @@ import eu.transittrack.gtfs.support.FixtureDownloader
             "transittrack.feed.feeds[0].url=http://x/g.zip",
         ],
 )
-@Import(TestcontainersConfiguration::class, GtfsEndToEndTest.Stub::class)
+@Import(GtfsEndToEndTest.Stub::class)
 @AutoConfigureHttpGraphQlTester
 class GtfsEndToEndTest(
     @Autowired val tester: HttpGraphQlTester,
     @Autowired val ingestion: IngestionService,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisionService: RevisionService,
-) {
+) : PostgresPerMethodTest() {
+    /**
+     * This class's Spring context config-injects the `e2e` feed and kicks off an async ingest for
+     * it at context-startup time ([awaitStartupIngestSettled] below waits for that), so — like the
+     * `PostgresPerClassTest` classes whose fixture is built once in `@BeforeAll` — a per-method
+     * truncate here would destroy that startup-injected fixture before the (single) `@Test` method
+     * ever sees it, and could race the still-in-flight startup ingest's own writes. This class has
+     * exactly one `@Test` method, so no cross-method isolation is needed within it; isolation from
+     * *other* test classes' leftover data comes from `e2e` being a feed code no other test uses.
+     */
+    override fun truncateBeforeEachTest() {}
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean

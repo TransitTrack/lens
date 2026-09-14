@@ -6,14 +6,12 @@ import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.FrequencyRepository
@@ -22,13 +20,14 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Like [eu.transittrack.gtfs.draft.DraftServiceTest], the ingestion pieces and `RevisionWriter`
  * commit on their own connections, so this must not run inside a rollback transaction.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DraftEditServiceTest(
     @Autowired val svc: DraftEditService,
@@ -40,7 +39,7 @@ class DraftEditServiceTest(
     @Autowired val edits: DraftEditRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-) {
+) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
 
     init {
@@ -55,15 +54,6 @@ class DraftEditServiceTest(
                 ctx.stopTimes.save(row)
             }
         }
-    }
-
-    @AfterEach
-    fun c() {
-        clean.forEach {
-            runCatching { writer.deleteAllForRevision(it) }
-            runCatching { revisions.deleteById(it) }
-        }
-        clean.clear()
     }
 
     // A throwaway op just for testing the template — bump a stop's arrival by 60s; inverse restores it.

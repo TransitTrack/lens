@@ -2,11 +2,11 @@ package eu.transittrack
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 
-@Import(TestcontainersConfiguration::class)
+import eu.transittrack.support.PostgresPerMethodTest
+
 @SpringBootTest
-class ApplicationTests {
+class ApplicationTests : PostgresPerMethodTest() {
     @Test
     fun contextLoads() {
     }

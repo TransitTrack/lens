@@ -8,7 +8,6 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.Frequency
 import eu.transittrack.gtfs.model.FrequencyRepository
@@ -26,9 +24,10 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class TripLifecycleOpsTest(
     @Autowired val svc: DraftEditService,
@@ -40,17 +39,8 @@ class TripLifecycleOpsTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
-) {
+) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
-
-    @AfterEach
-    fun c() {
-        clean.forEach {
-            runCatching { writer.deleteAllForRevision(it) }
-            runCatching { revisions.deleteById(it) }
-        }
-        clean.clear()
-    }
 
     private fun forkDraft(): Long {
         val (feedCode, base) = ingestFactory.ingest("schedule-sample")

@@ -7,7 +7,6 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
 import assertk.assertions.isTrue
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -15,18 +14,18 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * `RevisionWriter` and the ingestion pieces commit on their own connections, so this must not run
- * inside a rollback transaction. Hence `NOT_SUPPORTED` plus explicit `@AfterEach` cleanup.
+ * inside a rollback transaction. Hence `NOT_SUPPORTED`.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class GtfsRevisionValidatorTest(
     @Autowired val validator: GtfsRevisionValidator,
@@ -35,16 +34,8 @@ class GtfsRevisionValidatorTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
-) {
+) : PostgresPerMethodTest() {
     private var rev: Long? = null
-
-    @AfterEach
-    fun cleanup() {
-        rev?.let {
-            runCatching { writer.deleteAllForRevision(it) }
-            runCatching { revisions.deleteById(it) }
-        }
-    }
 
     @Test
     fun `clean feed validates with no errors and persists the report`() {

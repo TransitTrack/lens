@@ -9,7 +9,6 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotEmpty
 import assertk.assertions.messageContains
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -17,7 +16,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
@@ -26,9 +24,10 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.DerivationService
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class BulkShiftOpTest(
     @Autowired val svc: DraftEditService,
@@ -41,17 +40,9 @@ class BulkShiftOpTest(
     @Autowired val derivation: DerivationService,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired dataSource: DataSource,
-) {
+) : PostgresPerMethodTest() {
     private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
-
-    @AfterEach
-    fun c() {
-        clean.forEach { runCatching { scheduleWriter.deleteForRevision(it) } }
-        clean.forEach { runCatching { writer.deleteAllForRevision(it) } }
-        clean.forEach { runCatching { revisions.deleteById(it) } }
-        clean.clear()
-    }
 
     private fun forkDraft(): Long {
         val (feedCode, base) = ingestFactory.ingest("schedule-sample")

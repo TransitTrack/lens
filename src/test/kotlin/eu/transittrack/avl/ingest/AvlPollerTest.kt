@@ -6,35 +6,27 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
     properties = ["transittrack.avl.enabled=true"],
 )
-@Import(TestcontainersConfiguration::class)
 class AvlPollerTest(
     @Autowired val poller: AvlPoller,
     @Autowired val feeds: AvlFeedRepository,
-) {
+) : PostgresPerMethodTest() {
     @MockitoBean
     lateinit var ingest: AvlIngestService
-
-    @AfterEach
-    fun cleanup() {
-        feeds.deleteAll()
-    }
 
     private fun feed(enabled: Boolean = true) =
         AvlFeed(
