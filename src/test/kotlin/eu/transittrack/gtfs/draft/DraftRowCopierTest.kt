@@ -24,6 +24,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class DraftRowCopierTest(
@@ -32,7 +33,7 @@ class DraftRowCopierTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val stops: StopRepository,
     @Autowired val stopTimes: StopTimeRepository,
-) {
+) : PostgresPerMethodTest() {
     private val jdbc = JdbcTemplate(dataSource)
 
     private fun revWith(

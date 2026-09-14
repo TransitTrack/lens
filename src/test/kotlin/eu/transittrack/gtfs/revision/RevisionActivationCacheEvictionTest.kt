@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.cache.AvlCaches
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
@@ -23,9 +22,10 @@ import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, RevisionActivationCacheEvictionTest.Stub::class)
+@Import(RevisionActivationCacheEvictionTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RevisionActivationCacheEvictionTest(
     @Autowired val revisions: RevisionService,
@@ -33,7 +33,7 @@ class RevisionActivationCacheEvictionTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val cacheManager: CacheManager,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -45,6 +45,7 @@ class RevisionActivationCacheEvictionTest(
 
     @BeforeAll
     fun ingest() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
         activeRevisionId = revisions.activeRevisionId(feeds.findByCode("g")!!.id!!)!!

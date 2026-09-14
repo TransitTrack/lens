@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Drives [OptimizationRetentionScheduler.prune] directly (like [eu.transittrack.predict.PredictionRetentionSchedulerTest])
@@ -23,7 +24,7 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 @PostgresSliceTest
 class OptimizationRetentionSchedulerTest(
     @Autowired val jdbc: JdbcTemplate,
-) {
+) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-13T12:00:00Z")
     private lateinit var scheduler: OptimizationRetentionScheduler
 

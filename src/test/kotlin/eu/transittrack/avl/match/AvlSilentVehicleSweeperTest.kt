@@ -16,12 +16,13 @@ import org.springframework.jdbc.core.JdbcTemplate
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class AvlSilentVehicleSweeperTest(
     @Autowired val jdbc: JdbcTemplate,
     @Autowired val vehicleStates: VehicleStateRepository,
-) {
+) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-10T12:00:00Z")
     private val sweeper = AvlSilentVehicleSweeper(vehicleStates, AvlProperties())
 

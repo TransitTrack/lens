@@ -12,12 +12,12 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.graphql.test.tester.HttpGraphQlTester
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 /**
  * Full-stack exercise of the Task 23 nested `@SchemaMapping` resolvers and the generic `records` long-tail query. Real `Application` context + Testcontainers, a stubbed downloader serving the `full-spec-sample` fixture (minimal-valid plus one row in
@@ -27,14 +27,14 @@ import eu.transittrack.gtfs.support.FixtureDownloader
     classes = [eu.transittrack.Application::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 )
-@Import(TestcontainersConfiguration::class, GtfsNestedGraphQlTest.StubDownloaderConfig::class)
+@Import(GtfsNestedGraphQlTest.StubDownloaderConfig::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GtfsNestedGraphQlTest(
     @Autowired val tester: HttpGraphQlTester,
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class StubDownloaderConfig {
         @Bean
@@ -44,6 +44,7 @@ class GtfsNestedGraphQlTest(
 
     @BeforeAll
     fun ingestOnce() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("w", "W", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("w")
     }

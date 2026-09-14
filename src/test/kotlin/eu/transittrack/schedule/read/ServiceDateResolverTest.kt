@@ -22,6 +22,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @Import(ServiceDateResolver::class)
@@ -31,7 +32,7 @@ class ServiceDateResolverTest(
     @Autowired val calendars: CalendarRepository,
     @Autowired val calendarDates: CalendarDateRepository,
     @Autowired val resolver: ServiceDateResolver,
-) {
+) : PostgresPerMethodTest() {
     private var rev: Long = 0
 
     @BeforeTest

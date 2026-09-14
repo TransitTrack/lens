@@ -25,6 +25,7 @@ import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * [RevisionWriter.deleteAllForRevision] commits through its own stateless-session transaction on a separate connection, so — like [StatelessSessionRevisionWriter]'s own test — this must NOT run inside the `@DataJpaTest` rollback transaction, or the writer
@@ -40,7 +41,7 @@ class RevisionServiceTest(
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val calendars: CalendarRepository,
     @Autowired val writer: RevisionWriter,
-) {
+) : PostgresPerMethodTest() {
     private val createdFeeds = mutableListOf<Long>()
 
     private fun feed(): Long {

@@ -6,28 +6,27 @@ import assertk.assertThat
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEqualTo
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * `RevisionWriter` and the ingestion pieces commit on their own connections, so — like
  * [eu.transittrack.gtfs.draft.DraftServiceTest] — this must not run inside a rollback
- * transaction. Hence `NOT_SUPPORTED` plus explicit `@AfterEach` cleanup.
+ * transaction. Hence `NOT_SUPPORTED`.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DraftLifecycleEndToEndTest(
     @Autowired val drafts: DraftService,
@@ -36,16 +35,8 @@ class DraftLifecycleEndToEndTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-) {
+) : PostgresPerMethodTest() {
     private val cleanup = mutableListOf<Long>()
-
-    @AfterEach
-    fun clean() {
-        for (id in cleanup) runCatching { scheduleWriter.deleteForRevision(id) }
-        for (id in cleanup) runCatching { writer.deleteAllForRevision(id) }
-        for (id in cleanup) runCatching { revisions.deleteById(id) }
-        cleanup.clear()
-    }
 
     @Test
     fun `fork - edit raw rows - discard`() {

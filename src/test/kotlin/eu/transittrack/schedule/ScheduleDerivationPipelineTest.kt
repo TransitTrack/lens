@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -24,9 +23,10 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.schedule.derive.DerivationContext
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, ScheduleDerivationPipelineTest.Stub::class)
+@Import(ScheduleDerivationPipelineTest.Stub::class)
 class ScheduleDerivationPipelineTest(
     @Autowired val ingestion: IngestionService,
     @Autowired val feedService: GtfsFeedService,
@@ -35,7 +35,7 @@ class ScheduleDerivationPipelineTest(
     @Autowired val patterns: TripPatternRepository,
     @Autowired val blocks: BlockRepository,
     @Autowired val context: DerivationContext,
-) {
+) : PostgresPerMethodTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean

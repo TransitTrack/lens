@@ -18,6 +18,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class ScheduleEntitiesTest(
@@ -28,7 +29,7 @@ class ScheduleEntitiesTest(
     @Autowired val trips: TripRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
-) {
+) : PostgresPerMethodTest() {
     private var rev: Long = 0
 
     @BeforeTest

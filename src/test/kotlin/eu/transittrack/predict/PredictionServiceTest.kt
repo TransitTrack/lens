@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.Point
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -48,6 +47,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -60,7 +60,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
         "transittrack.predict.run.interval-ms=3600000",
     ],
 )
-@Import(TestcontainersConfiguration::class, PredictionServiceTest.Stub::class)
+@Import(PredictionServiceTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PredictionServiceTest(
@@ -78,7 +78,7 @@ class PredictionServiceTest(
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -90,6 +90,7 @@ class PredictionServiceTest(
 
     @BeforeAll
     fun ingest() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

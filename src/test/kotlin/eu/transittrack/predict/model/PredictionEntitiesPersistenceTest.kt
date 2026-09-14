@@ -1,7 +1,6 @@
 package eu.transittrack.predict.model
 
 import java.time.Instant
-import jakarta.persistence.EntityManager
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
@@ -10,9 +9,11 @@ import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class PredictionEntitiesPersistenceTest(
@@ -20,17 +21,18 @@ class PredictionEntitiesPersistenceTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictions: VehiclePredictionRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
-    @Autowired val em: EntityManager,
-) {
+    @Autowired val jdbcTemplate: JdbcTemplate,
+) : PostgresPerMethodTest() {
+    // A plain JDBC insert (not an EntityManager native query) - the latter needs an active
+    // transaction, which NOT_SUPPORTED deliberately does not provide.
     @BeforeTest
     fun seedFeed() {
-        em
-            .createNativeQuery(
-                "insert into avl_feed " +
-                    "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
-                    "prediction_algorithm, prediction_mode, enabled, source, created_at, updated_at) values " +
-                    "(1, 'feed-1', 'feed', 'g', 'http://x', 0, 30, 0, 0, 0, true, 'CONFIG', now(), now())",
-            ).executeUpdate()
+        jdbcTemplate.update(
+            "insert into avl_feed " +
+                "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
+                "prediction_algorithm, prediction_mode, enabled, source, created_at, updated_at) values " +
+                "(1, 'feed-1', 'feed', 'g', 'http://x', 0, 30, 0, 0, 0, true, 'CONFIG', now(), now())",
+        )
     }
 
     @Test

@@ -21,7 +21,6 @@ import org.springframework.context.annotation.Primary
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
@@ -37,6 +36,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.TravelTimeObservation
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 /**
  * [schedule-sample]'s T1 has stop paths 0..3 (08:00/08:10/08:20/08:30). Stop path 0's
@@ -53,7 +53,7 @@ import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
  * writes to. This makes the whole class independent of method execution order.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, LearnedPredictionAlgorithmsTest.Stub::class)
+@Import(LearnedPredictionAlgorithmsTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LearnedPredictionAlgorithmsTest(
     @Autowired val factory: AvlMatchContextFactory,
@@ -63,7 +63,7 @@ class LearnedPredictionAlgorithmsTest(
     @Autowired val observations: TravelTimeObservationRepository,
     @Autowired val states: KalmanTravelTimeStateRepository,
     @Autowired val seeds: TravelTimesForStopPathRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -73,6 +73,7 @@ class LearnedPredictionAlgorithmsTest(
 
     @BeforeAll
     fun ingest() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

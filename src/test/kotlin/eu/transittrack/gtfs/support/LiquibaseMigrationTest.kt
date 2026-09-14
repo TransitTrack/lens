@@ -7,10 +7,12 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
+import eu.transittrack.support.PostgresPerMethodTest
+
 @PostgresSliceTest
 class LiquibaseMigrationTest(
     @Autowired val em: EntityManager,
-) {
+) : PostgresPerMethodTest() {
     @Test
     fun `gtfs_entity_seq exists after migration`() {
         val count =

@@ -34,6 +34,7 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @AutoConfigureJson
@@ -56,7 +57,7 @@ class SchedTripProcessorTest(
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
-) {
+) : PostgresPerMethodTest() {
     private val context = DerivationContext()
 
     private fun stage1() = TripPatternProcessor(context, writer, ScheduleProperties(), json, routes, trips, stopTimes, stops, shapePoints)

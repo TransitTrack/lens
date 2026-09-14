@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -38,6 +37,7 @@ import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunState
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Whole-workflow acceptance test (design sections 5-9): ingests a real fixture, seeds genuine
@@ -49,7 +49,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunState
  * activated: it stays `DRAFT` through submission, rebuild, and validation.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class OptimizationEndToEndTest(
     @Autowired val service: ScheduleOptimizationService,
@@ -66,18 +66,9 @@ class OptimizationEndToEndTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-) {
+) : PostgresPerMethodTest() {
     private val cleanRevisions = mutableListOf<Long>()
     private var cleanAvlFeedId: Long? = null
-
-    @org.junit.jupiter.api.AfterEach
-    fun cleanup() {
-        cleanAvlFeedId?.let { runCatching { avlFeeds.deleteById(it) } }
-        for (id in cleanRevisions) runCatching { scheduleWriter.deleteForRevision(id) }
-        for (id in cleanRevisions) runCatching { writer.deleteAllForRevision(id) }
-        for (id in cleanRevisions) runCatching { revisions.deleteById(id) }
-        cleanRevisions.clear()
-    }
 
     private fun awaitTerminal(runId: Long): OptimizationRunRow {
         val deadline = System.nanoTime() + 30_000_000_000L

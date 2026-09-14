@@ -40,6 +40,7 @@ import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Drives [OptimizationAnalysisPipeline] against a real Postgres schema (design section 5 steps
@@ -57,7 +58,7 @@ class OptimizationAnalysisPipelineTest(
     @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val runs: OptimizationRunRepository,
-) {
+) : PostgresPerMethodTest() {
     private val json = JsonMapper.builder().build()
 
     private fun pipeline() =

@@ -8,7 +8,6 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
@@ -28,6 +26,7 @@ import eu.transittrack.schedule.derive.DerivationService
 import eu.transittrack.schedule.derive.ScheduleWriter
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * End-to-end exercise of the draft-edit template: fork -> claim -> apply four different ops in
@@ -38,7 +37,7 @@ import eu.transittrack.schedule.model.TripPatternRepository
  * on their own connections, so this must not run inside a rollback transaction.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DraftEditIntegrationTest(
     @Autowired val svc: DraftEditService,
@@ -54,17 +53,9 @@ class DraftEditIntegrationTest(
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
     @Autowired dataSource: DataSource,
-) {
+) : PostgresPerMethodTest() {
     private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
-
-    @AfterEach
-    fun cleanup() {
-        for (id in clean) runCatching { scheduleWriter.deleteForRevision(id) }
-        for (id in clean) runCatching { writer.deleteAllForRevision(id) }
-        for (id in clean) runCatching { revisions.deleteById(id) }
-        clean.clear()
-    }
 
     /** Full snapshot of every `stop_times` row for a revision, ignoring the surrogate `id`. */
     private fun stopTimesSnapshot(revisionId: Long): List<Map<String, Any?>> =

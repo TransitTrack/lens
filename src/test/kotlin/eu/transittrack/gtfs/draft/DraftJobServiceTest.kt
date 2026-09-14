@@ -6,7 +6,6 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.messageContains
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -14,11 +13,11 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Like [DraftServiceTest], the rebuild path commits on its own connections, so this must not run
@@ -26,7 +25,7 @@ import eu.transittrack.schedule.derive.ScheduleWriter
  * and polls the returned job until it leaves `RUNNING`.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DraftJobServiceTest(
     @Autowired val jobs: DraftJobService,
@@ -35,16 +34,8 @@ class DraftJobServiceTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-) {
+) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
-
-    @AfterEach
-    fun cleanup() {
-        for (id in clean) runCatching { scheduleWriter.deleteForRevision(id) }
-        for (id in clean) runCatching { writer.deleteAllForRevision(id) }
-        for (id in clean) runCatching { revisions.deleteById(id) }
-        clean.clear()
-    }
 
     @Test
     fun `rebuild job derives then validates`() {

@@ -6,17 +6,15 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -25,16 +23,10 @@ import eu.transittrack.avl.model.AvlFeedSourceKind
         "transittrack.avl.match.match-interval-ms=3600000",
     ],
 )
-@Import(TestcontainersConfiguration::class)
 class AvlMatchSchedulingTest(
     @Autowired val processor: AvlMatchProcessor,
     @Autowired val feeds: AvlFeedRepository,
-) {
-    @AfterEach
-    fun cleanup() {
-        feeds.deleteAll()
-    }
-
+) : PostgresPerMethodTest() {
     private fun feed(enabled: Boolean = true) =
         AvlFeed(
             code = "sched-f", name = "F", gtfsFeedCode = "g", url = "https://x.test/vp.pb",

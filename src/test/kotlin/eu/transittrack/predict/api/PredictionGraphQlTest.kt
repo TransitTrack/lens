@@ -27,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.Point
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -48,6 +47,7 @@ import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -59,7 +59,7 @@ import eu.transittrack.schedule.model.ScheduleTimeRepository
         "transittrack.predict.run.interval-ms=3600000",
     ],
 )
-@Import(TestcontainersConfiguration::class, PredictionGraphQlTest.Stub::class)
+@Import(PredictionGraphQlTest.Stub::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -79,7 +79,7 @@ class PredictionGraphQlTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -91,6 +91,7 @@ class PredictionGraphQlTest(
 
     @BeforeAll
     fun setup() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
 

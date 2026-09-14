@@ -13,11 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class PredictionRetentionSchedulerTest(
     @Autowired val jdbc: JdbcTemplate,
-) {
+) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-05T12:00:00Z")
     private lateinit var scheduler: PredictionRetentionScheduler
 

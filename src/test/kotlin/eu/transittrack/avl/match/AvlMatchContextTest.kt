@@ -22,7 +22,6 @@ import org.springframework.context.annotation.Primary
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.download.FeedDownloader
@@ -34,9 +33,10 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, AvlMatchContextTest.Stub::class)
+@Import(AvlMatchContextTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class AvlMatchContextTest(
     @Autowired val factory: AvlMatchContextFactory,
@@ -46,7 +46,7 @@ class AvlMatchContextTest(
     @Autowired val patterns: TripPatternRepository,
     @Autowired val revisionService: RevisionService,
     @Autowired val feeds: GtfsFeedRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -56,6 +56,7 @@ class AvlMatchContextTest(
 
     @BeforeAll
     fun ingest() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

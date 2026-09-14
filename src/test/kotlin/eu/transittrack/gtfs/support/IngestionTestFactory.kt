@@ -29,7 +29,8 @@ import eu.transittrack.schedule.derive.DerivationService
  * `src/test/resources/gtfs/<fixture>/`, runs the real ingestion pipeline (post-processors and all)
  * against it via a [FixtureDownloader], and returns the feed code plus the resulting revision id.
  *
- * Import it into a `@SpringBootTest` alongside `TestcontainersConfiguration`.
+ * Import it into a `@SpringBootTest` whose class extends
+ * `eu.transittrack.support.PostgresPerMethodTest` or `PostgresPerClassTest`.
  */
 @TestComponent
 class IngestionTestFactory(

@@ -13,11 +13,12 @@ import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class AvlRetentionSchedulerTest(
     @Autowired val jdbc: JdbcTemplate,
-) {
+) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-04T12:00:00Z")
 
     private fun ago(hours: Long) = Timestamp.from(now.minus(hours, ChronoUnit.HOURS))

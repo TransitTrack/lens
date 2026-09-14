@@ -11,7 +11,6 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isInstanceOf
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -19,7 +18,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
@@ -27,6 +25,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * `RevisionWriter` and the ingestion pieces commit on their own connections, so — like
@@ -34,7 +33,7 @@ import eu.transittrack.schedule.derive.ScheduleWriter
  * transaction. Hence `NOT_SUPPORTED` plus explicit `@AfterEach` cleanup.
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DraftServiceTest(
     @Autowired val drafts: DraftService,
@@ -46,18 +45,9 @@ class DraftServiceTest(
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired dataSource: DataSource,
-) {
+) : PostgresPerMethodTest() {
     private val jdbc = JdbcTemplate(dataSource)
     private val cleanupRevs = mutableListOf<Long>()
-
-    @AfterEach
-    fun cleanup() {
-        for (id in cleanupRevs) runCatching { scheduleWriter.deleteForRevision(id) }
-        for (id in cleanupRevs) runCatching { writer.deleteAllForRevision(id) }
-        for (id in cleanupRevs) runCatching { revisions.deleteById(id) }
-        runCatching { feeds.findByCode("schedule-sample")?.id?.let { feeds.deleteById(it) } }
-        cleanupRevs.clear()
-    }
 
     private fun stopIds(revisionId: Long): Set<Long> =
         jdbc.queryForList("select id from stops where revision_id = ?", Long::class.java, revisionId).filterNotNull().toSet()

@@ -27,6 +27,7 @@ import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * [AvlWriter] commits through its own stateless-session transaction on a separate connection, so this
@@ -41,7 +42,7 @@ class AvlIngestServiceTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val writer: AvlWriter,
     @Autowired val decoders: ObjectProvider<AvlFeedDecoder>,
-) {
+) : PostgresPerMethodTest() {
     private var bytes: ByteArray = ByteArray(0)
     private val source =
         object : AvlFeedSource {

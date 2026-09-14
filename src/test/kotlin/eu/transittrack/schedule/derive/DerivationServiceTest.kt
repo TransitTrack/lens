@@ -7,7 +7,6 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.messageContains
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -15,7 +14,6 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Application
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.RevisionService
@@ -24,14 +22,17 @@ import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.gtfs.support.derivationService
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Like [eu.transittrack.gtfs.draft.DraftServiceTest]: the ingestion pieces commit on their own
- * connections, so this must not run inside a rollback transaction — `NOT_SUPPORTED` plus an
- * explicit `@AfterEach` cleanup.
+ * connections, so this must not run inside a rollback transaction — `NOT_SUPPORTED`. No manual
+ * `DerivationContext.close()` cleanup needed either: `rederive`'s own `finally` block already
+ * releases the context on every path (see the second test below), so the only leftover state
+ * between tests is the database, which the shared container's per-test truncate now handles.
  */
 @SpringBootTest(classes = [Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class DerivationServiceTest(
     @Autowired val derivation: DerivationService,
@@ -43,18 +44,8 @@ class DerivationServiceTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-) {
+) : PostgresPerMethodTest() {
     private var revToClean: Long? = null
-
-    @AfterEach
-    fun clean() {
-        revToClean?.let {
-            runCatching { context.close(it) }
-            runCatching { scheduleWriter.deleteForRevision(it) }
-            runCatching { writer.deleteAllForRevision(it) }
-            runCatching { revisions.deleteById(it) }
-        }
-    }
 
     @Test
     fun `rederive reproduces the same derived model as the ingest pipeline`() {

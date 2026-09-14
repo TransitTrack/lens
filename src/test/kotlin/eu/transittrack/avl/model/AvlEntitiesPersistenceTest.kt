@@ -1,7 +1,6 @@
 package eu.transittrack.avl.model
 
 import java.time.Instant
-import jakarta.persistence.EntityManager
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
@@ -10,28 +9,31 @@ import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.data.domain.PageRequest
+import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class AvlEntitiesPersistenceTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val matches: VehicleMatchRepository,
     @Autowired val states: VehicleStateRepository,
-    @Autowired val em: EntityManager,
-) {
+    @Autowired val jdbcTemplate: JdbcTemplate,
+) : PostgresPerMethodTest() {
+    // A plain JDBC insert (not an EntityManager native query) - the latter needs an active
+    // transaction, which NOT_SUPPORTED deliberately does not provide.
     @BeforeTest
     fun seedFeeds() {
         for (id in 1L..4L) {
-            em
-                .createNativeQuery(
-                    "insert into avl_feed " +
-                        "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
-                        "enabled, source, created_at, updated_at) values " +
-                        "(:id, :code, 'feed', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', now(), now())",
-                ).setParameter("id", id)
-                .setParameter("code", "feed-$id")
-                .executeUpdate()
+            jdbcTemplate.update(
+                "insert into avl_feed " +
+                    "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
+                    "enabled, source, created_at, updated_at) values " +
+                    "(?, ?, 'feed', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', now(), now())",
+                id,
+                "feed-$id",
+            )
         }
     }
 
@@ -93,8 +95,11 @@ class AvlEntitiesPersistenceTest(
 
     @Test
     fun `vehicle_state unique per feed+vehicle`() {
-        states.save(state(4L, "v"))
-        assertThat(states.findByFeedIdAndVehicleId(4L, "v")).isEqualTo(states.findByFeedIdAndVehicleId(4L, "v"))
+        val saved = states.save(state(4L, "v"))
+        // VehicleState has no equals() override, so comparing two lookups directly would only pass
+        // by accident of a shared persistence-context cache returning the same instance; assert on
+        // the id instead, which is what "unique per feed+vehicle" actually means.
+        assertThat(states.findByFeedIdAndVehicleId(4L, "v")!!.id).isEqualTo(saved.id)
     }
 
     private fun state(

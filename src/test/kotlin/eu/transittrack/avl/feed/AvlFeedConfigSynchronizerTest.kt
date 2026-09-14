@@ -18,11 +18,12 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class AvlFeedConfigSynchronizerTest(
     @Autowired val repo: AvlFeedRepository,
-) {
+) : PostgresPerMethodTest() {
     private fun feed(
         code: String,
         url: String,

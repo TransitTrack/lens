@@ -9,7 +9,6 @@ import assertk.assertions.contains
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
-import org.junit.jupiter.api.AfterEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.draft.DraftService
@@ -36,16 +34,17 @@ import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunState
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Drives [ScheduleOptimizationService.apply] (design section 7, "Apply workflow") against a real
  * Postgres schema and a genuinely ingested fixture — like [eu.transittrack.gtfs.draft.edit.DraftEditServiceTest],
- * `IngestionTestFactory.ingest` and this class's own `@AfterEach` cleanup commit on their own
- * connections, so this must not run inside a rollback transaction. (`DraftService.fork` itself joins
- * the ambient transaction — that's what makes `apply`'s atomicity guarantee work in production.)
+ * `IngestionTestFactory.ingest` commits on its own connection, so this must not run inside a
+ * rollback transaction. (`DraftService.fork` itself joins the ambient transaction — that's what
+ * makes `apply`'s atomicity guarantee work in production.)
  */
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, IngestionTestFactory::class)
+@Import(IngestionTestFactory::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class ScheduleOptimizationApplyTest(
     @Autowired val service: ScheduleOptimizationService,
@@ -59,18 +58,9 @@ class ScheduleOptimizationApplyTest(
     @Autowired val recommendations: OptimizationRecommendationRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-) {
+) : PostgresPerMethodTest() {
     private val json = JsonMapper.builder().build()
     private val clean = mutableListOf<Long>()
-
-    @AfterEach
-    fun c() {
-        clean.forEach {
-            runCatching { writer.deleteAllForRevision(it) }
-            runCatching { revisions.deleteById(it) }
-        }
-        clean.clear()
-    }
 
     private fun successfulRun(
         feedId: Long,

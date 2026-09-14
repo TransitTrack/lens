@@ -37,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.Point
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.ingest.AvlIngestService
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
@@ -57,6 +56,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 /**
  * Full AVL + prediction pipeline through a real HTTP endpoint: a GTFS-RT `VehiclePosition` feed
@@ -81,7 +81,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
         "transittrack.predict.run.interval-ms=3600000",
     ],
 )
-@Import(TestcontainersConfiguration::class, PredictionEndToEndTest.Stub::class)
+@Import(PredictionEndToEndTest.Stub::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -102,7 +102,7 @@ class PredictionEndToEndTest(
     @Autowired val travelTimeObservations: TravelTimeObservationRepository,
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -114,6 +114,7 @@ class PredictionEndToEndTest(
 
     @BeforeAll
     fun setup() {
+        truncateBeforeFixture()
         server = MockWebServer()
         server.start()
 

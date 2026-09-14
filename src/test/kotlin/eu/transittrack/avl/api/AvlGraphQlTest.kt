@@ -26,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -43,6 +42,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -52,7 +52,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
         "transittrack.avl.match.match-interval-ms=3600000",
     ],
 )
-@Import(TestcontainersConfiguration::class, AvlGraphQlTest.Stub::class)
+@Import(AvlGraphQlTest.Stub::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -67,7 +67,7 @@ class AvlGraphQlTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -79,6 +79,7 @@ class AvlGraphQlTest(
 
     @BeforeAll
     fun setup() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
 

@@ -24,6 +24,7 @@ import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPattern
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 /** Like IngestionServiceTest, ScheduleWriter commits on its own connection, so this must not run inside the @DataJpaTest rollback transaction. */
 @PostgresSliceTest
@@ -35,7 +36,7 @@ class ScheduleWriterTest(
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val writer: ScheduleWriter,
-) {
+) : PostgresPerMethodTest() {
     private var rev: Long = 0
     private var feedId: Long = 0
 

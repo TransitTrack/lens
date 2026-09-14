@@ -15,6 +15,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class TravelTimesEntitiesTest(
@@ -22,7 +23,7 @@ class TravelTimesEntitiesTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val travelTimes: TravelTimesForStopPathRepository,
-) {
+) : PostgresPerMethodTest() {
     @Test
     fun `travel times persist and query by pattern in index order`() {
         val feed = feeds.save(
