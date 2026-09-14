@@ -3,6 +3,8 @@ import { useRevisionsQuery, useDraftsQuery, useCompareRevisionsQuery } from '~~/
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/AppPage.vue'
 import CompareTripChanges from '~/components/compare/CompareTripChanges.vue'
+import CompareCalendarChanges from '~/components/compare/CompareCalendarChanges.vue'
+import CompareHeadwaySummary from '~/components/compare/CompareHeadwaySummary.vue'
 import { gtfsDate } from '~/utils/gtfs'
 
 const { selectedFeedCode } = useFeeds()
@@ -146,8 +148,8 @@ const comparison = computed(() => result.value?.compareRevisions ?? null)
 
       <!-- Tasks 10-11 replace these with CompareTripChanges / CompareCalendarChanges / CompareHeadwaySummary -->
       <CompareTripChanges :changes="comparison.tripChanges" />
-      <div id="calendar-changes-slot" />
-      <div id="headway-summary-slot" />
+      <CompareCalendarChanges :changes="comparison.calendarChanges" />
+      <CompareHeadwaySummary v-if="!comparison.fromDerivationStale && !comparison.toDerivationStale" :summaries="comparison.headwaySummaries" />
     </div>
   </AppPage>
 </template>
