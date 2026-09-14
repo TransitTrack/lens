@@ -12,7 +12,6 @@ import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
 import eu.transittrack.config.GraphQlConfiguration
-import eu.transittrack.schedule.compare.CalendarChangeKind
 import eu.transittrack.schedule.compare.ScheduleComparison
 import eu.transittrack.schedule.compare.ScheduleComparisonService
 import eu.transittrack.schedule.compare.StopChangeKind
@@ -73,5 +72,46 @@ class ScheduleComparisonGraphQlTest(
             .path("compareRevisions.tripChanges[0].stopChanges[0].arrivalDeltaSec")
             .entity(Int::class.java)
             .isEqualTo(60)
+    }
+
+    @Test
+    fun `compareRevisions paginates tripChanges independently of tripChangeCount`() {
+        fun tripChange(id: String) =
+            TripChange(
+                tripId = id,
+                kind = TripChangeKind.MODIFIED,
+                fieldChanges = emptyMap(),
+                stopChanges = emptyList(),
+                runTimeDeltaSec = null,
+            )
+        val comparison =
+            ScheduleComparison(
+                fromRevisionId = 10,
+                toRevisionId = 11,
+                fromDerivationStale = false,
+                toDerivationStale = false,
+                tripChanges = listOf(tripChange("T1"), tripChange("T2"), tripChange("T3")),
+                calendarChanges = emptyList(),
+                headwaySummaries = emptyList(),
+            )
+        whenever(service.compare(any(), any(), anyOrNull(), anyOrNull(), anyOrNull())).thenReturn(comparison)
+
+        tester
+            .document(
+                """
+                query {
+                  compareRevisions(fromRevisionId: "10", toRevisionId: "11", limit: 1) {
+                    tripChangeCount
+                    tripChanges { tripId }
+                  }
+                }
+                """.trimIndent(),
+            ).execute()
+            .path("compareRevisions.tripChangeCount")
+            .entity(Int::class.java)
+            .isEqualTo(3)
+            .path("compareRevisions.tripChanges")
+            .entityList(Any::class.java)
+            .hasSize(1)
     }
 }

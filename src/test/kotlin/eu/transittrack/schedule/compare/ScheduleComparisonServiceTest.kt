@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.draft.edit.DeleteTripOp
 import eu.transittrack.gtfs.draft.edit.DraftEditService
+import eu.transittrack.gtfs.draft.edit.DuplicateTripOp
 import eu.transittrack.gtfs.draft.edit.SetCalendarExceptionOp
 import eu.transittrack.gtfs.draft.edit.SetCalendarOp
 import eu.transittrack.gtfs.draft.edit.ShiftTripOp
@@ -191,5 +192,112 @@ class ScheduleComparisonServiceTest(
             assertThat(it.fromMeanGapSec).isNull()
             assertThat(it.fromMaxGapSec).isNull()
         }
+    }
+
+    @Test
+    fun `headway summary reports exact known gaps for route RA direction 0 service WK`() {
+        // schedule-sample RA/direction 0/WK has 4 trips: T1 (08:00 = 28800s), T2 (09:00 =
+        // 32400s), T3 (07:00 = 25200s), and T5, which is frequency-based (frequencies.txt gives
+        // it a 06:00-09:00/900s window) so BlockProcessor/SchedTripProcessor normalizes its
+        // startTimeSec to 0 (relative to its own first departure) rather than 21600. Sorted
+        // starts are therefore [0, 25200, 28800, 32400] -> gaps [25200, 3600, 3600], mean =
+        // 32400/3 = 10800, max = 25200.
+        val (base, draftId) = forkDraft()
+        derivation.rederive(draftId)
+
+        val cmp = comparisonService.compare(base, draftId)
+        val summary = cmp.headwaySummaries.single { it.routeId == "RA" && it.directionId == 0 && it.serviceId == "WK" }
+        assertThat(summary.fromTripCount).isEqualTo(4)
+        assertThat(summary.toTripCount).isEqualTo(4)
+        assertThat(summary.fromMeanGapSec).isEqualTo(10800)
+        assertThat(summary.fromMaxGapSec).isEqualTo(25200)
+        assertThat(summary.toMeanGapSec).isEqualTo(10800)
+        assertThat(summary.toMaxGapSec).isEqualTo(25200)
+    }
+
+    @Test
+    fun `duplicated trip reports ADDED`() {
+        val (base, draftId) = forkDraft()
+        val sourceTripId = aTripId(draftId)
+        editService.apply(draftId, "alice", version(draftId)) { _ ->
+            DuplicateTripOp(sourceTripId, "T1_DUP", 60)
+        }
+
+        val cmp = comparisonService.compare(base, draftId)
+        val change = cmp.tripChanges.single { it.tripId == "T1_DUP" }
+        assertThat(change.kind).isEqualTo(TripChangeKind.ADDED)
+    }
+
+    @Test
+    fun `new service reports ADDED, and REMOVED from the reverse comparison`() {
+        val (base, draftId) = forkDraft()
+        editService.apply(draftId, "alice", version(draftId)) { _ ->
+            SetCalendarOp(
+                "NEW_SVC",
+                monday = true, tuesday = true, wednesday = true, thursday = true, friday = true,
+                saturday = false, sunday = false,
+                startDate = LocalDate.of(2026, 1, 1), endDate = LocalDate.of(2026, 12, 31),
+            )
+        }
+
+        val added = comparisonService.compare(base, draftId).calendarChanges.single { it.serviceId == "NEW_SVC" }
+        assertThat(added.kind).isEqualTo(CalendarChangeKind.ADDED)
+
+        // Reversing from/to turns the same edit into a REMOVED, since there's no "delete calendar"
+        // edit op to exercise the REMOVED branch directly.
+        val removed = comparisonService.compare(draftId, base).calendarChanges.single { it.serviceId == "NEW_SVC" }
+        assertThat(removed.kind).isEqualTo(CalendarChangeKind.REMOVED)
+    }
+
+    @Test
+    fun `calendar_dates-only service with no calendars row is visible in the diff`() {
+        val (base, draftId) = forkDraft()
+        editService.apply(draftId, "alice", version(draftId)) { _ ->
+            SetCalendarExceptionOp("HOLIDAY", LocalDate.of(2026, 12, 25), 1)
+        }
+
+        val cmp = comparisonService.compare(base, draftId)
+        val change = cmp.calendarChanges.single { it.serviceId == "HOLIDAY" }
+        assertThat(change.kind).isEqualTo(CalendarChangeKind.MODIFIED)
+        assertThat(change.fieldChanges).isEmpty()
+        val exception = change.exceptionChanges.single { it.date == LocalDate.of(2026, 12, 25) }
+        assertThat(exception.kind).isEqualTo(ExceptionChangeKind.EXCEPTION_ADDED)
+        assertThat(exception.toType).isEqualTo(1)
+    }
+
+    /**
+     * `SetCalendarExceptionOp` upserts, so two applications on the same draft leave no
+     * journal-visible intermediate state to compare against for EXCEPTION_CHANGED within a single
+     * from/to pair. EXCEPTION_REMOVED has the same shape problem in the forward direction (the base
+     * fixture has no pre-existing exception to delete for a fresh serviceId). Both are exercised
+     * here via a reversed comparison instead: the draft (as "from") has the exception, the base (as
+     * "to") does not, so the reverse direction reports it as removed.
+     */
+    @Test
+    fun `EXCEPTION_REMOVED is reported via reverse comparison`() {
+        val (base, draftId) = forkDraft()
+        val serviceId = calendars.findByRevisionId(draftId).first().serviceId
+        editService.apply(draftId, "alice", version(draftId)) { _ ->
+            SetCalendarExceptionOp(serviceId, LocalDate.of(2026, 12, 25), 2)
+        }
+
+        val cmp = comparisonService.compare(draftId, base)
+        val change = cmp.calendarChanges.single { it.serviceId == serviceId }
+        val exception = change.exceptionChanges.single { it.date == LocalDate.of(2026, 12, 25) }
+        assertThat(exception.kind).isEqualTo(ExceptionChangeKind.EXCEPTION_REMOVED)
+        assertThat(exception.fromType).isEqualTo(2)
+    }
+
+    @Test
+    fun `routeId filter narrows trip changes`() {
+        val (base, draftId) = forkDraft()
+        val tripId = aTripId(draftId)
+        editService.apply(draftId, "alice", version(draftId)) { _ -> ShiftTripOp(tripId, 120) }
+
+        val filteredOut = comparisonService.compare(base, draftId, routeId = "RB")
+        assertThat(filteredOut.tripChanges.any { it.tripId == tripId }).isEqualTo(false)
+
+        val filteredIn = comparisonService.compare(base, draftId, routeId = "RA")
+        assertThat(filteredIn.tripChanges.any { it.tripId == tripId }).isEqualTo(true)
     }
 }

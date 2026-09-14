@@ -330,6 +330,9 @@ interface CalendarDateRepository : RevisionScopedRepository<CalendarDate, Long> 
         revisionId: Long,
         serviceId: String,
     ): List<CalendarDate>
+
+    @Query("select distinct cd.serviceId from CalendarDate cd where cd.revisionId = :revisionId")
+    fun findDistinctServiceIds(revisionId: Long): List<String>
 }
 
 interface FeedInfoRepository : JpaRepository<FeedInfo, Long> {

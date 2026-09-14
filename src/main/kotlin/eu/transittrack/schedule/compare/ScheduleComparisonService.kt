@@ -1,6 +1,7 @@
 package eu.transittrack.schedule.compare
 
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.model.Calendar
 import eu.transittrack.gtfs.model.CalendarDateRepository
@@ -18,6 +19,7 @@ class ScheduleComparisonService(
     private val calendars: CalendarRepository,
     private val calendarDates: CalendarDateRepository,
 ) {
+    @Transactional(readOnly = true)
     fun compare(
         fromRevisionId: Long,
         toRevisionId: Long,
@@ -191,7 +193,13 @@ class ScheduleComparisonService(
     ): List<CalendarChange> {
         val fromCals = loadCalendars(fromRevisionId, serviceIds).associateBy { it.serviceId }
         val toCals = loadCalendars(toRevisionId, serviceIds).associateBy { it.serviceId }
-        val allServiceIds = (fromCals.keys + toCals.keys).sorted()
+        // Services defined only via calendar_dates.txt (no calendars row) never show up in fromCals/
+        // toCals, so they must be unioned into the id universe separately, or their exceptions are
+        // silently invisible to the diff.
+        val exceptionOnlyIds =
+            (calendarDates.findDistinctServiceIds(fromRevisionId) + calendarDates.findDistinctServiceIds(toRevisionId))
+                .let { ids -> if (serviceIds == null) ids.toSet() else ids.filter { it in serviceIds }.toSet() }
+        val allServiceIds = (fromCals.keys + toCals.keys + exceptionOnlyIds).sorted()
         val out = mutableListOf<CalendarChange>()
         for (svc in allServiceIds) {
             val f = fromCals[svc]
@@ -210,6 +218,14 @@ class ScheduleComparisonService(
                     val fields = calendarFieldChanges(f, t)
                     if (fields.isNotEmpty() || exceptionChanges.isNotEmpty()) {
                         out += CalendarChange(svc, CalendarChangeKind.MODIFIED, fields, exceptionChanges)
+                    }
+                }
+
+                f == null && t == null -> {
+                    // calendar_dates-only service (no calendars row on either side): only worth
+                    // reporting if the exceptions themselves differ.
+                    if (exceptionChanges.isNotEmpty()) {
+                        out += CalendarChange(svc, CalendarChangeKind.MODIFIED, emptyMap(), exceptionChanges)
                     }
                 }
             }
