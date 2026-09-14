@@ -28,5 +28,6 @@ class EditOpBootstrap {
         RemoveTripStopOp
         ReorderTripStopsOp
         SetCalendarOp
+        SetCalendarExceptionOp
     }
 }

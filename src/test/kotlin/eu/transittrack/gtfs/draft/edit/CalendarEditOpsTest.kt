@@ -15,6 +15,7 @@ import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.Calendar
+import eu.transittrack.gtfs.model.CalendarDate
 import eu.transittrack.gtfs.model.CalendarDateRepository
 import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
@@ -89,5 +90,37 @@ class CalendarEditOpsTest(
         val restored = calendars.findByServiceId(draftId, serviceId)
         assertThat(restored?.monday).isEqualTo(oldMonday)
         assertThat(restored?.endDate).isEqualTo(oldEnd)
+    }
+
+    @Test
+    fun `SetCalendarExceptionOp adds an exception then undo removes it`() {
+        val draftId = forkDraft()
+        val serviceId = calendars.findByRevisionId(draftId).first().serviceId
+        val date = LocalDate.of(2026, 12, 25)
+        assertThat(calendarDates.findByServiceId(draftId, serviceId).none { it.date == date }).isEqualTo(true)
+
+        val r1 = svc.apply(draftId, "alice", version(draftId)) { _ ->
+            SetCalendarExceptionOp(serviceId, date, 2)
+        }
+        val added = calendarDates.findByServiceId(draftId, serviceId).single { it.date == date }
+        assertThat(added.exceptionType).isEqualTo(2)
+
+        svc.undo(draftId, "alice", r1.draft.version)
+        assertThat(calendarDates.findByServiceId(draftId, serviceId).none { it.date == date }).isEqualTo(true)
+    }
+
+    @Test
+    fun `SetCalendarExceptionOp with null deletes an existing exception then undo restores it`() {
+        val draftId = forkDraft()
+        val serviceId = calendars.findByRevisionId(draftId).first().serviceId
+        val date = LocalDate.of(2026, 11, 26)
+        svc.apply(draftId, "alice", version(draftId)) { _ -> SetCalendarExceptionOp(serviceId, date, 1) }
+
+        val r2 = svc.apply(draftId, "alice", version(draftId)) { _ -> SetCalendarExceptionOp(serviceId, date, null) }
+        assertThat(calendarDates.findByServiceId(draftId, serviceId).none { it.date == date }).isEqualTo(true)
+
+        svc.undo(draftId, "alice", r2.draft.version)
+        val restored = calendarDates.findByServiceId(draftId, serviceId).single { it.date == date }
+        assertThat(restored.exceptionType).isEqualTo(1)
     }
 }

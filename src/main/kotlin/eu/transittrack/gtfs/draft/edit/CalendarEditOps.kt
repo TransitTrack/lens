@@ -113,3 +113,70 @@ class SetCalendarOp(
         }
     }
 }
+
+/**
+ * Upsert or delete a single `calendar_dates` row for `(serviceId, date)`. `exceptionType = null`
+ * deletes the row (a no-op if none exists); `1`/`2` upserts it. Forward/inverse carry the full
+ * `(serviceId, date, exceptionType | null)` triple, matching [UpdateStopTimeOp]'s "explicit value
+ * vs. null" semantics.
+ */
+class SetCalendarExceptionOp(
+    private val serviceId: String,
+    private val date: LocalDate,
+    private val exceptionType: Int?,
+) : EditOp {
+    override val op = "SET_CALENDAR_EXCEPTION"
+
+    override fun plan(ctx: EditContext): PlannedEdit {
+        val existing = ctx.calendarDates.findByServiceId(ctx.revisionId, serviceId).find { it.date == date }
+        val fwd =
+            ctx.json
+                .createObjectNode()
+                .put("serviceId", serviceId)
+                .put("date", date.toString())
+                .let { if (exceptionType == null) it.putNull("exceptionType") else it.put("exceptionType", exceptionType) }
+        val inv =
+            ctx.json
+                .createObjectNode()
+                .put("serviceId", serviceId)
+                .put("date", date.toString())
+                .let {
+                    val old = existing?.exceptionType
+                    if (old == null) it.putNull("exceptionType") else it.put("exceptionType", old)
+                }
+        return PlannedEdit(
+            "Set calendar exception $serviceId @ $date",
+            fwd,
+            inv,
+            mutate = { apply(ctx, fwd) },
+        )
+    }
+
+    companion object {
+        private fun apply(
+            ctx: EditContext,
+            direction: tools.jackson.databind.JsonNode,
+        ) {
+            val serviceId = direction.get("serviceId").asString()
+            val date = LocalDate.parse(direction.get("date").asString())
+            val existing = ctx.calendarDates.findByServiceId(ctx.revisionId, serviceId).find { it.date == date }
+            val typeNode = direction.get("exceptionType")
+            if (typeNode.isNull) {
+                existing?.let { ctx.calendarDates.delete(it) }
+                return
+            }
+            val row = existing ?: eu.transittrack.gtfs.model.CalendarDate(
+                revisionId = ctx.revisionId,
+                serviceId = serviceId,
+                date = date,
+                exceptionType = null,
+            )
+            row.exceptionType = typeNode.asInt()
+            ctx.calendarDates.save(row)
+        }
+
+        init {
+            EditOpRegistry.register("SET_CALENDAR_EXCEPTION") { ctx, dir -> { apply(ctx, dir) } }
+        }
+    }
+}
