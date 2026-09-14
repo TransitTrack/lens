@@ -51,4 +51,12 @@
       all green. This full-package run also empirically confirmed the container-sharing benefit:
       ~22 minutes before Task 3's Hikari fix down to ~1 minute once only one container start
       is needed. Committed together with Task 4's migration in one commit.)
-- [ ] Task 5: Remove old configs + full suite verify
+- [x] Task 5: Remove old configs + full suite verify (deleted TestcontainersConfiguration.kt
+      and GtfsPostgresTestContainer.kt, updated IngestionTestFactory's stale doc comment. Full
+      `./gradlew test` run: BUILD SUCCESSFUL, consistently ~1 minute across repeated runs. One
+      run hit a transient Postgres deadlock on a TRUNCATE -- reran clean, consistent with a
+      timing-dependent flake (a background scheduled task in another cached context colliding
+      with a concurrent truncate) rather than a systematic bug. Verified via `docker events`
+      that exactly 1 postgres:18-alpine container is created for the whole suite (Gradle's
+      captured test logs didn't surface Testcontainers' own log lines at any level, so used
+      docker events instead of grepping for the log line the plan named). Plan complete.)
