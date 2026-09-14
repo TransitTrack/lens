@@ -17,6 +17,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class CoreEntitiesTest(
@@ -25,7 +26,7 @@ class CoreEntitiesTest(
     @Autowired val routes: RouteRepository,
     @Autowired val stopTimes: StopTimeRepository,
     @Autowired val calendars: CalendarRepository,
-) {
+) : PostgresPerMethodTest() {
     // Real revisions to satisfy the FK gtfs_*.revision_id -> gtfs_revision(id).
     private var rev1: Long = 0
     private var rev2: Long = 0

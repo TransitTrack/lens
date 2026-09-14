@@ -7,8 +7,6 @@ import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.jpa.test.autoconfigure.AutoConfigureTestEntityManager
-import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
@@ -17,15 +15,14 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
-@AutoConfigureTestEntityManager
 class DraftEditRepositoryTest(
     @Autowired val repo: DraftEditRepository,
     @Autowired val feedRepo: GtfsFeedRepository,
     @Autowired val revisionRepo: GtfsRevisionRepository,
-    @Autowired val em: TestEntityManager,
-) {
+) : PostgresPerMethodTest() {
     private fun feed() =
         feedRepo.save(
             GtfsFeed(

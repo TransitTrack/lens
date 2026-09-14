@@ -36,6 +36,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @EnableConfigurationProperties(GtfsProperties::class)
@@ -55,7 +56,7 @@ class ScheduleDerivationFailureTest(
     @Autowired val gtfsProps: GtfsProperties,
     @Autowired val shapes: ShapeRepository,
     @Autowired val scheduleWriter: ScheduleWriter,
-) {
+) : PostgresPerMethodTest() {
     private val created = mutableListOf<Long>()
 
     @AfterEach

@@ -15,6 +15,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class FaresEntitiesTest(
@@ -22,7 +23,7 @@ class FaresEntitiesTest(
     @Autowired val areas: AreaRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
-) {
+) : PostgresPerMethodTest() {
     /** Seed a real feed + revision so the mandated FK on `revision_id` is satisfied (PF-11). */
     private fun seedRevisionIds(count: Int): List<Long> {
         val feed =

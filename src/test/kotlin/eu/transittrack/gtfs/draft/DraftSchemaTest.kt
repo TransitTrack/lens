@@ -14,12 +14,13 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class DraftSchemaTest(
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
-) {
+) : PostgresPerMethodTest() {
     @Test
     fun `draft columns round-trip`() {
         val feed = feeds

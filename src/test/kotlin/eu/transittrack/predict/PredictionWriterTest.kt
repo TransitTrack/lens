@@ -23,6 +23,7 @@ import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * [PredictionWriter] commits through its own [org.hibernate.StatelessSession] transaction, so this
@@ -40,7 +41,7 @@ class PredictionWriterTest(
     @Autowired val predictions: VehiclePredictionRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val feeds: AvlFeedRepository,
-) {
+) : PostgresPerMethodTest() {
     private var feedId = 0L
 
     @BeforeEach

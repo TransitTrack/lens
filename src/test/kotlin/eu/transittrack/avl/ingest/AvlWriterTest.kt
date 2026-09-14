@@ -22,6 +22,7 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * [AvlWriter] commits through its own [org.hibernate.StatelessSession] transaction, so this test must
@@ -37,7 +38,7 @@ class AvlWriterTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val states: VehicleStateRepository,
     @Autowired val feeds: AvlFeedRepository,
-) {
+) : PostgresPerMethodTest() {
     private var feedId = 0L
 
     @BeforeEach

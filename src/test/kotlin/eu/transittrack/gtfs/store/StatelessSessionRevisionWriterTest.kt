@@ -22,6 +22,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * The writer commits through its own [org.hibernate.StatelessSession] transaction, so this test must NOT run inside the default `@DataJpaTest` rollback transaction — otherwise the seeded `gtfs_revision` rows would be invisible to the stateless session's
@@ -35,7 +36,7 @@ class StatelessSessionRevisionWriterTest(
     @Autowired val routes: RouteRepository,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
-) {
+) : PostgresPerMethodTest() {
     private var feedId = 0L
     private var rev1 = 0L
     private var rev2 = 0L

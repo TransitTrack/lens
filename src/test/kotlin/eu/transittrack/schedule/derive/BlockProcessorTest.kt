@@ -34,6 +34,7 @@ import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @AutoConfigureJson
@@ -57,7 +58,7 @@ class BlockProcessorTest(
     @Autowired val stopPaths: StopPathRepository,
     @Autowired val blocks: BlockRepository,
     @Autowired val blockTrips: BlockTripRepository,
-) {
+) : PostgresPerMethodTest() {
     private val context = DerivationContext()
 
     private fun stage1() = TripPatternProcessor(context, writer, ScheduleProperties(), json, routes, trips, stopTimes, stops, shapePoints)

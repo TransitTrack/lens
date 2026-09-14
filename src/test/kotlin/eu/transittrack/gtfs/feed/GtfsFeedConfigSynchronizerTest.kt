@@ -15,12 +15,13 @@ import org.springframework.context.annotation.Import
 import eu.transittrack.FeedsProperties
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @Import(GtfsFeedService::class)
 class GtfsFeedConfigSynchronizerTest(
     @Autowired val repo: GtfsFeedRepository,
-) {
+) : PostgresPerMethodTest() {
     val ingestionService: IngestionService = mock(IngestionService::class.java)
 
     private fun sync(

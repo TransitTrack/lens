@@ -64,6 +64,7 @@ import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Derivation edge cases that the happy-path `schedule-sample` fixture cannot reach, kept on their own fixtures so the count/value assertions in the per-processor slice tests and [runAllStages] here stay untouched:
@@ -109,7 +110,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val calendars: CalendarRepository,
     @Autowired val calendarDates: CalendarDateRepository,
     @Autowired val feedInfos: FeedInfoRepository,
-) {
+) : PostgresPerMethodTest() {
     private var feedId: Long = 0
     private var rev: Long = 0
 

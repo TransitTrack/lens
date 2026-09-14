@@ -11,13 +11,14 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @Import(GtfsFeedService::class)
 class GtfsFeedServiceTest(
     @Autowired val service: GtfsFeedService,
     @Autowired val repo: GtfsFeedRepository,
-) {
+) : PostgresPerMethodTest() {
     private val input = FeedInput("w", "W", null, "http://x/z.zip", null)
 
     @Test

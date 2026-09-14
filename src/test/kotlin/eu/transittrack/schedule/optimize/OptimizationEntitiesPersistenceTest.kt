@@ -4,10 +4,12 @@ import java.time.Instant
 import kotlin.test.Test
 
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
@@ -17,12 +19,13 @@ import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunState
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class OptimizationEntitiesPersistenceTest(
     @Autowired private val runs: OptimizationRunRepository,
     @Autowired private val recommendations: OptimizationRecommendationRepository,
-) {
+) : PostgresPerMethodTest() {
     private fun newRun(revisionId: Long = 11) =
         runs.save(
             OptimizationRunRow(
@@ -90,12 +93,19 @@ class OptimizationEntitiesPersistenceTest(
                 ),
             )
 
+        // The columns are `jsonb`, which round-trips through Postgres's canonical text form - a
+        // space after every `:`/`,`, and object keys in Postgres's own internal order rather than
+        // insertion order - instead of preserving the exact bytes written. This only shows up once
+        // a save+findById genuinely round-trips through the database instead of being served from a
+        // shared first-level cache, which NOT_SUPPORTED now guarantees, so single-key values can
+        // still assert exact equality but a multi-key object needs an order-independent check.
         val loaded = recommendations.findById(recommendation.id!!).orElseThrow()
         assertThat(loaded.deltaSec).isEqualTo(65)
         assertThat(loaded.status).isEqualTo(OptimizationRecommendationStatus.PENDING)
-        assertThat(loaded.currentValue).isEqualTo("""{"arrivalSec":100}""")
-        assertThat(loaded.proposedValue).isEqualTo("""{"arrivalSec":165}""")
-        assertThat(loaded.evidence).isEqualTo("""{"sampleCount":20,"medianSec":165}""")
+        assertThat(loaded.currentValue).isEqualTo("""{"arrivalSec": 100}""")
+        assertThat(loaded.proposedValue).isEqualTo("""{"arrivalSec": 165}""")
+        assertThat(loaded.evidence!!).contains(""""sampleCount": 20""")
+        assertThat(loaded.evidence!!).contains(""""medianSec": 165""")
         assertThat(loaded.conflictKey).isEqualTo("trip:T1/stop:3")
     }
 
@@ -139,8 +149,13 @@ class OptimizationEntitiesPersistenceTest(
      * asserting a real serialization race, and a sleep-based test would be flaky, so this is a
      * code-level guarantee (the lock query runs before the PENDING-status check in `applyInternal`
      * and is held for the rest of that `@Transactional` method) rather than an exercised race.
+     *
+     * `PESSIMISTIC_WRITE` locking requires an active transaction; the class-level `NOT_SUPPORTED`
+     * (from `@PostgresSliceTest`) is overridden back to a real one for just this method, which
+     * Spring rolls back automatically at the end - fine here since the lock is read-only.
      */
     @Test
+    @Transactional
     fun `findAllByIdForUpdate returns the same rows as findAllById`() {
         val run = newRun()
         val a =

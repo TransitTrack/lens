@@ -27,6 +27,7 @@ import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @AutoConfigureJson
@@ -47,7 +48,7 @@ class TripPatternProcessorTest(
     @Autowired val shapePoints: ShapePointRepository,
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
-) {
+) : PostgresPerMethodTest() {
     private val context = DerivationContext()
 
     private fun processor() = TripPatternProcessor(context, writer, props, json, routes, trips, stopTimes, stops, shapePoints)

@@ -26,6 +26,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 @AutoConfigureJson
@@ -45,7 +46,7 @@ class GeoExtentProcessorTest(
     @Autowired val trips: TripRepository,
     @Autowired val stopTimes: StopTimeRepository,
     @Autowired val shapePoints: ShapePointRepository,
-) {
+) : PostgresPerMethodTest() {
     private val context = DerivationContext()
 
     private fun stage1() =

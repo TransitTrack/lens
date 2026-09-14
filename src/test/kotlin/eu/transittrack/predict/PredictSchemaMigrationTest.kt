@@ -8,11 +8,12 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class PredictSchemaMigrationTest(
     @Autowired val jdbc: JdbcTemplate,
-) {
+) : PostgresPerMethodTest() {
     @Test
     fun `predict tables exist`() {
         for (t in listOf(

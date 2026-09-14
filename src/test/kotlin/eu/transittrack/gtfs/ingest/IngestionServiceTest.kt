@@ -39,6 +39,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * [RevisionWriter] and the pieces of [RevisionService] it calls commit on their own connections, so — like [eu.transittrack.gtfs.revision.RevisionServiceTest] — this must NOT run inside the `@DataJpaTest` rollback transaction. Hence `NOT_SUPPORTED` plus
@@ -65,7 +66,7 @@ class IngestionServiceTest(
     @Autowired val shapes: ShapeRepository,
     @Autowired val shapePoints: ShapePointRepository,
     @Autowired val scheduleWriter: ScheduleWriter,
-) {
+) : PostgresPerMethodTest() {
     private val createdFeeds = mutableListOf<Long>()
     private val validator = GtfsFeedLoader()
 
