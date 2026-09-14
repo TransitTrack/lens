@@ -10,6 +10,8 @@ import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.draft.DraftService
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
@@ -32,6 +34,8 @@ class DraftEditService(
     private val trips: TripRepository,
     private val frequencies: FrequencyRepository,
     private val tripPatterns: TripPatternRepository,
+    private val calendars: CalendarRepository,
+    private val calendarDates: CalendarDateRepository,
     private val json: JsonMapper,
 ) {
     data class DraftEditResultData(
@@ -41,7 +45,7 @@ class DraftEditService(
         val canRedo: Boolean,
     )
 
-    private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, json)
+    private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, calendars, calendarDates, json)
 
     private fun guard(
         draftId: Long,

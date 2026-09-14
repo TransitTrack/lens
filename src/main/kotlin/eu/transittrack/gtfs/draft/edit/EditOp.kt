@@ -5,6 +5,8 @@ import java.util.concurrent.ConcurrentHashMap
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.gtfs.model.CalendarDateRepository
+import eu.transittrack.gtfs.model.CalendarRepository
 import eu.transittrack.gtfs.model.FrequencyRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
@@ -27,6 +29,8 @@ data class EditContext(
     val trips: TripRepository,
     val frequencies: FrequencyRepository,
     val tripPatterns: TripPatternRepository,
+    val calendars: CalendarRepository,
+    val calendarDates: CalendarDateRepository,
     val json: JsonMapper,
 )
 
