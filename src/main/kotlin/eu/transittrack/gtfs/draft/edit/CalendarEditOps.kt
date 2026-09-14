@@ -15,6 +15,13 @@ private fun ObjectNode.putDate(
 
 private fun dateOrNull(node: tools.jackson.databind.JsonNode): LocalDate? = if (node.isNull) null else LocalDate.parse(node.asString())
 
+private fun ObjectNode.putNullableBoolean(
+    name: String,
+    v: Boolean?,
+): ObjectNode = if (v == null) putNull(name) else put(name, v)
+
+private fun booleanOrNull(node: tools.jackson.databind.JsonNode): Boolean? = if (node.isNull) null else node.asBoolean()
+
 /**
  * Full-replace upsert of a `calendars` row for [serviceId]: creates it if absent, otherwise
  * overwrites every field (GTFS `calendar.txt` columns are all required, so there is no partial-
@@ -35,6 +42,9 @@ class SetCalendarOp(
     override val op = "SET_CALENDAR"
 
     override fun plan(ctx: EditContext): PlannedEdit {
+        require(!startDate.isAfter(endDate)) {
+            "startDate ($startDate) must not be after endDate ($endDate)"
+        }
         val existing = ctx.calendars.findByServiceId(ctx.revisionId, serviceId)
         val fwd =
             ctx.json
@@ -61,13 +71,13 @@ class SetCalendarOp(
                     .createObjectNode()
                     .put("serviceId", serviceId)
                     .put("existed", true)
-                    .put("monday", existing.monday ?: false)
-                    .put("tuesday", existing.tuesday ?: false)
-                    .put("wednesday", existing.wednesday ?: false)
-                    .put("thursday", existing.thursday ?: false)
-                    .put("friday", existing.friday ?: false)
-                    .put("saturday", existing.saturday ?: false)
-                    .put("sunday", existing.sunday ?: false)
+                    .putNullableBoolean("monday", existing.monday)
+                    .putNullableBoolean("tuesday", existing.tuesday)
+                    .putNullableBoolean("wednesday", existing.wednesday)
+                    .putNullableBoolean("thursday", existing.thursday)
+                    .putNullableBoolean("friday", existing.friday)
+                    .putNullableBoolean("saturday", existing.saturday)
+                    .putNullableBoolean("sunday", existing.sunday)
                     .putDate("startDate", existing.startDate)
                     .putDate("endDate", existing.endDate)
             }
@@ -96,13 +106,13 @@ class SetCalendarOp(
                 friday = null, saturday = null, sunday = null,
                 startDate = null, endDate = null,
             )
-            row.monday = direction.get("monday").asBoolean()
-            row.tuesday = direction.get("tuesday").asBoolean()
-            row.wednesday = direction.get("wednesday").asBoolean()
-            row.thursday = direction.get("thursday").asBoolean()
-            row.friday = direction.get("friday").asBoolean()
-            row.saturday = direction.get("saturday").asBoolean()
-            row.sunday = direction.get("sunday").asBoolean()
+            row.monday = booleanOrNull(direction.get("monday"))
+            row.tuesday = booleanOrNull(direction.get("tuesday"))
+            row.wednesday = booleanOrNull(direction.get("wednesday"))
+            row.thursday = booleanOrNull(direction.get("thursday"))
+            row.friday = booleanOrNull(direction.get("friday"))
+            row.saturday = booleanOrNull(direction.get("saturday"))
+            row.sunday = booleanOrNull(direction.get("sunday"))
             row.startDate = dateOrNull(direction.get("startDate"))
             row.endDate = dateOrNull(direction.get("endDate"))
             ctx.calendars.save(row)
@@ -128,6 +138,9 @@ class SetCalendarExceptionOp(
     override val op = "SET_CALENDAR_EXCEPTION"
 
     override fun plan(ctx: EditContext): PlannedEdit {
+        require(exceptionType == null || exceptionType == 1 || exceptionType == 2) {
+            "exceptionType must be 1, 2, or null, got $exceptionType"
+        }
         val existing = ctx.calendarDates.findByServiceId(ctx.revisionId, serviceId).find { it.date == date }
         val fwd =
             ctx.json

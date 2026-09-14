@@ -123,4 +123,69 @@ class CalendarEditOpsTest(
         val restored = calendarDates.findByServiceId(draftId, serviceId).single { it.date == date }
         assertThat(restored.exceptionType).isEqualTo(1)
     }
+
+    @Test
+    fun `SetCalendarExceptionOp rejects an out-of-range exceptionType`() {
+        val draftId = forkDraft()
+        val serviceId = calendars.findByRevisionId(draftId).first().serviceId
+
+        try {
+            svc.apply(draftId, "alice", version(draftId)) { _ ->
+                SetCalendarExceptionOp(serviceId, LocalDate.of(2026, 12, 25), 7)
+            }
+            error("expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertThat(e.message ?: "").isEqualTo("exceptionType must be 1, 2, or null, got 7")
+        }
+    }
+
+    @Test
+    fun `SetCalendarOp rejects startDate after endDate`() {
+        val draftId = forkDraft()
+
+        try {
+            svc.apply(draftId, "alice", version(draftId)) { _ ->
+                SetCalendarOp(
+                    "NEW_SVC",
+                    monday = true, tuesday = true, wednesday = true, thursday = true, friday = true,
+                    saturday = false, sunday = false,
+                    startDate = LocalDate.of(2027, 1, 1), endDate = LocalDate.of(2026, 1, 1),
+                )
+            }
+            error("expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertThat(e.message ?: "").isEqualTo(
+                "startDate (2027-01-01) must not be after endDate (2026-01-01)",
+            )
+        }
+    }
+
+    @Test
+    fun `SetCalendarOp undo restores a NULL weekday column as null, not false`() {
+        val draftId = forkDraft()
+        val serviceId = "NULL_MONDAY_SVC"
+        calendars.save(
+            Calendar(
+                revisionId = draftId,
+                serviceId = serviceId,
+                monday = null, tuesday = true, wednesday = true, thursday = true,
+                friday = true, saturday = false, sunday = false,
+                startDate = LocalDate.of(2026, 1, 1), endDate = LocalDate.of(2026, 12, 31),
+            ),
+        )
+        assertThat(calendars.findByServiceId(draftId, serviceId)?.monday).isNull()
+
+        val r1 = svc.apply(draftId, "alice", version(draftId)) { _ ->
+            SetCalendarOp(
+                serviceId,
+                monday = true, tuesday = true, wednesday = true, thursday = true, friday = true,
+                saturday = true, sunday = true,
+                startDate = LocalDate.of(2026, 1, 1), endDate = LocalDate.of(2026, 12, 31),
+            )
+        }
+        assertThat(calendars.findByServiceId(draftId, serviceId)?.monday).isEqualTo(true)
+
+        svc.undo(draftId, "alice", r1.draft.version)
+        assertThat(calendars.findByServiceId(draftId, serviceId)?.monday).isNull()
+    }
 }
