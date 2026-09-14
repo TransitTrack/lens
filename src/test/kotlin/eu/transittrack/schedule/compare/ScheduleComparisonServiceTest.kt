@@ -130,7 +130,7 @@ class ScheduleComparisonServiceTest(
     @Test
     fun `changed calendar field reports a MODIFIED CalendarChange`() {
         val (base, draftId) = forkDraft()
-        val serviceId = calendars.findByRevisionId(draftId).first().serviceId
+        val serviceId = calendars.findByRevisionId(draftId).first { it.serviceId == "WK" }.serviceId
         editService.apply(draftId, "alice", version(draftId)) { _ ->
             SetCalendarOp(
                 serviceId,
