@@ -12,7 +12,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.graphql.test.tester.HttpGraphQlTester
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -20,6 +19,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 /**
  * Full-stack read path: real `Application` context (must be pinned via `classes` so the slice `GtfsSliceTestApplication` is not picked up first), Testcontainers Postgres + LGTM, a stubbed downloader serving the `minimal-valid` fixture, one ingest in
@@ -29,7 +29,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
     classes = [eu.transittrack.Application::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 )
-@Import(TestcontainersConfiguration::class, GtfsQueryGraphQlTest.StubDownloaderConfig::class)
+@Import(GtfsQueryGraphQlTest.StubDownloaderConfig::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GtfsQueryGraphQlTest(
@@ -38,7 +38,7 @@ class GtfsQueryGraphQlTest(
     @Autowired val ingestion: IngestionService,
     @Autowired val revisionService: RevisionService,
     @Autowired val feeds: GtfsFeedRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class StubDownloaderConfig {
         @Bean
@@ -48,6 +48,7 @@ class GtfsQueryGraphQlTest(
 
     @BeforeAll
     fun ingestOnce() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("w", "W", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("w")
     }

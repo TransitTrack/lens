@@ -19,7 +19,6 @@ import org.springframework.context.annotation.Primary
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.avl.model.AvlReportRow
@@ -31,9 +30,10 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, FullInferenceMatcherTest.Stub::class)
+@Import(FullInferenceMatcherTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class FullInferenceMatcherTest(
     @Autowired val factory: AvlMatchContextFactory,
@@ -41,7 +41,7 @@ class FullInferenceMatcherTest(
     @Autowired val ingestion: IngestionService,
     @Autowired val trips: TripRepository,
     @Autowired val matcher: FullInferenceMatcher,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -51,6 +51,7 @@ class FullInferenceMatcherTest(
 
     @BeforeAll
     fun ingest() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

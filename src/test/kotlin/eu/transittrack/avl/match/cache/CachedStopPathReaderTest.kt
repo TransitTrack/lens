@@ -19,7 +19,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -29,9 +28,10 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.schedule.model.StopPathRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, CachedStopPathReaderTest.Stub::class)
+@Import(CachedStopPathReaderTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CachedStopPathReaderTest(
     @Autowired val reader: CachedStopPathReader,
@@ -41,7 +41,7 @@ class CachedStopPathReaderTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val cacheManager: CacheManager,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -57,6 +57,7 @@ class CachedStopPathReaderTest(
 
     @BeforeAll
     fun ingest() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
         val feedId = feeds.findByCode("g")!!.id!!

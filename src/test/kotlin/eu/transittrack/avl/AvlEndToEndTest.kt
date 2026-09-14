@@ -40,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.Point
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.ingest.AvlIngestService
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
@@ -56,6 +55,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 /**
  * Full AVL pipeline through a real HTTP endpoint: a GTFS-RT `VehiclePosition` feed served by
@@ -73,7 +73,7 @@ import eu.transittrack.gtfs.support.FixtureDownloader
         "transittrack.feed.feeds=",
     ],
 )
-@Import(TestcontainersConfiguration::class, AvlEndToEndTest.Stub::class)
+@Import(AvlEndToEndTest.Stub::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -89,7 +89,7 @@ class AvlEndToEndTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -101,6 +101,7 @@ class AvlEndToEndTest(
 
     @BeforeAll
     fun setup() {
+        truncateBeforeFixture()
         server = MockWebServer()
         server.start()
 

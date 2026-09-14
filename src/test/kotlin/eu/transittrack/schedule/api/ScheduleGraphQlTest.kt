@@ -12,25 +12,25 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.graphql.test.tester.HttpGraphQlTester
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
 )
-@Import(TestcontainersConfiguration::class, ScheduleGraphQlTest.Stub::class)
+@Import(ScheduleGraphQlTest.Stub::class)
 @AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScheduleGraphQlTest(
     @Autowired val tester: HttpGraphQlTester,
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -40,6 +40,7 @@ class ScheduleGraphQlTest(
 
     @BeforeAll
     fun ingestOnce() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

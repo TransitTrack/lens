@@ -14,21 +14,21 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
-@Import(TestcontainersConfiguration::class, ScheduleReadServiceTest.Stub::class)
+@Import(ScheduleReadServiceTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ScheduleReadServiceTest(
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val read: ScheduleReadService,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -38,6 +38,7 @@ class ScheduleReadServiceTest(
 
     @BeforeAll
     fun ingestOnce() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("sd", "SD", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("sd")
     }

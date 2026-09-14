@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.Point
-import eu.transittrack.TestcontainersConfiguration
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -43,6 +42,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.support.PostgresPerClassTest
 
 /**
  * `schedule-sample` facts used here: trips T1 and T2 are both route RA / direction 0 / service WK,
@@ -63,7 +63,7 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
         "transittrack.predict.run.interval-ms=3600000",
     ],
 )
-@Import(TestcontainersConfiguration::class, HeadwayReadServiceTest.Stub::class)
+@Import(HeadwayReadServiceTest.Stub::class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class HeadwayReadServiceTest(
@@ -81,7 +81,7 @@ class HeadwayReadServiceTest(
     @Autowired val travelTimeObservations: TravelTimeObservationRepository,
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
-) {
+) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -93,6 +93,7 @@ class HeadwayReadServiceTest(
 
     @BeforeAll
     fun setup() {
+        truncateBeforeFixture()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
 

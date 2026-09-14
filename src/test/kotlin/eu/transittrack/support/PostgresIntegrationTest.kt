@@ -48,6 +48,11 @@ abstract class PostgresContainerSupport {
             registry.add("spring.datasource.url", c::getJdbcUrl)
             registry.add("spring.datasource.username", c::getUsername)
             registry.add("spring.datasource.password", c::getPassword)
+            // Many distinct SpringBootTest configurations now share this one container (instead of
+            // each test class getting its own), so each context's Hikari pool must stay small or
+            // the sum across all cached contexts exceeds Postgres's max_connections.
+            registry.add("spring.datasource.hikari.maximum-pool-size") { "3" }
+            registry.add("spring.datasource.hikari.minimum-idle") { "1" }
         }
     }
 }
