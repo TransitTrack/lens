@@ -10,22 +10,19 @@ import assertk.assertions.isInstanceOf
 import assertk.assertions.isTrue
 import assertk.assertions.key
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.jpa.test.autoconfigure.AutoConfigureTestEntityManager
-import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
 import org.springframework.dao.DataIntegrityViolationException
 
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
-@AutoConfigureTestEntityManager
 class RevisionRepositoryTest(
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
-    @Autowired val em: TestEntityManager,
-) {
+) : PostgresPerMethodTest() {
     private fun feed() =
         feeds.save(
             GtfsFeed(
@@ -59,11 +56,10 @@ class RevisionRepositoryTest(
         val f = feed()
         val r = revisions.save(newRev(f.id!!, GtfsRevisionStatus.ACTIVE))
 
-        // Force a real INSERT flush, then detach so findById issues a SELECT
-        // and the jsonb -> List/Map deserialization path is exercised.
-        em.flush()
-        em.clear()
-
+        // Under NOT_SUPPORTED, each repository call runs its own transaction/session (Spring
+        // Data JPA repository methods are @Transactional(REQUIRED) internally), so `save` above
+        // already committed and this `findById` opens a fresh session — no explicit flush/detach
+        // needed to force a real SELECT and exercise the jsonb -> List/Map deserialization path.
         val loaded = revisions.findById(r.id!!).get()
         assertThat(loaded.filesPresent).isEqualTo(listOf("agency.txt"))
         assertThat(loaded.rowCounts).key("gtfs_agency").isEqualTo(1L)
