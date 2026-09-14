@@ -1,0 +1,64 @@
+extend type Query {
+    compareRevisions(
+        fromRevisionId: ID!
+        toRevisionId: ID!
+        routeId: String
+        directionId: Int
+        serviceId: String
+        offset: Int = 0
+        limit: Int = 200
+    ): ScheduleComparison!
+}
+
+type ScheduleComparison {
+    fromRevisionId: ID!
+    toRevisionId: ID!
+    fromDerivationStale: Boolean!
+    toDerivationStale: Boolean!
+    tripChangeCount: Int!
+    tripChanges: [TripChange!]!
+    calendarChanges: [CalendarChange!]!
+    headwaySummaries: [HeadwaySummary!]!
+}
+
+type TripChange {
+    tripId: String!
+    kind: String!
+    fieldChanges: JSON!
+    stopChanges: [StopTimeChange!]!
+    runTimeDeltaSec: Int
+}
+
+type StopTimeChange {
+    stopSequence: Int!
+    kind: String!
+    stopId: String
+    arrivalDeltaSec: Int
+    departureDeltaSec: Int
+}
+
+type CalendarChange {
+    serviceId: String!
+    kind: String!
+    fieldChanges: JSON!
+    exceptionChanges: [CalendarExceptionChange!]!
+}
+
+type CalendarExceptionChange {
+    date: String!
+    kind: String!
+    fromType: Int
+    toType: Int
+}
+
+type HeadwaySummary {
+    routeId: String!
+    directionId: Int
+    serviceId: String!
+    fromTripCount: Int!
+    toTripCount: Int!
+    fromMeanGapSec: Int
+    toMeanGapSec: Int
+    fromMaxGapSec: Int
+    toMaxGapSec: Int
+}
