@@ -71,6 +71,11 @@ function exportDraft(row: Draft) {
   window.open('/api/revisions/' + row.id + '/gtfs.zip')
 }
 
+function compareDraft(row: Draft) {
+  if (!row.baseRevisionId) return
+  navigateTo(feedPath(`/compare?from=${row.baseRevisionId}&to=${row.id}`))
+}
+
 // --- discard confirm -----------------------------------------------------
 const discardTarget = ref<Draft | null>(null)
 const discardOpen = computed({
@@ -116,6 +121,12 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
     [
       {label: 'Open', icon: 'i-lucide-square-pen', onSelect: () => openDraft(row)},
       {label: 'Export', icon: 'i-lucide-download', onSelect: () => exportDraft(row)},
+      {
+        label: 'Compare',
+        icon: 'i-lucide-git-compare',
+        disabled: !row.baseRevisionId,
+        onSelect: () => compareDraft(row),
+      },
     ],
     [
       {
