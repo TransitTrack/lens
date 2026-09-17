@@ -43,7 +43,8 @@ function iconClass(color: NetworkPulseSignal['color']): string {
 
 <template>
   <section
-    class="network-pulse dashboard-enter overflow-hidden rounded-xl border border-default bg-default shadow-sm"
+    class="network-pulse overflow-hidden rounded-xl border border-default bg-default shadow-sm"
+    :class="{ 'dashboard-enter': hasRealtimeSource && !error }"
     aria-labelledby="network-pulse-heading"
   >
     <header class="network-pulse__header flex flex-col gap-3 border-b border-default px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -96,9 +97,10 @@ function iconClass(color: NetworkPulseSignal['color']): string {
           </div>
 
           <div
-            v-for="signal in signals"
+            v-for="(signal, index) in signals"
             :key="signal.key"
             class="dashboard-signal flex gap-3 rounded-lg border border-default bg-elevated/30 p-3.5"
+            :style="{ '--dashboard-signal-delay': `${index * 45}ms` }"
           >
             <div class="flex flex-col items-center gap-1.5 pt-0.5" aria-hidden="true">
               <UIcon :name="signal.icon" class="size-4" :class="iconClass(signal.color)" />
