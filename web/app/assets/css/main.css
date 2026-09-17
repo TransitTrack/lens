@@ -96,19 +96,8 @@
   animation: dashboard-value-flash 460ms ease-out both;
 }
 
-@keyframes dashboard-chart-grow {
-  from { transform: scaleY(0); }
-  to { transform: scaleY(1); }
-}
-
-.dashboard-chart-bar {
-  transform-box: fill-box;
-  transform-origin: center bottom;
-  animation: dashboard-chart-grow 360ms ease-out both;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-enter, .dashboard-signal, .dashboard-panel, .dashboard-signal__value, .dashboard-chart-bar {
+  .dashboard-enter, .dashboard-signal, .dashboard-panel, .dashboard-signal__value {
     animation: none;
     transition: none;
   }

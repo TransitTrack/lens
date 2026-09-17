@@ -30,9 +30,6 @@ const max = computed(() => {
 
 const slot = computed(() => (props.bars.length ? VW / props.bars.length : VW))
 const barW = computed(() => slot.value * 0.62)
-const animationKey = computed(() =>
-  props.bars.map((bar) => `${bar.label}:${bar.value}:${bar.color ?? ''}`).join('|'),
-)
 
 function x(i: number) {
   return i * slot.value + (slot.value - barW.value) / 2
@@ -67,13 +64,13 @@ const refY = computed(() =>
       />
       <rect
         v-for="(bar, i) in bars"
-        :key="animateUpdates ? `${bar.label}:${animationKey}` : bar.label"
+        :key="bar.label"
         :x="x(i)"
         :y="VH - barH(bar.value)"
         :width="barW"
         :height="barH(bar.value)"
         :fill="bar.color ?? 'currentColor'"
-        :class="{ 'dashboard-chart-bar': animateUpdates }"
+        :class="{ 'dashboard-chart-bar-update': animateUpdates }"
       >
         <title>{{ bar.hint ?? `${bar.label}: ${format(bar.value)}` }}</title>
       </rect>
@@ -106,3 +103,15 @@ const refY = computed(() =>
     </p>
   </div>
 </template>
+
+<style scoped>
+.dashboard-chart-bar-update {
+  transition: y 360ms ease-out, height 360ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-chart-bar-update {
+    transition: none;
+  }
+}
+</style>

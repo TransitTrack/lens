@@ -28,7 +28,7 @@ export function buildNetworkPulseSignals(
 
   const selectedFeed = feeds.find((feed) => feed.code === selectedAvlFeedCode)
   const hasHealthySelectedFeed =
-    !!selectedFeed?.enabled && /ok|success|healthy/i.test(selectedFeed.lastPollStatus ?? '')
+    !!selectedFeed?.enabled && selectedFeed.lastPollStatus === 'OK'
 
   if (tracked === 0 || !hasHealthySelectedFeed) {
     const detail =
