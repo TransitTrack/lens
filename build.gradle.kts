@@ -9,6 +9,7 @@ plugins {
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.10.2"
+    id("com.google.protobuf") version "0.10.0"
 }
 
 group = "eu.transittrack"
@@ -44,15 +45,14 @@ dependencies {
     implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:8.0.1")
     implementation("org.mobilitydata.gtfs-validator:gtfs-validator-core:8.0.1")
     implementation("com.google.code.gson:gson:2.14.0")
-    implementation("com.google.flogger:flogger-slf4j-backend:0.8")
+    implementation("com.google.flogger:flogger-slf4j-backend:0.9")
     implementation("com.google.guava:guava:33.6.0-jre")
     implementation("io.github.classgraph:classgraph:4.8.194")
-    implementation("org.mobilitydata:gtfs-realtime-bindings:0.2.0")
 
-    // developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
-    // runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.17.0")
+    // developmentOnly("org.springframework.boot:spring-boot-devtools")
+    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.17.0")
 
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
@@ -69,6 +69,9 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation(kotlin("test"))
+
+    protobuf(files("src/proto"))
+    implementation("com.google.protobuf:protobuf-java:4.36.1")
 }
 
 java {
@@ -83,6 +86,12 @@ kotlin {
             "-Xjsr305=strict",
             //            "-Xannotation-default-target=param-property"
         )
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:4.36.1"
     }
 }
 

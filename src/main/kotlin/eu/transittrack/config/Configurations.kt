@@ -78,7 +78,7 @@ class HttpClientsConfiguration(
     ) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val response = chain.proceed(chain.request())
-            val body = response.body ?: return response
+            val body = response.body
 
             // Optional: Fast-fail using Content-Length header if available
             if (body.contentLength() > maxBytes) {
