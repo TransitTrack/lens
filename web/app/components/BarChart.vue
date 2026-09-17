@@ -9,12 +9,14 @@ const props = withDefaults(
     referenceLabel?: string
     height?: number
     format?: (n: number) => string
+    animateUpdates?: boolean
   }>(),
   {
     referenceValue: null,
     referenceLabel: '',
     height: 150,
     format: (n: number) => String(Math.round(n)),
+    animateUpdates: false,
   },
 )
 
@@ -28,6 +30,9 @@ const max = computed(() => {
 
 const slot = computed(() => (props.bars.length ? VW / props.bars.length : VW))
 const barW = computed(() => slot.value * 0.62)
+const animationKey = computed(() =>
+  props.bars.map((bar) => `${bar.label}:${bar.value}:${bar.color ?? ''}`).join('|'),
+)
 
 function x(i: number) {
   return i * slot.value + (slot.value - barW.value) / 2
@@ -62,12 +67,13 @@ const refY = computed(() =>
       />
       <rect
         v-for="(bar, i) in bars"
-        :key="bar.label"
+        :key="animateUpdates ? `${bar.label}:${animationKey}` : bar.label"
         :x="x(i)"
         :y="VH - barH(bar.value)"
         :width="barW"
         :height="barH(bar.value)"
         :fill="bar.color ?? 'currentColor'"
+        :class="{ 'dashboard-chart-bar': animateUpdates }"
       >
         <title>{{ bar.hint ?? `${bar.label}: ${format(bar.value)}` }}</title>
       </rect>

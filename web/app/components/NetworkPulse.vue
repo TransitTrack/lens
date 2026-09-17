@@ -3,17 +3,21 @@ import {formatTimeAgo} from '@vueuse/core'
 import type {VehicleRow} from '~/composables/useVehiclePolling'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import VehicleMap from '~/components/VehicleMap.vue'
-import {buildNetworkPulseSignals, type NetworkPulseSignal} from '~/utils/networkPulse'
-import type {AvlFeedsQuery} from '~~/generated/graphql'
-
-type AvlFeedHealth = Pick<AvlFeedsQuery['avlFeeds'][number], 'enabled' | 'lastPollStatus'>
+import type {LngLatBoundsExtent} from '~/composables/useFeedExtent'
+import {
+  buildNetworkPulseSignals,
+  type AvlFeedHealth,
+  type NetworkPulseSignal,
+} from '~/utils/networkPulse'
 
 const props = defineProps<{
   vehicles: VehicleRow[]
   loading: boolean
   error: Error | null
   hasRealtimeSource: boolean
+  selectedAvlFeedCode: string | null
   feedCode: string | null
+  extent: LngLatBoundsExtent | null
   updatedAt: string | null
   /** Feed-health data from the existing AVL feeds query. */
   feeds: AvlFeedHealth[]
@@ -22,7 +26,10 @@ const props = defineProps<{
 const emit = defineEmits<{selectVehicle: [vehicleId: string]}>()
 
 const showSkeleton = computed(() => props.loading && props.vehicles.length === 0)
-const signals = computed(() => buildNetworkPulseSignals(props.vehicles, props.feeds))
+const signals = computed(() =>
+  buildNetworkPulseSignals(props.vehicles, props.feeds, props.selectedAvlFeedCode),
+)
+const hasLivePositions = computed(() => props.hasRealtimeSource && !props.error)
 
 function indicatorClass(color: NetworkPulseSignal['color']): string {
   return {
@@ -44,7 +51,7 @@ function iconClass(color: NetworkPulseSignal['color']): string {
 <template>
   <section
     class="network-pulse overflow-hidden rounded-xl border border-default bg-default shadow-sm"
-    :class="{ 'dashboard-enter': hasRealtimeSource && !error }"
+    :class="{ 'dashboard-enter': hasLivePositions }"
     aria-labelledby="network-pulse-heading"
   >
     <header class="network-pulse__header flex flex-col gap-3 border-b border-default px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
@@ -53,8 +60,14 @@ function iconClass(color: NetworkPulseSignal['color']): string {
         <h2 id="network-pulse-heading" class="mt-1 text-2xl font-semibold text-highlighted">Network pulse</h2>
       </div>
       <div class="flex items-center gap-2 text-sm text-muted">
-        <span class="dashboard-live-dot size-2 rounded-full bg-success" aria-hidden="true" />
-        <span>Live positions updated {{ updatedAt ? formatTimeAgo(new Date(updatedAt)) : '—' }}</span>
+        <template v-if="hasLivePositions">
+          <span class="dashboard-live-dot size-2 rounded-full bg-success" aria-hidden="true" />
+          <span>Live positions updated {{ updatedAt ? formatTimeAgo(new Date(updatedAt)) : '—' }}</span>
+        </template>
+        <template v-else>
+          <span class="size-2 rounded-full bg-neutral" aria-hidden="true" />
+          <span>Live positions unavailable</span>
+        </template>
       </div>
     </header>
 
@@ -87,7 +100,12 @@ function iconClass(color: NetworkPulseSignal['color']): string {
 
       <template v-else>
         <div class="network-pulse__map min-h-[20rem] border-b border-default lg:border-b-0 lg:border-r">
-          <VehicleMap :vehicles="vehicles" :feed-code="feedCode" @select="emit('selectVehicle', $event)" />
+          <VehicleMap
+            :vehicles="vehicles"
+            :extent="extent"
+            :feed-code="feedCode"
+            @select="emit('selectVehicle', $event)"
+          />
         </div>
 
         <aside class="network-pulse__signals flex flex-col gap-3 p-4 sm:p-5" aria-labelledby="network-pulse-signals-heading">
@@ -108,7 +126,11 @@ function iconClass(color: NetworkPulseSignal['color']): string {
             </div>
             <div class="min-w-0">
               <div class="text-sm font-medium text-muted">{{ signal.label }}</div>
-              <div class="mt-0.5 text-xl font-semibold text-highlighted">{{ signal.value }}</div>
+              <div class="mt-0.5 text-xl font-semibold text-highlighted">
+                <span :key="`${signal.key}:${signal.value}`" class="dashboard-signal__value">
+                  {{ signal.value }}
+                </span>
+              </div>
               <p class="mt-1 text-xs leading-5 text-muted">{{ signal.detail }}</p>
             </div>
           </div>

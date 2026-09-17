@@ -48,6 +48,7 @@ const bars = computed<Bar[]>(() =>
       :bars="bars"
       :height="130"
       :format="(n) => `±${Math.round(n)}s`"
+      animate-updates
     />
     <p class="text-[11px] text-dimmed">Mean absolute arrival error — lower is better.</p>
   </UCard>

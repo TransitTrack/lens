@@ -10,7 +10,10 @@ export interface NetworkPulseSignal {
   color: 'success' | 'warning' | 'neutral'
 }
 
-export type AvlFeedHealth = Pick<AvlFeedsQuery['avlFeeds'][number], 'enabled' | 'lastPollStatus'>
+export type AvlFeedHealth = Pick<
+  AvlFeedsQuery['avlFeeds'][number],
+  'code' | 'enabled' | 'lastPollStatus'
+>
 
 function percentage(value: number, total: number): string {
   return `${Math.round((value / total) * 100)}%`
@@ -18,19 +21,28 @@ function percentage(value: number, total: number): string {
 
 export function buildNetworkPulseSignals(
   vehicles: VehicleRow[],
-  _feeds: AvlFeedHealth[],
+  feeds: AvlFeedHealth[],
+  selectedAvlFeedCode: string | null,
 ): NetworkPulseSignal[] {
   const tracked = vehicles.length
 
-  const hasHealthyFeed = _feeds.some((feed) => feed.enabled && feed.lastPollStatus === 'OK')
+  const selectedFeed = feeds.find((feed) => feed.code === selectedAvlFeedCode)
+  const hasHealthySelectedFeed =
+    !!selectedFeed?.enabled && /ok|success|healthy/i.test(selectedFeed.lastPollStatus ?? '')
 
-  if (tracked === 0 || !hasHealthyFeed) {
+  if (tracked === 0 || !hasHealthySelectedFeed) {
+    const detail =
+      tracked === 0
+        ? 'No vehicles available'
+        : selectedFeed
+          ? 'Selected realtime source is not reporting healthy'
+          : 'Selected realtime source unavailable'
     return [
       {
         key: 'onTime',
         label: 'On-time performance',
         value: '—',
-        detail: 'No vehicles available',
+        detail,
         icon: 'i-lucide-clock-3',
         color: 'neutral',
       },
@@ -38,7 +50,7 @@ export function buildNetworkPulseSignals(
         key: 'attention',
         label: 'Needs attention',
         value: '—',
-        detail: 'No vehicles available',
+        detail,
         icon: 'i-lucide-triangle-alert',
         color: 'neutral',
       },
@@ -46,7 +58,7 @@ export function buildNetworkPulseSignals(
         key: 'coverage',
         label: 'Realtime coverage',
         value: '—',
-        detail: 'No vehicles available',
+        detail,
         icon: 'i-lucide-radio',
         color: 'neutral',
       },

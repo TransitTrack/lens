@@ -81,7 +81,35 @@
   animation: dashboard-rise-in 280ms ease-out both;
   animation-delay: var(--dashboard-signal-delay, 0ms);
 }
+.dashboard-panel {
+  animation: dashboard-rise-in 280ms ease-out both;
+  animation-delay: var(--dashboard-panel-delay, 0ms);
+}
+
+@keyframes dashboard-value-flash {
+  0% { opacity: 0.65; transform: scale(1.06); text-shadow: 0 0 0.65rem currentColor; }
+  100% { opacity: 1; transform: scale(1); text-shadow: none; }
+}
+
+.dashboard-signal__value {
+  display: inline-block;
+  animation: dashboard-value-flash 460ms ease-out both;
+}
+
+@keyframes dashboard-chart-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.dashboard-chart-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: dashboard-chart-grow 360ms ease-out both;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-enter, .dashboard-signal { animation: none; transition: none; }
+  .dashboard-enter, .dashboard-signal, .dashboard-panel, .dashboard-signal__value, .dashboard-chart-bar {
+    animation: none;
+    transition: none;
+  }
 }
