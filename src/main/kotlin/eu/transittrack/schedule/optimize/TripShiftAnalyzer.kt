@@ -179,6 +179,7 @@ class TripShiftAnalyzer(
     }
 
     private fun stopTimeAffectedTripRowIds(context: OptimizationAnalysisContext): Set<Long> {
+        // GTFS trip_id is unique within a single revision (eligibleTrips' scope), so this associate is lossless.
         val tripRowIdByTripId = context.eligibleTrips.associate { it.tripId to it.id!! }
         val tripIds = mutableSetOf<String>()
         context.recommendationsSoFar

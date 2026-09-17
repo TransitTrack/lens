@@ -6,6 +6,7 @@ import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 import eu.transittrack.avl.model.AvlFeedRepository
@@ -122,6 +123,17 @@ class OptimizationAnalysisPipelineOrchestrationTest {
 
         assertThat(result).hasSize(1)
         assertThat(result.single().reason).isEqualTo("ok")
+    }
+
+    @Test
+    fun `records an analyzer-failure metric when an analyzer throws`() {
+        val trips = tripsReturning(eligibleTrip())
+        val metrics = mock<TransitTrackMetrics>()
+        val broken = FakeAnalyzer("broken", 100) { throw RuntimeException("boom") }
+
+        pipeline(listOf(broken), trips, metrics).analyze(run())
+
+        verify(metrics).optimizationAnalyzerFailure("broken")
     }
 
     @Test

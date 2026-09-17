@@ -60,7 +60,7 @@ class OptimizationAnalysisContext internal constructor(
     private val produced = mutableListOf<OptimizationRecommendationRow>()
 
     /** Every recommendation produced by analyzers that already ran this run, in run order. */
-    val recommendationsSoFar: List<OptimizationRecommendationRow> get() = produced
+    val recommendationsSoFar: List<OptimizationRecommendationRow> get() = produced.toList()
 
     /** Called by [OptimizationAnalysisPipeline] after each analyzer runs; not for analyzers to call. */
     internal fun record(rows: List<OptimizationRecommendationRow>) {

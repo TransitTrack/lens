@@ -294,7 +294,7 @@ class StopTimeAnalyzerTest(
         )
 
         val run = baseRun(feedId, revisionId)
-        val eligibleTrips = listOf(selected, other)
+        val eligibleTrips = listOf(selected)
         val result = analyzer.analyze(contextFor(run, eligibleTrips, listOf(avlFeedId)))
 
         assertThat(result).hasSize(1)
@@ -303,6 +303,7 @@ class StopTimeAnalyzerTest(
         assertThat(recommendation.sampleCount).isEqualTo(2)
         assertThat(recommendation.evidence!!).contains("predictionMeanAbsErrorSec")
         assertThat(recommendation.currentValue!!).contains("T1")
+        assertThat(recommendation.currentValue!!.contains("T2")).isFalse()
         assertThat(recommendation.conflictKey!!).isEqualTo("cell:T1:2")
     }
 
