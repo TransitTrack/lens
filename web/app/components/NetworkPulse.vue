@@ -98,7 +98,7 @@ function iconClass(color: NetworkPulseSignal['color']): string {
           <div
             v-for="signal in signals"
             :key="signal.key"
-            class="flex gap-3 rounded-lg border border-default bg-elevated/30 p-3.5"
+            class="dashboard-signal flex gap-3 rounded-lg border border-default bg-elevated/30 p-3.5"
           >
             <div class="flex flex-col items-center gap-1.5 pt-0.5" aria-hidden="true">
               <UIcon :name="signal.icon" class="size-4" :class="iconClass(signal.color)" />
