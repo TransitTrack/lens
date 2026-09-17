@@ -63,7 +63,8 @@ class OptimizationAnalysisPipelineTest(
 
     private fun pipeline() =
         OptimizationAnalysisPipeline(
-            feeds, avlFeeds, trips, stopPaths, scheduleTimes, crossings, accuracies, OptimizationProperties(), json,
+            feeds, avlFeeds, trips, scheduleTimes, stopPaths, crossings, accuracies,
+            listOf(StopTimeAnalyzer(OptimizationProperties(), json), TripShiftAnalyzer(OptimizationProperties(), json)),
         )
 
     /** Returns (gtfsFeedId, revisionId, avlFeedId) — `avl_stop_crossing`/`prediction_accuracy` rows are

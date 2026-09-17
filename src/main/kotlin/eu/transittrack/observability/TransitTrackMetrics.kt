@@ -280,6 +280,14 @@ class TransitTrackMetrics(
             counter("transittrack.schedule.optimization.apply", tags("outcome", outcome.tag())).increment()
         }
 
+    /** An [eu.transittrack.schedule.optimize.OptimizationAnalyzer] threw during a run; the run still
+     * completes with whatever the other analyzers produced. `analyzerName` is a small fixed set of
+     * our own component names (e.g. `"stop-time"`), never user input. */
+    fun optimizationAnalyzerFailure(analyzerName: String) =
+        safely("optimization_analyzer_failure") {
+            counter("transittrack.schedule.optimization.analyzer.failures", tags("analyzer", analyzerName)).increment()
+        }
+
     fun outboundHttp(
         purpose: String,
         url: String,
