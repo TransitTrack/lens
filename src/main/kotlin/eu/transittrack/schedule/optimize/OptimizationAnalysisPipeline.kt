@@ -3,6 +3,7 @@ package eu.transittrack.schedule.optimize
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
@@ -50,17 +51,31 @@ class OptimizationAnalysisPipeline(
     private val properties: OptimizationProperties,
     private val json: JsonMapper,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     fun analyze(run: OptimizationRunRow): List<OptimizationRecommendationRow> {
         val eligibleTrips =
             trips
                 .findEligible(run.revisionId, run.serviceId, run.routeId, run.directionId, run.windowFromSec, run.windowToSec)
                 .filter { it.tripPatternId != null && it.id != null }
-        if (eligibleTrips.isEmpty()) return emptyList()
+        log.debug("run {}: {} eligible trips", run.id, eligibleTrips.size)
+        if (eligibleTrips.isEmpty()) {
+            log.info(
+                "run {}: no eligible trips for revision {} (serviceId={}, routeId={}, directionId={}, window={}..{}); " +
+                    "0 recommendations",
+                run.id, run.revisionId, run.serviceId, run.routeId, run.directionId, run.windowFromSec, run.windowToSec,
+            )
+            return emptyList()
+        }
 
         // avl_stop_crossing/prediction_accuracy are keyed by avl_feed.id, not gtfs_feed.id (the run's
         // frozen feed reference) — translate via the avl_feed -> gtfs_feed_code link.
         val avlFeedIds = avlFeedIdsFor(run.feedId)
-        if (avlFeedIds.isEmpty()) return emptyList()
+        log.debug("run {}: {} avl feeds mapped to gtfs feed {}", run.id, avlFeedIds.size, run.feedId)
+        if (avlFeedIds.isEmpty()) {
+            log.info("run {}: no AVL feed mapped to gtfs feed {}; 0 recommendations", run.id, run.feedId)
+            return emptyList()
+        }
 
         val eligibleTripRowIds = eligibleTrips.mapNotNull { it.id }.toSet()
         val crossingRows =
@@ -76,12 +91,23 @@ class OptimizationAnalysisPipeline(
                     run.windowFromSec,
                     run.windowToSec,
                 ).filter { it.tripRowId in eligibleTripRowIds }
-        if (crossingRows.isEmpty()) return emptyList()
+        log.debug("run {}: {} avl crossings in observed window matching eligible trips", run.id, crossingRows.size)
+        if (crossingRows.isEmpty()) {
+            log.info(
+                "run {}: no AVL crossings for eligible trips in observed window {}..{}; 0 recommendations",
+                run.id, run.observedFrom, run.observedTo,
+            )
+            return emptyList()
+        }
 
         val stopTimeResults = generateStopTimeCandidates(run, eligibleTrips, crossingRows, avlFeedIds)
         val stopTimeAffectedTripRowIds = stopTimeResults.flatMap { it.affectedTripRowIds }.toSet()
         val tripShiftRows = generateTripShiftCandidates(run, eligibleTrips, crossingRows, stopTimeAffectedTripRowIds, avlFeedIds)
 
+        log.info(
+            "run {}: generated {} stop-time and {} trip-shift recommendations",
+            run.id, stopTimeResults.size, tripShiftRows.size,
+        )
         return stopTimeResults.map { it.row } + tripShiftRows
     }
 
@@ -112,10 +138,22 @@ class OptimizationAnalysisPipeline(
         val tripsByPattern = eligibleTrips.groupBy { it.tripPatternId!! }
         val results = mutableListOf<StopTimeResult>()
 
+        var noPatternMatch = 0
+        var noAffectedTrips = 0
+        var noScheduledMedian = 0
+        var rejectedByEngine = 0
+        var rejectedNegativeDelta = 0
+        var rejectedNoTargets = 0
+
         val byPatternAndIndex = crossingRows.groupBy { it.tripPatternId to it.stopPathIndex }
+        log.debug("run {}: {} (pattern, stopPathIndex) partitions to evaluate for stop-time candidates", run.id, byPatternAndIndex.size)
         for ((key, samples) in byPatternAndIndex) {
             val (patternId, stopPathIndex) = key
-            val patternTrips = tripsByPattern[patternId] ?: continue
+            val patternTrips = tripsByPattern[patternId]
+            if (patternTrips == null) {
+                noPatternMatch++
+                continue
+            }
 
             val affected =
                 patternTrips.mapNotNull { t ->
@@ -125,9 +163,16 @@ class OptimizationAnalysisPipeline(
                     if (schedule[pos].arrivalSec == null) return@mapNotNull null
                     AffectedTrip(t, schedule, pos)
                 }
-            if (affected.isEmpty()) continue
+            if (affected.isEmpty()) {
+                noAffectedTrips++
+                continue
+            }
 
-            val scheduledSec = medianInt(affected.mapNotNull { it.schedule[it.segmentPos].schedTravelTimeSec }) ?: continue
+            val scheduledSec = medianInt(affected.mapNotNull { it.schedule[it.segmentPos].schedTravelTimeSec })
+            if (scheduledSec == null) {
+                noScheduledMedian++
+                continue
+            }
 
             val candidate =
                 RecommendationEngine.stopTime(
@@ -135,14 +180,21 @@ class OptimizationAnalysisPipeline(
                     observedSec = samples.map { it.observedTravelTimeSec },
                     minimumSamples = run.minimumSamples,
                     materialitySec = materiality,
-                ) ?: continue
+                )
+            if (candidate == null) {
+                rejectedByEngine++
+                continue
+            }
 
             val delta = candidate.deltaSec
             // Design 6.1's nondecreasing-timetable gate: this segment's delta shifts every downstream
             // arrival/departure in the affected trips by the same amount, so a negative delta would
             // always move published times earlier than what riders already see today — always
             // discard rather than only checking a single boundary crossing.
-            if (delta < 0) continue
+            if (delta < 0) {
+                rejectedNegativeDelta++
+                continue
+            }
             val stopSeqByIndex = stopPaths.findByTripPatternOrdered(run.revisionId, patternId).associate { it.stopPathIndex to it.stopSeq }
 
             val perTrip = mutableListOf<Triple<Trip, List<Map<String, Any?>>, List<Map<String, Any?>>>>()
@@ -179,7 +231,10 @@ class OptimizationAnalysisPipeline(
                 if (current.isEmpty()) continue
                 perTrip += Triple(aff.trip, current, proposed)
             }
-            if (perTrip.isEmpty()) continue
+            if (perTrip.isEmpty()) {
+                rejectedNoTargets++
+                continue
+            }
 
             val sorted = perTrip.sortedBy { it.first.tripId }
             val repTrip = sorted.first().first
@@ -210,6 +265,18 @@ class OptimizationAnalysisPipeline(
                 )
             results += StopTimeResult(row, affectedTripRowIds)
         }
+        log.debug(
+            "run {}: stop-time candidates: {} generated, {} dropped (no pattern match={}, no affected trips={}, " +
+                "no scheduled median={}, rejected by engine thresholds={}, negative delta={}, no targets left={})",
+            run.id, results.size,
+            noPatternMatch +
+                noAffectedTrips +
+                noScheduledMedian +
+                rejectedByEngine +
+                rejectedNegativeDelta +
+                rejectedNoTargets,
+            noPatternMatch, noAffectedTrips, noScheduledMedian, rejectedByEngine, rejectedNegativeDelta, rejectedNoTargets,
+        )
         return results
     }
 
@@ -223,28 +290,52 @@ class OptimizationAnalysisPipeline(
     ): List<OptimizationRecommendationRow> {
         val materiality = properties.materialitySec
         val ordered = eligibleTrips.filter { it.startTimeSec != null }.sortedBy { it.startTimeSec!! }
-        if (ordered.size < 2) return emptyList()
+        if (ordered.size < 2) {
+            log.debug("run {}: only {} trip(s) with a scheduled start time; trip-shift needs at least 2", run.id, ordered.size)
+            return emptyList()
+        }
 
         val crossingsByTrip = crossingRows.groupBy { it.tripRowId }
         val results = mutableListOf<OptimizationRecommendationRow>()
+
+        var excludedByStopTime = 0
+        var noNeighbor = 0
+        var noCrossings = 0
+        var noScheduledSegment = 0
+        var noObservedSamples = 0
+        var rejectedByEngine = 0
 
         for (idx in ordered.indices) {
             val trip = ordered[idx]
             val tripRowId = trip.id!!
             // Design 6.2: a trip-shift candidate must not overlap a stop-time recommendation's
             // same-trip target.
-            if (tripRowId in excludedTripRowIds) continue
+            if (tripRowId in excludedTripRowIds) {
+                excludedByStopTime++
+                continue
+            }
             val scheduledStart = trip.startTimeSec ?: continue
             val predecessor = if (idx > 0) ordered[idx - 1] else null
             val successor = if (idx < ordered.size - 1) ordered[idx + 1] else null
             val predecessorStart = predecessor?.startTimeSec
             val successorStart = successor?.startTimeSec
-            if (predecessorStart == null && successorStart == null) continue
+            if (predecessorStart == null && successorStart == null) {
+                noNeighbor++
+                continue
+            }
 
-            val tripCrossings = crossingsByTrip[tripRowId] ?: continue
+            val tripCrossings = crossingsByTrip[tripRowId]
+            if (tripCrossings == null) {
+                noCrossings++
+                continue
+            }
             val firstIndex = tripCrossings.minOfOrNull { it.stopPathIndex } ?: continue
             val schedule = scheduleTimes.findByTripOrdered(run.revisionId, tripRowId)
-            val schedSeg = schedule.firstOrNull { it.stopPathIndex == firstIndex }?.schedTravelTimeSec ?: continue
+            val schedSeg = schedule.firstOrNull { it.stopPathIndex == firstIndex }?.schedTravelTimeSec
+            if (schedSeg == null) {
+                noScheduledSegment++
+                continue
+            }
 
             // Approximate observed start adherence from the deviation at the earliest crossed
             // segment; see the class doc for why (no stop_path_index=0 rows, no stored timezone).
@@ -252,7 +343,10 @@ class OptimizationAnalysisPipeline(
                 tripCrossings
                     .filter { it.stopPathIndex == firstIndex }
                     .map { scheduledStart + (it.observedTravelTimeSec - schedSeg) }
-            if (observedStartSamples.isEmpty()) continue
+            if (observedStartSamples.isEmpty()) {
+                noObservedSamples++
+                continue
+            }
 
             val targetHeadway =
                 when {
@@ -272,7 +366,11 @@ class OptimizationAnalysisPipeline(
                     targetHeadwaySec = targetHeadway,
                     minimumSamples = run.minimumSamples,
                     materialitySec = materiality,
-                ) ?: continue
+                )
+            if (candidate == null) {
+                rejectedByEngine++
+                continue
+            }
 
             val evidence =
                 linkedMapOf<String, Any?>(
@@ -307,6 +405,18 @@ class OptimizationAnalysisPipeline(
                     conflictKey = "shift:${trip.tripId}",
                 )
         }
+        log.debug(
+            "run {}: trip-shift candidates: {} generated, {} dropped (excluded by stop-time={}, no neighbor trip={}, " +
+                "no crossings={}, no scheduled segment={}, no observed samples={}, rejected by engine thresholds={})",
+            run.id, results.size,
+            excludedByStopTime +
+                noNeighbor +
+                noCrossings +
+                noScheduledSegment +
+                noObservedSamples +
+                rejectedByEngine,
+            excludedByStopTime, noNeighbor, noCrossings, noScheduledSegment, noObservedSamples, rejectedByEngine,
+        )
         return results
     }
 
