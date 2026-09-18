@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.api.dto.FeedDto
 import eu.transittrack.gtfs.api.dto.RevisionDto
+import eu.transittrack.gtfs.api.dto.ValidationNoticeDto
 import eu.transittrack.gtfs.api.dto.ValidationSummaryDto
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.revision.GtfsRevision
@@ -40,7 +41,19 @@ class GtfsDtoMapper(
         val summary =
             revision.validationReport?.let { json ->
                 val report = jsonMapper.readValue(json, LoadValidationReport::class.java)
-                ValidationSummaryDto(report.errorCount, report.warningCount)
+                ValidationSummaryDto(
+                    errorCount = report.errorCount,
+                    warningCount = report.warningCount,
+                    notices =
+                        report.issues.map {
+                            ValidationNoticeDto(
+                                rule = it.rule,
+                                severity = it.severity.name,
+                                count = it.count,
+                                sample = it.sample,
+                            )
+                        },
+                )
             }
         return RevisionDto(
             id = revision.id.toString(),

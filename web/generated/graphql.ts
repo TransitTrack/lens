@@ -1282,9 +1282,18 @@ export type UpdateStopTimeInput = {
   tripId: Scalars['String']['input'];
 };
 
+export type ValidationNotice = {
+  __typename?: 'ValidationNotice';
+  count: Scalars['Int']['output'];
+  rule: Scalars['String']['output'];
+  sample: Scalars['String']['output'];
+  severity: Scalars['String']['output'];
+};
+
 export type ValidationSummary = {
   __typename?: 'ValidationSummary';
   errorCount: Scalars['Int']['output'];
+  notices: Array<ValidationNotice>;
   warningCount: Scalars['Int']['output'];
 };
 
@@ -1619,7 +1628,7 @@ export type FeedDetailQueryVariables = Exact<{
 }>;
 
 
-export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: string, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
+export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: string, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: string, count: number, sample: string }> } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: string, count: number, sample: string }> } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
 
 export type FeedGeometryQueryVariables = Exact<{
   feedCode: string;
@@ -3312,6 +3321,12 @@ export const FeedDetailDocument = gql`
       validationSummary {
         errorCount
         warningCount
+        notices {
+          rule
+          severity
+          count
+          sample
+        }
       }
     }
     revisions {
@@ -3328,6 +3343,12 @@ export const FeedDetailDocument = gql`
       validationSummary {
         errorCount
         warningCount
+        notices {
+          rule
+          severity
+          count
+          sample
+        }
       }
     }
   }

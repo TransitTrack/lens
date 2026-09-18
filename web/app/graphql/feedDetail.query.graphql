@@ -18,7 +18,16 @@ query FeedDetail($code: String!) {
       contentSha256
       filesPresent
       rowCounts
-      validationSummary { errorCount warningCount }
+      validationSummary {
+        errorCount
+        warningCount
+        notices {
+          rule
+          severity
+          count
+          sample
+        }
+      }
     }
     revisions {
       id
@@ -31,7 +40,16 @@ query FeedDetail($code: String!) {
       byteSize
       contentSha256
       errorMessage
-      validationSummary { errorCount warningCount }
+      validationSummary {
+        errorCount
+        warningCount
+        notices {
+          rule
+          severity
+          count
+          sample
+        }
+      }
     }
   }
   feedInfo(feedCode: $code) {

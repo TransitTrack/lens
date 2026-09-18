@@ -1,11 +1,13 @@
 import type { VehicleRow } from '../composables/useVehiclePolling'
 
-export type VehicleStatus = 'matched' | 'stale' | 'unmatched' | 'late' | 'early' | 'ontime'
+export type VehicleStatus =
+  'matched' | 'stale' | 'unmatched' | 'attention' | 'late' | 'early' | 'ontime'
 
-export const STATUS_OPTIONS: { value: VehicleStatus, label: string }[] = [
+export const STATUS_OPTIONS: { value: VehicleStatus; label: string }[] = [
   { value: 'matched', label: 'Matched' },
   { value: 'unmatched', label: 'Unmatched' },
   { value: 'stale', label: 'Stale' },
+  { value: 'attention', label: 'Needs attention' },
   { value: 'late', label: 'Late' },
   { value: 'early', label: 'Early' },
   { value: 'ontime', label: 'On time' },
@@ -30,6 +32,8 @@ function matchesStatus(v: VehicleRow, status: VehicleStatus): boolean {
       return !v.matched
     case 'stale':
       return v.stale
+    case 'attention':
+      return v.stale || !v.matched
     case 'late':
       return sec != null && sec >= 60
     case 'early':
@@ -39,10 +43,7 @@ function matchesStatus(v: VehicleRow, status: VehicleStatus): boolean {
   }
 }
 
-export function filterVehicles(
-  vehicles: VehicleRow[],
-  filters: VehicleFilterState,
-): VehicleRow[] {
+export function filterVehicles(vehicles: VehicleRow[], filters: VehicleFilterState): VehicleRow[] {
   const query = filters.query.trim().toLocaleLowerCase()
 
   return vehicles.filter((v) => {

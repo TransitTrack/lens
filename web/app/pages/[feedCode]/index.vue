@@ -12,6 +12,7 @@ import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useVehiclePolling } from '~/composables/useVehiclePolling'
 import { useAvlFeedsQuery } from '~~/generated/graphql'
 import { adherenceHistogram } from '~/utils/overviewStats'
+import type { VehicleStatus } from '~/utils/vehicleFilters'
 
 const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
 const { vehicles, loading, error } = useVehiclePolling(selectedAvlFeedCode)
@@ -26,6 +27,13 @@ const newestReport = computed(() =>
     null,
   ),
 )
+
+function viewVehicles(statuses: VehicleStatus[]) {
+  navigateTo({
+    path: feedPath('/vehicles'),
+    query: statuses.length ? { status: statuses.join(',') } : undefined,
+  })
+}
 </script>
 
 <template>
@@ -45,6 +53,7 @@ const newestReport = computed(() =>
       :updated-at="newestReport"
       :feeds="feedsResult?.avlFeeds ?? []"
       @select-vehicle="(id) => navigateTo(feedPath('/vehicles/' + id))"
+      @view-vehicles="viewVehicles"
     />
 
     <FeedOverviewStats />
@@ -54,7 +63,9 @@ const newestReport = computed(() =>
       style="--dashboard-panel-delay: 70ms"
       aria-labelledby="network-health-heading"
     >
-      <h2 id="network-health-heading" class="mb-3 text-lg font-semibold text-highlighted">Network health</h2>
+      <h2 id="network-health-heading" class="mb-3 text-lg font-semibold text-highlighted">
+        Network health
+      </h2>
       <div class="grid gap-4 lg:grid-cols-2">
         <FeedProcessingCard />
         <FeedHealthCard />

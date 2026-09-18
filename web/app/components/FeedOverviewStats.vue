@@ -29,8 +29,24 @@ const daysLeft = computed(() => {
 })
 
 const validation = computed(() => rev.value?.validationSummary ?? null)
+const validationOpen = ref(false)
+const validationNotices = computed(() =>
+  [...(validation.value?.notices ?? [])]
+    .filter((notice) => notice.severity === 'ERROR' || notice.severity === 'WARNING')
+    .sort((a, b) => {
+      const severityOrder = { ERROR: 0, WARNING: 1 }
+      return (
+        severityOrder[a.severity as keyof typeof severityOrder] -
+        severityOrder[b.severity as keyof typeof severityOrder]
+      )
+    }),
+)
 
 const n = (v: number | null) => (v == null ? '—' : v.toLocaleString())
+
+function noticeColor(severity: string): 'error' | 'warning' {
+  return severity === 'ERROR' ? 'error' : 'warning'
+}
 </script>
 
 <template>
@@ -95,12 +111,27 @@ const n = (v: number | null) => (v == null ? '—' : v.toLocaleString())
           Validation
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
-          <UBadge :color="validation?.errorCount ? 'error' : 'success'" variant="subtle">
-            {{ validation ? validation.errorCount : 0 }} errors
-          </UBadge>
-          <UBadge v-if="validation?.warningCount" color="warning" variant="subtle">
-            {{ validation.warningCount }} warnings
-          </UBadge>
+          <button
+            type="button"
+            class="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label="View validation problems"
+            @click="validationOpen = true"
+          >
+            <UBadge :color="validation?.errorCount ? 'error' : 'success'" variant="subtle">
+              {{ validation ? validation.errorCount : 0 }} errors
+            </UBadge>
+          </button>
+          <button
+            v-if="validation?.warningCount"
+            type="button"
+            class="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label="View validation problems"
+            @click="validationOpen = true"
+          >
+            <UBadge color="warning" variant="subtle">
+              {{ validation.warningCount }} warnings
+            </UBadge>
+          </button>
         </div>
         <div class="text-xs text-dimmed">
           <template v-if="info?.feedVersion">v{{ info.feedVersion }} · </template>
@@ -108,5 +139,44 @@ const n = (v: number | null) => (v == null ? '—' : v.toLocaleString())
         </div>
       </UCard>
     </div>
+
+    <UModal
+      v-model:open="validationOpen"
+      title="Validation problems"
+      :description="
+        validation
+          ? `${validation.errorCount} errors · ${validation.warningCount} warnings`
+          : 'No validation report is available for this revision.'
+      "
+    >
+      <template #body>
+        <div v-if="validationNotices.length" class="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+          <article
+            v-for="notice in validationNotices"
+            :key="`${notice.severity}:${notice.rule}`"
+            class="rounded-lg border border-default bg-elevated/30 p-3"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="min-w-0 font-medium text-highlighted">{{ notice.rule }}</div>
+              <UBadge :color="noticeColor(notice.severity)" variant="subtle">
+                {{ notice.count.toLocaleString() }} {{ notice.severity.toLocaleLowerCase()
+                }}{{ notice.count === 1 ? '' : 's' }}
+              </UBadge>
+            </div>
+            <pre
+              v-if="notice.sample"
+              class="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-md bg-default/70 p-2 text-xs leading-5 text-muted"
+              >{{ notice.sample }}</pre>
+          </article>
+        </div>
+        <div v-else class="rounded-lg border border-default bg-elevated/30 p-4 text-sm text-muted">
+          {{
+            validation
+              ? 'This revision has no stored validation problems.'
+              : 'Run or ingest a revision to see validation results here.'
+          }}
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

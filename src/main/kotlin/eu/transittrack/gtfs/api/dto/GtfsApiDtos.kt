@@ -34,6 +34,14 @@ data class RevisionDto(
 data class ValidationSummaryDto(
     val errorCount: Long,
     val warningCount: Long,
+    val notices: List<ValidationNoticeDto>,
+)
+
+data class ValidationNoticeDto(
+    val rule: String,
+    val severity: String,
+    val count: Long,
+    val sample: String,
 )
 
 data class RegisterFeedInput(
