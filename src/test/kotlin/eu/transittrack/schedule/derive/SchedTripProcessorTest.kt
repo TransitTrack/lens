@@ -183,7 +183,7 @@ class SchedTripProcessorTest(
     }
 
     @Test
-    fun `derived blockId falls back to tripShortName then tripId when block_id is absent`() {
+    fun `derived blockId preserves absence when block_id is missing, for BlockProcessor to infer`() {
         val rev = newRevision(feeds, revisions)
         gtfsWriter.write(
             listOf(
@@ -203,7 +203,7 @@ class SchedTripProcessorTest(
 
         val derived = context.get(rev).derivedTrips.associateBy { it.tripId }
         assertThat(derived.getValue("hasBlockId").blockId).isEqualTo("B")
-        assertThat(derived.getValue("hasShortNameOnly").blockId).isEqualTo("SN")
-        assertThat(derived.getValue("hasNeither").blockId).isEqualTo("hasNeither")
+        assertThat(derived.getValue("hasShortNameOnly").blockId).isNull()
+        assertThat(derived.getValue("hasNeither").blockId).isNull()
     }
 }

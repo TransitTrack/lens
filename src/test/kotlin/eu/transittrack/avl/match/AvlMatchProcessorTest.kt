@@ -1,16 +1,20 @@
 package eu.transittrack.avl.match
 
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.Test
 
 import assertk.assertThat
+import assertk.assertions.contains
+import assertk.assertions.doesNotContain
 import assertk.assertions.hasSize
 import assertk.assertions.isCloseTo
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
+import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -35,6 +39,7 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -63,6 +68,7 @@ class AvlMatchProcessorTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
+    @Autowired val lockProvider: JdbcTemplateLockProvider,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -216,5 +222,21 @@ class AvlMatchProcessorTest(
                 assertThat(state.tripRowId).isNull()
             }
         }
+    }
+
+    @Test
+    fun `reconcile does not start a task for a feed already owned by another coordinator`() {
+        // lockAtLeastFor is deliberately ~zero: a nonzero value keeps the lock held for that
+        // minimum even across an explicit release()/unlock(), which is correct ShedLock behavior
+        // but would make this test's second assertion (release frees it) flaky/wrong.
+        val otherPod = FeedLockCoordinator(lockProvider, "avl-feed", Duration.ofMinutes(3), Duration.ZERO)
+        otherPod.reconcileOwnership(setOf(feedId))
+
+        processor.reconcile()
+        assertThat(processor.runningFeedIds()).doesNotContain(feedId)
+
+        otherPod.release(feedId)
+        processor.reconcile()
+        assertThat(processor.runningFeedIds()).contains(feedId)
     }
 }

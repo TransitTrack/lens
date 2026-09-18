@@ -6,7 +6,10 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
+import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
+import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.test.context.SpringBootTest
 
 import eu.transittrack.AvlAssignmentMode
@@ -14,6 +17,7 @@ import eu.transittrack.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(
@@ -26,7 +30,19 @@ import eu.transittrack.support.PostgresPerMethodTest
 class AvlMatchSchedulingTest(
     @Autowired val processor: AvlMatchProcessor,
     @Autowired val feeds: AvlFeedRepository,
+    @Autowired @Qualifier("avlFeedLockCoordinator") val sharedCoordinator: FeedLockCoordinator,
+    @Autowired val lockProvider: JdbcTemplateLockProvider,
 ) : PostgresPerMethodTest() {
+    // See AvlPollerTest for why both resets are needed: this class's cached Spring context (and
+    // its singleton coordinator + lock provider bean) survives across @Test methods, but each
+    // method truncates every table, including `shedlock`.
+    @BeforeEach
+    override fun truncateBeforeEachTest() {
+        sharedCoordinator.releaseAll()
+        lockProvider.clearCache()
+        super.truncateBeforeEachTest()
+    }
+
     private fun feed(enabled: Boolean = true) =
         AvlFeed(
             code = "sched-f", name = "F", gtfsFeedCode = "g", url = "https://x.test/vp.pb",

@@ -4,6 +4,7 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.jdbc.core.JdbcTemplate
@@ -11,6 +12,8 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * Age-based prune of AVL ingestion tables. Deleting `avl_report` rows cascades their `vehicle_match`
@@ -19,6 +22,7 @@ import eu.transittrack.avl.AvlProperties
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class AvlRetentionScheduler(
     private val jdbc: JdbcTemplate,
     props: AvlProperties,
@@ -33,6 +37,7 @@ class AvlRetentionScheduler(
     )
 
     @Scheduled(cron = "\${transittrack.avl.retention.sweep-cron}")
+    @SchedulerLock(name = "avl-retention-prune", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     fun prune() {
         val c = prune(Instant.now())
         log.info("avl retention: pruned {} reports, {} matches, {} states", c.reports, c.matches, c.states)

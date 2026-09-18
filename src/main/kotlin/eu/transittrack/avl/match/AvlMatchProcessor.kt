@@ -7,6 +7,7 @@ import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -26,6 +27,9 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.observability.TransitTrackMetrics
 
 /**
@@ -42,6 +46,7 @@ import eu.transittrack.observability.TransitTrackMetrics
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class AvlMatchProcessor(
     private val reports: AvlReportRowRepository,
     private val feeds: AvlFeedRepository,
@@ -51,6 +56,7 @@ class AvlMatchProcessor(
     private val writer: AvlWriter,
     private val metrics: TransitTrackMetrics,
     props: AvlProperties,
+    @Qualifier("avlFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.match
@@ -71,10 +77,11 @@ class AvlMatchProcessor(
     @Synchronized
     fun reconcile() {
         val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
+        val owned = feedLocks.reconcileOwnership(enabled)
         tasks.keys
-            .filter { it !in enabled }
+            .filter { it !in owned }
             .forEach { id -> tasks.remove(id)?.cancel(false) }
-        for (id in enabled) {
+        for (id in owned) {
             if (!tasks.containsKey(id)) {
                 tasks[id] =
                     scheduler.scheduleWithFixedDelay(
@@ -95,6 +102,7 @@ class AvlMatchProcessor(
 
     @PreDestroy
     fun shutdown() {
+        tasks.keys.toList().forEach { feedLocks.release(it) }
         scheduler.shutdown()
     }
 

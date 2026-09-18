@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -14,6 +15,9 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.model.AvlFeedRepository
+import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * Owns one `scheduleWithFixedDelay` task per enabled `avl_feed` row. A 60s reconciler diffs the
@@ -23,9 +27,11 @@ import eu.transittrack.avl.model.AvlFeedRepository
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class AvlPoller(
     private val feeds: AvlFeedRepository,
     private val ingest: AvlIngestService,
+    @Qualifier("avlFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val scheduler =
@@ -49,10 +55,12 @@ class AvlPoller(
     @Synchronized
     fun reconcile() {
         val enabled = feeds.findAllEnabled().associateBy { it.id!! }
-        tasks.keys.filter { it !in enabled }.forEach { id ->
+        val owned = feedLocks.reconcileOwnership(enabled.keys)
+        tasks.keys.filter { it !in owned }.forEach { id ->
             tasks.remove(id)?.future?.cancel(false)
         }
-        for ((id, feed) in enabled) {
+        for (id in owned) {
+            val feed = enabled.getValue(id)
             val existing = tasks[id]
             if (existing == null || existing.intervalSec != feed.pollIntervalSec) {
                 existing?.future?.cancel(false)
@@ -77,5 +85,8 @@ class AvlPoller(
     fun runningFeedIds(): Set<Long> = tasks.keys.toSet()
 
     @PreDestroy
-    fun shutdown() = scheduler.shutdown()
+    fun shutdown() {
+        tasks.keys.toList().forEach { feedLocks.release(it) }
+        scheduler.shutdown()
+    }
 }

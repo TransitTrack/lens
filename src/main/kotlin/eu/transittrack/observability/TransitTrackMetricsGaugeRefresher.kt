@@ -1,5 +1,6 @@
 package eu.transittrack.observability
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
@@ -8,11 +9,14 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.predict.PredictProperties
 
 /** Refreshes database-derived queue gauges outside Prometheus's scrape thread. */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class TransitTrackMetricsGaugeRefresher(
     private val feeds: AvlFeedRepository,
     private val reports: AvlReportRowRepository,
@@ -23,6 +27,7 @@ class TransitTrackMetricsGaugeRefresher(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(fixedDelayString = "\${transittrack.observability.gauge-refresh-ms:30000}")
+    @SchedulerLock(name = "metrics-gauge-avl-queue", lockAtMostFor = "PT2M", lockAtLeastFor = "PT20S")
     fun refreshAvlQueue() {
         runCatching {
             val pending = reports.pendingMetricsByFeed().associateBy { it.feedId }
@@ -34,6 +39,7 @@ class TransitTrackMetricsGaugeRefresher(
     }
 
     @Scheduled(fixedDelayString = "\${transittrack.observability.gauge-refresh-ms:30000}")
+    @SchedulerLock(name = "metrics-gauge-prediction-queue", lockAtMostFor = "PT2M", lockAtLeastFor = "PT20S")
     fun refreshPredictionQueue() {
         if (!predictProps.enabled) return
         runCatching {

@@ -7,6 +7,7 @@ import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
 import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -21,6 +22,9 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.PredictionStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.observability.TransitTrackMetrics
 
 /**
@@ -37,6 +41,7 @@ import eu.transittrack.observability.TransitTrackMetrics
  */
 @Component
 @ConditionalOnProperty("transittrack.predict.enabled", havingValue = "true")
+@ConditionalOnRole(Role.PREDICTOR)
 class PredictionProcessor(
     private val vehicleMatches: VehicleMatchRepository,
     private val reports: AvlReportRowRepository,
@@ -45,6 +50,7 @@ class PredictionProcessor(
     private val predictionService: PredictionService,
     private val metrics: TransitTrackMetrics,
     props: PredictProperties,
+    @Qualifier("predictorFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.run
@@ -64,10 +70,11 @@ class PredictionProcessor(
     @Synchronized
     fun reconcile() {
         val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
+        val owned = feedLocks.reconcileOwnership(enabled)
         tasks.keys
-            .filter { it !in enabled }
+            .filter { it !in owned }
             .forEach { id -> tasks.remove(id)?.cancel(false) }
-        for (id in enabled) {
+        for (id in owned) {
             if (!tasks.containsKey(id)) {
                 tasks[id] =
                     scheduler.scheduleWithFixedDelay(
@@ -87,7 +94,10 @@ class PredictionProcessor(
     fun runningFeedIds(): Set<Long> = tasks.keys.toSet()
 
     @PreDestroy
-    fun shutdown() = scheduler.shutdown()
+    fun shutdown() {
+        feedLocks.releaseAll()
+        scheduler.shutdown()
+    }
 
     /**
      * Processes every currently-enabled feed once, synchronously, and returns the total number of

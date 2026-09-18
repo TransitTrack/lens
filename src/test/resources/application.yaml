@@ -58,7 +58,13 @@ management:
 
 transittrack:
   observability:
-    gauge-refresh-ms: 30000
+    # Slow by default: many @SpringBootTest configurations share one Testcontainers Postgres
+    # instance whose cached Spring contexts stay alive (and keep scheduling) for the rest of the
+    # suite's runtime. A fast default here means every such context's background gauge refresh
+    # (now ShedLock-guarded, so it also touches the shedlock table) fires continuously across the
+    # whole run, raising the odds of colliding with another test's TRUNCATE. Tests that need the
+    # real cadence override this property themselves.
+    gauge-refresh-ms: 3600000
   http:
     connect-timeout-ms: 10000
     read-timeout-ms: 60000
@@ -97,6 +103,10 @@ transittrack:
       stale-vehicle-hours: 12
       sweep-cron: "0 0 * * * *"
     match:
+      # Same rationale as observability.gauge-refresh-ms above: slow by default so
+      # AvlSilentVehicleSweeper's now ShedLock-guarded sweep doesn't churn the shared DB across the
+      # whole suite's runtime. Tests that assert on this cadence override it themselves.
+      match-interval-ms: 3600000
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0
       unmatch-after-failures: 5
@@ -110,7 +120,8 @@ transittrack:
     run:
       # Independent poll cadence for PredictionProcessor, decoupled from avl.match.match-interval-ms —
       # a feed's prediction backlog drains at this rate regardless of how fast it's being matched.
-      interval-ms: 5000
+      # Slow by default for the same shared-DB-churn reason as avl.match.match-interval-ms above.
+      interval-ms: 3600000
       claim-batch-size: 500
     learn:
       max-plausible-travel-time-sec: 1800

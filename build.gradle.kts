@@ -72,6 +72,11 @@ dependencies {
 
     protobuf(files("src/proto"))
     implementation("com.google.protobuf:protobuf-java:4.36.1")
+
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.9.0")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.9.0")
+
+    testImplementation("net.javacrumbs.shedlock:shedlock-core:7.9.0")
 }
 
 java {

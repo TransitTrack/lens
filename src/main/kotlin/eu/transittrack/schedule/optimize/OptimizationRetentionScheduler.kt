@@ -4,10 +4,14 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * Age-based prune of `schedule_optimization_run` rows older than
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Component
  * delete removes every recommendation it produced.
  */
 @Component
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class OptimizationRetentionScheduler(
     private val jdbc: JdbcTemplate,
     props: OptimizationProperties,
@@ -30,6 +35,7 @@ class OptimizationRetentionScheduler(
     )
 
     @Scheduled(cron = "\${transittrack.schedule.optimize.retention.sweep-cron:0 30 3 * * *}")
+    @SchedulerLock(name = "optimization-retention-prune", lockAtMostFor = "PT15M", lockAtLeastFor = "PT1M")
     fun prune() {
         val counts = prune(Instant.now())
         log.info("optimization retention: pruned {} runs (recommendations cascade with them)", counts.runs)

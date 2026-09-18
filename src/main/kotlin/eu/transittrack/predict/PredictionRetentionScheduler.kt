@@ -4,11 +4,15 @@ import java.sql.Timestamp
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * Age-based prune of prediction tables, plus a sweep of learner-table rows left orphaned when their
@@ -16,6 +20,7 @@ import org.springframework.stereotype.Component
  */
 @Component
 @ConditionalOnProperty("transittrack.predict.enabled", havingValue = "true")
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class PredictionRetentionScheduler(
     private val jdbc: JdbcTemplate,
     props: PredictProperties,
@@ -32,6 +37,7 @@ class PredictionRetentionScheduler(
     )
 
     @Scheduled(cron = "\${transittrack.predict.retention.sweep-cron}")
+    @SchedulerLock(name = "predict-retention-prune", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     fun prune() {
         val c = prune(Instant.now())
         log.info(

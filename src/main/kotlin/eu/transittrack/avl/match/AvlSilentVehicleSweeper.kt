@@ -2,6 +2,7 @@ package eu.transittrack.avl.match
 
 import java.time.Instant
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
@@ -9,6 +10,8 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * Ages out matched vehicles that have stopped sending reports.
@@ -31,6 +34,7 @@ import eu.transittrack.avl.model.VehicleStateRepository
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class AvlSilentVehicleSweeper(
     private val vehicleStates: VehicleStateRepository,
     props: AvlProperties,
@@ -44,6 +48,7 @@ class AvlSilentVehicleSweeper(
     )
 
     @Scheduled(fixedDelayString = "\${transittrack.avl.match.match-interval-ms:5000}")
+    @SchedulerLock(name = "avl-silent-sweep", lockAtMostFor = "PT30S", lockAtLeastFor = "PT4S")
     fun sweep() {
         val c = sweep(Instant.now())
         if (c.staled > 0 || c.unmatched > 0) {

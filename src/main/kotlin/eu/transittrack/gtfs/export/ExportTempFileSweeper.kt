@@ -7,10 +7,14 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.io.path.name
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * Reaps `gtfs-export-*.zip` spool files that [RevisionExportController] left in `java.io.tmpdir`
@@ -19,6 +23,7 @@ import org.springframework.stereotype.Component
  * Mirrors [eu.transittrack.avl.ingest.AvlRetentionScheduler]'s cron style.
  */
 @Component
+@ConditionalOnRole(Role.FEED_PROCESSOR)
 class ExportTempFileSweeper(
     @Value("\${transittrack.export.temp-file-max-age-minutes:15}") private val maxAgeMinutes: Long,
 ) {
@@ -26,6 +31,7 @@ class ExportTempFileSweeper(
     private val tmpDir: Path = Paths.get(System.getProperty("java.io.tmpdir"))
 
     @Scheduled(cron = "\${transittrack.export.temp-sweep-cron:0 */5 * * * *}")
+    @SchedulerLock(name = "export-temp-sweep", lockAtMostFor = "PT4M", lockAtLeastFor = "PT30S")
     fun sweep() {
         val cutoff = Instant.now().minus(Duration.ofMinutes(maxAgeMinutes))
         var deleted = 0
