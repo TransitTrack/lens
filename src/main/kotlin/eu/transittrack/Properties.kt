@@ -51,10 +51,6 @@ data class GtfsProperties(
     )
 }
 
-enum class AvlFormat { GTFS_RT, STPT }
-
-enum class AvlAssignmentMode { TRUST_DESCRIPTOR, DESCRIPTOR_THEN_INFER, FULL_INFERENCE }
-
 /**
  * Single source of truth for feed definitions. Each entry describes a GTFS schedule feed and,
  * optionally, its real-time vehicle-positions companion under [FeedDef.avl]. `GtfsFeedConfigSynchronizer`

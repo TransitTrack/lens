@@ -3,10 +3,6 @@ package eu.transittrack.predict
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
-enum class PredictionAlgorithm { SCHEDULE_ADHERENCE, HISTORICAL_AVERAGE, KALMAN }
-
-enum class PredictionMode { SINGLE, EVALUATION }
-
 @ConfigurationProperties("transittrack.predict")
 data class PredictProperties(
     val enabled: Boolean = false,
