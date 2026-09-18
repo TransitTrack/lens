@@ -43,7 +43,7 @@ class BlockProcessor(
         var totalBlockTrips = 0L
 
         // --- 1. Scheduled blocks (port of blockPass) ---------------------------------------
-        val blockInputs =
+        val providedBlockInputs =
             state.derivedTrips
                 .filter { it.blockId != null && !it.frequencyBased && !it.noSchedule }
                 .map {
@@ -58,7 +58,28 @@ class BlockProcessor(
                         lastStopId = it.lastStopId,
                     )
                 }
-        val results = BlockBuilder.build(blockInputs)
+        val inferredBlockInputs =
+            state.derivedTrips
+                .filter { it.blockId == null && !it.frequencyBased && !it.noSchedule }
+                .map {
+                    InferredBlockTripInput(
+                        tripRowId = it.tripRowId,
+                        tripId = it.tripId,
+                        serviceId = it.serviceId,
+                        routeId = it.routeId,
+                        startTimeSec = it.startSec,
+                        endTimeSec = it.endSec,
+                        firstStopId = it.firstStopId,
+                        lastStopId = it.lastStopId,
+                    )
+                }
+        val inferredResults =
+            if (props.inferredBlocks.enabled) {
+                InferredBlockBuilder.build(inferredBlockInputs, props.inferredBlocks)
+            } else {
+                inferredBlockInputs.map { InferredBlockBuilder.build(listOf(it), props.inferredBlocks).single() }
+            }
+        val results = BlockBuilder.build(providedBlockInputs) + inferredResults
         val blockRows =
             results.map {
                 Block(
@@ -118,9 +139,10 @@ class BlockProcessor(
             frequencies.findByRevisionId(revisionId).groupBy { it.tripId }.mapValues { it.value.first() }
         val freqBlockRows = ArrayList<Block>()
         val freqBlockTrips = ArrayList<Pair<String, DerivedTrip>>() // block_id value -> trip
-        for (dt in state.derivedTrips.filter { it.frequencyBased && it.blockId != null }) {
+        for (dt in state.derivedTrips.filter { it.frequencyBased }) {
             val f = freqByTrip[dt.tripId] ?: continue
-            val blockIdValue = "${dt.blockId}|${dt.tripId}"
+            val sourceBlockId = dt.blockId ?: "inferred:${dt.serviceId}:${dt.tripId}"
+            val blockIdValue = "$sourceBlockId|${dt.tripId}"
             freqBlockRows.add(
                 Block(
                     revisionId = revisionId,
@@ -161,8 +183,8 @@ class BlockProcessor(
         if (props.tolerateNoScheduleTrips) {
             val groups =
                 state.derivedTrips
-                    .filter { it.noSchedule && it.blockId != null }
-                    .groupBy { it.blockId!! to it.serviceId }
+                    .filter { it.noSchedule }
+                    .groupBy { (it.blockId ?: "inferred:${it.serviceId}:${it.tripId}") to it.serviceId }
             val unschedBlockRows = ArrayList<Block>()
             val unschedBlockTripInputs = ArrayList<Pair<Pair<String, String>, List<DerivedTrip>>>()
             for ((key, group) in groups) {

@@ -72,12 +72,30 @@ later be layered in.
 
 ## Blocks and layovers
 
-Trips sharing `(block_id, service_id)` are ordered by start time into a block;
-each `block_trip.layover_after_sec` / `deadhead_after` describes the gap to the
+Publisher-provided trips sharing `(block_id, service_id)` are ordered by start
+time into a block. When a timed, non-frequency trip has no `block_id`, the
+derivation creates an `inferred:<service_id>:<first-trip-id>` block. Inference
+only joins non-overlapping trips from the same service: terminal-to-origin
+continuations join automatically; cross-stop (deadhead) joins require the
+explicit `inferred-blocks.allow-deadhead` setting and must fit within
+`inferred-blocks.max-deadhead-gap-sec` (default 1800 seconds). Set
+`inferred-blocks.enabled: false` to keep unblocked trips as explicit singleton
+inferred blocks.
+
+Each `block_trip.layover_after_sec` / `deadhead_after` describes the gap to the
 next trip. A pattern's last `stop_path` is flagged `layover_stop` with a
 `break_time_sec` when **any** trip on that pattern lays over at least
 `layover-threshold-sec` (default 60 s) — this is a pattern-level heuristic,
 not a per-trip guarantee.
+
+```yaml
+transittrack:
+  schedule:
+    inferred-blocks:
+      enabled: true
+      allow-deadhead: false
+      max-deadhead-gap-sec: 1800
+```
 
 ## Frequency-based trips
 
@@ -86,10 +104,10 @@ Trips listed in `frequencies.txt` get a pattern, stop paths and
 `trips.frequency_based` is set `true` for such a trip; the raw
 `frequencies.exact_times` flag is **not** copied onto `trips` (query the
 `frequencies(tripId:)` GraphQL field for it). The concrete departure times come
-from `gtfs_frequency` windows at read / prediction time. Frequency trips are **not placed in blocks** even when they
-carry a `block_id`, because their 0-based start times would sort to the front
-of every block and corrupt the layover gaps. Full frequency handling is
-deferred to the prediction sub-project.
+from `gtfs_frequency` windows at read / prediction time. Each frequency trip
+is retained as its own dedicated block rather than participating in inferred
+or scheduled chains, because its 0-based start times would otherwise corrupt
+layover gaps. Full frequency handling is deferred to the prediction sub-project.
 
 ## Read API
 
