@@ -1,0 +1,9 @@
+.git
+.gradle
+.idea
+.kotlin
+build
+web
+docs
+docker
+*.md

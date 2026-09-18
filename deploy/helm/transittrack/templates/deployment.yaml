@@ -1,0 +1,55 @@
+{{- range $roleName, $role := .Values.roles }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "transittrack.fullname" $ }}-{{ $roleName }}
+  labels:
+    {{- include "transittrack.labels" $ | nindent 4 }}
+    transittrack.role: {{ $roleName }}
+spec:
+  replicas: {{ $role.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "transittrack.fullname" $ }}
+      transittrack.role: {{ $roleName }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "transittrack.fullname" $ }}
+        transittrack.role: {{ $roleName }}
+    spec:
+      containers:
+        - name: transittrack
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ $role.profile }}
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://{{ $.Values.postgres.host }}:{{ $.Values.postgres.port }}/{{ $.Values.postgres.database }}"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: {{ $.Values.postgres.username }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.postgres.passwordSecretName }}
+                  key: {{ $.Values.postgres.passwordSecretKey }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "transittrack.fullname" $ }}-config
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 10
+          resources:
+            {{- toYaml $.Values.resources | nindent 12 }}
+{{- end }}

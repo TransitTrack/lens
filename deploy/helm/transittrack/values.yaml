@@ -1,0 +1,36 @@
+image:
+  repository: transittrack
+  tag: local
+  pullPolicy: IfNotPresent
+
+roles:
+  api:
+    profile: role-api
+    replicaCount: 2
+    service:
+      enabled: true
+      port: 8080
+  ingester:
+    profile: role-ingester
+    replicaCount: 1
+  feed-processor:
+    profile: role-feed-processor
+    replicaCount: 2
+  predictor:
+    profile: role-predictor
+    replicaCount: 1
+
+postgres:
+  host: transittrack-postgres
+  port: 5432
+  database: explorer
+  username: postgres
+  passwordSecretName: transittrack-postgres
+  passwordSecretKey: password
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
