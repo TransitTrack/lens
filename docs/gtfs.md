@@ -82,13 +82,25 @@ in-place mutation of a live revision.
 
 ### State machine (spec §5)
 
-```
-PENDING -> DOWNLOADING -> PARSING -> VALIDATING -> DERIVING -> READY -> ACTIVE -> SUPERSEDED
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING
+    PENDING --> DOWNLOADING
+    DOWNLOADING --> PARSING
+    DOWNLOADING --> UNCHANGED: SHA-256 == current ACTIVE (stop, no rows written)
+    PARSING --> VALIDATING
+    VALIDATING --> DERIVING
+    DERIVING --> READY
+    READY --> ACTIVE: swap — previous ACTIVE becomes SUPERSEDED
+    ACTIVE --> SUPERSEDED: when a newer revision is activated
+    UNCHANGED --> [*]
+    SUPERSEDED --> [*]
 
-  any step     -> FAILED     (error_message set, all rows for revision deleted)
-  DOWNLOADING  -> UNCHANGED  (SHA-256 == current ACTIVE; stop, no rows written)
-  READY -> ACTIVE            swap: previous ACTIVE becomes SUPERSEDED
-  ACTIVE -> SUPERSEDED       when a newer revision is activated
+    DOWNLOADING --> FAILED
+    PARSING --> FAILED
+    VALIDATING --> FAILED
+    DERIVING --> FAILED
+    FAILED --> [*]: error_message set, all rows for revision deleted
 ```
 
 `DERIVING` is skipped when `transittrack.schedule.enabled = false`.

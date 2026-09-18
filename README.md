@@ -1,32 +1,62 @@
-# transittrack-explorer
+# transittrack
 
-## Monitoring
+A Kotlin / Spring Boot 4 service that turns published GTFS Schedule + AVL
+(Automatic Vehicle Location) feeds into live, predicted vehicle
+arrivals/departures — ingested, versioned, matched, and served over GraphQL —
+plus a Nuxt dashboard for watching it happen.
 
-Prometheus scrapes the backend at [http://localhost:8088/actuator/prometheus](http://localhost:8088/actuator/prometheus); its local UI is [http://localhost:9090](http://localhost:9090). Grafana is provisioned at [http://localhost:4000](http://localhost:4000) (local credentials: `admin` / `admin`) with overview, GTFS import, AVL/matching, and prediction dashboards. Alert rules currently remain in the Grafana UI; no external notification channel is configured.
+```mermaid
+flowchart TD
+    subgraph gtfs["GTFS Schedule pipeline"]
+        A["GTFS Schedule feed"] -->|ingest| B[("gtfs_revision<br/>versioned, immutable")]
+        B --> C["derived schedule model<br/>trip patterns, stop paths, blocks, schedule times"]
+    end
 
-A Kotlin / Spring Boot 4 service for ingesting public-transit schedule data and
-serving it over GraphQL.
+    subgraph avl["AVL pipeline"]
+        D["AVL feed (realtime)"] -->|poll| E[("avl_report<br/>PENDING")]
+    end
 
-## GTFS ingestion
+    C --> F
+    E -->|match| F[("vehicle_match / vehicle_state")]
+    F --> G["predictions + accuracy tracking"]
+    G --> H(["GraphQL API"])
+    H --> I["web dashboard"]
+```
 
-The `eu.transittrack.gtfs` subsystem downloads GTFS Schedule feeds from remote
-URLs, stores the full GTFS spec in PostgreSQL, and keeps every import as an
-immutable, queryable **revision**. A Spring GraphQL API serves the active
-revision of each feed.
+## What it does
 
-See **[docs/gtfs.md](docs/gtfs.md)** for how to register feeds (config or
-mutation), the revision lifecycle, the mutations, retention/pruning, the polling
-scheduler, and the read API. Design spec:
-[docs/superpowers/specs/2026-08-30-gtfs-ingestion-versioned-storage-design.md](docs/superpowers/specs/2026-08-30-gtfs-ingestion-versioned-storage-design.md).
+- **Ingests GTFS Schedule feeds** from remote URLs, storing the full spec in
+  Postgres as immutable, queryable **revisions** — every import is kept
+  (subject to retention), nothing is overwritten in place.
+  → [docs/gtfs.md](docs/gtfs.md)
+- **Derives a prediction-ready schedule model** from each revision: trip
+  patterns with geometry, stop paths, vehicle blocks (including inference for
+  feeds with no `block_id`), and per-trip schedule times.
+  → [docs/schedule.md](docs/schedule.md)
+- **Ingests AVL feeds** (GTFS-Realtime `VehiclePosition` today) and matches
+  each report to a trip in the derived model, spatially and/or against its
+  own descriptor, tracking live vehicle state.
+  → [docs/avl.md](docs/avl.md)
+- **Generates arrival/departure predictions** per stop for every matched
+  vehicle, learns travel times (Kalman filter / historical average), and
+  tracks prediction accuracy against what actually happened.
+  → [docs/predictions.md](docs/predictions.md)
+- **Serves all of the above over Spring GraphQL** (GraphiQL at
+  `/graphiql`), and ships a **Nuxt/Vue live dashboard** (`web/`) for watching
+  matched vehicles and predictions in real time.
 
-## Derived schedule model
+## Quickstart (local dev)
 
-After each GTFS revision is validated, the `eu.transittrack.schedule` subsystem
-derives trip patterns, stop paths (with geometry), blocks, and per-trip
-schedule times — the foundation for AVL-based arrival/departure prediction.
+```bash
+docker compose up -d      # Postgres + Prometheus + Grafana
+./gradlew bootRun          # runs everything in one process (monolith mode)
+```
 
-See **[docs/schedule.md](docs/schedule.md)**. Design spec:
-[docs/superpowers/specs/2026-08-30-derived-schedule-model-design.md](docs/superpowers/specs/2026-08-30-derived-schedule-model-design.md).
+GraphiQL: `http://localhost:8080/graphiql`. The shipped `application.yaml`
+comes with two example feeds already configured
+(`transittrack.feed.feeds`) so there's something to look at immediately.
+
+For the dashboard: see [web/README.md](web/README.md).
 
 ## Running tests
 
@@ -34,13 +64,47 @@ See **[docs/schedule.md](docs/schedule.md)**. Design spec:
 ./gradlew test
 ```
 
-The test suite uses Testcontainers, so a running Docker daemon is required.
+Uses Testcontainers, so a running Docker daemon is required.
 
-## Running the app
+## Deployment
 
-```bash
-docker compose up -d      # PostgreSQL + Grafana LGTM stack
-./gradlew bootRun
-```
+Runs as a container, splittable into four independently-scalable
+Kubernetes roles (`api` / `ingester` / `feed-processor` / `predictor`)
+selected via `SPRING_PROFILES_ACTIVE` — or as one monolith process (the
+local-dev default) with no profile set at all. A Helm chart is included.
 
-GraphiQL is available at `http://localhost:8080/graphiql`.
+→ **[docs/deployment.md](docs/deployment.md)** — image build, roles,
+multi-replica coordination (ShedLock), Helm chart usage, scaling guidance.
+
+## Configuration
+
+Every `transittrack.*` setting, its default, and what it controls:
+
+→ **[docs/configuration.md](docs/configuration.md)**
+
+## Monitoring
+
+Prometheus (bundled by `docker compose`, UI at
+[http://localhost:9090](http://localhost:9090)) scrapes the backend's
+`/actuator/prometheus` on port 8080. Grafana is provisioned at
+[http://localhost:4000](http://localhost:4000) (local credentials:
+`admin` / `admin`) with overview, GTFS import, AVL/matching, and prediction
+dashboards. Alert rules currently remain in the Grafana UI; no external
+notification channel is configured. See
+[docs/deployment.md §5](docs/deployment.md#5-kubernetes--helm) for wiring
+metrics up in a cluster instead.
+
+## Documentation index
+
+| Doc | Covers |
+| --- | --- |
+| [docs/gtfs.md](docs/gtfs.md) | GTFS Schedule ingestion, revisions, mutations, retention, polling |
+| [docs/schedule.md](docs/schedule.md) | Derived schedule model: patterns, stop paths, blocks, schedule times |
+| [docs/avl.md](docs/avl.md) | AVL ingestion, trip matching, GraphQL read API |
+| [docs/predictions.md](docs/predictions.md) | Prediction generation, travel-time learning, accuracy tracking |
+| [docs/deployment.md](docs/deployment.md) | Docker image, Kubernetes roles, Helm chart, scaling |
+| [docs/configuration.md](docs/configuration.md) | Full `transittrack.*` property reference |
+| [web/README.md](web/README.md) | The Nuxt/Vue vehicle dashboard |
+
+Design specs for individual features live under
+[docs/superpowers/specs/](docs/superpowers/specs/).

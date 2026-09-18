@@ -14,29 +14,22 @@ Builds directly on top of the AVL subsystem — see [`docs/avl.md`](avl.md) firs
 
 ## 1. Overview
 
-```
-AvlMatchProcessor.persist()  (Matched branch, per report)
-        │
-        ▼
-vehicle_match row written, prediction_status = PENDING
-        │
-        ▼  (independent schedule, transittrack.predict.run.interval-ms)
-PredictionProcessor.processFeed()
-        │  claims a batch of PENDING rows per feed (transittrack.predict.run.claim-batch-size)
-        ▼
-PredictionService.onMatched()
-        │
-        ├─ crossing detection ──▶ travel_time_observation / kalman_travel_time_state (learn)
-        │                    └──▶ fills actual_arrival_ts/actual_departure_ts on existing rows
-        │                          └──▶ appends prediction_accuracy (predicted vs actual)
-        │
-        └─ generation ──────────▶ vehicle_prediction (upserted, current trip + up to 2 block-trips)
-                                        │
-                                    GraphQL: vehiclePredictions / stopPredictions / headway / predictionAccuracy
-        │
-        ▼
-vehicle_match row marked DONE (or FAILED), decoupled from the AVL match cycle
+```mermaid
+flowchart TD
+    A["AvlMatchProcessor.persist()<br/>(Matched branch, per report)"] --> B[("vehicle_match row written<br/>prediction_status = PENDING")]
+    B -->|"independent schedule<br/>transittrack.predict.run.interval-ms"| C["PredictionProcessor.processFeed()<br/>claims a batch of PENDING rows per feed<br/>(transittrack.predict.run.claim-batch-size)"]
+    C --> D["PredictionService.onMatched()"]
 
+    D --> E["crossing detection"]
+    E --> F[("travel_time_observation /<br/>kalman_travel_time_state (learn)")]
+    E --> G["fills actual_arrival_ts / actual_departure_ts<br/>on existing rows"]
+    G --> H[("prediction_accuracy<br/>predicted vs actual")]
+
+    D --> I["generation"]
+    I --> J[("vehicle_prediction<br/>upserted, current trip + up to 2 block-trips")]
+    J --> K(["GraphQL: vehiclePredictions / stopPredictions /<br/>headway / predictionAccuracy"])
+
+    D --> L["vehicle_match row marked DONE (or FAILED)<br/>decoupled from the AVL match cycle"]
 ```
 
 Prediction generation runs on its **own independent scheduler**,

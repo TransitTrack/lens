@@ -16,11 +16,13 @@ feed format. Out of scope — see [§8](#8-assumptions--deferred).
 
 ## 1. Overview
 
-```
-provider feed ──poll──▶ avl_report (PENDING) ──match──▶ vehicle_match (append)
-   (GTFS-RT)                                             vehicle_state  (upsert)
-                                                              │
-                                                          GraphQL
+```mermaid
+flowchart LR
+    A["provider feed (GTFS-RT)"] -->|poll| B[("avl_report<br/>PENDING")]
+    B -->|match| C[("vehicle_match<br/>append")]
+    B -->|match| D[("vehicle_state<br/>upsert")]
+    C --> E(["GraphQL"])
+    D --> E
 ```
 
 Each `avl_feed` is matched against the **active `gtfs_revision`** of the GTFS feed
