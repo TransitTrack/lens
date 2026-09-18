@@ -7,6 +7,7 @@ COPY gradle gradle
 RUN ./gradlew --version
 
 COPY src src
+COPY extension-api extension-api
 
 RUN ./gradlew bootJar --no-daemon -x test
 
@@ -15,7 +16,8 @@ WORKDIR /app
 
 RUN useradd --system --create-home --shell /usr/sbin/nologin transittrack
 COPY --from=build /workspace/build/libs/*.jar app.jar
-RUN chown transittrack:transittrack app.jar
+RUN mkdir -p /extensions && chown transittrack:transittrack app.jar /extensions
+ENV LOADER_PATH=/extensions
 USER transittrack
 
 EXPOSE 8080

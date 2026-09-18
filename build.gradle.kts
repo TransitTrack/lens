@@ -147,6 +147,15 @@ tasks.withType<Test> {
     maxHeapSize = "2g"
 }
 
+// PropertiesLauncher (instead of the default JarLauncher) reads `loader.path` at startup and adds
+// every jar/directory listed there to the app classloader, so extension jars dropped into
+// /extensions (see Dockerfile) are picked up without repackaging the fat jar.
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    manifest {
+        attributes("Main-Class" to "org.springframework.boot.loader.launch.PropertiesLauncher")
+    }
+}
+
 // Automatically apply styling whenever you run a Gradle build
 tasks.withType<KotlinCompile>().configureEach {
     dependsOn("spotlessApply")
