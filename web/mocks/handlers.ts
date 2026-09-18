@@ -65,12 +65,46 @@ const predictions = [
   },
 ]
 
+const optimizationRecommendations = [
+  {
+    id: 'rec-1',
+    kind: 'TRIP_SHIFT',
+    status: 'PENDING',
+    sampleCount: 28,
+    deltaSec: 75,
+    currentValue: {targets: [{tripId: 'trip-a', startTimeSec: 21600}]},
+    proposedValue: {targets: [{tripId: 'trip-a', startTimeSec: 21675}]},
+    evidence: {},
+    reason: 'Observed departures consistently start later.',
+  },
+  {
+    id: 'rec-2',
+    kind: 'STOP_TIME',
+    status: 'PENDING',
+    sampleCount: 19,
+    deltaSec: -45,
+    currentValue: {targets: [{tripId: 'trip-b', stopSequence: 4, arrivalSec: 25200}]},
+    proposedValue: {
+      targets: [
+        {tripId: 'trip-b', stopSequence: 4, arrivalSec: 25155},
+        {tripId: 'trip-b', stopSequence: 5, arrivalSec: 25320},
+        {tripId: 'trip-c', stopSequence: 4, arrivalSec: 25920},
+      ],
+    },
+    evidence: {},
+    reason: 'Observed dwell time is consistently shorter.',
+  },
+]
+
 export const handlers = [
   graphql.query('AvlFeeds', () => HttpResponse.json({ data: { avlFeeds: feeds } })),
   graphql.query('Vehicles', () => HttpResponse.json({ data: { vehicles } })),
   graphql.query('VehiclePredictions', () =>
     HttpResponse.json({ data: { vehiclePredictions: predictions } }),
   ),
+  graphql.query('OptimizationRecommendations', () =>
+    HttpResponse.json({data: {optimizationRecommendations}}),
+  ),
 ]
 
-export const fixtures = { feeds, vehicles, predictions }
+export const fixtures = {feeds, vehicles, predictions, optimizationRecommendations}

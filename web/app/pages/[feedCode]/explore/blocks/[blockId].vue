@@ -3,7 +3,7 @@ import AppPage from '~/components/AppPage.vue'
 import BlockTimeline from '~/components/BlockTimeline.vue'
 import {useFeeds} from '~/composables/useFeeds'
 import {useBlockDetailQuery} from '~~/generated/graphql'
-import {hexColor} from '~/utils/gtfs'
+import {hexColor, routeTextColor} from '~/utils/gtfs'
 import {timeSplit, timelineSegments} from '~/utils/blocks'
 
 const route = useRoute()
@@ -121,7 +121,10 @@ function pct(sec: number): number {
         >
           <span class="w-5 shrink-0 text-right text-xs text-dimmed">{{ bt.listIndex + 1 }}</span>
           <UBadge
-            :style="{ backgroundColor: hexColor(bt.trip.route?.routeColor, undefined) }"
+            :style="{
+              backgroundColor: hexColor(bt.trip.route?.routeColor),
+              color: routeTextColor(hexColor(bt.trip.route?.routeColor), bt.trip.route?.routeTextColor),
+            }"
           >
             {{ bt.trip.route?.routeShortName ?? bt.trip.routeId }}
           </UBadge>

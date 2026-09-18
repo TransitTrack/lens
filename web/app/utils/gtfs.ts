@@ -18,9 +18,29 @@ export function routeTypeLabel(type: number | null | undefined): string {
 }
 
 export function hexColor(raw: string | null | undefined, fallback = '#64748b'): string {
-  if (!raw) return fallback
-  return raw.startsWith('#') ? raw : `#${raw}`
+  const value = raw?.replace('#', '').trim()
+  if (!value || !/^(?:[\da-f]{3}|[\da-f]{6})$/i.test(value)) return fallback
+  const expanded = value.length === 3 ? value.split('').map((c) => c + c).join('') : value
+  return `#${expanded}`
 }
+
+export function routeTextColor(routeColor: string, declared: string | null | undefined): string {
+  const candidate = declared ? hexColor(declared) : null
+  if (candidate && contrastRatio(routeColor, candidate) >= 4.5) return candidate
+  return relativeLuminance(routeColor) > 0.35 ? '#18181b' : '#fafafa'
+}
+
+function relativeLuminance(hex: string): number {
+  const channels = hex.slice(1).match(/.{2}/g)!.map((part) => Number.parseInt(part, 16) / 255)
+  const linear = channels.map((channel) => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+  return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!
+}
+
+function contrastRatio(a: string, b: string): number {
+  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
+  return (lighter! + 0.05) / (darker! + 0.05)
+}
+
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
 

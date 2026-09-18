@@ -32,9 +32,10 @@ const map = useMglMap()
 const hoveredRouteId = ref<string | null>(null)
 const hoverInfo = ref<RouteLineProps | null>(null)
 const hoverAt = ref<[number, number]>([0, 0])
+const colorMode = useColorMode()
 
 const baseWidth = computed(() => (props.dim ? 1.5 : 2))
-const baseOpacity = computed(() => (props.dim ? 0.35 : 0.7))
+const baseOpacity = computed(() => (props.dim ? 0.72 : 0.9))
 
 const linePaint = computed<LineLayerSpecification['paint']>(() => {
   const id = hoveredRouteId.value
@@ -47,6 +48,14 @@ const linePaint = computed<LineLayerSpecification['paint']>(() => {
       : baseOpacity.value,
   }
 })
+
+/** A thin theme-aware casing keeps normalized GTFS route colors legible over
+ * either basemap without changing the route color itself. */
+const casingPaint = computed<LineLayerSpecification['paint']>(() => ({
+  'line-color': colorMode.value === 'dark' ? '#0b0d0e' : '#f8fafc',
+  'line-width': baseWidth.value + 1,
+  'line-opacity': props.dim ? 0.22 : 0.3,
+}))
 
 const stopPaint = computed<CircleLayerSpecification['paint']>(() => ({
   'circle-radius': props.dim ? 2 : 3,
@@ -81,6 +90,12 @@ function onLeave() {
 
 <template>
   <MglGeoJsonSource source-id="feed-network-routes" :data="lines">
+    <MglLineLayer
+      layer-id="feed-network-routes-casing"
+      :before="before"
+      :paint="casingPaint"
+      :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+    />
     <MglLineLayer
       layer-id="feed-network-routes-line"
       :before="before"

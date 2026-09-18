@@ -2,6 +2,7 @@
 import type {VehicleRow} from '../composables/useVehiclePolling'
 import {adherenceBadge} from '../utils/adherence'
 import {useUnits} from '../composables/useUnits'
+import {hexColor, routeTextColor} from '~/utils/gtfs'
 
 const props = defineProps<{ vehicles: VehicleRow[] }>()
 const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
@@ -64,8 +65,8 @@ function reportAge(iso: string): string {
         <UBadge
           v-if="vehicle.trip?.route"
           :style="{
-            backgroundColor: vehicle.trip.route.routeColor ? `#${vehicle.trip.route.routeColor.replace('#', '')}` : undefined,
-            color: vehicle.trip.route.routeTextColor ? `#${vehicle.trip.route.routeTextColor.replace('#', '')}` : undefined,
+            backgroundColor: hexColor(vehicle.trip.route.routeColor),
+            color: routeTextColor(hexColor(vehicle.trip.route.routeColor), vehicle.trip.route.routeTextColor),
           }"
         >
           {{ vehicle.trip.route.routeShortName ?? vehicle.trip.routeId }}

@@ -6,7 +6,7 @@ import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
 import { useExploreRoutesQuery, type ExploreRoutesQuery } from '~~/generated/graphql'
-import { routeTypeLabel, hexColor } from '~/utils/gtfs'
+import { routeTextColor, routeTypeLabel, hexColor } from '~/utils/gtfs'
 
 const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
@@ -111,7 +111,7 @@ function onSelect(_e: Event, row: { original: Row }) {
         <template #routeShortName-cell="{ row }">
           <UBadge :style="{
             backgroundColor: hexColor(row.original.routeColor, undefined),
-            color: row.original.routeTextColor ? hexColor(row.original.routeTextColor) : undefined,
+            color: routeTextColor(hexColor(row.original.routeColor), row.original.routeTextColor),
           }">
             {{ row.original.routeShortName ?? row.original.routeId }}
           </UBadge>

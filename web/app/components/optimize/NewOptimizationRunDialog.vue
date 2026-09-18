@@ -112,10 +112,18 @@ async function submit() {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="New optimization run">
+  <UModal v-model:open="open" title="New optimization analysis" description="Compare AVL observations against the active schedule to identify high-confidence improvements.">
     <template #body>
-      <div class="flex flex-col gap-3">
-        <div class="grid grid-cols-2 gap-3">
+      <div class="flex flex-col gap-6">
+        <section>
+          <div class="mb-3 flex items-center gap-2">
+            <div class="grid size-6 place-items-center rounded-md bg-primary/10 text-primary"><UIcon name="i-lucide-calendar-range" class="size-3.5" /></div>
+            <div>
+              <p class="text-sm font-semibold text-highlighted">Observation period</p>
+              <p class="text-xs text-muted">Choose the AVL data window to evaluate.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
           <UFormField label="Observed from" required>
             <UInput v-model="observedFrom" type="date" class="w-full" />
           </UFormField>
@@ -123,10 +131,29 @@ async function submit() {
             <UInput v-model="observedTo" type="date" class="w-full" />
           </UFormField>
         </div>
-        <UFormField label="Minimum samples" required hint="minimum independent crossings per segment">
+        </section>
+        <section>
+          <div class="mb-3 flex items-center gap-2">
+            <div class="grid size-6 place-items-center rounded-md bg-primary/10 text-primary"><UIcon name="i-lucide-chart-bar-big" class="size-3.5" /></div>
+            <div>
+              <p class="text-sm font-semibold text-highlighted">Confidence threshold</p>
+              <p class="text-xs text-muted">Higher sample counts favor more reliable recommendations.</p>
+            </div>
+          </div>
+          <UFormField label="Minimum samples" required hint="Minimum independent crossings per segment">
           <UInput v-model.number="minimumSamples" type="number" min="1" class="w-full" />
         </UFormField>
-        <UFormField label="Route" hint="optional">
+        </section>
+        <section class="border-t border-default pt-5">
+          <div class="mb-3 flex items-center gap-2">
+            <div class="grid size-6 place-items-center rounded-md bg-elevated text-muted"><UIcon name="i-lucide-sliders-horizontal" class="size-3.5" /></div>
+            <div>
+              <p class="text-sm font-semibold text-highlighted">Narrow the analysis</p>
+              <p class="text-xs text-muted">Optional filters limit the scope to a specific operation.</p>
+            </div>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField label="Route">
           <USelectMenu
             v-model="routeId"
             :items="routeOptions"
@@ -136,7 +163,7 @@ async function submit() {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Service" hint="optional">
+            <UFormField label="Service">
           <USelectMenu
             v-model="serviceId"
             :items="serviceOptions"
@@ -146,7 +173,7 @@ async function submit() {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Direction" hint="optional">
+            <UFormField label="Direction">
           <USelectMenu
             v-model="directionId"
             :items="directionOptions"
@@ -155,20 +182,22 @@ async function submit() {
             class="w-full"
           />
         </UFormField>
+          </div>
         <div class="grid grid-cols-2 gap-3">
-          <UFormField label="Departure window from" hint="HH:MM, optional">
+          <UFormField label="Departure window from" hint="HH:MM">
             <UInput v-model="windowFrom" placeholder="06:00" class="w-full" />
           </UFormField>
-          <UFormField label="Departure window to" hint="HH:MM, optional">
+          <UFormField label="Departure window to" hint="HH:MM">
             <UInput v-model="windowTo" placeholder="09:00" class="w-full" />
           </UFormField>
         </div>
+        </section>
       </div>
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
         <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false" />
-        <UButton :loading="starting" :disabled="!canSubmit" label="Start run" @click="submit" />
+        <UButton :loading="starting" :disabled="!canSubmit" icon="i-lucide-sparkles" label="Start analysis" @click="submit" />
       </div>
     </template>
   </UModal>

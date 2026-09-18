@@ -10,7 +10,7 @@ import {
   useExploreCalendarQuery,
   type BlocksListQuery,
 } from '~~/generated/graphql'
-import { serviceDaysLabel } from '~/utils/gtfs'
+import { hexColor, routeTextColor, serviceDaysLabel } from '~/utils/gtfs'
 import { blockDurationSec, peakConcurrency } from '~/utils/blocks'
 
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -165,9 +165,8 @@ function durH(b: Block): string {
         <template #routes-cell="{ row }">
           <div class="flex flex-wrap gap-1">
             <UBadge v-for="rid in row.original.routeIds" :key="rid" :style="{
-              backgroundColor: routeName.get(rid)?.color
-                ? `#${routeName.get(rid)!.color!.replace('#', '')}`
-                : undefined,
+              backgroundColor: hexColor(routeName.get(rid)?.color),
+              color: routeTextColor(hexColor(routeName.get(rid)?.color), null),
             }">
               {{ routeName.get(rid)?.name ?? rid }}
             </UBadge>
