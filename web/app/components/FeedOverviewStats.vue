@@ -30,6 +30,46 @@ const daysLeft = computed(() => {
 
 const validation = computed(() => rev.value?.validationSummary ?? null)
 const validationOpen = ref(false)
+
+interface ValidationSample {
+  filename: string | null
+  csvRowNumber: number | null
+  fieldName: string | null
+  fieldValue: string | null
+  fallback: string | null
+}
+
+function parseValidationSample(raw: string): ValidationSample {
+  if (!raw) {
+    return { filename: null, csvRowNumber: null, fieldName: null, fieldValue: null, fallback: null }
+  }
+
+  try {
+    const value = JSON.parse(raw) as unknown
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return {
+        filename: null,
+        csvRowNumber: null,
+        fieldName: null,
+        fieldValue: null,
+        fallback: raw,
+      }
+    }
+    const record = value as Record<string, unknown>
+    const stringValue = (key: string) => (typeof record[key] === 'string' ? record[key] : null)
+    const row = record.csvRowNumber
+    return {
+      filename: stringValue('filename'),
+      csvRowNumber: typeof row === 'number' ? row : null,
+      fieldName: stringValue('fieldName'),
+      fieldValue: stringValue('fieldValue'),
+      fallback: null,
+    }
+  } catch {
+    return { filename: null, csvRowNumber: null, fieldName: null, fieldValue: null, fallback: raw }
+  }
+}
+
 const validationNotices = computed(() =>
   [...(validation.value?.notices ?? [])]
     .filter((notice) => notice.severity === 'ERROR' || notice.severity === 'WARNING')
@@ -39,7 +79,8 @@ const validationNotices = computed(() =>
         severityOrder[a.severity as keyof typeof severityOrder] -
         severityOrder[b.severity as keyof typeof severityOrder]
       )
-    }),
+    })
+    .map((notice) => ({ ...notice, sampleDetails: parseValidationSample(notice.sample) })),
 )
 
 const n = (v: number | null) => (v == null ? '—' : v.toLocaleString())
@@ -163,10 +204,37 @@ function noticeColor(severity: string): 'error' | 'warning' {
                 }}{{ notice.count === 1 ? '' : 's' }}
               </UBadge>
             </div>
-            <pre
-              v-if="notice.sample"
-              class="mt-2 max-h-28 overflow-auto whitespace-pre-wrap rounded-md bg-default/70 p-2 text-xs leading-5 text-muted"
-              >{{ notice.sample }}</pre>
+            <div
+              v-if="notice.sampleDetails.filename || notice.sampleDetails.fieldName"
+              class="mt-3 space-y-2 text-sm"
+            >
+              <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dimmed">
+                <span v-if="notice.sampleDetails.filename" class="font-medium text-muted">
+                  {{ notice.sampleDetails.filename }}
+                </span>
+                <span v-if="notice.sampleDetails.csvRowNumber != null">
+                  row {{ notice.sampleDetails.csvRowNumber.toLocaleString() }}
+                </span>
+              </div>
+              <div
+                v-if="notice.sampleDetails.fieldName"
+                class="text-xs font-medium uppercase tracking-wide text-dimmed"
+              >
+                {{ notice.sampleDetails.fieldName }}
+              </div>
+              <p
+                v-if="notice.sampleDetails.fieldValue"
+                class="whitespace-pre-wrap break-words rounded-md bg-default/70 p-2 text-sm leading-6 text-muted"
+              >
+                {{ notice.sampleDetails.fieldValue }}
+              </p>
+            </div>
+            <p
+              v-else-if="notice.sampleDetails.fallback"
+              class="mt-2 whitespace-pre-wrap break-words rounded-md bg-default/70 p-2 text-sm leading-6 text-muted"
+            >
+              {{ notice.sampleDetails.fallback }}
+            </p>
           </article>
         </div>
         <div v-else class="rounded-lg border border-default bg-elevated/30 p-4 text-sm text-muted">
