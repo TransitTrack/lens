@@ -71,7 +71,9 @@ Uses Testcontainers, so a running Docker daemon is required.
 Runs as a container, splittable into four independently-scalable
 Kubernetes roles (`api` / `ingester` / `feed-processor` / `predictor`)
 selected via `SPRING_PROFILES_ACTIVE` — or as one monolith process (the
-local-dev default) with no profile set at all. A Helm chart is included.
+local-dev default) with no profile set at all. The web dashboard has its
+own container too, included in the Helm chart as an opt-in `frontend` role
+(`frontend.enabled: false` by default).
 
 → **[docs/deployment.md](docs/deployment.md)** — image build, roles,
 multi-replica coordination (ShedLock), Helm chart usage, scaling guidance.

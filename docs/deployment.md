@@ -217,3 +217,51 @@ Watch the `transittrack_avl_pending_reports` and
 refreshed on `transittrack.observability.gauge-refresh-ms` — see
 [docs/configuration.md §8](configuration.md#8-observability--transittrackobservability))
 for backlog growth before scaling.
+
+---
+
+## 7. Frontend (optional)
+
+The Nuxt vehicle dashboard (`web/`, see [web/README.md](../web/README.md)) has
+its own image and is **off by default** in the Helm chart —
+`frontend.enabled: false`.
+
+```bash
+docker build -t transittrack-web:local web/
+```
+
+`web/Dockerfile` is a two-stage build: `node:22-alpine` runs `pnpm run
+generate` (the app is client-side-only — `ssr: false` — so this produces a
+fully static bundle in `.output/public/`, no Node runtime needed at
+runtime), and `nginx:alpine` serves it. The Apollo client calls a relative
+`/graphql` URL (see `app/plugins/apollo.client.ts`), which a static bundle
+has no way to point at a backend host itself — nginx fills that gap via
+`web/nginx.conf.template`, reverse-proxying `/graphql` to `${BACKEND_URL}`.
+That template is processed by the official `nginx` image's own
+env-substitution-on-startup feature (any `*.template` under
+`/etc/nginx/templates/`), so the backend target is a plain environment
+variable, not a rebuild:
+
+```bash
+docker run -p 8081:80 -e BACKEND_URL=http://your-backend:8080 transittrack-web:local
+```
+
+To turn it on in the Helm chart:
+
+```bash
+helm template transittrack deploy/helm/transittrack --set frontend.enabled=true
+```
+
+```yaml
+frontend:
+  enabled: true
+  image: { repository: your-registry/transittrack-web, tag: "1.2.3" }
+  replicaCount: 1
+  service: { port: 80 }
+  backendUrl: ""   # empty (default) = the in-cluster api Service, http://<release>-api:<roles.api.service.port>
+```
+
+Renders one Deployment + one Service, both no-ops when `frontend.enabled` is
+`false`. `backendUrl` only needs setting explicitly if the dashboard should
+point somewhere other than this chart's own `api` role (e.g. a backend
+running outside the cluster, or in a different namespace/release).
