@@ -261,6 +261,43 @@ frontend:
   backendUrl: ""   # empty (default) = the in-cluster api Service, http://<release>-api:<roles.api.service.port>
 ```
 
+---
+
+## 8. Extensions
+
+Third-party AVL decoders, GTFS validators, vehicle matchers, and prediction
+strategies are loaded from extra jars on the classpath — no fork, no
+rebuild. See [extension-api/README.md](../extension-api/README.md) for the
+four extension points and their stability guarantees, and
+[examples/example-extension/](../examples/example-extension/) for a
+worked, buildable example.
+
+The image's `bootJar` manifest points at Spring Boot's `PropertiesLauncher`
+instead of the default `JarLauncher`, which reads the `loader.path`
+system property/environment variable (`LOADER_PATH`) at startup and adds
+every jar or directory listed there to the app's classloader. The
+Dockerfile creates an empty `/extensions` directory and sets
+`LOADER_PATH=/extensions`; drop extension jars there (bind mount, custom
+image layer, or the Helm knobs below) and they're picked up automatically
+via each jar's own
+`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
+— the same mechanism core's own auto-configuration uses.
+
+In the Helm chart, `extraVolumes`/`extraVolumeMounts` are the escape hatch
+for getting jars into `/extensions` on every role's Deployment — e.g. a
+ConfigMap (small jars only — ConfigMaps have a size limit) or a PVC
+populated by an init container:
+
+```yaml
+extraVolumes:
+  - name: extensions
+    configMap:
+      name: my-extensions
+extraVolumeMounts:
+  - name: extensions
+    mountPath: /extensions
+```
+
 Renders one Deployment + one Service, both no-ops when `frontend.enabled` is
 `false`. `backendUrl` only needs setting explicitly if the dashboard should
 point somewhere other than this chart's own `api` role (e.g. a backend

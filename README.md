@@ -84,6 +84,17 @@ Every `transittrack.*` setting, its default, and what it controls:
 
 → **[docs/configuration.md](docs/configuration.md)**
 
+## Extensions
+
+Custom AVL feed decoders, GTFS validators, vehicle matchers, and
+prediction strategies load from extra jars on the classpath — no fork, no
+rebuild.
+
+→ **[extension-api/README.md](extension-api/README.md)** — the four
+extension points and their stability guarantees.
+→ **[docs/deployment.md §8](docs/deployment.md#8-extensions)** —
+`loader.path`/Helm `extraVolumes` runtime wiring.
+
 ## Monitoring
 
 Prometheus (bundled by `docker compose`, UI at
@@ -106,6 +117,7 @@ metrics up in a cluster instead.
 | [docs/predictions.md](docs/predictions.md) | Prediction generation, travel-time learning, accuracy tracking |
 | [docs/deployment.md](docs/deployment.md) | Docker image, Kubernetes roles, Helm chart, scaling |
 | [docs/configuration.md](docs/configuration.md) | Full `transittrack.*` property reference |
+| [extension-api/README.md](extension-api/README.md) | Extension points: AVL decoders, GTFS validators, vehicle matchers, prediction strategies |
 | [web/README.md](web/README.md) | The Nuxt/Vue vehicle dashboard |
 
 Design specs for individual features live under
