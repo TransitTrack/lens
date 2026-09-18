@@ -32,41 +32,53 @@ const validation = computed(() => rev.value?.validationSummary ?? null)
 const validationOpen = ref(false)
 
 interface ValidationSample {
-  filename: string | null
-  csvRowNumber: number | null
-  fieldName: string | null
-  fieldValue: string | null
+  context: ValidationSampleField[]
+  fields: ValidationSampleField[]
   fallback: string | null
+}
+
+interface ValidationSampleField {
+  label: string
+  value: string
+}
+
+function labelForValidationKey(key: string): string {
+  return key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ')
+    .replace(/^./, (character) => character.toUpperCase())
+}
+
+function displayValidationValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value)
 }
 
 function parseValidationSample(raw: string): ValidationSample {
   if (!raw) {
-    return { filename: null, csvRowNumber: null, fieldName: null, fieldValue: null, fallback: null }
+    return { context: [], fields: [], fallback: null }
   }
 
   try {
     const value = JSON.parse(raw) as unknown
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      return {
-        filename: null,
-        csvRowNumber: null,
-        fieldName: null,
-        fieldValue: null,
-        fallback: raw,
-      }
+      return { context: [], fields: [], fallback: raw }
     }
     const record = value as Record<string, unknown>
-    const stringValue = (key: string) => (typeof record[key] === 'string' ? record[key] : null)
-    const row = record.csvRowNumber
+    const entries = Object.entries(record)
+      .filter(([, entry]) => entry != null)
+      .map(([key, entry]) => ({
+        label: labelForValidationKey(key),
+        value: displayValidationValue(entry),
+      }))
     return {
-      filename: stringValue('filename'),
-      csvRowNumber: typeof row === 'number' ? row : null,
-      fieldName: stringValue('fieldName'),
-      fieldValue: stringValue('fieldValue'),
+      context: entries.filter(({ label }) => label === 'Filename' || label === 'Csv Row Number'),
+      fields: entries.filter(({ label }) => label !== 'Filename' && label !== 'Csv Row Number'),
       fallback: null,
     }
   } catch {
-    return { filename: null, csvRowNumber: null, fieldName: null, fieldValue: null, fallback: raw }
+    return { context: [], fields: [], fallback: raw }
   }
 }
 
@@ -205,35 +217,42 @@ function noticeColor(severity: string): 'error' | 'warning' {
               </UBadge>
             </div>
             <div
-              v-if="notice.sampleDetails.filename || notice.sampleDetails.fieldName"
+              v-if="notice.sampleDetails.context.length || notice.sampleDetails.fields.length"
               class="mt-3 space-y-2 text-sm"
             >
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dimmed">
-                <span v-if="notice.sampleDetails.filename" class="font-medium text-muted">
-                  {{ notice.sampleDetails.filename }}
-                </span>
-                <span v-if="notice.sampleDetails.csvRowNumber != null">
-                  row {{ notice.sampleDetails.csvRowNumber.toLocaleString() }}
-                </span>
-              </div>
               <div
-                v-if="notice.sampleDetails.fieldName"
-                class="text-xs font-medium uppercase tracking-wide text-dimmed"
+                v-if="notice.sampleDetails.context.length"
+                class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dimmed"
               >
-                {{ notice.sampleDetails.fieldName }}
+                <span
+                  v-for="field in notice.sampleDetails.context"
+                  :key="field.label"
+                  class="font-medium text-muted"
+                >
+                  {{ field.label === 'Csv Row Number' ? `row ${field.value}` : field.value }}
+                </span>
               </div>
-              <p
-                v-if="notice.sampleDetails.fieldValue"
-                class="whitespace-pre-wrap break-words rounded-md bg-default/70 p-2 text-sm leading-6 text-muted"
-              >
-                {{ notice.sampleDetails.fieldValue }}
-              </p>
+              <dl v-if="notice.sampleDetails.fields.length" class="space-y-2">
+                <div v-for="field in notice.sampleDetails.fields" :key="field.label">
+                  <dt class="text-xs font-medium uppercase tracking-wide text-dimmed">
+                    {{ field.label }}
+                  </dt>
+                  <dd
+                    class="mt-1 whitespace-pre-wrap break-words rounded-md bg-default/70 p-2 text-sm leading-6 text-muted"
+                  >
+                    {{ field.value }}
+                  </dd>
+                </div>
+              </dl>
             </div>
             <p
               v-else-if="notice.sampleDetails.fallback"
               class="mt-2 whitespace-pre-wrap break-words rounded-md bg-default/70 p-2 text-sm leading-6 text-muted"
             >
               {{ notice.sampleDetails.fallback }}
+            </p>
+            <p v-else class="mt-2 text-sm text-dimmed">
+              No sample details were provided by the validator.
             </p>
           </article>
         </div>
