@@ -80,10 +80,15 @@ class GtfsValidationException(
  * `workDir` when the run finishes.
  */
 @Component
-class GtfsFeedLoader {
+class GtfsFeedLoader(
+    private val extraValidators: List<GtfsValidator> = emptyList(),
+) {
     private val validationRunner: ValidationRunner = ValidationRunner()
 
-    fun load(zipPath: Path): LoadValidationReport {
+    fun load(
+        zipPath: Path,
+        feedCode: String = "",
+    ): LoadValidationReport {
         val result = validationRunner.validate(zipPath.toUri())
         if (result.status != ValidationRunner.Status.SUCCESS) {
             throw GtfsValidationException(
@@ -93,8 +98,7 @@ class GtfsFeedLoader {
                 ),
             )
         }
-        return LoadValidationReport(
-            result.feedContainer,
+        val coreIssues =
             result.notices.map { notice ->
                 ValidationIssue(
                     rule = notice.code,
@@ -102,8 +106,19 @@ class GtfsFeedLoader {
                     count = notice.totalNotices.toLong(),
                     sample = notice.sampleNotices.firstOrNull()?.toString() ?: "",
                 )
-            },
-        )
+            }
+        val extraIssues =
+            extraValidators.flatMap { validator ->
+                validator.validate(GtfsValidationInput(feedCode, zipPath)).map { finding ->
+                    ValidationIssue(
+                        rule = finding.code,
+                        severity = severityOf(finding.severity),
+                        count = 1,
+                        sample = finding.message,
+                    )
+                }
+            }
+        return LoadValidationReport(result.feedContainer, coreIssues + extraIssues)
     }
 
     private fun severityOf(raw: SeverityLevel): Severity =
@@ -111,5 +126,11 @@ class GtfsFeedLoader {
             SeverityLevel.ERROR -> Severity.ERROR
             SeverityLevel.INFO -> Severity.INFO
             else -> Severity.WARNING
+        }
+
+    private fun severityOf(raw: GtfsValidationFinding.Severity): Severity =
+        when (raw) {
+            GtfsValidationFinding.Severity.ERROR -> Severity.ERROR
+            GtfsValidationFinding.Severity.WARNING -> Severity.WARNING
         }
 }

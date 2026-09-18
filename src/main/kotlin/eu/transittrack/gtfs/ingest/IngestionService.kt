@@ -168,7 +168,7 @@ class IngestionService(
 
             val validationStartedAt = Instant.now()
             val loadReport =
-                runCatching { feedLoader.load(zipPath) }
+                runCatching { feedLoader.load(zipPath, feed.code) }
                     .onSuccess {
                         metrics
                             .gtfsStageFinished(
