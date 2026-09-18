@@ -110,6 +110,10 @@ transittrack:
     enabled: true
     layover-threshold-sec: 60
     stop-projection-max-deviation-m: 100
+    inferred-blocks:
+      enabled: true
+      allow-deadhead: false
+      max-deadhead-gap-sec: 1800
     optimize:
       executor:
         queue-capacity: 50

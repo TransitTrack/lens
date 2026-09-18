@@ -96,7 +96,14 @@ data class ScheduleProperties(
     val layoverThresholdSec: Int = 60,
     val stopProjectionMaxDeviationM: Double = 100.0,
     val tolerateNoScheduleTrips: Boolean = false,
-)
+    val inferredBlocks: InferredBlocks = InferredBlocks(),
+) {
+    data class InferredBlocks(
+        val enabled: Boolean = true,
+        val allowDeadhead: Boolean = false,
+        val maxDeadheadGapSec: Int = 1800,
+    )
+}
 
 /**
  * Tuning for the AVL match read cache (see [eu.transittrack.avl.match.cache.AvlCaches]). Heap-only

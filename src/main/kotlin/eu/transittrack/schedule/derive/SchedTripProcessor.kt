@@ -121,16 +121,10 @@ class SchedTripProcessor(
                         tripRowId = tripRowId,
                         tripId = trip.tripId,
                         patternId = patternId,
-                        // GTFS block_id is optional and plenty of agencies omit it (e.g. Poznan's
-                        // ZTM feed has no block_id column at all). Reference behaviour (transitclock
-                        // Trip.java): fall back to trip_short_name, then trip_id, so every trip still
-                        // gets a block — worst case a singleton one-trip block — instead of being
-                        // silently dropped from block/block_trip by BlockProcessor's `blockId != null`
-                        // filter.
-                        blockId =
-                            trip.blockId?.ifBlank { null }
-                                ?: trip.tripShortName?.ifBlank { null }
-                                ?: trip.tripId,
+                        // GTFS block_id is optional. Preserve its absence so BlockProcessor can
+                        // infer a safe vehicle chain (or an explicit singleton) for this timed trip.
+                        // A publisher-provided non-blank ID remains authoritative.
+                        blockId = trip.blockId?.ifBlank { null },
                         serviceId = trip.serviceId,
                         routeId = trip.routeId,
                         startSec = startSec,
