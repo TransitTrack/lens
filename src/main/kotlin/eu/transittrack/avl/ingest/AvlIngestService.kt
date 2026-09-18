@@ -42,7 +42,7 @@ class AvlIngestService(
                 ?: error("no AvlFeedDecoder for format ${feed.format} (feed '${feed.code}')")
         val decoded =
             try {
-                decoder.decode(source.fetch(feed), feed)
+                decoder.decode(source.fetch(feed), feed.toDescriptor())
             } catch (e: Exception) {
                 metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
                 recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
@@ -71,6 +71,8 @@ class AvlIngestService(
         f.lastPollReportCount = count
         feeds.save(f)
     }
+
+    private fun AvlFeed.toDescriptor() = FeedDescriptor(code, name, url, format, headers)
 
     private fun toRow(
         feedId: Long,

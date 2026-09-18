@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
-import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.util.kmphToMps
 
 @Serializable
@@ -83,7 +82,7 @@ class StptVehiclePositionDecoder(
 
     override fun decode(
         payload: RawAvlPayload,
-        feed: AvlFeed,
+        feed: FeedDescriptor,
     ): List<AvlReport> {
         val response = payload.bytes
             .toString(Charsets.UTF_8)

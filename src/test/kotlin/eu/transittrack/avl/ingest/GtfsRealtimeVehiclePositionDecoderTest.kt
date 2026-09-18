@@ -18,18 +18,13 @@ import com.google.transit.realtime.GtfsRealtime.TripDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 
-import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
-import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.avl.model.AvlFeedSourceKind
 
 class GtfsRealtimeVehiclePositionDecoderTest {
     private val decoder = GtfsRealtimeVehiclePositionDecoder()
-    private val feed = AvlFeed(
-        code = "f", name = "F", gtfsFeedCode = "g", url = "https://x.test/vp.pb", format = AvlFormat.GTFS_RT,
-        pollIntervalSec = 15, assignmentMode = AvlAssignmentMode.FULL_INFERENCE, enabled = true,
-        headers = null, source = AvlFeedSourceKind.CONFIG, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+    private val feed = FeedDescriptor(
+        code = "f", name = "F", url = "https://x.test/vp.pb", format = AvlFormat.GTFS_RT, headers = null,
     )
 
     private fun payload(m: FeedMessage) = RawAvlPayload(m.toByteArray(), "application/x-protobuf", Instant.parse("2026-09-04T10:00:00Z"))

@@ -5,7 +5,6 @@ import java.time.LocalDate
 
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
-import eu.transittrack.avl.model.AvlFeed
 
 enum class RtScheduleRelationship {
     SCHEDULED,
@@ -63,12 +62,20 @@ data class AvlReport(
     val congestionLevel: AvlCongestionLevel? = null,
 )
 
+data class FeedDescriptor(
+    val code: String,
+    val name: String,
+    val url: String,
+    val format: AvlFormat,
+    val headers: Map<String, String>?,
+)
+
 interface AvlFeedDecoder {
     val format: AvlFormat
 
     fun decode(
         payload: RawAvlPayload,
-        feed: AvlFeed,
+        feed: FeedDescriptor,
     ): List<AvlReport>
 }
 
