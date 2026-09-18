@@ -89,7 +89,7 @@ const TRACK_2 = 'M 110,55 L 65,55 L 65,100'
         class="uppercase tracking-tighter text-slate-800 dark:text-slate-100"
       >
         <span class="font-black">Transit</span>
-        <span class="font-light">Track</span>
+        <span class="font-light">Lens</span>
       </h1>
       <p
         v-if="showSubtitle"

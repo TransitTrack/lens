@@ -14,7 +14,7 @@ plugins {
 
 group = "eu.transittrack"
 version = "0.0.1-SNAPSHOT"
-description = "transittrack"
+description = "transitlens"
 
 repositories {
     mavenCentral()

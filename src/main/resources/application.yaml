@@ -2,7 +2,7 @@ spring:
   main:
     banner-mode: off
   application:
-    name: transit-track
+    name: transit-lens
   graphql:
     graphiql:
       enabled: true
