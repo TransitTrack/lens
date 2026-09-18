@@ -1,1 +1,2 @@
-rootProject.name = "explorer"
+rootProject.name = "lens"
+include(":extension-api")
