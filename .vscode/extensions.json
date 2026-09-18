@@ -1,0 +1,23 @@
+{
+  "recommendations": [
+    // Kotlin / Java / Gradle (backend)
+    "JetBrains.kotlin-server",
+    "vscjava.vscode-gradle",
+    "vscjava.vscode-java-debug",
+    "vmware.vscode-boot-dev-pack",
+    "redhat.vscode-yaml",
+    "redhat.vscode-xml",
+
+    // Vue / Nuxt / TypeScript (frontend)
+    "vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "graphql.vscode-graphql-syntax",
+
+    // Cross-cutting
+    "editorconfig.editorconfig",
+    "ms-azuretools.vscode-docker"
+  ],
+  "unwantedRecommendations": ["octref.vetur", "hookyqr.beautify"]
+}

@@ -1,0 +1,60 @@
+{
+  "java.compile.nullAnalysis.mode": "automatic",
+
+  // Kotlin/Gradle build outputs and generated code that shouldn't clutter search/explorer
+  "files.exclude": {
+    "**/.gradle": true,
+    "**/.kotlin": true,
+    "build": true,
+    "web/.nuxt": true,
+    "web/.output": true,
+    "web/node_modules": true,
+    "web/generated": true,
+    "web/test-results": true
+  },
+  "search.exclude": {
+    "**/.gradle": true,
+    "**/.kotlin": true,
+    "build": true,
+    "web/.nuxt": true,
+    "web/.output": true,
+    "web/node_modules": true,
+    "web/generated": true,
+    "web/test-results": true,
+    "**/pnpm-lock.yaml": true
+  },
+  "files.watcherExclude": {
+    "**/.gradle/**": true,
+    "**/.kotlin/**": true,
+    "build/**": true,
+    "web/.nuxt/**": true,
+    "web/.output/**": true,
+    "web/node_modules/**": true
+  },
+
+  // gradle-wrapper drives builds; let the Kotlin LSP use it instead of a bundled one
+  "kotlin.languageServer.enabled": true,
+  "gradle.nestedProjects": true,
+
+  // Frontend: eslint flat config lives under web/, and generated/ is codegen output
+  "eslint.workingDirectories": [{ "directory": "web" }],
+  "eslint.rules.customizations": [{ "rule": "*", "severity": "warn" }],
+  "prettier.ignorePath": "web/.prettierignore",
+
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[vue]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  "tailwindCSS.experimental.classRegex": [["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]],
+
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml"
+  }
+}

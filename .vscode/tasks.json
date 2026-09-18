@@ -1,0 +1,130 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "backend: bootRun",
+      "type": "shell",
+      "command": "./gradlew bootRun",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*using Java.*",
+          "endsPattern": ".*Started .*Application.*|.*APPLICATION FAILED TO START.*"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "backend: bootRun (debug, port 5005)",
+      "type": "shell",
+      "command": "./gradlew bootRun --debug-jvm",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Listening for transport dt_socket.*",
+          "endsPattern": ".*Started .*Application.*|.*APPLICATION FAILED TO START.*"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "backend: build",
+      "type": "shell",
+      "command": "./gradlew build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$gradle"
+    },
+    {
+      "label": "backend: test",
+      "type": "shell",
+      "command": "./gradlew test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": "$gradle"
+    },
+    {
+      "label": "backend: spotlessApply",
+      "type": "shell",
+      "command": "./gradlew spotlessApply",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra: docker compose up",
+      "type": "shell",
+      "command": "docker compose up -d",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "infra: docker compose down",
+      "type": "shell",
+      "command": "docker compose down",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "web: dev",
+      "type": "shell",
+      "command": "pnpm dev",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Nuxt.*",
+          "endsPattern": ".*Local:.*|.*ready in.*"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "web: lint",
+      "type": "shell",
+      "command": "pnpm lint",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": "test",
+      "problemMatcher": ["$eslint-stylish"]
+    },
+    {
+      "label": "web: typecheck",
+      "type": "shell",
+      "command": "pnpm typecheck",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "web: test",
+      "type": "shell",
+      "command": "pnpm test",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "web: codegen",
+      "type": "shell",
+      "command": "pnpm codegen",
+      "options": { "cwd": "${workspaceFolder}/web" },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "dev: full stack (infra + backend + web)",
+      "dependsOn": ["infra: docker compose up", "backend: bootRun", "web: dev"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    }
+  ]
+}

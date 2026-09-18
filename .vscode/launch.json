@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "request": "attach",
+      "name": "Backend: Attach (debug port 5005)",
+      "hostName": "localhost",
+      "port": 5005,
+      "preLaunchTask": "backend: bootRun (debug, port 5005)"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Web: Launch Nuxt in Chrome",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/web",
+      "preLaunchTask": "web: dev"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Web: Debug Vitest current file",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "vitest", "run", "${relativeFile}"],
+      "cwd": "${workspaceFolder}/web",
+      "console": "integratedTerminal",
+      "smartStep": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full stack: backend + web",
+      "configurations": ["Backend: Attach (debug port 5005)", "Web: Launch Nuxt in Chrome"]
+    }
+  ]
+}
