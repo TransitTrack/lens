@@ -147,6 +147,40 @@ tasks.withType<Test> {
     maxHeapSize = "2g"
 }
 
+// ExtensionLoadingTest only passes with the example-extension jar on loader.path (see the
+// extensionLoadingTest task below), so it's excluded from the default suite, which shouldn't
+// require that module to be built.
+tasks.test {
+    exclude("**/ExtensionLoadingTest.class")
+}
+
+evaluationDependsOn(":examples:example-extension")
+
+tasks.register<Test>("extensionLoadingTest") {
+    // `-Dloader.path` alone only does something when PropertiesLauncher.main() bootstraps the
+    // JVM's classpath from it; a @SpringBootTest run inside this Gradle worker calls
+    // SpringApplication.run() directly and never goes through that launcher, so the extension jar
+    // has to be put on the test's own classpath for the AutoConfiguration.imports discovery this
+    // test proves to actually see it. `loader.path` is still set, matching how the packaged app
+    // is launched in production (see the Dockerfile/bootJar wiring above).
+    val exampleExtensionJar = project(":examples:example-extension").tasks.named<Jar>("jar")
+    dependsOn(exampleExtensionJar)
+    useJUnitPlatform()
+    include("**/ExtensionLoadingTest.class")
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath + files(exampleExtensionJar.flatMap { it.archiveFile })
+    doFirst {
+        systemProperty(
+            "loader.path",
+            exampleExtensionJar
+                .get()
+                .archiveFile
+                .get()
+                .asFile.parentFile.absolutePath,
+        )
+    }
+}
+
 // PropertiesLauncher (instead of the default JarLauncher) reads `loader.path` at startup and adds
 // every jar/directory listed there to the app classloader, so extension jars dropped into
 // /extensions (see Dockerfile) are picked up without repackaging the fat jar.
