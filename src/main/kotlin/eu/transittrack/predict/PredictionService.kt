@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.match.AvlMatchContext
+import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.avl.match.MatchOutcome
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
@@ -26,6 +27,7 @@ import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
+import eu.transittrack.schedule.model.TripRef
 
 /** The vehicle's previous match, as needed for crossing detection — deliberately not a full
  * [eu.transittrack.avl.model.VehicleState], since [PredictionService] is reconstructed from
@@ -64,7 +66,7 @@ class PredictionService(
         ctx: AvlMatchContext,
     ) {
         val trip = ctx.trip(outcome.tripRowId) ?: return
-        val serviceDate = inferServiceDate(report, trip, ctx.zone)
+        val serviceDate = inferServiceDate(report.toView(), trip, ctx.zone)
         val now = Instant.now()
 
         if (prev != null && prev.tripRowId == outcome.tripRowId) {
@@ -123,7 +125,7 @@ class PredictionService(
         report: AvlReportRow,
         prev: PrevVehicleMatch,
         outcome: MatchOutcome.Matched,
-        trip: eu.transittrack.gtfs.model.Trip,
+        trip: TripRef,
         ctx: AvlMatchContext,
         now: Instant,
     ) {
@@ -245,3 +247,28 @@ class PredictionService(
         }
     }
 }
+
+private fun AvlReportRow.toView() =
+    AvlReportView(
+        id = id!!,
+        feedId = feedId,
+        vehicleId = vehicleId,
+        vehicleLabel = vehicleLabel,
+        ts = ts,
+        lat = lat,
+        lon = lon,
+        bearing = bearing,
+        speedMps = speedMps,
+        odometerM = odometerM,
+        descTripId = descTripId,
+        descRouteId = descRouteId,
+        descDirectionId = descDirectionId,
+        descStartDate = descStartDate,
+        descStartTimeSec = descStartTimeSec,
+        descScheduleRelationship = descScheduleRelationship,
+        currentStopSequence = currentStopSequence,
+        currentStopId = currentStopId,
+        currentStatus = currentStatus,
+        occupancyStatus = occupancyStatus,
+        congestionLevel = congestionLevel,
+    )

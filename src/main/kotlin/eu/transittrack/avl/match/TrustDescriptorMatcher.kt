@@ -5,9 +5,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
-import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleState
-import eu.transittrack.gtfs.model.Trip
+import eu.transittrack.schedule.model.TripRef
 
 /**
  * Matcher for feeds whose vehicle descriptors are trusted. The trip is resolved from `descTripId`
@@ -28,9 +26,9 @@ class TrustDescriptorMatcher(
     override val mode = AvlAssignmentMode.TRUST_DESCRIPTOR
 
     override fun match(
-        report: AvlReportRow,
-        prev: VehicleState?,
-        ctx: AvlMatchContext,
+        report: AvlReportView,
+        prev: VehicleStateView?,
+        ctx: MatchContext,
     ): MatchOutcome {
         val point = Point(report.lat, report.lon)
 
@@ -72,15 +70,15 @@ class TrustDescriptorMatcher(
         // 5. temporal
         val adherence =
             temporal.adherenceSec(
-                ctx.scheduleOf(activeTrip.id!!),
+                ctx.scheduleOf(activeTrip.id),
                 activeGeom.stopPathCumM,
                 match.distanceAlongTripM,
                 actualServiceSec,
                 activeTrip.noSchedule == true,
             )
-        val blockPk = ctx.blockTripOf(activeTrip.id!!)?.blockId
+        val blockPk = ctx.blockTripOf(activeTrip.id)?.blockId
         return MatchOutcome.Matched(
-            tripRowId = activeTrip.id!!,
+            tripRowId = activeTrip.id,
             blockPk = blockPk,
             tripPatternId = activeTrip.tripPatternId!!,
             stopPathIndex = match.stopPathIndex,
@@ -95,10 +93,10 @@ class TrustDescriptorMatcher(
     }
 
     private fun resolveTrip(
-        report: AvlReportRow,
-        ctx: AvlMatchContext,
+        report: AvlReportView,
+        ctx: MatchContext,
         point: Point,
-    ): Pair<Trip, PatternGeometry>? {
+    ): Pair<TripRef, PatternGeometry>? {
         report.descTripId?.let { id ->
             ctx.tripByGtfsId(id)?.let { return geometryOf(it, ctx) }
         }
@@ -131,11 +129,11 @@ class TrustDescriptorMatcher(
      * actually projects; resolve to a single trip or `null` when still ambiguous.
      */
     private fun disambiguateSpatially(
-        candidates: List<Trip>,
-        report: AvlReportRow,
-        ctx: AvlMatchContext,
+        candidates: List<TripRef>,
+        report: AvlReportView,
+        ctx: MatchContext,
         point: Point,
-    ): Pair<Trip, PatternGeometry>? {
+    ): Pair<TripRef, PatternGeometry>? {
         val survivors =
             candidates.mapNotNull { t ->
                 val patternId = t.tripPatternId ?: return@mapNotNull null
@@ -152,19 +150,19 @@ class TrustDescriptorMatcher(
     }
 
     private fun geometryOf(
-        trip: Trip,
-        ctx: AvlMatchContext,
-    ): Pair<Trip, PatternGeometry>? {
+        trip: TripRef,
+        ctx: MatchContext,
+    ): Pair<TripRef, PatternGeometry>? {
         val geom = trip.tripPatternId?.let { ctx.patternGeometry(it) } ?: return null
         return trip to geom
     }
 
     /** Cumulative distance to the descriptor's `currentStopId` / `currentStopSequence`, when it resolves. */
     private fun stopHintAlongM(
-        report: AvlReportRow,
+        report: AvlReportView,
         geom: PatternGeometry,
         tripPatternId: Long?,
-        ctx: AvlMatchContext,
+        ctx: MatchContext,
     ): Double? {
         if (report.currentStopId == null && report.currentStopSequence == null) return null
         val patternId = tripPatternId ?: return null

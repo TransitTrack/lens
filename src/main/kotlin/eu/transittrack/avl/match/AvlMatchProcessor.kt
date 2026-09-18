@@ -144,7 +144,7 @@ class AvlMatchProcessor(
                 .sortedBy { it.ts }
                 .forEach { report ->
                     val reportStartedAt = Instant.now()
-                    val match = matcher.match(report, prev, ctx)
+                    val match = matcher.match(report.toView(), prev?.toView(), ctx)
 
                     stats.accumulate(report, match, prev, ctx)
 
@@ -301,3 +301,54 @@ class AvlMatchProcessor(
         }
     }
 }
+
+private fun AvlReportRow.toView() =
+    AvlReportView(
+        id = id!!,
+        feedId = feedId,
+        vehicleId = vehicleId,
+        vehicleLabel = vehicleLabel,
+        ts = ts,
+        lat = lat,
+        lon = lon,
+        bearing = bearing,
+        speedMps = speedMps,
+        odometerM = odometerM,
+        descTripId = descTripId,
+        descRouteId = descRouteId,
+        descDirectionId = descDirectionId,
+        descStartDate = descStartDate,
+        descStartTimeSec = descStartTimeSec,
+        descScheduleRelationship = descScheduleRelationship,
+        currentStopSequence = currentStopSequence,
+        currentStopId = currentStopId,
+        currentStatus = currentStatus,
+        occupancyStatus = occupancyStatus,
+        congestionLevel = congestionLevel,
+    )
+
+private fun VehicleState.toView() =
+    VehicleStateView(
+        id = id,
+        feedId = feedId,
+        vehicleId = vehicleId,
+        vehicleLabel = vehicleLabel,
+        reportTs = reportTs,
+        lat = lat,
+        lon = lon,
+        bearing = bearing,
+        speedMps = speedMps,
+        occupancyStatus = occupancyStatus,
+        matched = matched,
+        stale = stale,
+        consecutiveFailures = consecutiveFailures,
+        revisionId = revisionId,
+        tripRowId = tripRowId,
+        blockPk = blockPk,
+        tripPatternId = tripPatternId,
+        stopPathIndex = stopPathIndex,
+        distanceAlongTripM = distanceAlongTripM,
+        scheduleAdherenceSec = scheduleAdherenceSec,
+        snappedLat = snappedLat,
+        snappedLon = snappedLon,
+    )

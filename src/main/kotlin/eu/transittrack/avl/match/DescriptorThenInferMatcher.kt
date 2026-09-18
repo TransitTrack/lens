@@ -3,8 +3,6 @@ package eu.transittrack.avl.match
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleState
 
 /**
  * Tries [TrustDescriptorMatcher] first and falls back to [FullInferenceMatcher] whenever the
@@ -19,9 +17,9 @@ class DescriptorThenInferMatcher(
     override val mode = AvlAssignmentMode.DESCRIPTOR_THEN_INFER
 
     override fun match(
-        report: AvlReportRow,
-        prev: VehicleState?,
-        ctx: AvlMatchContext,
+        report: AvlReportView,
+        prev: VehicleStateView?,
+        ctx: MatchContext,
     ): MatchOutcome =
         trust
             .match(report, prev, ctx)

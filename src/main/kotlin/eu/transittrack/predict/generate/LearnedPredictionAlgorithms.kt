@@ -7,7 +7,7 @@ import kotlin.math.sqrt
 
 import org.springframework.stereotype.Component
 
-import eu.transittrack.avl.match.AvlMatchContext
+import eu.transittrack.avl.match.MatchContext
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
@@ -19,7 +19,7 @@ import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
  * since dwell isn't learned (per spec §5.2).
  */
 private fun seedTravelTimeSec(
-    ctx: AvlMatchContext,
+    ctx: MatchContext,
     seeds: TravelTimesForStopPathRepository,
     tripPatternId: Long,
     stopPathIndex: Int,
@@ -31,7 +31,7 @@ private fun seedTravelTimeSec(
         ?.toDouble()
 
 private fun seedDwellTimeSec(
-    ctx: AvlMatchContext,
+    ctx: MatchContext,
     seeds: TravelTimesForStopPathRepository,
     tripPatternId: Long,
     stopPathIndex: Int,
@@ -57,7 +57,7 @@ class HistoricalAverageAlgorithm(
         serviceDate: LocalDate,
         adherenceSec: Int,
         startTs: Instant,
-        ctx: AvlMatchContext,
+        ctx: MatchContext,
     ): List<GeneratedPrediction> {
         var lastTs = startTs
         var lastTripRowId: Long? = null
@@ -109,7 +109,7 @@ class KalmanAlgorithm(
         serviceDate: LocalDate,
         adherenceSec: Int,
         startTs: Instant,
-        ctx: AvlMatchContext,
+        ctx: MatchContext,
     ): List<GeneratedPrediction> {
         var lastTs = startTs
         var lastTripRowId: Long? = null

@@ -21,8 +21,6 @@ import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -81,8 +79,9 @@ class TrustDescriptorMatcherTest(
         descStartTimeSec: Int? = null,
         currentStopId: String? = null,
         currentStopSequence: Int? = null,
-    ): AvlReportRow =
-        AvlReportRow(
+    ): AvlReportView =
+        AvlReportView(
+            id = 1L,
             feedId = 1L,
             vehicleId = "v",
             vehicleLabel = null,
@@ -103,9 +102,6 @@ class TrustDescriptorMatcherTest(
             currentStatus = null,
             occupancyStatus = null,
             congestionLevel = null,
-            matchStatus = MatchStatus.PENDING,
-            matchedAt = null,
-            createdAt = ts,
         )
 
     @Test

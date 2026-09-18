@@ -7,12 +7,6 @@ import java.time.ZoneId
 
 import org.springframework.stereotype.Component
 
-data class SchedulePoint(
-    val stopPathIndex: Int,
-    val arrivalSec: Int?,
-    val departureSec: Int?,
-)
-
 /**
  * Schedule adherence: interpolate the scheduled service-day clock at the vehicle's along-trip
  * distance from the trip's ordered [SchedulePoint]s and the per-pattern cumulative stop-path

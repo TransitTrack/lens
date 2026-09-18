@@ -6,15 +6,8 @@ import java.time.ZoneId
 
 import org.springframework.stereotype.Component
 
-import eu.transittrack.avl.match.AvlMatchContext
+import eu.transittrack.avl.match.MatchContext
 import eu.transittrack.predict.PredictionAlgorithm
-
-/** One stop, on one trip, within a vehicle's remaining prediction horizon. */
-data class HorizonStop(
-    val tripRowId: Long,
-    val tripPatternId: Long,
-    val stopPathIndex: Int,
-)
 
 /**
  * Walks the current trip's remaining stop paths (from [fromStopPathIndex] to its last stop),
@@ -25,7 +18,7 @@ fun buildHorizon(
     currentTripRowId: Long,
     currentTripPatternId: Long,
     fromStopPathIndex: Int,
-    ctx: AvlMatchContext,
+    ctx: MatchContext,
 ): List<HorizonStop> {
     val stops = ArrayList<HorizonStop>()
     var tripRowId = currentTripRowId
@@ -49,40 +42,12 @@ fun buildHorizon(
     return stops
 }
 
-/** A single strategy's output for one stop; not implementing any shared marker interface. */
-data class GeneratedPrediction(
-    val stopPathIndex: Int,
-    val tripRowId: Long,
-    val tripPatternId: Long,
-    val predictedArrivalTs: Instant?,
-    val predictedDepartureTs: Instant?,
-    val confidenceSec: Int?,
-)
-
 /** Converts a GTFS-style service-day-relative second offset into an absolute instant. */
 fun serviceSecToInstant(
     serviceDate: LocalDate,
     sec: Int,
     zone: ZoneId,
 ): Instant = serviceDate.atStartOfDay(zone).plusSeconds(sec.toLong()).toInstant()
-
-/** A pluggable per-vehicle prediction strategy: given a horizon, produces predictions for it. */
-interface PredictionStrategy {
-    val algorithm: PredictionAlgorithm
-
-    /**
-     * [startTs] is the vehicle's current position timestamp — the anchor accumulation-style
-     * strategies walk forward from. Schedule-projection strategies (e.g.
-     * [ScheduleAdherenceAlgorithm]) don't need it.
-     */
-    fun predict(
-        horizon: List<HorizonStop>,
-        serviceDate: LocalDate,
-        adherenceSec: Int,
-        startTs: Instant,
-        ctx: AvlMatchContext,
-    ): List<GeneratedPrediction>
-}
 
 /**
  * Projects each horizon stop's scheduled time forward by the vehicle's current schedule
@@ -99,7 +64,7 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
         serviceDate: LocalDate,
         adherenceSec: Int,
         startTs: Instant,
-        ctx: AvlMatchContext,
+        ctx: MatchContext,
     ): List<GeneratedPrediction> {
         val predictions = ArrayList<GeneratedPrediction>()
         for (stop in horizon) {

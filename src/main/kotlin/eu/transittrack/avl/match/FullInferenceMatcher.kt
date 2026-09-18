@@ -5,9 +5,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
-import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleState
-import eu.transittrack.gtfs.model.Trip
+import eu.transittrack.schedule.model.TripRef
 
 /**
  * Matcher for feeds without trusted descriptors: every derived trip active on the inferred service
@@ -25,9 +23,9 @@ class FullInferenceMatcher(
     override val mode = AvlAssignmentMode.FULL_INFERENCE
 
     override fun match(
-        report: AvlReportRow,
-        prev: VehicleState?,
-        ctx: AvlMatchContext,
+        report: AvlReportView,
+        prev: VehicleStateView?,
+        ctx: MatchContext,
     ): MatchOutcome {
         val point = Point(report.lat, report.lon)
 
@@ -53,7 +51,7 @@ class FullInferenceMatcher(
 
         // 3. spatial + temporal + score each candidate
         data class Scored(
-            val trip: Trip,
+            val trip: TripRef,
             val geom: PatternGeometry,
             val sm: SpatialMatch,
             val adherence: Int?,
@@ -71,7 +69,7 @@ class FullInferenceMatcher(
                 // temporal matching
                 val adherence =
                     temporal.adherenceSec(
-                        ctx.scheduleOf(t.id!!),
+                        ctx.scheduleOf(t.id),
                         geom.stopPathCumM,
                         sm.distanceAlongTripM,
                         actualServiceSec,
@@ -98,9 +96,9 @@ class FullInferenceMatcher(
     }
 
     private fun continuityOf(
-        t: Trip,
-        prev: VehicleState?,
-        ctx: AvlMatchContext,
+        t: TripRef,
+        prev: VehicleStateView?,
+        ctx: MatchContext,
     ): Double {
         if (prev?.tripRowId == null) return 0.0
         if (t.id == prev.tripRowId) return 1.0
@@ -110,15 +108,15 @@ class FullInferenceMatcher(
     }
 
     private fun toMatched(
-        trip: Trip,
+        trip: TripRef,
         geom: PatternGeometry,
         sm: SpatialMatch,
         adherence: Int?,
         score: Double,
-        ctx: AvlMatchContext,
+        ctx: MatchContext,
     ) = MatchOutcome.Matched(
-        tripRowId = trip.id!!,
-        blockPk = ctx.blockTripOf(trip.id!!)?.blockId,
+        tripRowId = trip.id,
+        blockPk = ctx.blockTripOf(trip.id)?.blockId,
         tripPatternId = trip.tripPatternId!!,
         stopPathIndex = sm.stopPathIndex,
         distanceAlongTripM = sm.distanceAlongTripM,

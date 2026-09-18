@@ -3,50 +3,15 @@ package eu.transittrack.avl.match
 import java.time.LocalDate
 import java.time.ZoneId
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.Point
-import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.avl.model.VehicleState
-import eu.transittrack.gtfs.model.Trip
-
-/** Result of matching one AVL report against the derived schedule. */
-sealed interface MatchOutcome {
-    data class Matched(
-        val tripRowId: Long,
-        val blockPk: Long?,
-        val tripPatternId: Long,
-        val stopPathIndex: Int,
-        val distanceAlongTripM: Double,
-        val deviationM: Double,
-        val scheduleAdherenceSec: Int?,
-        val snapped: Point,
-        val heading: Double?,
-        val score: Double?,
-        val revisionId: Long,
-    ) : MatchOutcome
-
-    data object Failed : MatchOutcome
-
-    data object Skipped : MatchOutcome
-}
-
-interface VehicleMatcher {
-    val mode: AvlAssignmentMode
-
-    fun match(
-        report: AvlReportRow,
-        prev: VehicleState?,
-        ctx: AvlMatchContext,
-    ): MatchOutcome
-}
+import eu.transittrack.schedule.model.TripRef
 
 /**
  * `report.descStartDate` wins; else the report ts local date, shifted back a day when the report
  * ts-of-day is well before the trip's start (a trip starting 23:30 seen at 00:10 = previous day).
  */
 fun inferServiceDate(
-    report: AvlReportRow,
-    trip: Trip,
+    report: AvlReportView,
+    trip: TripRef,
     zone: ZoneId,
 ): LocalDate {
     report.descStartDate?.let { return it }
@@ -63,20 +28,20 @@ fun inferServiceDate(
  * [TrustDescriptorMatcher] and the full-inference matcher.
  */
 internal fun tryBlockAdvance(
-    prev: VehicleState,
+    prev: VehicleStateView,
     geom: PatternGeometry,
-    trip: Trip,
+    trip: TripRef,
     actualServiceSec: Int,
-    ctx: AvlMatchContext,
+    ctx: MatchContext,
     backtrackToleranceM: Double,
     tripEndAdvanceGraceSec: Int,
-): Pair<Trip, PatternGeometry>? {
+): Pair<TripRef, PatternGeometry>? {
     if (prev.tripRowId != trip.id) return null
     val along = prev.distanceAlongTripM ?: return null
     if (along < geom.line.lengthM - backtrackToleranceM) return null
     val end = trip.endTimeSec ?: return null
     if (actualServiceSec <= end + tripEndAdvanceGraceSec) return null
-    val bt = ctx.blockTripOf(trip.id!!) ?: return null
+    val bt = ctx.blockTripOf(trip.id) ?: return null
     val next = ctx.nextBlockTrip(bt.blockId, bt.listIndex) ?: return null
     val nextTrip = ctx.trip(next.tripId) ?: return null
     val nextPatternId = nextTrip.tripPatternId ?: return null

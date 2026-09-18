@@ -19,7 +19,10 @@ import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.schedule.model.BlockTrip
+import eu.transittrack.schedule.model.BlockTripRef
 import eu.transittrack.schedule.model.StopPath
+import eu.transittrack.schedule.model.StopPathRef
+import eu.transittrack.schedule.model.TripRef
 
 /**
  * Per-feed, single-run view over one GTFS revision's derived schedule. Each accessor delegates to a
@@ -31,8 +34,8 @@ import eu.transittrack.schedule.model.StopPath
  * has no `agency_timezone`) — see [AvlMatchContextFactory.open].
  */
 class AvlMatchContext(
-    val revisionId: Long,
-    val zone: ZoneId,
+    override val revisionId: Long,
+    override val zone: ZoneId,
     private val tripReader: CachedTripReader,
     private val patternReader: CachedTripPatternReader,
     private val stopPathReader: CachedStopPathReader,
@@ -40,35 +43,37 @@ class AvlMatchContext(
     private val blockTripReader: CachedBlockTripReader,
     private val serviceDateReader: CachedServiceDateReader,
     private val geometryReader: CachedPatternGeometryReader,
-) {
-    fun patternGeometry(tripPatternId: Long): PatternGeometry? = geometryReader.geometry(revisionId, tripPatternId)
+) : MatchContext {
+    override fun patternGeometry(tripPatternId: Long): PatternGeometry? = geometryReader.geometry(revisionId, tripPatternId)
 
-    fun scheduleOf(tripRowId: Long): List<SchedulePoint> = scheduleReader.orderedByTrip(revisionId, tripRowId)
+    override fun scheduleOf(tripRowId: Long): List<SchedulePoint> = scheduleReader.orderedByTrip(revisionId, tripRowId)
 
-    fun trip(tripRowId: Long): Trip? = tripReader.byRowId(revisionId, tripRowId)
+    override fun trip(tripRowId: Long): TripRef? = tripReader.byRowId(revisionId, tripRowId)?.toRef()
 
-    fun tripByGtfsId(tripId: String): Trip? = tripReader.byGtfsId(revisionId, tripId)
+    override fun tripByGtfsId(tripId: String): TripRef? = tripReader.byGtfsId(revisionId, tripId)?.toRef()
 
-    fun blockTripOf(tripRowId: Long): BlockTrip? = blockTripReader.byTripId(revisionId, tripRowId)
+    override fun blockTripOf(tripRowId: Long): BlockTripRef? = blockTripReader.byTripId(revisionId, tripRowId)?.toRef()
 
-    fun nextBlockTrip(
+    override fun nextBlockTrip(
         blockPk: Long,
         listIndex: Int,
-    ): BlockTrip? = blockTripReader.orderedByBlock(revisionId, blockPk).firstOrNull { it.listIndex == listIndex + 1 }
+    ): BlockTripRef? = blockTripReader.orderedByBlock(revisionId, blockPk).firstOrNull { it.listIndex == listIndex + 1 }?.toRef()
 
-    fun activeServiceIds(date: LocalDate): Set<String> = serviceDateReader.activeServiceIds(revisionId, date)
+    override fun activeServiceIds(date: LocalDate): Set<String> = serviceDateReader.activeServiceIds(revisionId, date)
 
-    fun candidateTrips(serviceIds: Set<String>): List<Trip> = tripReader.derivedByServices(revisionId, serviceIds.sorted())
+    override fun candidateTrips(serviceIds: Set<String>): List<TripRef> =
+        tripReader.derivedByServices(revisionId, serviceIds.sorted()).map { it.toRef() }
 
-    fun candidateTripsForRoute(
+    override fun candidateTripsForRoute(
         routeId: String,
         serviceIds: Set<String>,
-    ): List<Trip> = tripReader.derivedByRouteAndServices(revisionId, routeId, serviceIds.sorted())
+    ): List<TripRef> = tripReader.derivedByRouteAndServices(revisionId, routeId, serviceIds.sorted()).map { it.toRef() }
 
     /** Ordered stop paths of a pattern, used to resolve a descriptor's current stop to a distance along the trip. */
-    fun patternStops(tripPatternId: Long): List<StopPath> = stopPathReader.orderedByPattern(revisionId, tripPatternId)
+    override fun patternStops(tripPatternId: Long): List<StopPathRef> =
+        stopPathReader.orderedByPattern(revisionId, tripPatternId).map { it.toRef() }
 
-    fun patternExtentWithin(
+    override fun patternExtentWithin(
         tripPatternId: Long,
         p: Point,
         distanceM: Double,
@@ -79,6 +84,57 @@ class AvlMatchContext(
         return !extent.isEmpty && extent.isWithinDistance(p, distanceM)
     }
 }
+
+private fun Trip.toRef() =
+    TripRef(
+        id = id!!,
+        revisionId = revisionId,
+        tripId = tripId,
+        routeId = routeId,
+        serviceId = serviceId,
+        tripHeadsign = tripHeadsign,
+        tripShortName = tripShortName,
+        directionId = directionId,
+        blockId = blockId,
+        shapeId = shapeId,
+        wheelchairAccessible = wheelchairAccessible,
+        bikesAllowed = bikesAllowed,
+        tripPatternId = tripPatternId,
+        startTimeSec = startTimeSec,
+        endTimeSec = endTimeSec,
+        frequencyBased = frequencyBased,
+        noSchedule = noSchedule,
+    )
+
+private fun BlockTrip.toRef() =
+    BlockTripRef(
+        id = id!!,
+        revisionId = revisionId,
+        blockId = blockId,
+        tripId = tripId,
+        listIndex = listIndex,
+        layoverAfterSec = layoverAfterSec,
+        deadheadAfter = deadheadAfter,
+    )
+
+private fun StopPath.toRef() =
+    StopPathRef(
+        id = id!!,
+        revisionId = revisionId,
+        tripPatternId = tripPatternId,
+        stopPathIndex = stopPathIndex,
+        stopId = stopId,
+        routeId = routeId,
+        stopSeq = stopSeq,
+        lengthM = lengthM,
+        pathGeometry = pathGeometry,
+        pickupType = pickupType,
+        dropOffType = dropOffType,
+        waitStop = waitStop,
+        scheduleAdherenceStop = scheduleAdherenceStop,
+        layoverStop = layoverStop,
+        breakTimeSec = breakTimeSec,
+    )
 
 @Component
 class AvlMatchContextFactory(
