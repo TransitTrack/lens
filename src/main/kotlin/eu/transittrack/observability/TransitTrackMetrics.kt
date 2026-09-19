@@ -288,6 +288,27 @@ class TransitTrackMetrics(
             counter("transittrack.schedule.optimization.analyzer.failures", tags("analyzer", analyzerName)).increment()
         }
 
+    /**
+     * One run of a `@Scheduled` retention/sweep job finished (success or failure). `job` is a small
+     * fixed set of our own job names (e.g. `"avl_retention_prune"`), never user input. `items` is an
+     * optional count of rows/files affected, for jobs where that's a single meaningful number.
+     */
+    fun scheduledJobFinished(
+        job: String,
+        outcome: Outcome,
+        elapsed: Duration,
+        items: Long? = null,
+    ) = safely("scheduled_job_finished") {
+        val tags = tags("job", job, "outcome", outcome.tag())
+        counter("transittrack.scheduled.job.runs", tags).increment()
+        timer("transittrack.scheduled.job.duration", tags).record(elapsed)
+        setGauge("transittrack.scheduled.job.last.run.timestamp", tags("job", job), Instant.now().epochSecond)
+        if (outcome == Outcome.SUCCESS) {
+            setGauge("transittrack.scheduled.job.last.success.timestamp", tags("job", job), Instant.now().epochSecond)
+            items?.let { counter("transittrack.scheduled.job.items", tags("job", job)).increment(it.toDouble()) }
+        }
+    }
+
     fun outboundHttp(
         purpose: String,
         url: String,

@@ -1,5 +1,6 @@
 package eu.transittrack.avl.match
 
+import java.time.Duration
 import java.time.Instant
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
@@ -12,6 +13,7 @@ import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * Ages out matched vehicles that have stopped sending reports.
@@ -38,6 +40,7 @@ import eu.transittrack.config.Role
 class AvlSilentVehicleSweeper(
     private val vehicleStates: VehicleStateRepository,
     props: AvlProperties,
+    private val metrics: TransitTrackMetrics,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.match
@@ -50,10 +53,20 @@ class AvlSilentVehicleSweeper(
     @Scheduled(fixedDelayString = "\${transittrack.avl.match.match-interval-ms:5000}")
     @SchedulerLock(name = "avl-silent-sweep", lockAtMostFor = "PT30S", lockAtLeastFor = "PT4S")
     fun sweep() {
-        val c = sweep(Instant.now())
-        if (c.staled > 0 || c.unmatched > 0) {
-            log.info("avl silent sweep: ⚠️ {} vehicles flagged stale, ‼️ {} unmatched", c.staled, c.unmatched)
+        val start = Instant.now()
+        val result = runCatching { sweep(start) }
+        result.onSuccess { c ->
+            if (c.staled > 0 || c.unmatched > 0) {
+                log.info("avl silent sweep: ⚠️ {} vehicles flagged stale, ‼️ {} unmatched", c.staled, c.unmatched)
+            }
         }
+        metrics.scheduledJobFinished(
+            job = "avl_silent_sweep",
+            outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
+            elapsed = Duration.between(start, Instant.now()),
+            items = result.getOrNull()?.let { (it.staled + it.unmatched).toLong() },
+        )
+        result.getOrThrow()
     }
 
     fun sweep(now: Instant): SweepCounts {

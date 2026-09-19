@@ -1,6 +1,7 @@
 package eu.transittrack.schedule.optimize
 
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * Age-based prune of `schedule_optimization_run` rows older than
@@ -26,6 +28,7 @@ import eu.transittrack.config.Role
 class OptimizationRetentionScheduler(
     private val jdbc: JdbcTemplate,
     props: OptimizationProperties,
+    private val metrics: TransitTrackMetrics,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val resultsRetentionDays = props.retention.resultsRetentionDays.toLong()
@@ -37,8 +40,18 @@ class OptimizationRetentionScheduler(
     @Scheduled(cron = "\${transittrack.schedule.optimize.retention.sweep-cron:0 30 3 * * *}")
     @SchedulerLock(name = "optimization-retention-prune", lockAtMostFor = "PT15M", lockAtLeastFor = "PT1M")
     fun prune() {
-        val counts = prune(Instant.now())
-        log.info("optimization retention: pruned {} runs (recommendations cascade with them)", counts.runs)
+        val start = Instant.now()
+        val result = runCatching { prune(start) }
+        result.onSuccess { counts ->
+            log.info("optimization retention: pruned {} runs (recommendations cascade with them)", counts.runs)
+        }
+        metrics.scheduledJobFinished(
+            job = "optimization_retention_prune",
+            outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
+            elapsed = Duration.between(start, Instant.now()),
+            items = result.getOrNull()?.runs?.toLong(),
+        )
+        result.getOrThrow()
     }
 
     fun prune(now: Instant): PruneCounts {

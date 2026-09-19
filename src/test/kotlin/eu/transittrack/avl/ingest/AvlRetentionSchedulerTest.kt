@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
@@ -61,7 +62,7 @@ class AvlRetentionSchedulerTest(
 
     @Test
     fun `prune removes only rows older than the configured windows`() {
-        val scheduler = AvlRetentionScheduler(jdbc, AvlProperties())
+        val scheduler = AvlRetentionScheduler(jdbc, AvlProperties(), TransitTrackMetrics.forTests())
 
         val counts = scheduler.prune(now)
 

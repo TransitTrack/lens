@@ -1,6 +1,7 @@
 package eu.transittrack.predict
 
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * Age-based prune of prediction tables, plus a sweep of learner-table rows left orphaned when their
@@ -24,6 +26,7 @@ import eu.transittrack.config.Role
 class PredictionRetentionScheduler(
     private val jdbc: JdbcTemplate,
     props: PredictProperties,
+    private val metrics: TransitTrackMetrics,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.retention
@@ -39,11 +42,24 @@ class PredictionRetentionScheduler(
     @Scheduled(cron = "\${transittrack.predict.retention.sweep-cron}")
     @SchedulerLock(name = "predict-retention-prune", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     fun prune() {
-        val c = prune(Instant.now())
-        log.info(
-            "predict retention: pruned {} predictions, {} accuracy, {} orphan observations, {} orphan kalman",
-            c.predictions, c.accuracy, c.orphanObservations, c.orphanKalman,
+        val start = Instant.now()
+        val result = runCatching { prune(start) }
+        result.onSuccess { c ->
+            log.info(
+                "predict retention: pruned {} predictions, {} accuracy, {} orphan observations, {} orphan kalman",
+                c.predictions, c.accuracy, c.orphanObservations, c.orphanKalman,
+            )
+        }
+        metrics.scheduledJobFinished(
+            job = "predict_retention_prune",
+            outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
+            elapsed = Duration.between(start, Instant.now()),
+            items = result.getOrNull()?.let {
+                (it.predictions + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman)
+                    .toLong()
+            },
         )
+        result.getOrThrow()
     }
 
     fun prune(now: Instant): PruneCounts {

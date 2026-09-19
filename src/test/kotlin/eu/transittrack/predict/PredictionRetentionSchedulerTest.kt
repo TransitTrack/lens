@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
@@ -24,7 +25,7 @@ class PredictionRetentionSchedulerTest(
 
     @BeforeEach
     fun seed() {
-        scheduler = PredictionRetentionScheduler(jdbc, PredictProperties())
+        scheduler = PredictionRetentionScheduler(jdbc, PredictProperties(), TransitTrackMetrics.forTests())
 
         jdbc.update(
             "insert into gtfs_feed (id, code, name, url, enabled, source, created_at, updated_at) " +

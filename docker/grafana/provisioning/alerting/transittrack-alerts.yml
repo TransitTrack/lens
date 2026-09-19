@@ -18,6 +18,8 @@ groups:
             datasourceUid: prometheus
             model:
               expr: up{job="transittrack"} == 0
+              instant: true
+              range: false
               refId: A
         for: 2m
         noDataState: NoData
@@ -45,6 +47,8 @@ groups:
             datasourceUid: prometheus
             model:
               expr: transittrack_avl_feed_age > 180
+              instant: true
+              range: false
               refId: A
         for: 5m
         noDataState: NoData
@@ -67,6 +71,8 @@ groups:
             datasourceUid: prometheus
             model:
               expr: transittrack_avl_oldest_pending_report_age > 10
+              instant: true
+              range: false
               refId: A
         for: 10m
         noDataState: OK

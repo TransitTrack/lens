@@ -16,6 +16,7 @@ import eu.transittrack.GtfsProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.FakeLockProvider
 
 class GtfsIngestSchedulerTest {
@@ -53,7 +54,7 @@ class GtfsIngestSchedulerTest {
             )
         val props = GtfsProperties(polling = GtfsProperties.Polling(enabled = true))
 
-        GtfsIngestScheduler(repo, ingestion, props, lockingExecutor).sweep()
+        GtfsIngestScheduler(repo, ingestion, props, lockingExecutor, TransitTrackMetrics.forTests()).sweep()
 
         verify(ingestion, times(1)).ingest(eq("due"))
         verify(ingestion, never()).ingest(eq("not-due"))
@@ -64,7 +65,7 @@ class GtfsIngestSchedulerTest {
     fun `no-op when polling disabled`() {
         val repo = mock<GtfsFeedRepository>()
 
-        GtfsIngestScheduler(repo, ingestion, GtfsProperties(), lockingExecutor).sweep()
+        GtfsIngestScheduler(repo, ingestion, GtfsProperties(), lockingExecutor, TransitTrackMetrics.forTests()).sweep()
 
         verify(ingestion, never()).ingest(any())
     }
@@ -76,7 +77,8 @@ class GtfsIngestSchedulerTest {
             .thenReturn(listOf(feed("f1", "0 0 3 * * *", Instant.parse("2000-01-01T00:00:00Z"))))
         val props = GtfsProperties(polling = GtfsProperties.Polling(enabled = true))
         val sharedLockProvider = FakeLockProvider()
-        val scheduler = GtfsIngestScheduler(repo, ingestion, props, DefaultLockingTaskExecutor(sharedLockProvider))
+        val scheduler =
+            GtfsIngestScheduler(repo, ingestion, props, DefaultLockingTaskExecutor(sharedLockProvider), TransitTrackMetrics.forTests())
 
         val held =
             sharedLockProvider.lock(

@@ -1,0 +1,127 @@
+{
+  "title": "TransitTrack Scheduled Jobs",
+  "uid": "transittrack-scheduled-jobs",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Time since last successful run, per job",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "transformations": [
+        { "id": "labelsToFields", "options": {} }
+      ],
+      "targets": [
+        {
+          "expr": "time() - transittrack_scheduled_job_last_success_timestamp",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Run outcomes (5m rate)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(transittrack_scheduled_job_runs_total[5m])) by (job, outcome)",
+          "legendFormat": "{{job}} - {{outcome}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Job duration (p95)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(transittrack_scheduled_job_duration_seconds_bucket[5m])) by (le, job))",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Failures in the last 24h",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 17 },
+      "targets": [
+        {
+          "expr": "sum(increase(transittrack_scheduled_job_runs_total{outcome=\"failed\"}[24h])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Items processed per run (rows deleted, feeds triggered, vehicles swept)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 17 },
+      "targets": [
+        {
+          "expr": "sum(rate(transittrack_scheduled_job_items_total[15m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Average duration (avg over 15m)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 26 },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(transittrack_scheduled_job_duration_seconds_sum[15m])) by (job) / sum(rate(transittrack_scheduled_job_duration_seconds_count[15m])) by (job)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Hot-loop processors: batch throughput",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 26 },
+      "targets": [
+        { "expr": "sum(rate(transittrack_avl_polls_total[5m])) by (feed, outcome)", "legendFormat": "avl_poll {{feed}} {{outcome}}", "refId": "A" },
+        { "expr": "sum(rate(transittrack_avl_match_batches_total[5m])) by (feed, outcome)", "legendFormat": "avl_match {{feed}} {{outcome}}", "refId": "B" },
+        { "expr": "sum(rate(transittrack_prediction_batches_total[5m])) by (feed, outcome)", "legendFormat": "prediction {{feed}} {{outcome}}", "refId": "C" }
+      ]
+    }
+  ]
+}

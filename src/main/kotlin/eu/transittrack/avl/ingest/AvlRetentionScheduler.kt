@@ -1,6 +1,7 @@
 package eu.transittrack.avl.ingest
 
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * Age-based prune of AVL ingestion tables. Deleting `avl_report` rows cascades their `vehicle_match`
@@ -26,6 +28,7 @@ import eu.transittrack.config.Role
 class AvlRetentionScheduler(
     private val jdbc: JdbcTemplate,
     props: AvlProperties,
+    private val metrics: TransitTrackMetrics,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.retention
@@ -39,8 +42,18 @@ class AvlRetentionScheduler(
     @Scheduled(cron = "\${transittrack.avl.retention.sweep-cron}")
     @SchedulerLock(name = "avl-retention-prune", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     fun prune() {
-        val c = prune(Instant.now())
-        log.info("avl retention: pruned {} reports, {} matches, {} states", c.reports, c.matches, c.states)
+        val start = Instant.now()
+        val result = runCatching { prune(start) }
+        result.onSuccess { c ->
+            log.info("avl retention: pruned {} reports, {} matches, {} states", c.reports, c.matches, c.states)
+        }
+        metrics.scheduledJobFinished(
+            job = "avl_retention_prune",
+            outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
+            elapsed = Duration.between(start, Instant.now()),
+            items = result.getOrNull()?.let { (it.reports + it.matches + it.states).toLong() },
+        )
+        result.getOrThrow()
     }
 
     fun prune(now: Instant): PruneCounts {

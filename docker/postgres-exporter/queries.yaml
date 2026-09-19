@@ -1,0 +1,25 @@
+pg_table_size:
+  query: |
+    SELECT
+      schemaname,
+      relname,
+      pg_total_relation_size(relid) AS total_bytes,
+      pg_relation_size(relid) AS table_bytes,
+      pg_indexes_size(relid) AS index_bytes
+    FROM pg_catalog.pg_statio_user_tables
+  metrics:
+    - schemaname:
+        usage: "LABEL"
+        description: "Schema name"
+    - relname:
+        usage: "LABEL"
+        description: "Table name"
+    - total_bytes:
+        usage: "GAUGE"
+        description: "Total size of the table including indexes and toast, in bytes"
+    - table_bytes:
+        usage: "GAUGE"
+        description: "Size of the table itself, in bytes"
+    - index_bytes:
+        usage: "GAUGE"
+        description: "Total size of indexes on the table, in bytes"

@@ -17,6 +17,7 @@ import eu.transittrack.GtfsProperties
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.observability.TransitTrackMetrics
 
 /**
  * Periodic sweep that triggers ingestion for enabled feeds whose per-feed [GtfsFeed.pollingCron]
@@ -34,37 +35,50 @@ class GtfsIngestScheduler(
     private val ingestion: IngestionService,
     private val props: GtfsProperties,
     private val lockingExecutor: LockingTaskExecutor,
+    private val metrics: TransitTrackMetrics,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Scheduled(cron = "\${transittrack.gtfs.polling.sweep-cron}")
     fun sweep() {
-        val zone = ZoneId.systemDefault()
-        val now = LocalDateTime.now(zone)
-        for (feed in feeds.findAllEnabled()) {
-            val cron = feed.pollingCron ?: continue
-            val since = LocalDateTime.ofInstant(feed.lastIngestAt ?: Instant.EPOCH, zone)
-            val next =
-                runCatching {
-                    CronExpression.parse(cron).next(since)
-                }.getOrNull() ?: continue
+        val start = Instant.now()
+        var triggered = 0L
+        val result = runCatching {
+            val zone = ZoneId.systemDefault()
+            val now = LocalDateTime.now(zone)
+            for (feed in feeds.findAllEnabled()) {
+                val cron = feed.pollingCron ?: continue
+                val since = LocalDateTime.ofInstant(feed.lastIngestAt ?: Instant.EPOCH, zone)
+                val next =
+                    runCatching {
+                        CronExpression.parse(cron).next(since)
+                    }.getOrNull() ?: continue
 
-            if (next.isAfter(now)) {
-                continue
-            }
+                if (next.isAfter(now)) {
+                    continue
+                }
 
-            val config =
-                LockConfiguration(
-                    Instant.now(), "gtfs-ingest:${feed.code}",
-                    Duration.ofMinutes(30), Duration.ofSeconds(1),
+                val config =
+                    LockConfiguration(
+                        Instant.now(), "gtfs-ingest:${feed.code}",
+                        Duration.ofMinutes(30), Duration.ofSeconds(1),
+                    )
+                triggered++
+                lockingExecutor.executeWithLock(
+                    Runnable {
+                        runCatching { ingestion.ingest(feed.code) }
+                            .onFailure { log.warn("scheduled ingest for '{}' skipped: {}", feed.code, it.message) }
+                    },
+                    config,
                 )
-            lockingExecutor.executeWithLock(
-                Runnable {
-                    runCatching { ingestion.ingest(feed.code) }
-                        .onFailure { log.warn("scheduled ingest for '{}' skipped: {}", feed.code, it.message) }
-                },
-                config,
-            )
+            }
         }
+        metrics.scheduledJobFinished(
+            job = "gtfs_ingest_sweep",
+            outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
+            elapsed = Duration.between(start, Instant.now()),
+            items = triggered,
+        )
+        result.getOrThrow()
     }
 }

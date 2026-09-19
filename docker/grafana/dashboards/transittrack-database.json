@@ -1,0 +1,145 @@
+{
+  "title": "TransitTrack Database",
+  "uid": "transittrack-database",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Postgres exporter up",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "up{job=\"postgres\"}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Database size",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "pg_database_size_bytes{datname=\"explorer\"}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Total live rows (all tables)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "sum(pg_stat_user_tables_n_live_tup)", "refId": "A" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Active connections",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "targets": [
+        { "expr": "sum(pg_stat_activity_count)", "refId": "A" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Row count per table (live vs dead)",
+      "type": "barchart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "expr": "pg_stat_user_tables_n_live_tup", "legendFormat": "{{relname}} live", "refId": "A" },
+        { "expr": "pg_stat_user_tables_n_dead_tup", "legendFormat": "{{relname}} dead", "refId": "B" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Table storage size (total, incl. indexes)",
+      "type": "barchart",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "pg_table_size_total_bytes", "legendFormat": "{{relname}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Table size growth over time",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 13 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "pg_table_size_total_bytes", "legendFormat": "{{relname}}", "refId": "A" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Postgres container CPU usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 13 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{name=~\".*db.*\"}[1m])) by (name) * 100",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Postgres container memory usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 22 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{name=~\".*db.*\"}",
+          "legendFormat": "{{name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Postgres query throughput (tuples fetched/inserted/updated/deleted)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 22 },
+      "targets": [
+        { "expr": "rate(pg_stat_user_tables_n_tup_ins[5m])", "legendFormat": "{{relname}} inserts", "refId": "A" },
+        { "expr": "rate(pg_stat_user_tables_n_tup_upd[5m])", "legendFormat": "{{relname}} updates", "refId": "B" },
+        { "expr": "rate(pg_stat_user_tables_n_tup_del[5m])", "legendFormat": "{{relname}} deletes", "refId": "C" }
+      ]
+    }
+  ]
+}

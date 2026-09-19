@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
@@ -30,7 +31,7 @@ class OptimizationRetentionSchedulerTest(
 
     @BeforeEach
     fun seed() {
-        scheduler = OptimizationRetentionScheduler(jdbc, OptimizationProperties())
+        scheduler = OptimizationRetentionScheduler(jdbc, OptimizationProperties(), TransitTrackMetrics.forTests())
 
         // Old run (past the 90-day default retention) with a child recommendation that must
         // cascade-delete with it.
