@@ -1,99 +1,108 @@
 <script setup lang="ts">
-import type {TimelineSegment} from '~/utils/blocks'
+import type { TimelineSegment } from '~/utils/blocks'
+import { ganttRows, layoverLabel, timelineTicks } from '~/utils/blocks'
 
-const props = withDefaults(
-  defineProps<{
-    segments: TimelineSegment[]
-    spanStart: number
-    spanEnd: number
-    height?: number
-  }>(),
-  {height: 64},
-)
+const props = defineProps<{
+  segments: TimelineSegment[]
+  spanStart: number
+  spanEnd: number
+}>()
 
 const VW = 1000
-
-const hourTicks = computed(() => {
+const ticks = computed(() => {
   const span = Math.max(1, props.spanEnd - props.spanStart)
-  const first = Math.ceil(props.spanStart / 3600)
-  const last = Math.floor(props.spanEnd / 3600)
-  const ticks: { x: number, label: string }[] = []
-  for (let h = first; h <= last; h++) {
-    ticks.push({x: ((h * 3600 - props.spanStart) / span) * VW, label: `${h % 24}`})
-  }
-  return ticks
+  return timelineTicks(props.spanStart, props.spanEnd).map((tick) => ({
+    ...tick,
+    x: ((tick.sec - props.spanStart) / span) * VW,
+  }))
 })
+
+const rows = computed(() => ganttRows(props.segments))
 </script>
 
 <template>
-  <div class="flex flex-col gap-1">
-    <svg
-      :viewBox="`0 0 ${VW} ${height}`"
-      class="w-full text-muted"
-      :style="{ height: `${height}px` }"
-      preserveAspectRatio="none"
-    >
-      <line
-        v-for="t in hourTicks"
-        :key="`g${t.x}`"
-        :x1="t.x"
-        :x2="t.x"
-        y1="0"
-        :y2="height - 14"
-        stroke="currentColor"
-        stroke-width="1"
-        opacity="0.15"
-      />
-
-      <template v-for="seg in segments" :key="seg.key">
-        <rect
-          v-if="seg.kind === 'trip'"
-          :x="seg.x * VW"
-          y="6"
-          :width="seg.w * VW"
-          :height="height - 26"
-          :fill="seg.color"
-          rx="2"
+  <div class="p-0">
+    <div class="overflow-x-auto pb-1">
+      <div class="min-w-152">
+        <div class="grid grid-cols-[10rem_minmax(0,1fr)] border-b border-default pb-2">
+          <p class="text-xs font-medium text-dimmed">Trip</p>
+          <div class="relative h-4">
+            <span
+              v-for="tick in ticks"
+              :key="`header-${tick.sec}`"
+              class="absolute -translate-x-1/2 text-[10px] tabular-nums text-muted"
+              :class="tick.endpoint ? 'font-semibold text-highlighted' : ''"
+              :style="{ left: `${(tick.x / VW) * 100}%` }"
+              >{{ tick.label }}</span
+            >
+          </div>
+        </div>
+        <div
+          v-for="row in rows"
+          :key="row.trip.key"
+          class="grid grid-cols-[10rem_minmax(0,1fr)] items-center gap-3 border-b border-default/60 py-2 last:border-b-0"
         >
-          <title>{{ seg.routeLabel }} {{ seg.headsign ?? '' }} · {{ secToHm(seg.startSec) }}–{{ secToHm(seg.endSec) }}</title>
-        </rect>
-        <rect
-          v-else
-          :x="seg.x * VW"
-          :y="(height - 26) / 2"
-          :width="seg.w * VW"
-          :height="6"
-          fill="currentColor"
-          opacity="0.4"
-        >
-          <title>Layover {{ secToHm(seg.startSec) }}–{{ secToHm(seg.endSec) }}</title>
-        </rect>
-        <circle
-          v-if="seg.kind === 'trip' && seg.deadheadAfter"
-          :cx="(seg.x + seg.w) * VW"
-          :cy="(height - 20) / 2"
-          r="3"
-          fill="#f59e0b"
-        >
-          <title>Deadhead after</title>
-        </circle>
-      </template>
-
-      <text
-        v-for="t in hourTicks"
-        :key="`l${t.x}`"
-        :x="t.x"
-        :y="height - 2"
-        font-size="9"
-        text-anchor="middle"
-        fill="currentColor"
-      >{{ t.label }}
-      </text>
-    </svg>
-    <div class="flex items-center gap-3 text-[11px] text-dimmed">
-      <span class="flex items-center gap-1"><span class="size-2 rounded-sm bg-primary"/> trip</span>
-      <span class="flex items-center gap-1"><span class="h-1 w-3 rounded bg-muted"/> layover</span>
-      <span class="flex items-center gap-1"><span class="size-2 rounded-full bg-warning"/> deadhead</span>
+          <div class="min-w-0">
+            <p class="truncate text-xs font-semibold text-highlighted">{{ row.trip.routeLabel }}</p>
+            <p class="truncate text-xs text-dimmed">
+              {{ row.trip.headsign ?? row.trip.routeLabel }}
+            </p>
+          </div>
+          <div class="relative h-10 overflow-hidden rounded-md bg-muted/15">
+            <span
+              v-for="tick in ticks"
+              :key="`grid-${row.trip.key}-${tick.sec}`"
+              class="absolute inset-y-0 border-l"
+              :class="tick.endpoint ? 'border-default' : 'border-default/40'"
+              :style="{ left: `${(tick.x / VW) * 100}%` }"
+            />
+            <div
+              class="absolute inset-x-auto top-1.5 bottom-4 rounded-sm shadow-sm"
+              :style="{
+                left: `${row.trip.x * 100}%`,
+                width: `${row.trip.w * 100}%`,
+                backgroundColor: row.trip.color,
+              }"
+              :title="`${row.trip.routeLabel} ${row.trip.headsign ?? ''} · ${secToHm(row.trip.startSec)}–${secToHm(row.trip.endSec)}`"
+            />
+            <div
+              v-if="row.layoverAfter"
+              class="absolute top-1/2 h-px -translate-y-1/2 border-t border-dashed border-muted"
+              :style="{
+                left: `${row.layoverAfter.x * 100}%`,
+                width: `${row.layoverAfter.w * 100}%`,
+              }"
+              :title="`Layover ${secToHm(row.layoverAfter.startSec)}–${secToHm(row.layoverAfter.endSec)}`"
+            />
+            <span
+              v-if="row.layoverAfter"
+              class="absolute bottom-0.5 max-w-[85%] -translate-x-1/2 truncate text-[10px] leading-none text-dimmed"
+              :style="{ left: `${(row.layoverAfter.x + row.layoverAfter.w / 2) * 100}%` }"
+              :title="
+                layoverLabel(
+                  row.layoverAfter.endSec - row.layoverAfter.startSec,
+                  row.trip.deadheadAfter,
+                )
+              "
+              >{{
+                layoverLabel(
+                  row.layoverAfter.endSec - row.layoverAfter.startSec,
+                  row.trip.deadheadAfter,
+                )
+              }}</span
+            >
+            <span
+              v-if="row.trip.deadheadAfter"
+              class="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-warning ring-2 ring-elevated"
+              :style="{ left: `${(row.trip.x + row.trip.w) * 100}%` }"
+              title="Deadhead after"
+            />
+          </div>
+        </div>
+      </div>
     </div>
+    <p class="mt-3 text-xs text-dimmed">
+      Bars are revenue trips; dotted extensions show layovers; amber dots mark deadheads.
+    </p>
   </div>
 </template>

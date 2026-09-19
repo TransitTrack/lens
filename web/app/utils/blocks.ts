@@ -1,4 +1,4 @@
-import {hexColor} from './gtfs'
+import {hexColor, secToHm} from './gtfs'
 
 interface BlockLike {
   startTimeSec: number
@@ -71,6 +71,50 @@ export interface TimelineSegment {
   startSec: number
   endSec: number
   deadheadAfter: boolean
+}
+
+export interface TimelineTick {
+  sec: number
+  label: string
+  endpoint: boolean
+}
+
+/** Keep the trip lane legible without letting it dominate a tall timeline. */
+export function timelineBarHeight(height: number): number {
+  return Math.min(34, Math.max(18, height - 52))
+}
+
+export interface GanttRow {
+  trip: TimelineSegment
+  layoverAfter: TimelineSegment | null
+}
+
+/** Pair every trip with the layover that immediately follows it for Gantt rendering. */
+export function ganttRows(segments: TimelineSegment[]): GanttRow[] {
+  return segments
+    .filter((segment) => segment.kind === 'trip')
+    .map((trip) => ({
+      trip,
+      layoverAfter: segments.find((segment) => segment.kind === 'layover' && segment.startSec === trip.endSec) ?? null,
+    }))
+}
+
+export function layoverLabel(durationSec: number, deadheadFollows: boolean): string {
+  const label = `${Math.round(durationSec / 60)} min layover`
+  return deadheadFollows ? `${label} · deadhead follows` : label
+}
+
+/** Hourly timeline markers, always including the exact start and end of a duty. */
+export function timelineTicks(spanStart: number, spanEnd: number): TimelineTick[] {
+  if (spanEnd < spanStart) return []
+
+  const ticks: TimelineTick[] = [{sec: spanStart, label: secToHm(spanStart), endpoint: true}]
+  const firstHour = Math.ceil(spanStart / 3600) * 3600
+  for (let sec = firstHour; sec < spanEnd; sec += 3600) {
+    if (sec > spanStart) ticks.push({sec, label: secToHm(sec), endpoint: false})
+  }
+  if (spanEnd > spanStart) ticks.push({sec: spanEnd, label: secToHm(spanEnd), endpoint: true})
+  return ticks
 }
 
 /** Lay out a block's trips (and the layover gaps between them) on a 0..1 axis. */
