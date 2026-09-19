@@ -57,6 +57,67 @@ export interface DepartureInput {
   trips: { startTimeSec: number | null, serviceId: string }[]
 }
 
+export interface ScheduledDepartureInput {
+  patternKey: string
+  trips: {
+    startTimeSec: number | null
+    serviceId: string
+    scheduleTimes: { stopPathIndex: number, departureSec: number | null }[]
+  }[]
+}
+
+export interface ScheduledDeparture {
+  routeLabel: string
+  routeColor: string | null
+  routeTextColor: string | null
+  headsign: string | null
+  departureSec: number
+}
+
+export interface ScheduledDepartureGroup {
+  hour: number
+  departures: ScheduledDeparture[]
+}
+
+/** Exact scheduled departures at a stop, grouped by service-hour for a timetable. */
+export function scheduledDepartureGroups(
+  serving: ServingPattern[],
+  tripsByPattern: ScheduledDepartureInput[],
+  kinds: Map<string, Set<ServiceKind>>,
+  kind: ServiceKind,
+): ScheduledDepartureGroup[] {
+  const tripsByPatternKey = new Map(tripsByPattern.map((item) => [item.patternKey, item.trips]))
+  const departures: ScheduledDeparture[] = []
+
+  for (const served of serving) {
+    const trips = tripsByPatternKey.get(served.pattern.patternKey) ?? []
+    for (const trip of trips) {
+      if (!kinds.get(trip.serviceId)?.has(kind)) continue
+      const departureSec = trip.scheduleTimes.find(
+        (time) => time.stopPathIndex === served.stopPathIndex,
+      )?.departureSec
+      if (departureSec == null) continue
+      departures.push({
+        routeLabel: served.pattern.route?.routeShortName ?? served.pattern.routeId,
+        routeColor: served.pattern.route?.routeColor ?? null,
+        routeTextColor: served.pattern.route?.routeTextColor ?? null,
+        headsign: served.pattern.headsign,
+        departureSec,
+      })
+    }
+  }
+
+  departures.sort((a, b) => a.departureSec - b.departureSec)
+  const groups = new Map<number, ScheduledDeparture[]>()
+  for (const departure of departures) {
+    const hour = Math.floor(departure.departureSec / 3600)
+    const group = groups.get(hour) ?? []
+    group.push(departure)
+    groups.set(hour, group)
+  }
+  return [...groups].map(([hour, departures]) => ({hour, departures}))
+}
+
 /** 24-bar histogram of scheduled departures at the stop for one service kind. */
 export function departureHistogram(
   serving: ServingPattern[],
