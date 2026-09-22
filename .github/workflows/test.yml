@@ -10,6 +10,11 @@ concurrency:
   group: test-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# dorny/test-reporter creates a check run with the results, which needs `checks: write`.
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   backend:
     name: Backend tests (JUnit)
@@ -25,33 +30,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # Testcontainers needs Docker, which is preinstalled and running on GitHub-hosted
-      # ubuntu-latest runners - no extra setup required.
+      # ubuntu-latest runners - no extra setup required. continue-on-error so the reporter step
+      # below still runs (and shows which tests failed) instead of the job aborting here.
       - name: Run tests
         id: test
         run: ./gradlew test --no-daemon
         continue-on-error: true
 
-      - name: Test summary
+      - name: Test report
         if: always()
-        run: |
-          python3 - <<'PYEOF'
-          import glob, os, xml.etree.ElementTree as ET
-          tests = failures = errors = skipped = 0
-          for f in glob.glob("build/test-results/test/TEST-*.xml"):
-              root = ET.parse(f).getroot()
-              tests += int(root.attrib.get("tests", 0))
-              failures += int(root.attrib.get("failures", 0))
-              errors += int(root.attrib.get("errors", 0))
-              skipped += int(root.attrib.get("skipped", 0))
-          passed = tests - failures - errors - skipped
-          summary = f"### Backend tests: {passed}/{tests} passed"
-          if failures or errors:
-              summary += f" ({failures} failed, {errors} errors)"
-          if skipped:
-              summary += f", {skipped} skipped"
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
-              fh.write(summary + "\n")
-          PYEOF
+        uses: dorny/test-reporter@v3
+        with:
+          name: Backend tests (JUnit)
+          path: build/test-results/test/*.xml
+          reporter: java-junit
+          # Defaults to true - this is what actually fails the job on a real test failure,
+          # not the (continue-on-error'd) gradle step above.
 
       - name: Upload backend test report
         if: always()
@@ -62,10 +56,6 @@ jobs:
             build/reports/tests/test/
             build/test-results/test/*.xml
           retention-days: 14
-
-      - name: Fail if tests failed
-        if: steps.test.outcome == 'failure'
-        run: exit 1
 
   frontend:
     name: Frontend tests (vitest)
@@ -88,13 +78,13 @@ jobs:
 
       - name: Run vitest
         id: test
-        run: pnpm run test
+        run: pnpm exec vitest run --reporter=junit --outputFile=test-results/junit.xml
+        continue-on-error: true
 
-      - name: Summary
+      - name: Test report
         if: always()
-        run: |
-          if [ "${{ steps.test.outcome }}" = "success" ]; then
-            echo "### Frontend tests: passed ✅" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "### Frontend tests: failed ❌" >> "$GITHUB_STEP_SUMMARY"
-          fi
+        uses: dorny/test-reporter@v3
+        with:
+          name: Frontend tests (vitest)
+          path: web/test-results/junit.xml
+          reporter: java-junit

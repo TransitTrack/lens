@@ -37,6 +37,14 @@ To run a single class, add a Gradle `include(...)` filter to a configuration in 
 (see the `smoke` profile), or pass `-Pbenchmarks_include=<regex>` if your kotlinx-benchmark version
 supports it - check `./gradlew help --task benchmark` for the exact flags available.
 
+## In CI
+
+`.github/workflows/benchmark.yml` runs `smokeBenchmark` then the full suite on every push to
+`main` and every same-repo PR, and hands the raw JMH JSON to
+[kitlangton/jmh-benchmark-action](https://github.com/kitlangton/jmh-benchmark-action): on a PR it
+comments a before/after comparison against `main`'s saved baseline; on a push to `main` it updates
+that baseline. See [docs/ci.md](ci.md) for the full pipeline and its permission requirements.
+
 ## What's measured
 
 | Class | Method under measurement | Isolates |

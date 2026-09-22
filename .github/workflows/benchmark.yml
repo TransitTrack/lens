@@ -1,31 +1,32 @@
 name: Benchmark
 
 # The full kotlinx-benchmark suite (docs/benchmarks.md) boots a real Spring context + Testcontainers
-# Postgres per benchmark class and takes a couple of minutes - too slow to gate every push/PR. So:
-# every push/PR just runs the fast smokeBenchmark check (~30s, one class, one iteration) as a
-# "the pipeline still runs end to end" sanity check, and the full suite + HTML report run weekly
-# (or on demand via workflow_dispatch) for real performance numbers/trends.
+# Postgres per benchmark class and takes a couple of minutes. It runs on every push/PR (not just a
+# schedule) because kitlangton/jmh-benchmark-action needs that cadence to do its job: on a PR it
+# comments a before/after comparison against main's saved baseline, and on a push to main it updates
+# that baseline (stored on a separate `internal/benchmark-data` branch the action manages itself).
+# A quick smokeBenchmark run gates the expensive full suite so a broken pipeline fails in ~30s
+# instead of after a full ~2min run.
 on:
   push:
     branches: [main]
   pull_request:
-  schedule:
-    - cron: "0 5 * * 1" # full suite weekly, Monday 05:00 UTC
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      full:
-        description: "Run the full benchmark suite instead of the smoke check"
-        type: boolean
-        default: false
 
 concurrency:
   group: benchmark-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# contents:write - the action pushes updated baseline data to internal/benchmark-data on a push
+# event. pull-requests:write - the action comments the comparison on a PR.
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
-  smoke:
-    name: Smoke benchmark
-    if: github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.full != 'true')
+  benchmark:
+    name: JMH benchmark
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -37,53 +38,28 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Run smoke benchmark
+      - name: Smoke check (fail fast before the full suite)
         run: ./gradlew smokeBenchmark --no-daemon
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "### Smoke benchmark: pipeline ran end to end ✅" >> "$GITHUB_STEP_SUMMARY"
-
-  full:
-    name: Full benchmark suite
-    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.full == 'true')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "25"
-
-      - uses: gradle/actions/setup-gradle@v4
 
       - name: Run full benchmark suite
         run: ./gradlew benchmark --no-daemon
 
-      - name: Render HTML report
-        run: ./gradlew benchmarkReport --no-daemon
-
-      - name: Summary
-        if: always()
+      # kotlinx-benchmark writes to a timestamped directory per run; the action needs one stable
+      # file path.
+      - name: Locate latest JMH output
         run: |
-          python3 - <<'PYEOF'
-          import glob, json, os
-          files = sorted(glob.glob("build/reports/benchmarks/main/*/benchmark.json"))
-          if not files:
-              raise SystemExit(0)
-          with open(files[-1]) as f:
-              results = json.load(f)
-          lines = ["### Benchmark results", "", "| Benchmark | Params | Score |", "| --- | --- | --- |"]
-          for r in results:
-              name = r["benchmark"].rsplit(".", 1)[-1]
-              params = ", ".join(f"{k}={v}" for k, v in r.get("params", {}).items())
-              metric = r["primaryMetric"]
-              lines.append(f"| {name} | {params} | {metric['score']:.3f} {metric['scoreUnit']} |")
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
-              fh.write("\n".join(lines) + "\n")
-          PYEOF
+          latest=$(find build/reports/benchmarks/main -name benchmark.json -printf '%T@ %p\n' | sort -rn | head -n1 | cut -d' ' -f2-)
+          cp "$latest" build/benchmark-latest.json
+
+      - name: JMH Benchmark Action
+        uses: kitlangton/jmh-benchmark-action@v0.1.1
+        with:
+          jmh-output-path: build/benchmark-latest.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Render HTML report
+        if: always()
+        run: ./gradlew benchmarkReport --no-daemon
 
       - name: Upload benchmark reports
         if: always()
