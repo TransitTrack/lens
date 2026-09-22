@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -67,7 +68,7 @@ class PredictionProcessor(
     fun start() = reconcile()
 
     @Scheduled(fixedDelay = 60_000)
-    @Synchronized
+    @SchedulerLock(name = "prediction-processor-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT10M")
     fun reconcile() {
         val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
         val owned = feedLocks.reconcileOwnership(enabled)

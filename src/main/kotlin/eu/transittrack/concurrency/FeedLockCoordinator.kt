@@ -27,7 +27,6 @@ class FeedLockCoordinator(
 ) {
     private val held = ConcurrentHashMap<Long, SimpleLock>()
 
-    @Synchronized
     fun reconcileOwnership(candidateFeedIds: Set<Long>): Set<Long> {
         held.keys.filter { it !in candidateFeedIds }.forEach { release(it) }
 
@@ -48,12 +47,10 @@ class FeedLockCoordinator(
         return held.keys.toSet()
     }
 
-    @Synchronized
     fun release(feedId: Long) {
         held.remove(feedId)?.unlock()
     }
 
-    @Synchronized
     fun releaseAll() {
         held.keys.toList().forEach { release(it) }
     }

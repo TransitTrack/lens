@@ -5,6 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledFuture
 import jakarta.annotation.PreDestroy
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -52,7 +53,7 @@ class AvlPoller(
     fun start() = reconcile()
 
     @Scheduled(fixedDelay = 60_000)
-    @Synchronized
+    @SchedulerLock(name = "avl-poller-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT10M")
     fun reconcile() {
         val enabled = feeds.findAllEnabled().associateBy { it.id!! }
         val owned = feedLocks.reconcileOwnership(enabled.keys)

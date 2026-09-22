@@ -27,6 +27,8 @@ import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
+import eu.transittrack.FeedsProperties
+import eu.transittrack.GtfsProperties
 import eu.transittrack.HttpClientProperties
 import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.draft.edit.StaleDraftException
@@ -39,14 +41,15 @@ import eu.transittrack.schedule.optimize.RecommendationConflictException
 @Configuration
 @EnableScheduling
 class AsyncConfiguration(
+    private val feedsProperties: FeedsProperties,
     private val optimizeProps: OptimizationProperties,
 ) {
     @Bean
     fun gtfsIngestExecutor(): ThreadPoolTaskExecutor =
         ThreadPoolTaskExecutor().apply {
-            corePoolSize = 2
-            maxPoolSize = 4
-            queueCapacity = 50
+            corePoolSize = 1
+            maxPoolSize = 1
+            queueCapacity = feedsProperties.feeds.size * 5
             setThreadNamePrefix("gtfs-ingest-")
             setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
             initialize()
