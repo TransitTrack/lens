@@ -53,7 +53,7 @@ class AvlPoller(
     fun start() = reconcile()
 
     @Scheduled(fixedDelay = 60_000)
-    @SchedulerLock(name = "avl-poller-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT10M")
+    @SchedulerLock(name = "avl-poller-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT10S")
     fun reconcile() {
         val enabled = feeds.findAllEnabled().associateBy { it.id!! }
         val owned = feedLocks.reconcileOwnership(enabled.keys)
