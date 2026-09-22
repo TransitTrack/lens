@@ -1,23 +1,21 @@
-x-common-env: &common-env
-  TZ: Europe/Warsaw
-  POSTGRES_PASSWORD: password
-
 services:
-  db:
+  postgres:
     image: postgres:18-alpine
     restart: always
     environment:
-      <<: *common-env
       POSTGRES_DB: explorer
+      POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/18/docker
   postgres-exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     restart: always
     depends_on:
-      - db
+      - postgres
     environment:
-      DATA_SOURCE_NAME: "postgresql://postgres:password@db:5432/explorer?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://postgres:password@postgres:5432/explorer?sslmode=disable"
       PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml
     volumes:
       - ./docker/postgres-exporter/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
@@ -63,3 +61,4 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  postgres_data:
