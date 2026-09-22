@@ -103,6 +103,19 @@ transittrack:
         avl:
           enabled: false
           url: "not available"
+      - code: wroclaw
+        name: Wroclaw
+        enabled: true
+        auto-activate: true
+        polling-cron: "0 * * * * *"
+        url: https://iplaner.pl/gtfs/wroclaw.zip
+        avl:
+          enabled: true
+          format: gtfs_rt
+          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
+          prediction-algorithm: kalman
+          prediction-mode: single
+          assignment-mode: descriptor_then_infer
   gtfs:
     ingest:
       auto-activate: true
