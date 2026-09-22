@@ -10,6 +10,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     id("com.diffplug.spotless") version "8.10.2"
     id("com.google.protobuf") version "0.10.0"
+    id("org.jetbrains.kotlinx.benchmark") version "0.5.0"
 }
 
 group = "eu.transittrack"
@@ -18,6 +19,20 @@ description = "transitlens"
 
 repositories {
     mavenCentral()
+}
+
+// A dedicated source set (rather than piggybacking on `main` or `test`) for load benchmarks of
+// the ingest/match/predict pipeline: `associateWith` gives it access to both `main`'s internal
+// classes and `test`'s support fixtures (Testcontainers Postgres wiring, FixtureDownloader-style
+// helpers) without duplicating them, while keeping `./gradlew benchmark` a separate, opt-in task
+// from the regular `test` build - these seed real Postgres data and run for minutes, not seconds.
+// Declared before `dependencies {}` so the `benchmarkImplementation` configuration it creates
+// exists by the time that block references it.
+sourceSets {
+    create("benchmark") {
+        kotlin.srcDir("src/benchmark/kotlin")
+        resources.srcDir("src/benchmark/resources")
+    }
 }
 
 dependencies {
@@ -79,6 +94,157 @@ dependencies {
     implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.9.0")
 
     testImplementation("net.javacrumbs.shedlock:shedlock-core:7.9.0")
+
+    "benchmarkImplementation"("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.5.0")
+}
+
+kotlin {
+    target {
+        val mainCompilation = compilations.getByName("main")
+        val testCompilation = compilations.getByName("test")
+        val benchmarkCompilation = compilations.getByName("benchmark")
+        benchmarkCompilation.associateWith(mainCompilation)
+        benchmarkCompilation.associateWith(testCompilation)
+    }
+}
+
+benchmark {
+    targets {
+        register("benchmark")
+    }
+    configurations {
+        named("main") {
+            warmups = 1
+            iterations = 3
+        }
+        // `./gradlew smokeBenchmark` - one class, one param value, one iteration: a fast sanity
+        // check that the pipeline still runs end to end, not a real measurement.
+        register("smoke") {
+            include("AvlIngestBenchmark")
+            param("vehicleCount", "400")
+            warmups = 0
+            iterations = 1
+        }
+    }
+}
+
+// Renders the most recent kotlinx-benchmark JSON report (already the raw JMH JSON format) as a
+// single self-contained HTML page - no server, no upload, just `open` it in a browser. Uses
+// Groovy's JsonSlurper (bundled with Gradle itself) rather than adding a JSON library to the
+// buildscript classpath just for this.
+tasks.register("benchmarkReport") {
+    group = "benchmark"
+    description = "Renders the most recent benchmark JSON report as a self-contained HTML page."
+    doLast {
+        val reportsDir = layout.buildDirectory
+            .dir("reports/benchmarks")
+            .get()
+            .asFile
+        val jsonFiles = reportsDir.walkTopDown().filter { it.isFile && it.name == "benchmark.json" }.toList()
+        check(jsonFiles.isNotEmpty()) {
+            "No benchmark.json found under $reportsDir - run ./gradlew benchmark or smokeBenchmark first."
+        }
+        val latest = jsonFiles.maxBy { it.lastModified() }
+
+        @Suppress("UNCHECKED_CAST")
+        val results = groovy.json.JsonSlurper().parse(latest) as List<Map<String, Any?>>
+
+        val outFile = reportsDir.resolve("html/index.html")
+        outFile.parentFile.mkdirs()
+        outFile.writeText(renderBenchmarkReportHtml(results, latest.relativeTo(reportsDir).path))
+        println("Wrote HTML benchmark report to ${outFile.toURI()}")
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+fun renderBenchmarkReportHtml(
+    results: List<Map<String, Any?>>,
+    sourcePath: String,
+): String {
+    data class Row(
+        val benchmark: String,
+        val shortName: String,
+        val params: String,
+        val mode: String,
+        val score: Double,
+        val error: Double?,
+        val unit: String,
+    )
+
+    val rows =
+        results.map { entry ->
+            val benchmark = entry["benchmark"] as String
+            val params = (entry["params"] as? Map<String, Any?>)?.entries?.joinToString(", ") { "${it.key}=${it.value}" } ?: "-"
+            val metric = entry["primaryMetric"] as Map<String, Any?>
+            Row(
+                benchmark = benchmark,
+                shortName = benchmark.substringAfterLast('.'),
+                params = params,
+                mode = entry["mode"] as String,
+                score = (metric["score"] as Number).toDouble(),
+                error = (metric["scoreError"] as? Number)?.toDouble(),
+                unit = metric["scoreUnit"] as String,
+            )
+        }
+
+    // Bars are scaled within their own benchmark method group (e.g. AvlIngestBenchmark.ingest's
+    // 400- and 4000-vehicle rows share a max), not across the whole report - a 4000-vehicle stress
+    // run and a 400-vehicle realistic run aren't meant to be compared on the same scale.
+    val maxScoreByBenchmark = rows.groupBy { it.benchmark }.mapValues { (_, v) -> v.maxOf { it.score } }
+
+    fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    val tableRows =
+        rows.joinToString("\n") { r ->
+            val max = maxScoreByBenchmark.getValue(r.benchmark)
+            val pct = if (max > 0) (r.score / max * 100).coerceIn(0.0, 100.0) else 0.0
+            val errorText = r.error?.let { " ± %.2f".format(it) } ?: ""
+            val scoreText = "%.3f%s %s".format(r.score, errorText, r.unit)
+            """
+            <tr>
+              <td>${escape(r.shortName)}</td>
+              <td>${escape(r.params)}</td>
+              <td>${escape(r.mode)}</td>
+              <td class="score">
+                <div class="bar-track"><div class="bar" style="width:${"%.1f".format(pct)}%"></div></div>
+                <span class="score-text">${escape(scoreText)}</span>
+              </td>
+            </tr>
+            """.trimIndent()
+        }
+
+    return """
+        <!doctype html>
+        <html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <title>TransitTrack Benchmark Report</title>
+        <style>
+          :root { color-scheme: light dark; }
+          body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 2rem; }
+          h1 { font-size: 1.4rem; }
+          .source { color: #888; font-size: 0.85rem; margin-bottom: 1.5rem; }
+          table { border-collapse: collapse; width: 100%; max-width: 900px; }
+          th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #8883; vertical-align: middle; }
+          th { font-weight: 600; }
+          td.score { min-width: 260px; }
+          .bar-track { background: #8882; border-radius: 3px; height: 10px; width: 160px; display: inline-block; vertical-align: middle; }
+          .bar { background: #4a9eff; height: 10px; border-radius: 3px; }
+          .score-text { margin-left: 0.6rem; font-variant-numeric: tabular-nums; }
+        </style>
+        </head>
+        <body>
+        <h1>TransitTrack Benchmark Report</h1>
+        <div class="source">Source: $sourcePath</div>
+        <table>
+          <thead><tr><th>Benchmark</th><th>Params</th><th>Mode</th><th>Score</th></tr></thead>
+          <tbody>
+        $tableRows
+          </tbody>
+        </table>
+        </body>
+        </html>
+        """.trimIndent()
 }
 
 java {
@@ -137,6 +303,9 @@ allOpen {
     annotation("jakarta.persistence.Entity")
     annotation("jakarta.persistence.MappedSuperclass")
     annotation("jakarta.persistence.Embeddable")
+    // JMH (which kotlinx-benchmark drives under the hood) generates subclasses of @State classes,
+    // which requires the class and its @Benchmark methods to be non-final.
+    annotation("org.openjdk.jmh.annotations.State")
 }
 
 tasks.withType<Test> {
