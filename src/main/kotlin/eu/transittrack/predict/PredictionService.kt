@@ -25,6 +25,7 @@ import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.TravelTimeObservationRepository
+import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripRef
@@ -144,9 +145,19 @@ class PredictionService(
         var cursor = prev.reportTs
         val algorithmsToScore =
             if (feed.predictionMode == PredictionMode.EVALUATION) PredictionAlgorithm.entries else listOf(feed.predictionAlgorithm)
+
+        // Fetched once per matched report rather than once per crossing: every crossing in this
+        // loop shares the same trip pattern / feed+vehicle+trip, so these don't change mid-loop.
+        val stopPathSeedSec =
+            travelTimesForStopPath
+                .findByTripPatternOrdered(ctx.revisionId, outcome.tripPatternId)
+                .associate { it.stopPathIndex to it.travelTimeSec?.toDouble() }
+        val existingPredictions =
+            predictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feed.id!!, report.vehicleId, outcome.tripRowId)
+
         for (crossing in crossings) {
             cursor = cursor.plusSeconds(crossing.observedTravelTimeSec.toLong())
-            learn(outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, ctx, now)
+            learn(outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, stopPathSeedSec, now)
             writer.insertCrossing(
                 AvlStopCrossing(
                     feedId = feed.id!!,
@@ -164,7 +175,7 @@ class PredictionService(
                 ),
             )
             metrics.predictionLearningSamples(feed, 1)
-            fillActualAndScoreAccuracy(feed, report.vehicleId, outcome.tripRowId, crossing.stopPathIndex, cursor, now, algorithmsToScore)
+            fillActualAndScoreAccuracy(feed, existingPredictions, crossing.stopPathIndex, cursor, now, algorithmsToScore)
         }
     }
 
@@ -172,15 +183,10 @@ class PredictionService(
         tripPatternId: Long,
         stopPathIndex: Int,
         sample: Double,
-        ctx: AvlMatchContext,
+        stopPathSeedSec: Map<Int, Double?>,
         now: Instant,
     ) {
-        val seed =
-            travelTimesForStopPath
-                .findByTripPatternOrdered(ctx.revisionId, tripPatternId)
-                .firstOrNull { it.stopPathIndex == stopPathIndex }
-                ?.travelTimeSec
-                ?.toDouble() ?: sample
+        val seed = stopPathSeedSec[stopPathIndex] ?: sample
 
         val prevObs = observations.findByTripPatternIdAndStopPathIndex(tripPatternId, stopPathIndex)
         val newObs = updateRunningAverage(prevObs?.let { RunningAverageState(it.sampleCount, it.meanSec) }, seed, sample)
@@ -200,14 +206,12 @@ class PredictionService(
 
     private fun fillActualAndScoreAccuracy(
         feed: AvlFeed,
-        vehicleId: String,
-        tripRowId: Long,
+        existing: List<VehiclePrediction>,
         stopPathIndex: Int,
         actualTs: Instant,
         now: Instant,
         algorithms: Collection<PredictionAlgorithm>,
     ) {
-        val existing = predictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feed.id!!, vehicleId, tripRowId)
         for (algorithm in algorithms) {
             val row = existing.firstOrNull { it.stopPathIndex == stopPathIndex && it.algorithm == algorithm } ?: continue
             val predictedTs = row.predictedArrivalTs ?: continue
@@ -232,8 +236,8 @@ class PredictionService(
             writer.insertAccuracy(
                 PredictionAccuracy(
                     feedId = feed.id!!,
-                    vehicleId = vehicleId,
-                    tripRowId = tripRowId,
+                    vehicleId = row.vehicleId,
+                    tripRowId = row.tripRowId,
                     stopPathIndex = stopPathIndex,
                     algorithm = algorithm,
                     predictedTs = predictedTs,

@@ -59,11 +59,10 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
     fun findByFeedId(feedId: Long): List<VehicleState>
 
     /**
-     * Drops the trip/block assignment and flips `matched -> false` for vehicles silent past
-     * `greatest(feed.pollIntervalSec * cycles, minSec)` seconds as of [asOf]. Used by
-     * [eu.transittrack.avl.match.AvlSilentVehicleSweeper]. HQL bulk update — the per-row
-     * threshold is looked up per vehicle via a correlated subquery on [AvlFeed] since
-     * [VehicleState.feedId] isn't a mapped association.
+     * Drops the trip/block assignment and flips `matched -> false` for [feedId]'s vehicles silent
+     * past [thresholdSec] as of [asOf]. Used by [eu.transittrack.avl.match.AvlSilentVehicleSweeper],
+     * once per feed with [thresholdSec] precomputed in application code — a correlated subquery on
+     * [AvlFeed] here would otherwise be re-evaluated for every [VehicleState] row on every sweep tick.
      */
     @Modifying
     @Transactional
@@ -74,35 +73,33 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
           vs.revisionId = null, vs.tripRowId = null, vs.blockPk = null, vs.tripPatternId = null,
           vs.stopPathIndex = null, vs.distanceAlongTripM = null, vs.scheduleAdherenceSec = null,
           vs.snappedLat = null, vs.snappedLon = null
-        where vs.tripRowId is not null
+        where vs.feedId = :feedId and vs.tripRowId is not null
           and timestampdiff(second,
                 (select max(r.ts) from AvlReportRow r where r.feedId = vs.feedId and r.vehicleId = vs.vehicleId),
-                :asOf) >
-              greatest((select f.pollIntervalSec from AvlFeed f where f.id = vs.feedId) * :cycles, :minSec)
+                :asOf) > :thresholdSec
         """,
     )
     fun unmatchSilent(
-        cycles: Int,
-        minSec: Int,
+        feedId: Long,
+        thresholdSec: Int,
         asOf: Instant,
     ): Int
 
-    /** Flags still-matched vehicles `stale = true` once they've been silent past the same threshold. */
+    /** Flags [feedId]'s still-matched vehicles `stale = true` once they've been silent past [thresholdSec]. */
     @Modifying
     @Transactional
     @Query(
         """
         update VehicleState vs set vs.stale = true
-        where vs.matched = true and vs.stale = false
+        where vs.feedId = :feedId and vs.matched = true and vs.stale = false
           and timestampdiff(second,
                 (select max(r.ts) from AvlReportRow r where r.feedId = vs.feedId and r.vehicleId = vs.vehicleId),
-                :asOf) >
-              greatest((select f.pollIntervalSec from AvlFeed f where f.id = vs.feedId) * :cycles, :minSec)
+                :asOf) > :thresholdSec
         """,
     )
     fun staleSilent(
-        cycles: Int,
-        minSec: Int,
+        feedId: Long,
+        thresholdSec: Int,
         asOf: Instant,
     ): Int
 }

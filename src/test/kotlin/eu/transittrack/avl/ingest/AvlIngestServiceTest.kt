@@ -88,17 +88,31 @@ class AvlIngestServiceTest(
             ),
         )
 
+    /** The fixed `fetchedAt` the fake [source] returns (2026-09-04T10:00:00Z), as epoch seconds. */
+    private val fetchedAtEpoch = 1_788_516_000L
+
+    @Test
+    fun `reports older than the max age are dropped, fresh ones in the same poll still insert`() {
+        val f = feed()
+        val threeHoursBeforeFetch = fetchedAtEpoch - 3 * 3_600
+        bytes = message(fetchedAtEpoch, "old" to (threeHoursBeforeFetch - 1), "fresh" to fetchedAtEpoch)
+
+        assertThat(service.pollOnce(f)).isEqualTo(1)
+        assertThat(reports.count()).isEqualTo(1L)
+        assertThat(reports.findAll().single().vehicleId).isEqualTo("fresh")
+    }
+
     @Test
     fun `first poll inserts, second poll dedupes unchanged`() {
         val f = feed()
-        bytes = message(1_756_980_000, "a" to 1_756_980_000L, "b" to 1_756_980_000L)
+        bytes = message(fetchedAtEpoch, "a" to fetchedAtEpoch, "b" to fetchedAtEpoch)
         assertThat(service.pollOnce(f)).isEqualTo(2)
 
         // same timestamps -> nothing new
         assertThat(service.pollOnce(f)).isEqualTo(0)
 
         // b moves on -> one new row
-        bytes = message(1_756_980_030, "a" to 1_756_980_000L, "b" to 1_756_980_030L)
+        bytes = message(fetchedAtEpoch + 30, "a" to fetchedAtEpoch, "b" to fetchedAtEpoch + 30)
         assertThat(service.pollOnce(f)).isEqualTo(1)
         assertThat(reports.count()).isEqualTo(3L)
 

@@ -77,6 +77,10 @@ import eu.transittrack.support.PostgresPerClassTest
     properties = [
         "transittrack.avl.enabled=true",
         "transittrack.avl.match.match-interval-ms=3600000",
+        // Drives reports through the real HTTP source, so their fetchedAt is real wall-clock time,
+        // while the fixture's own vehicle positions carry a fixed 2026-09-07 GTFS service date -
+        // exempt this test from the max-report-age staleness filter rather than the other way round.
+        "transittrack.avl.ingest.max-report-age-hours=87600",
         "transittrack.predict.enabled=true",
         "transittrack.predict.run.interval-ms=3600000",
     ],

@@ -115,12 +115,37 @@ class TransitTrackMetrics(
         feed: AvlFeed,
         decoded: Int,
         accepted: Int,
+        stale: Int = 0,
     ) = safely("avl_reports") {
         val tags = avlTags(feed)
         counter("transittrack.avl.reports", tags + Tag.of("result", "decoded")).increment(decoded.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "accepted")).increment(accepted.toDouble())
+        counter("transittrack.avl.reports", tags + Tag.of("result", "stale")).increment(stale.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "duplicate"))
-            .increment((decoded - accepted).coerceAtLeast(0).toDouble())
+            .increment((decoded - accepted - stale).coerceAtLeast(0).toDouble())
+    }
+
+    /**
+     * Count of GTFS services active today for [feed]'s active revision — zero means every AVL
+     * report that can't resolve its trip by a literal descriptor match (the common case whenever
+     * the feed's real-time `trip_id`s don't line up 1:1 with the static schedule) is guaranteed to
+     * go UNMATCHED, since both [eu.transittrack.avl.match.TrustDescriptorMatcher]'s route+time
+     * fallback and [eu.transittrack.avl.match.FullInferenceMatcher] require a non-empty
+     * `activeServiceIds`. Surfaces schedule/calendar timing problems (e.g. a newly-activated
+     * revision whose `calendar.txt` doesn't cover the current date yet) as a metric instead of
+     * only as a drop in match rate.
+     */
+    fun avlActiveServices(
+        feed: AvlFeed,
+        activeServiceCount: Int,
+    ) = safely("avl_active_services") {
+        setGauge("transittrack.avl.feed.active.services", tags("feed", feed.code), activeServiceCount.toLong())
+        if (activeServiceCount == 0) {
+            log.warn(
+                "avl feed '{}': zero active GTFS services for today - matching will fail for reports without a literal trip_id match",
+                feed.code,
+            )
+        }
     }
 
     fun avlQueue(

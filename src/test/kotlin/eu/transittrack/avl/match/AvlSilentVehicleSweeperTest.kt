@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.observability.TransitTrackMetrics
@@ -23,9 +24,10 @@ import eu.transittrack.support.PostgresPerMethodTest
 class AvlSilentVehicleSweeperTest(
     @Autowired val jdbc: JdbcTemplate,
     @Autowired val vehicleStates: VehicleStateRepository,
+    @Autowired val feeds: AvlFeedRepository,
 ) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-10T12:00:00Z")
-    private val sweeper = AvlSilentVehicleSweeper(vehicleStates, AvlProperties(), TransitTrackMetrics.forTests())
+    private val sweeper = AvlSilentVehicleSweeper(vehicleStates, feeds, AvlProperties(), TransitTrackMetrics.forTests())
 
     /** poll_interval_sec = 15 → stale at max(45, 60) = 60s, unmatch at max(75, 60) = 75s. */
     private fun secondsAgo(s: Long) = Timestamp.from(now.minusSeconds(s))

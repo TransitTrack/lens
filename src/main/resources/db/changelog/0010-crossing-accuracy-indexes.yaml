@@ -1,0 +1,23 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0010-crossing-accuracy-indexes
+      author: transittrack
+      changes:
+        # avl_stop_crossing had no index beyond its primary key: the hourly retention prune
+        # (`delete from avl_stop_crossing where observed_at < ?`) and the optimization
+        # pipeline's findForAnalysis query were both full table scans over a table that gets a
+        # row on every stop crossing, kept for rawCrossingDays (default 90).
+        - createIndex:
+            indexName: ix_avl_stop_crossing_observed
+            tableName: avl_stop_crossing
+            columns: [ { column: { name: observed_at } } ]
+        - createIndex:
+            indexName: ix_avl_stop_crossing_feed_revision_observed
+            tableName: avl_stop_crossing
+            columns: [ { column: { name: feed_id } }, { column: { name: revision_id } }, { column: { name: observed_at } } ]
+        # ix_prediction_accuracy_feed_algo_created leads with feed_id/algorithm, so it can't
+        # serve the retention prune's bare `created_at < ?` filter.
+        - createIndex:
+            indexName: ix_prediction_accuracy_created
+            tableName: prediction_accuracy
+            columns: [ { column: { name: created_at } } ]

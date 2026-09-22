@@ -1,11 +1,14 @@
 package eu.transittrack.observability
 
+import java.time.Instant
+
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
+import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatchRepository
@@ -21,6 +24,7 @@ class TransitTrackMetricsGaugeRefresher(
     private val feeds: AvlFeedRepository,
     private val reports: AvlReportRowRepository,
     private val vehicleMatches: VehicleMatchRepository,
+    private val contextFactory: AvlMatchContextFactory,
     private val predictProps: PredictProperties,
     private val metrics: TransitTrackMetrics,
 ) {
@@ -49,5 +53,21 @@ class TransitTrackMetricsGaugeRefresher(
                 metrics.predictionQueue(feed.code, stats?.pendingCount ?: 0, stats?.oldestCreatedAt)
             }
         }.onFailure { log.debug("failed to refresh prediction queue metrics", it) }
+    }
+
+    /**
+     * Flags a feed whose active revision has zero GTFS services running today - see
+     * [TransitTrackMetrics.avlActiveServices] for why that silently tanks the match rate.
+     */
+    @Scheduled(fixedDelayString = "\${transittrack.observability.gauge-refresh-ms:30000}")
+    @SchedulerLock(name = "metrics-gauge-active-services", lockAtMostFor = "PT2M", lockAtLeastFor = "PT20S")
+    fun refreshActiveServiceCalendar() {
+        runCatching {
+            feeds.findAllEnabled().forEach { feed ->
+                val ctx = contextFactory.open(feed) ?: return@forEach
+                val serviceDate = Instant.now().atZone(ctx.zone).toLocalDate()
+                metrics.avlActiveServices(feed, ctx.activeServiceIds(serviceDate).size)
+            }
+        }.onFailure { log.debug("failed to refresh active-service-calendar gauge", it) }
     }
 }

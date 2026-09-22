@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
@@ -39,6 +40,7 @@ import eu.transittrack.observability.TransitTrackMetrics
 @ConditionalOnRole(Role.FEED_PROCESSOR)
 class AvlSilentVehicleSweeper(
     private val vehicleStates: VehicleStateRepository,
+    private val feeds: AvlFeedRepository,
     props: AvlProperties,
     private val metrics: TransitTrackMetrics,
 ) {
@@ -70,9 +72,16 @@ class AvlSilentVehicleSweeper(
     }
 
     fun sweep(now: Instant): SweepCounts {
-        // Unmatch first: a vehicle past this threshold skips the stale pass below (matched -> false).
-        val unmatched = vehicleStates.unmatchSilent(cfg.silentUnmatchCycles, cfg.silentUnmatchMinSec, now)
-        val staled = vehicleStates.staleSilent(cfg.silentStaleCycles, cfg.silentUnmatchMinSec, now)
+        var unmatched = 0
+        var staled = 0
+        for (feed in feeds.findAllEnabled()) {
+            val feedId = feed.id!!
+            val unmatchThresholdSec = maxOf(feed.pollIntervalSec * cfg.silentUnmatchCycles, cfg.silentUnmatchMinSec)
+            val staleThresholdSec = maxOf(feed.pollIntervalSec * cfg.silentStaleCycles, cfg.silentUnmatchMinSec)
+            // Unmatch first: a vehicle past this threshold skips the stale pass below (matched -> false).
+            unmatched += vehicleStates.unmatchSilent(feedId, unmatchThresholdSec, now)
+            staled += vehicleStates.staleSilent(feedId, staleThresholdSec, now)
+        }
         return SweepCounts(staled = staled, unmatched = unmatched)
     }
 }

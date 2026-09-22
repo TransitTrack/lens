@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlFormat
+import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.feed.AvlFeedSource
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
@@ -18,9 +19,10 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.observability.TransitTrackMetrics
 
 /**
- * One poll cycle for one AVL feed: fetch -> decode -> drop `(vehicleId, ts)` duplicates already
- * stored -> batch-insert the survivors as PENDING `avl_report` rows -> record `last_poll_*`. No
- * matching happens here; `AvlMatchProcessor` consumes the PENDING rows asynchronously.
+ * One poll cycle for one AVL feed: fetch -> decode -> drop reports older than
+ * `avl.ingest.maxReportAgeHours` -> drop `(vehicleId, ts)` duplicates already stored -> batch-insert
+ * the survivors as PENDING `avl_report` rows -> record `last_poll_*`. No matching happens here;
+ * `AvlMatchProcessor` consumes the PENDING rows asynchronously.
  */
 @Service
 class AvlIngestService(
@@ -29,6 +31,7 @@ class AvlIngestService(
     decoders: ObjectProvider<AvlFeedDecoder>,
     private val writer: AvlWriter,
     private val reports: AvlReportRowRepository,
+    private val props: AvlProperties = AvlProperties(),
     private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -40,22 +43,41 @@ class AvlIngestService(
         val decoder =
             decoders[feed.format]
                 ?: error("no AvlFeedDecoder for format ${feed.format} (feed '${feed.code}')")
+        val payload =
+            try {
+                source.fetch(feed)
+            } catch (e: Exception) {
+                metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
+                recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
+                throw e
+            }
         val decoded =
             try {
-                decoder.decode(source.fetch(feed), feed.toDescriptor())
+                decoder.decode(payload, feed.toDescriptor())
             } catch (e: Exception) {
                 metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
                 recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
                 throw e
             }
 
+        // Relative to the poll's own fetch time rather than wall-clock now(), so a slow poll or a
+        // feed clock skewed from ours doesn't itself make otherwise-fresh reports look stale.
+        val cutoff = payload.fetchedAt.minus(Duration.ofHours(props.ingest.maxReportAgeHours))
+        val (stale, current) = decoded.partition { it.ts.isBefore(cutoff) }
+        if (stale.isNotEmpty()) {
+            log.warn(
+                "avl feed '{}': dropped {} report(s) older than {}h (oldest ts={})",
+                feed.code, stale.size, props.ingest.maxReportAgeHours, stale.minOf { it.ts },
+            )
+        }
+
         val latest = reports.latestTsByVehicle(feed.id!!).associate { it.vehicleId to it.ts }
-        val fresh = decoded.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: true }
+        val fresh = current.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: true }
         writer.insertReports(fresh.map { toRow(feed.id!!, it) })
         recordPoll(feed.id!!, status = "OK", count = fresh.size)
-        metrics.avlReports(feed, decoded.size, fresh.size)
+        metrics.avlReports(feed, decoded.size, fresh.size, stale.size)
         metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()))
-        log.trace("avl feed '{}': {} decoded, {} new", feed.code, decoded.size, fresh.size)
+        log.trace("avl feed '{}': {} decoded, {} new, {} stale", feed.code, decoded.size, fresh.size, stale.size)
         return fresh.size
     }
 

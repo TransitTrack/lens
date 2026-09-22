@@ -8,3 +8,4 @@ databaseChangeLog:
   - include: { file: db/changelog/0007-optimization-runs.yaml }
   - include: { file: db/changelog/0008-predict-decouple.yaml }
   - include: { file: db/changelog/0009-shedlock.yaml }
+  - include: { file: db/changelog/0010-crossing-accuracy-indexes.yaml }

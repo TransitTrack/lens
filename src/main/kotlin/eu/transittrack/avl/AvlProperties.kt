@@ -6,9 +6,19 @@ import org.springframework.boot.context.properties.NestedConfigurationProperty
 @ConfigurationProperties("transittrack.avl")
 data class AvlProperties(
     val enabled: Boolean = false,
+    @NestedConfigurationProperty val ingest: Ingest = Ingest(),
     @NestedConfigurationProperty val retention: Retention = Retention(),
     @NestedConfigurationProperty val match: Match = Match(),
 ) {
+    data class Ingest(
+        /**
+         * A decoded report older than this is dropped before dedup/insert rather than processed —
+         * guards against a feed occasionally emitting stale/bogus timestamps (observed on the
+         * `wroclaw` feed) that would otherwise get matched against the wrong service date/trip.
+         */
+        val maxReportAgeHours: Long = 3,
+    )
+
     data class Retention(
         val reportHours: Long = 24,
         val matchHours: Long = 72,
