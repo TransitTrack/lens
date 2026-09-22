@@ -1,0 +1,224 @@
+name: Build & publish
+
+# Builds the backend jar/image, the frontend image, and packages the Helm chart. Every push and PR
+# builds and Trivy-scans both images (catching a broken Dockerfile or a newly-introduced image
+# vulnerability before merge); only a push to main or a `v*` tag actually pushes anything to GHCR,
+# so a PR never needs registry credentials at all.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-publish-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
+jobs:
+  backend-image:
+    name: Backend image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute lowercase image name
+        id: repo
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Always build+load locally first (so Trivy can scan it below regardless of whether this
+      # run is allowed to push) - pushing, if this event is allowed to, is a separate step further
+      # down so the image is never built twice.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=backend-image
+          cache-to: type=gha,mode=max,scope=backend-image
+
+      - name: Trivy scan (backend image)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: sarif
+          output: trivy-backend-image.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0" # report-only for now; see docs/ci.md before flipping to '1'
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-backend-image.sarif
+          category: trivy-backend-image
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-backend-image-sarif
+          path: trivy-backend-image.sarif
+          retention-days: 14
+
+      - name: Log in to ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && docker push "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+  frontend-image:
+    name: Frontend image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute lowercase image name
+        id: repo
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')-web" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: web
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=frontend-image
+          cache-to: type=gha,mode=max,scope=frontend-image
+
+      - name: Trivy scan (frontend image)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          format: sarif
+          output: trivy-frontend-image.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0"
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-frontend-image.sarif
+          category: trivy-frontend-image
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-frontend-image-sarif
+          path: trivy-frontend-image.sarif
+          retention-days: 14
+
+      - name: Log in to ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && docker push "$tag"
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+  helm-chart:
+    name: Helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: azure/setup-helm@v4
+
+      - name: Lint
+        run: helm lint deploy/helm/transittrack
+
+      - name: Template (render sanity check)
+        run: helm template transittrack deploy/helm/transittrack > /dev/null
+
+      # Tag push (vX.Y.Z) -> that exact chart version. Otherwise (main / PR / manual) -> the
+      # version already in Chart.yaml suffixed with the short SHA, so every build is distinguishable
+      # without permanently bumping Chart.yaml on every commit.
+      - name: Determine chart version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" == "tag" && "$REF_NAME" == v* ]]; then
+            echo "chart_version=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            base=$(grep '^version:' deploy/helm/transittrack/Chart.yaml | awk '{print $2}')
+            echo "chart_version=${base}+$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          helm package deploy/helm/transittrack \
+            --version "${{ steps.version.outputs.chart_version }}" \
+            --destination dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: helm-chart
+          path: dist/*.tgz
+          retention-days: 90
+
+      - name: Compute lowercase OCI repository
+        if: github.event_name != 'pull_request'
+        id: repo
+        run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Push chart
+        if: github.event_name != 'pull_request'
+        run: helm push dist/*.tgz oci://${{ env.REGISTRY }}/${{ steps.repo.outputs.owner }}/charts

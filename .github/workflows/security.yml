@@ -1,0 +1,146 @@
+name: Vulnerability scan
+
+# Container image scanning happens in build-publish.yml, right after each image is built - that
+# avoids building images twice just to scan them. This workflow covers the dependency trees
+# (Gradle-resolved JVM libraries and the pnpm-managed frontend) plus a weekly rescan so newly
+# disclosed CVEs against unchanged dependencies still surface.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 4 * * 1" # Monday 04:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  backend-dependencies:
+    name: Backend dependencies (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Trivy reads a jar's bundled pom.properties (incl. nested jars under BOOT-INF/lib in a
+      # Spring Boot fat jar) to resolve the real, locked dependency versions - far more reliable
+      # for a Gradle project without a lockfile than parsing build.gradle.kts as text.
+      - name: Build jar
+        run: ./gradlew bootJar --no-daemon -x test
+
+      - name: Trivy scan (backend jar)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: build/libs
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0" # report-only for now; see docs/ci.md before flipping to '1'
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true # code scanning may not be enabled on this repo (e.g. private w/o GHAS)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend-dependencies
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          try:
+              with open("trivy-backend.sarif") as f:
+                  data = json.load(f)
+          except FileNotFoundError:
+              raise SystemExit(0)
+          counts = {}
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  level = result.get("level", "unknown")
+                  counts[level] = counts.get(level, 0) + 1
+          total = sum(counts.values())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write(f"### Backend dependency scan: {total} finding(s)\n")
+              for level, n in sorted(counts.items()):
+                  fh.write(f"- {level}: {n}\n")
+              if total:
+                  fh.write("\nSee the Security tab (if code scanning is enabled) or the uploaded SARIF artifact for details.\n")
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-backend-sarif
+          path: trivy-backend.sarif
+          retention-days: 14
+
+  frontend-dependencies:
+    name: Frontend dependencies (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # pnpm-lock.yaml is parsed directly - no install needed.
+      - name: Trivy scan (frontend deps)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: web
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+          exit-code: "0"
+
+      - name: Upload SARIF
+        if: always()
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend-dependencies
+
+      - name: Summary
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          try:
+              with open("trivy-frontend.sarif") as f:
+                  data = json.load(f)
+          except FileNotFoundError:
+              raise SystemExit(0)
+          counts = {}
+          for run in data.get("runs", []):
+              for result in run.get("results", []):
+                  level = result.get("level", "unknown")
+                  counts[level] = counts.get(level, 0) + 1
+          total = sum(counts.values())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write(f"### Frontend dependency scan: {total} finding(s)\n")
+              for level, n in sorted(counts.items()):
+                  fh.write(f"- {level}: {n}\n")
+              if total:
+                  fh.write("\nSee the Security tab (if code scanning is enabled) or the uploaded SARIF artifact for details.\n")
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-frontend-sarif
+          path: trivy-frontend.sarif
+          retention-days: 14

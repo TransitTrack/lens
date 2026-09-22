@@ -117,6 +117,8 @@ metrics up in a cluster instead.
 | [docs/predictions.md](docs/predictions.md) | Prediction generation, travel-time learning, accuracy tracking |
 | [docs/deployment.md](docs/deployment.md) | Docker image, Kubernetes roles, Helm chart, scaling |
 | [docs/configuration.md](docs/configuration.md) | Full `transittrack.*` property reference |
+| [docs/benchmarks.md](docs/benchmarks.md) | Ingest/match/predict load benchmarks (kotlinx-benchmark) |
+| [docs/ci.md](docs/ci.md) | GitHub Actions: lint, tests, vulnerability scans, benchmarks, image/chart publishing |
 | [extension-api/README.md](extension-api/README.md) | Extension points: AVL decoders, GTFS validators, vehicle matchers, prediction strategies |
 | [web/README.md](web/README.md) | The Nuxt/Vue vehicle dashboard |
 
