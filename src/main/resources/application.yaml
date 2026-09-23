@@ -69,21 +69,33 @@ transittrack:
     feeds:
       - code: poznan
         name: ZTM
-        enabled: true
         auto-activate: true
         polling-cron: "0 * * * * *"
         url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
         avl:
-          format: gtfs_rt
           url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
-          # url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=feeds.pb
+          assignment-mode: descriptor_then_infer
+      - code: wroclaw
+        name: Wroclaw
+        auto-activate: true
+        polling-cron: "0 * * * * *"
+        url: https://iplaner.pl/gtfs/wroclaw.zip
+        avl:
+          enabled: false
+          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
           prediction-algorithm: kalman
           prediction-mode: single
           assignment-mode: descriptor_then_infer
+      - code: bucharest
+        name: Bucharest zone feeds
+        polling-cron: "0 * * * * *"
+        url: https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip
+        avl:
+          url: https://gtfs.tpbi.ro/api/gtfs-rt/vehiclePositions
+          assignment-mode: descriptor_then_infer
+
       - code: stpt
         name: Societatea de transport public Timisoara
-        enabled: true                  # optional, default true
-        auto-activate: true            # optional; overrides gtfs.ingest.auto-activate
         polling-cron: "0 * * * * *"
         url: https://smtt.ro/transit/gtfs/maps/smtt-timisoara-ro.zip
         avl:
@@ -94,39 +106,20 @@ transittrack:
           assignment-mode: descriptor_then_infer
       - code: ctp
         name: Compania de transport public Cluj
-        enabled: true                  # optional, default true
-        auto-activate: true            # optional; overrides gtfs.ingest.auto-activate
         polling-cron: "0 * * * * *"
         url: https://external.gtfs.ro/cluj/CLUJ.zip
         avl:
           format: gtfs_rt
           url: https://cluj-rt-feed.gtfs.ro/vehiclePositions
           prediction-algorithm: kalman
-          prediction-mode: single
           assignment-mode: descriptor_then_infer
       - code: otl
         name: Oradea
-        enabled: true                  # optional, default true
-        auto-activate: true            # optional; overrides gtfs.ingest.auto-activate
         polling-cron: "0 * * * * *"
-        #        url: https://blues3.transitpdf.com/files/uran/improved-gtfs-timisoara/9c40c30a5815d3e3.zip
         url: https://external.gtfs.ro/oradea/ORADEA.zip
         avl:
           enabled: false
           url: "not available"
-      - code: wroclaw
-        name: Wroclaw
-        enabled: true
-        auto-activate: true
-        polling-cron: "0 * * * * *"
-        url: https://iplaner.pl/gtfs/wroclaw.zip
-        avl:
-          enabled: false
-          format: gtfs_rt
-          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
-          prediction-algorithm: kalman
-          prediction-mode: single
-          assignment-mode: descriptor_then_infer
   gtfs:
     ingest:
       auto-activate: true
@@ -134,7 +127,7 @@ transittrack:
       batch-size: 1000
       temp-dir: "/tmp"
     retention:
-      keep-revisions-per-feed: 5
+      keep-revisions-per-feed: 2
     polling:
       enabled: true
       sweep-cron: "0 */15 * * * *"
@@ -163,10 +156,10 @@ transittrack:
   avl:
     enabled: true
     retention:
-      report-hours: 24
-      match-hours: 72
-      stale-vehicle-hours: 12
-      sweep-cron: "0 0 * * * *"
+      report-duration: PT24H
+      match-duration: PT72H
+      stale-vehicle-duration: PT30M
+      sweep-cron: "0 * * * * *"
     match:
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0

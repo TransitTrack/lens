@@ -1,5 +1,7 @@
 package eu.transittrack.avl
 
+import java.time.Duration
+
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
@@ -20,9 +22,9 @@ data class AvlProperties(
     )
 
     data class Retention(
-        val reportHours: Long = 24,
-        val matchHours: Long = 72,
-        val staleVehicleHours: Long = 12,
+        val reportDuration: Duration = Duration.ofHours(24),
+        val matchDuration: Duration = Duration.ofHours(72),
+        val staleVehicleDuration: Duration = Duration.ofHours(3),
         val sweepCron: String = "0 0 * * * *",
     )
 

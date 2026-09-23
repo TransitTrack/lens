@@ -59,15 +59,15 @@ class AvlRetentionScheduler(
     fun prune(now: Instant): PruneCounts {
         val reports = jdbc.update(
             "delete from avl_report where created_at < ?",
-            Timestamp.from(now.minus(cfg.reportHours, ChronoUnit.HOURS)),
+            Timestamp.from(now.minus(cfg.reportDuration)),
         )
         val matches = jdbc.update(
             "delete from vehicle_match where created_at < ?",
-            Timestamp.from(now.minus(cfg.matchHours, ChronoUnit.HOURS)),
+            Timestamp.from(now.minus(cfg.matchDuration)),
         )
         val states = jdbc.update(
             "delete from vehicle_state where updated_at < ?",
-            Timestamp.from(now.minus(cfg.staleVehicleHours, ChronoUnit.HOURS)),
+            Timestamp.from(now.minus(cfg.staleVehicleDuration)),
         )
         return PruneCounts(reports, matches, states)
     }

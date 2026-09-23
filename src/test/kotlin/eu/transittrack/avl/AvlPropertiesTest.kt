@@ -1,5 +1,6 @@
 package eu.transittrack.avl
 
+import java.time.Duration
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -20,6 +21,6 @@ class AvlPropertiesTest {
         assertThat(p.enabled).isFalse()
         assertThat(p.match.maxDeviationM).isEqualTo(60.0)
         assertThat(p.match.scoreWeights.deviation).isEqualTo(0.4)
-        assertThat(p.retention.reportHours).isEqualTo(24L)
+        assertThat(p.retention.reportDuration).isEqualTo(Duration.ofHours(24))
     }
 }
