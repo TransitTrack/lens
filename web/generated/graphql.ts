@@ -1369,7 +1369,7 @@ export type BlocksListQueryVariables = Exact<{
 }>;
 
 
-export type BlocksListQuery = { blocks: Array<{ blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, tripCount: number, routeIds: Array<string> }> };
+export type BlocksListQuery = { blocks: Array<{ blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, tripCount: number, routeIds: Array<string>, trips: Array<{ routeId: string }> }> };
 
 export type CompareRevisionsQueryVariables = Exact<{
   fromRevisionId: string | number;
@@ -2114,6 +2114,9 @@ export const BlocksListDocument = gql`
     endTimeSec
     tripCount
     routeIds
+    trips {
+      routeId
+    }
   }
 }
     `;

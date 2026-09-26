@@ -80,6 +80,15 @@ interface BlockTripRepository : RevisionScopedRepository<BlockTrip, Long> {
         blockId: Long,
     ): List<BlockTrip>
 
+    @Query(
+        "select bt from BlockTrip bt " +
+            "where bt.revisionId = :revisionId and bt.blockId in :blockIds order by bt.blockId, bt.listIndex",
+    )
+    fun findByBlockIdsOrdered(
+        revisionId: Long,
+        blockIds: List<Long>,
+    ): List<BlockTrip>
+
     @Query("select bt from BlockTrip bt where bt.revisionId = :revisionId and bt.tripId = :tripId")
     fun findByTripId(
         revisionId: Long,

@@ -12,6 +12,11 @@ const blockId = computed(() => String(route.params.blockId))
 const serviceId = computed(() => String(route.query.service ?? ''))
 const timelineOpen = ref(false)
 
+const backTo = computed(() => {
+  const from = route.query.from
+  return typeof from === 'string' && from ? from : feedPath('/explore/blocks')
+})
+
 const { result, loading, error } = useBlockDetailQuery(
   () => ({
     feedCode: selectedFeedCode.value ?? '',
@@ -53,7 +58,7 @@ function pct(sec: number): number {
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        :to="feedPath('/explore/blocks')"
+        :to="backTo"
         aria-label="Back to blocks"
       />
     </template>

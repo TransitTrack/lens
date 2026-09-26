@@ -6,5 +6,8 @@ query BlocksList($feedCode: String!) {
     endTimeSec
     tripCount
     routeIds
+    trips {
+      routeId
+    }
   }
 }

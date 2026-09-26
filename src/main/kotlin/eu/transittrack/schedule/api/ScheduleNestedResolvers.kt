@@ -1,5 +1,6 @@
 package eu.transittrack.schedule.api
 
+import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
@@ -77,11 +78,26 @@ class ScheduleNestedResolvers(
             ScheduleTimeDto.of(it, t.revisionId, t.feedCode)
         }
 
-    @SchemaMapping(typeName = "Block")
-    fun trips(b: BlockDto): List<TripDto> {
-        val members = blockTrips.findByBlockIdOrdered(b.revisionId, b.id)
-        val byId = trips.findAllById(members.map { it.tripId }).associateBy { it.id }
-        return members.mapNotNull { byId[it.tripId] }.map { TripDto.of(it, b.revisionId, b.feedCode) }
+    /**
+     * Batched to avoid an N+1 query per block: the blocks overview requests `trips` for
+     * every block in one response, so this loads all block-trip links and trips in two
+     * queries per revision instead of two per block.
+     */
+    @BatchMapping(typeName = "Block")
+    fun trips(blocks: List<BlockDto>): Map<BlockDto, List<TripDto>> {
+        val result = mutableMapOf<BlockDto, List<TripDto>>()
+        for ((revisionId, blocksInRevision) in blocks.groupBy { it.revisionId }) {
+            val members = blockTrips.findByBlockIdsOrdered(revisionId, blocksInRevision.map { it.id })
+            val tripsById = trips.findAllById(members.map { it.tripId }).associateBy { it.id }
+            val membersByBlock = members.groupBy { it.blockId }
+            for (block in blocksInRevision) {
+                result[block] =
+                    (membersByBlock[block.id] ?: emptyList())
+                        .mapNotNull { tripsById[it.tripId] }
+                        .map { TripDto.of(it, block.revisionId, block.feedCode) }
+            }
+        }
+        return result
     }
 
     @SchemaMapping(typeName = "Block")
