@@ -122,15 +122,21 @@ class AvlMatchProcessor(
         val startedAt = Instant.now()
         val feed = feeds.findById(feedId).orElse(null) ?: return 0
 
-        fun finish(processed: Int): Int {
+        log.info("processing matches for feed '{}'", feed.code)
+
+        fun finish(
+            processed: Int,
+            reason: String? = null,
+        ): Int {
+            log.info("finished processing matches for feed '{}' result {}, reason: {}", feed.code, processed, reason)
             metrics.avlMatchBatch(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()), processed)
             return processed
         }
 
         val batch = reports.findClaimBatch(feedId, cfg.claimBatchSize)
-        if (batch.isEmpty()) return finish(0)
-        val ctx = contextFactory.open(feed) ?: return finish(0) // leave rows PENDING when no active revision
-        val matcher = matchers[feed.assignmentMode] ?: return finish(0)
+        if (batch.isEmpty()) return finish(0, "no batch found")
+        val ctx = contextFactory.open(feed) ?: return finish(0, "failed to open context") // leave rows PENDING when no active revision
+        val matcher = matchers[feed.assignmentMode] ?: return finish(0, "no matchers found for assignment mode")
 
         val vehiclesForFeed = batch.groupBy { it.vehicleId }
         val vehiclesPreviousStates = vehicleStates.findByFeedId(feedId).associateBy { it.vehicleId }
