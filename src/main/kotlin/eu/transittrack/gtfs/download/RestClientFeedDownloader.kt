@@ -8,6 +8,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.HexFormat
 
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.springframework.stereotype.Component
@@ -38,8 +39,13 @@ class RestClientFeedDownloader(
         val request = Request
             .Builder()
             .get()
-            .url(url)
-            .build()
+            .url(
+                url
+                    .toHttpUrl()
+                    .newBuilder()
+                    .addQueryParameter("cache-buster", Instant.now().toEpochMilli().toString())
+                    .build(),
+            ).build()
 
         try {
             okHttpClient.newCall(request).execute().use { response ->

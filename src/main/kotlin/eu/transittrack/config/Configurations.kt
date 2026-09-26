@@ -130,6 +130,7 @@ class HttpClientsConfiguration(
                     it
                         .request()
                         .newBuilder()
+                        .header("Cache-Control", "no-cache, no-store, must-revalidate")
                         .header("User-Agent", props.userAgent)
                         .build()
                 it.proceed(modifiedRequest)
