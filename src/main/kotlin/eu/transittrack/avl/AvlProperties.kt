@@ -18,7 +18,7 @@ data class AvlProperties(
          * guards against a feed occasionally emitting stale/bogus timestamps (observed on the
          * `wroclaw` feed) that would otherwise get matched against the wrong service date/trip.
          */
-        val maxReportAgeHours: Long = 3,
+        val maxReportAge: Duration = Duration.ofMinutes(10),
     )
 
     data class Retention(
