@@ -77,7 +77,7 @@ data class FeedsProperties(
         val url: String,
         val name: String? = null,
         val format: AvlFormat = AvlFormat.GTFS_RT,
-        val pollIntervalSec: Int = 15,
+        val pollIntervalSec: Int = 30,
         val assignmentMode: AvlAssignmentMode = AvlAssignmentMode.FULL_INFERENCE,
         val enabled: Boolean = true,
         val headers: Map<String, String> = emptyMap(),

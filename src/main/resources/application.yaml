@@ -112,14 +112,15 @@ transittrack:
           format: gtfs_rt
           url: https://cluj-rt-feed.gtfs.ro/vehiclePositions
           prediction-algorithm: kalman
+          prediction-mode: evaluation
           assignment-mode: descriptor_then_infer
-      - code: otl
-        name: Oradea
-        polling-cron: "0 * * * * *"
-        url: https://external.gtfs.ro/oradea/ORADEA.zip
-        avl:
-          enabled: false
-          url: "not available"
+  #      - code: otl
+  #        name: Oradea
+  #        polling-cron: "0 * * * * *"
+  #        url: https://external.gtfs.ro/oradea/ORADEA.zip
+  #        avl:
+  #          enabled: false
+  #          url: "not available"
   gtfs:
     ingest:
       auto-activate: true
@@ -172,6 +173,7 @@ transittrack:
       silent-stale-cycles: 3
       silent-unmatch-cycles: 5
       silent-unmatch-min-sec: 60
+      match-interval-ms: 30_000
   predict:
     enabled: true
     run:
