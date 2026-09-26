@@ -34,8 +34,13 @@ object BlockBuilder {
      * Precondition: the caller must have filtered out trips with a blank/absent `block_id` (and
      * frequency-based trips, whose start times are 0-based offsets and would sort to the front of
      * every block).
+     *
+     * [isDeadhead] decides `deadheadAfter` from one trip's last stop to the next trip's first stop.
      */
-    fun build(trips: List<BlockTripInput>): List<BlockResult> =
+    fun build(
+        trips: List<BlockTripInput>,
+        isDeadhead: (fromStopId: String, toStopId: String) -> Boolean = { from, to -> from != to },
+    ): List<BlockResult> =
         trips
             .groupBy { it.blockId to it.serviceId }
             .map { (key, group) ->
@@ -47,7 +52,7 @@ object BlockBuilder {
                             tripRowId = t.tripRowId,
                             listIndex = i,
                             layoverAfterSec = next?.let { it.startTimeSec - t.endTimeSec },
-                            deadheadAfter = next?.let { it.firstStopId != t.lastStopId },
+                            deadheadAfter = next?.let { isDeadhead(t.lastStopId, it.firstStopId) },
                         )
                     }
                 BlockResult(

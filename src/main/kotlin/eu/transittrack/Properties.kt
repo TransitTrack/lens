@@ -94,10 +94,24 @@ data class ScheduleProperties(
     val tolerateNoScheduleTrips: Boolean = false,
     val inferredBlocks: InferredBlocks = InferredBlocks(),
 ) {
+    /**
+     * Tuning for [eu.transittrack.schedule.derive.InferredBlockBuilder], which chains `block_id`-less
+     * trips into vehicle blocks.
+     *
+     * @property maxLayoverSec longest wait at one terminal still treated as the same vehicle; a longer
+     *   gap usually means the vehicle went back to the depot.
+     * @property sameTerminalRadiusM two different stops this close together (or sharing a
+     *   `parent_station`) are one terminal, e.g. separate arrival and departure platforms.
+     * @property deadheadSpeedMps straight-line speed used to decide whether a deadhead gap is long
+     *   enough to drive between two terminals.
+     */
     data class InferredBlocks(
         val enabled: Boolean = true,
         val allowDeadhead: Boolean = false,
         val maxDeadheadGapSec: Int = 1800,
+        val maxLayoverSec: Int = 5400,
+        val sameTerminalRadiusM: Double = 100.0,
+        val deadheadSpeedMps: Double = 5.0,
     )
 }
 

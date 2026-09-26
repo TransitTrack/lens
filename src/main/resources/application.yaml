@@ -141,6 +141,9 @@ transittrack:
       enabled: true
       allow-deadhead: false
       max-deadhead-gap-sec: 1800
+      max-layover-sec: 5400
+      same-terminal-radius-m: 200
+      deadhead-speed-mps: 5.0
     optimize:
       executor:
         queue-capacity: 50

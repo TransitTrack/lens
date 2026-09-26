@@ -68,7 +68,7 @@ class BlockProcessorTest(
 
     private fun stage3() = TravelTimesProcessor(context, writer)
 
-    private fun stage4(props: ScheduleProperties = ScheduleProperties()) = BlockProcessor(context, writer, props, frequencies)
+    private fun stage4(props: ScheduleProperties = ScheduleProperties()) = BlockProcessor(context, writer, props, frequencies, stops)
 
     private fun run(
         rev: Long,
@@ -111,6 +111,47 @@ class BlockProcessorTest(
         val t1Paths = stopPaths.findByTripPatternOrdered(rev, t1.tripPatternId!!)
         assertThat(t1Paths.last().layoverStop).isTrue()
         assertThat(t1Paths.last().breakTimeSec).isNotNull()
+    }
+
+    @Test
+    fun `inferred block links separate arrival and departure platforms of one terminal`() {
+        val rev = newRevision(feeds, revisions)
+        gtfsWriter.write(
+            listOf(
+                route(rev, "R", "A"),
+                trip(rev, "R", "T1"), trip(rev, "R", "T2"),
+                // b-arr and b-dep are ~33 m apart: one terminal, two stop_ids.
+                stop(rev, "a", 51.10, 17.00), stop(rev, "b-arr", 51.1100, 17.00), stop(rev, "b-dep", 51.1103, 17.00),
+                stopTime(rev, "T1", 1, "a", 28800), stopTime(rev, "T1", 2, "b-arr", 30600),
+                stopTime(rev, "T2", 1, "b-dep", 31200), stopTime(rev, "T2", 2, "a", 33000),
+            ),
+        )
+        run(rev)
+
+        val block = blocks.findByBlockId(rev, "inferred:S:T1").single()
+        assertThat(block.tripCount).isEqualTo(2)
+        val bts = blockTrips.findByBlockIdOrdered(rev, block.id!!)
+        assertThat(bts.map { it.tripId })
+            .isEqualTo(listOf(trips.findByTripId(rev, "T1")!!.id, trips.findByTripId(rev, "T2")!!.id))
+        assertThat(bts[0].deadheadAfter).isEqualTo(false)
+    }
+
+    @Test
+    fun `inferred block does not link a bus route onto a tram route`() {
+        val rev = newRevision(feeds, revisions)
+        gtfsWriter.write(
+            listOf(
+                route(rev, "BUS", "A"), route(rev, "TRAM", "A").apply { routeType = 0 },
+                trip(rev, "BUS", "T1"), trip(rev, "TRAM", "T2"),
+                stop(rev, "a", 51.10, 17.00), stop(rev, "b", 51.11, 17.00),
+                stopTime(rev, "T1", 1, "a", 28800), stopTime(rev, "T1", 2, "b", 30600),
+                stopTime(rev, "T2", 1, "b", 31200), stopTime(rev, "T2", 2, "a", 33000),
+            ),
+        )
+        run(rev)
+
+        assertThat(blocks.findByBlockId(rev, "inferred:S:T1").single().tripCount).isEqualTo(1)
+        assertThat(blocks.findByBlockId(rev, "inferred:S:T2").single().tripCount).isEqualTo(1)
     }
 
     @Test

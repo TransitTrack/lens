@@ -17,13 +17,15 @@ class DerivationState {
     val derivedTrips = ArrayList<DerivedTrip>()
 }
 
-class DerivedTrip(
+data class DerivedTrip(
     val tripRowId: Long,
     val tripId: String,
+    val directionId: Int? = null,
     val patternId: Long,
     val blockId: String?,
     val serviceId: String,
     val routeId: String,
+    val routeType: Int? = null,
     val startSec: Int,
     val endSec: Int,
     val firstStopId: String,

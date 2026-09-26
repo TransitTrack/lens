@@ -171,7 +171,7 @@ class ScheduleDerivationEdgeCaseTest(
             ),
             SchedTripProcessor(context, scheduleWriter, derivedGtfsWriter, props, routes, trips, frequencies),
             TravelTimesProcessor(context, scheduleWriter),
-            BlockProcessor(context, scheduleWriter, props, frequencies),
+            BlockProcessor(context, scheduleWriter, props, frequencies, stops),
             GeoExtentProcessor(context, derivedGtfsWriter, routes),
             DerivationFinalizeProcessor(context, scheduleWriter),
         )

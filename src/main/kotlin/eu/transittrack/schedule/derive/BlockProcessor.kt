@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.FrequencyRepository
+import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.median
 import eu.transittrack.schedule.model.Block
 import eu.transittrack.schedule.model.BlockTrip
@@ -31,6 +32,7 @@ class BlockProcessor(
     private val writer: ScheduleWriter,
     private val props: ScheduleProperties,
     private val frequencies: FrequencyRepository,
+    private val stops: StopRepository,
 ) : IngestionPostProcessor {
     companion object {
         const val ORDER = 40
@@ -67,15 +69,21 @@ class BlockProcessor(
                         tripId = it.tripId,
                         serviceId = it.serviceId,
                         routeId = it.routeId,
+                        patternId = it.patternId,
                         startTimeSec = it.startSec,
                         endTimeSec = it.endSec,
                         firstStopId = it.firstStopId,
                         lastStopId = it.lastStopId,
+                        routeType = it.routeType,
                     )
                 }
         val inferredResults =
-            if (props.inferredBlocks.enabled) {
-                InferredBlockBuilder.build(inferredBlockInputs, props.inferredBlocks)
+            if (props.inferredBlocks.enabled && inferredBlockInputs.isNotEmpty()) {
+                val stopsById =
+                    stops.findByRevisionId(revisionId).associate {
+                        it.stopId to InferredBlockStop(it.parentStation, it.stopLat, it.stopLon)
+                    }
+                InferredBlockBuilder.build(inferredBlockInputs, props.inferredBlocks, stopsById)
             } else {
                 inferredBlockInputs.map { InferredBlockBuilder.build(listOf(it), props.inferredBlocks).single() }
             }

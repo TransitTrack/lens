@@ -120,6 +120,7 @@ class SchedTripProcessor(
                     DerivedTrip(
                         tripRowId = tripRowId,
                         tripId = trip.tripId,
+                        directionId = trip.directionId,
                         patternId = patternId,
                         // GTFS block_id is optional. Preserve its absence so BlockProcessor can
                         // infer a safe vehicle chain (or an explicit singleton) for this timed trip.
@@ -127,6 +128,7 @@ class SchedTripProcessor(
                         blockId = trip.blockId?.ifBlank { null },
                         serviceId = trip.serviceId,
                         routeId = trip.routeId,
+                        routeType = route.routeType,
                         startSec = startSec,
                         endSec = endSec,
                         firstStopId = stopIds.first(),
