@@ -102,6 +102,20 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
         pageable: org.springframework.data.domain.Pageable,
     ): List<AvlReportRow>
 
+    /**
+     * Recent reports for a whole batch of vehicles in one query — feeds the movement-trend heading
+     * (see [eu.transittrack.avl.match.trendHeadingDeg]) without an N+1 per vehicle.
+     */
+    @Query(
+        "select t from AvlReportRow t where t.feedId = :feedId and t.vehicleId in :vehicleIds and t.ts >= :since " +
+            "order by t.vehicleId, t.ts desc",
+    )
+    fun findTrail(
+        @Param("feedId") feedId: Long,
+        @Param("vehicleIds") vehicleIds: Collection<String>,
+        @Param("since") since: Instant,
+    ): List<AvlReportRow>
+
     @Modifying
     @Transactional
     @Query("update AvlReportRow set matchedAt = :at, matchStatus = :status where id in :ids")
