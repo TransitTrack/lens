@@ -11,13 +11,12 @@ import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.draft.edit.DraftEditService
 import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.draft.edit.StaleDraftException
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 
@@ -30,7 +29,7 @@ class DraftEditGraphQlTest(
 
     @MockitoBean lateinit var draftService: DraftService
 
-    @MockitoBean lateinit var feeds: GtfsFeedRepository
+    @MockitoBean lateinit var feedService: GtfsFeedService
 
     private fun draft(): GtfsRevision =
         GtfsRevision(

@@ -1,7 +1,6 @@
 package eu.transittrack.gtfs.api
 
 import java.time.Instant
-import java.util.Optional
 import kotlin.test.Test
 
 import org.mockito.kotlin.any
@@ -12,15 +11,12 @@ import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.revision.GtfsRevision
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 
@@ -40,10 +36,6 @@ class GtfsFeedGraphQlTest(
     @MockitoBean lateinit var ingestion: IngestionService
 
     @MockitoBean lateinit var revisionService: RevisionService
-
-    @MockitoBean lateinit var revisions: GtfsRevisionRepository
-
-    @MockitoBean lateinit var feeds: GtfsFeedRepository
 
     private fun feed() =
         GtfsFeed(
@@ -69,7 +61,7 @@ class GtfsFeedGraphQlTest(
     @Test
     fun `query feed`() {
         whenever(feedService.get("w")).thenReturn(feed())
-        whenever(revisions.findByFeedNewestFirst(any())).thenReturn(emptyList())
+        whenever(revisionService.revisionsForFeed(any())).thenReturn(emptyList())
         tester
             .document(
                 "{ feed(code:\"w\"){ code name enabled source } }",
@@ -122,8 +114,8 @@ class GtfsFeedGraphQlTest(
                     """{"issues":[{"rule":"r1","severity":"ERROR","count":2,"sample":"s"},""" +
                     """{"rule":"r2","severity":"WARNING","count":4,"sample":"s"}]}"""
             }
-        whenever(revisions.findById(5L)).thenReturn(Optional.of(revision))
-        whenever(feeds.findById(1L)).thenReturn(Optional.of(feed))
+        whenever(revisionService.findOrNull(5L)).thenReturn(revision)
+        whenever(feedService.codeOf(1L)).thenReturn(feed.code)
         tester
             .document(
                 "{ revision(id:\"5\"){ rowCounts validationSummary { errorCount warningCount } } }",
@@ -145,7 +137,7 @@ class GtfsFeedGraphQlTest(
             GtfsRevision(feedId = 1, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "u").apply {
                 id = 7
             }
-        whenever(revisions.findById(7L)).thenReturn(Optional.of(active))
+        whenever(revisionService.findOrNull(7L)).thenReturn(active)
         tester
             .document("mutation { deleteRevision(revisionId:\"7\") }")
             .execute()

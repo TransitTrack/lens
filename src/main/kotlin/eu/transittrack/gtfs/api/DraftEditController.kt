@@ -35,7 +35,7 @@ import eu.transittrack.gtfs.draft.edit.SetCalendarOp
 import eu.transittrack.gtfs.draft.edit.SetStopDwellOp
 import eu.transittrack.gtfs.draft.edit.ShiftTripOp
 import eu.transittrack.gtfs.draft.edit.UpdateStopTimeOp
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
 
 @Controller
@@ -43,9 +43,9 @@ class DraftEditController(
     private val editService: DraftEditService,
     private val draftMapper: DraftMapper,
     private val draftService: DraftService,
-    private val feeds: GtfsFeedRepository,
+    private val feedService: GtfsFeedService,
 ) {
-    private fun feedCodeOf(rev: GtfsRevision): String = feeds.findById(rev.feedId).map { it.code }.orElse("")
+    private fun feedCodeOf(rev: GtfsRevision): String = feedService.codeOf(rev.feedId) ?: ""
 
     private fun toResult(r: DraftEditService.DraftEditResultData): DraftEditResultDto =
         DraftEditResultDto(

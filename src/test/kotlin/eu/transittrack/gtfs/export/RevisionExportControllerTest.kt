@@ -4,7 +4,6 @@ import java.io.OutputStream
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.time.Instant
-import java.util.Optional
 import kotlin.io.path.name
 import kotlin.streams.toList
 import kotlin.test.Test
@@ -23,10 +22,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders
 
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.gtfs.revision.RevisionService
 
 /**
  * Standalone [MockMvcBuilders.standaloneSetup] rather than `@WebMvcTest` / `TestRestTemplate`:
@@ -35,11 +34,11 @@ import eu.transittrack.gtfs.revision.GtfsRevisionStatus
  */
 class RevisionExportControllerTest {
     private val serializer: GtfsSerializer = mock()
-    private val revisions: GtfsRevisionRepository = mock()
-    private val feeds: GtfsFeedRepository = mock()
+    private val revisionService: RevisionService = mock()
+    private val feedService: GtfsFeedService = mock()
     private val mvc =
         MockMvcBuilders
-            .standaloneSetup(RevisionExportController(serializer, revisions, feeds))
+            .standaloneSetup(RevisionExportController(serializer, revisionService, feedService))
             .build()
 
     private fun feed() =
@@ -60,8 +59,8 @@ class RevisionExportControllerTest {
     fun `streams a zip with an attachment header`() {
         val rev =
             GtfsRevision(feedId = 1, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "u").apply { id = 5 }
-        whenever(revisions.findById(5)).thenReturn(Optional.of(rev))
-        whenever(feeds.findById(1)).thenReturn(Optional.of(feed()))
+        whenever(revisionService.findOrNull(5)).thenReturn(rev)
+        whenever(feedService.codeOf(1)).thenReturn(feed().code)
         whenever(serializer.serialize(any(), any())).thenAnswer {
             (it.arguments[1] as OutputStream).write("PK".toByteArray())
         }
@@ -87,7 +86,7 @@ class RevisionExportControllerTest {
 
     @Test
     fun `404 for unknown revision`() {
-        whenever(revisions.findById(999)).thenReturn(Optional.empty())
+        whenever(revisionService.findOrNull(999)).thenReturn(null)
         mvc
             .perform(get("/api/revisions/999/gtfs.zip"))
             .andExpect(status().isNotFound)

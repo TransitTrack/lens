@@ -9,13 +9,11 @@ import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.config.GraphQlConfiguration
-import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftJob
 import eu.transittrack.gtfs.draft.DraftJobService
 import eu.transittrack.gtfs.draft.DraftService
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.draft.edit.DraftEditService
+import eu.transittrack.gtfs.feed.GtfsFeedService
 
 @GraphQlTest
 @Import(GraphQlConfiguration::class, DraftController::class, DraftMapper::class, GtfsDtoMapper::class)
@@ -26,11 +24,9 @@ class DraftRebuildGraphQlTest(
 
     @MockitoBean lateinit var jobs: DraftJobService
 
-    @MockitoBean lateinit var editRepo: DraftEditRepository
+    @MockitoBean lateinit var editService: DraftEditService
 
-    @MockitoBean lateinit var feeds: GtfsFeedRepository
-
-    @MockitoBean lateinit var revisions: GtfsRevisionRepository
+    @MockitoBean lateinit var feedService: GtfsFeedService
 
     @Test
     fun `rebuildDraft returns a RUNNING job`() {

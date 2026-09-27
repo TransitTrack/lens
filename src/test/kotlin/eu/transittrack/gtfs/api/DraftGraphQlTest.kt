@@ -1,7 +1,6 @@
 package eu.transittrack.gtfs.api
 
 import java.time.Instant
-import java.util.Optional
 import kotlin.test.Test
 
 import org.mockito.kotlin.any
@@ -12,16 +11,15 @@ import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftEdit
-import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftJobService
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.draft.DraftLock
 import eu.transittrack.gtfs.draft.DraftService
+import eu.transittrack.gtfs.draft.edit.DraftEditService
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 
@@ -37,11 +35,11 @@ class DraftGraphQlTest(
 ) {
     @MockitoBean lateinit var draftService: DraftService
 
-    @MockitoBean lateinit var editRepo: DraftEditRepository
+    @MockitoBean lateinit var editService: DraftEditService
 
     @MockitoBean lateinit var jobs: DraftJobService
 
-    @MockitoBean lateinit var feeds: GtfsFeedRepository
+    @MockitoBean lateinit var feedService: GtfsFeedService
 
     private fun feed() =
         GtfsFeed(
@@ -85,7 +83,7 @@ class DraftGraphQlTest(
                 editorClaimBy = "alice"
                 editorClaimExpiresAt = expiresAt
             }
-        whenever(feeds.findById(1L)).thenReturn(Optional.of(feed()))
+        whenever(feedService.codeOf(1L)).thenReturn(feed().code)
         whenever(draftService.fork("stpt", null, "P1", "alice")).thenReturn(draftRev(42))
         whenever(draftService.get(42L)).thenReturn(claimed)
         whenever(draftService.currentLock(any())).thenReturn(DraftLock("alice", expiresAt))
@@ -119,7 +117,7 @@ class DraftGraphQlTest(
 
     @Test
     fun `draftEdits applies the limit via takeLast`() {
-        whenever(editRepo.findByRevisionIdOrderBySeqAsc(42L))
+        whenever(editService.editsFor(42L))
             .thenReturn((1..5).map(::edit))
         tester
             .document("""{ draftEdits(id:"42", limit:2) { seq } }""")
@@ -140,7 +138,7 @@ class DraftGraphQlTest(
                 createdAt = Instant.now()
             }
         whenever(draftService.activate(42L, "alice", true)).thenReturn(active)
-        whenever(feeds.findById(1L)).thenReturn(Optional.of(feed()))
+        whenever(feedService.codeOf(1L)).thenReturn(feed().code)
         tester
             .document("""mutation { activateDraft(id:"42", editor:"alice", force:true) { id status feedCode } }""")
             .execute()

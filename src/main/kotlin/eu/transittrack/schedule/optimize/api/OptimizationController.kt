@@ -12,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper
 import eu.transittrack.gtfs.api.DraftMapper
 import eu.transittrack.gtfs.api.dto.DraftDto
 import eu.transittrack.gtfs.draft.DraftService
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.schedule.optimize.OptimizationRunRequest
 import eu.transittrack.schedule.optimize.ScheduleOptimizationService
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
@@ -32,7 +32,7 @@ class OptimizationController(
     private val service: ScheduleOptimizationService,
     private val draftMapper: DraftMapper,
     private val draftService: DraftService,
-    private val feeds: GtfsFeedRepository,
+    private val feedService: GtfsFeedService,
     private val json: JsonMapper,
 ) {
     @QueryMapping
@@ -71,7 +71,7 @@ class OptimizationController(
         @Argument editor: String,
     ): DraftDto {
         val revision = service.apply(runId.toLong(), recommendationIds.map { it.toLong() }.toSet(), label, editor)
-        val feedCode = feeds.findById(revision.feedId).map { it.code }.orElse("")
+        val feedCode = feedService.codeOf(revision.feedId) ?: ""
         return draftMapper.toDto(revision, feedCode, draftService.currentLock(revision))
     }
 

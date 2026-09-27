@@ -194,4 +194,8 @@ class RevisionService(
     fun hasInProgress(feedId: Long): Boolean = revisions.existsByFeedAndStatusIn(feedId, GtfsRevisionStatus.NON_TERMINAL_IN_PROGRESS)
 
     fun revision(id: Long): GtfsRevision = revisions.findById(id).orElseThrow()
+
+    fun findOrNull(id: Long): GtfsRevision? = revisions.findById(id).orElse(null)
+
+    fun revisionsForFeed(feedId: Long): List<GtfsRevision> = revisions.findByFeedNewestFirst(feedId)
 }

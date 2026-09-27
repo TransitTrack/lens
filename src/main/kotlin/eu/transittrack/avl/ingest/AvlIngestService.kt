@@ -12,7 +12,6 @@ import eu.transittrack.AvlFormat
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.feed.AvlFeedSource
 import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
@@ -26,11 +25,11 @@ import eu.transittrack.observability.TransitTrackMetrics
  */
 @Service
 class AvlIngestService(
-    private val feeds: AvlFeedRepository,
     private val source: AvlFeedSource,
     decoders: ObjectProvider<AvlFeedDecoder>,
     private val writer: AvlWriter,
     private val reports: AvlReportRowRepository,
+    private val pollRecorder: AvlPollRecorder,
     private val props: AvlProperties = AvlProperties(),
     private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) {
@@ -48,7 +47,7 @@ class AvlIngestService(
                 source.fetch(feed)
             } catch (e: Exception) {
                 metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
-                recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
+                pollRecorder.recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
                 throw e
             }
         val decoded =
@@ -56,7 +55,7 @@ class AvlIngestService(
                 decoder.decode(payload, feed.toDescriptor())
             } catch (e: Exception) {
                 metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
-                recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
+                pollRecorder.recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
                 throw e
             }
 
@@ -74,24 +73,11 @@ class AvlIngestService(
         val latest = reports.latestTsByVehicle(feed.id!!).associate { it.vehicleId to it.ts }
         val fresh = current.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: true }
         writer.insertReports(fresh.map { toRow(feed.id!!, it) })
-        recordPoll(feed.id!!, status = "OK", count = fresh.size)
+        pollRecorder.recordPoll(feed.id!!, status = "OK", count = fresh.size)
         metrics.avlReports(feed, decoded.size, fresh.size, stale.size)
         metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()))
         log.trace("avl feed '{}': {} decoded, {} new, {} stale", feed.code, decoded.size, fresh.size, stale.size)
         return fresh.size
-    }
-
-    @Transactional
-    fun recordPoll(
-        feedId: Long,
-        status: String,
-        count: Int,
-    ) {
-        val f = feeds.findById(feedId).orElseThrow()
-        f.lastPollAt = Instant.now()
-        f.lastPollStatus = status
-        f.lastPollReportCount = count
-        feeds.save(f)
     }
 
     private fun AvlFeed.toDescriptor() = FeedDescriptor(code, name, url, format, headers)

@@ -15,13 +15,11 @@ import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.api.DraftMapper
+import eu.transittrack.gtfs.api.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftLock
 import eu.transittrack.gtfs.draft.DraftService
-import eu.transittrack.gtfs.feed.FeedSource
-import eu.transittrack.gtfs.feed.GtfsFeed
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.schedule.optimize.RecommendationConflictException
@@ -47,7 +45,7 @@ class OptimizationGraphQlTest(
 
     @MockitoBean lateinit var draftService: DraftService
 
-    @MockitoBean lateinit var feeds: GtfsFeedRepository
+    @MockitoBean lateinit var feedService: GtfsFeedService
 
     private val json = JsonMapper.builder().build()
 
@@ -208,9 +206,7 @@ class OptimizationGraphQlTest(
     fun `applyOptimizationRecommendations returns a DRAFT`() {
         whenever(service.apply(eq(1L), argThat { this == setOf(2L, 3L) }, eq("proposal"), eq("planner")))
             .thenReturn(draft())
-        whenever(feeds.findById(5)).thenReturn(
-            java.util.Optional.of(GtfsFeed("g", "G", null, "x", null, true, null, FeedSource.API, Instant.EPOCH, Instant.EPOCH, id = 5)),
-        )
+        whenever(feedService.codeOf(5)).thenReturn("g")
         whenever(draftService.currentLock(any())).thenReturn(DraftLock("planner", Instant.parse("2026-09-01T01:00:00Z")))
 
         tester

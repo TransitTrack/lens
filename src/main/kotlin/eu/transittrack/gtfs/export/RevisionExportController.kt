@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
+import eu.transittrack.gtfs.revision.RevisionService
 
 /**
  * REST download of any revision's RAW GTFS zip.
@@ -31,17 +31,17 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 @RestController
 class RevisionExportController(
     private val serializer: GtfsSerializer,
-    private val revisions: GtfsRevisionRepository,
-    private val feeds: GtfsFeedRepository,
+    private val revisionService: RevisionService,
+    private val feedService: GtfsFeedService,
 ) {
     @GetMapping("/api/revisions/{id}/gtfs.zip", produces = ["application/zip"])
     fun export(
         @PathVariable id: Long,
     ): ResponseEntity<Resource> {
         val rev =
-            revisions.findById(id).orElse(null)
+            revisionService.findOrNull(id)
                 ?: return ResponseEntity.notFound().build()
-        val feedCode = feeds.findById(rev.feedId).map { it.code }.orElse("feed")
+        val feedCode = feedService.codeOf(rev.feedId) ?: "feed"
 
         val tmp = Files.createTempFile("gtfs-export-$id-", ".zip")
         try {

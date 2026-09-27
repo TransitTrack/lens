@@ -35,20 +35,21 @@ import eu.transittrack.support.PostgresPerMethodTest
  * `avl_report.feed_id` FK must be committed and visible. Hence `NOT_SUPPORTED` + explicit cleanup.
  */
 @PostgresSliceTest
-@Import(AvlWriter::class, GtfsRealtimeVehiclePositionDecoder::class)
+@Import(AvlWriter::class, AvlPollRecorder::class, GtfsRealtimeVehiclePositionDecoder::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class AvlIngestServiceTest(
     @Autowired val feeds: AvlFeedRepository,
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val writer: AvlWriter,
     @Autowired val decoders: ObjectProvider<AvlFeedDecoder>,
+    @Autowired val pollRecorder: AvlPollRecorder,
 ) : PostgresPerMethodTest() {
     private var bytes: ByteArray = ByteArray(0)
     private val source =
         object : AvlFeedSource {
             override fun fetch(feed: AvlFeed) = RawAvlPayload(bytes, null, Instant.parse("2026-09-04T10:00:00Z"))
         }
-    private val service by lazy { AvlIngestService(feeds, source, decoders, writer, reports) }
+    private val service by lazy { AvlIngestService(source, decoders, writer, reports, pollRecorder) }
 
     @AfterEach
     fun cleanup() {

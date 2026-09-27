@@ -11,11 +11,10 @@ import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.config.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.draft.edit.DraftEditService
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 
@@ -28,7 +27,7 @@ class CalendarEditGraphQlTest(
 
     @MockitoBean lateinit var draftService: DraftService
 
-    @MockitoBean lateinit var feeds: GtfsFeedRepository
+    @MockitoBean lateinit var feedService: GtfsFeedService
 
     private fun draft(): GtfsRevision =
         GtfsRevision(feedId = 1, status = GtfsRevisionStatus.DRAFT, sourceUrl = "x", version = 4).apply { id = 5 }

@@ -47,6 +47,8 @@ class DraftEditService(
 
     private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, calendars, calendarDates, json)
 
+    fun editsFor(revisionId: Long): List<DraftEdit> = edits.findByRevisionIdOrderBySeqAsc(revisionId)
+
     private fun guard(
         draftId: Long,
         editor: String,
@@ -86,6 +88,13 @@ class DraftEditService(
      */
     @Transactional
     fun applyBatch(
+        draftId: Long,
+        editor: String,
+        expectedVersion: Long,
+        operations: List<EditOp>,
+    ): GtfsRevision = applyBatchInternal(draftId, editor, expectedVersion, operations)
+
+    private fun applyBatchInternal(
         draftId: Long,
         editor: String,
         expectedVersion: Long,
@@ -130,7 +139,7 @@ class DraftEditService(
         opFactory: (EditContext) -> EditOp,
     ): DraftEditResultData {
         val op = opFactory(ctx(draftId))
-        val d = applyBatch(draftId, editor, expectedVersion, listOf(op))
+        val d = applyBatchInternal(draftId, editor, expectedVersion, listOf(op))
         return result(d, edits.findTopByRevisionIdAndUndoneFalseOrderBySeqDesc(draftId))
     }
 

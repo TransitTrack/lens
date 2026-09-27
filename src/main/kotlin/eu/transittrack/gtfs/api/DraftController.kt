@@ -11,25 +11,25 @@ import eu.transittrack.gtfs.api.dto.DraftJobDto
 import eu.transittrack.gtfs.api.dto.DraftLockDto
 import eu.transittrack.gtfs.api.dto.ForkDraftInput
 import eu.transittrack.gtfs.api.dto.RevisionDto
-import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftJob
 import eu.transittrack.gtfs.draft.DraftJobService
 import eu.transittrack.gtfs.draft.DraftService
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.draft.edit.DraftEditService
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevision
 
 @Controller
 class DraftController(
     private val drafts: DraftService,
-    private val edits: DraftEditRepository,
+    private val editService: DraftEditService,
     private val mapper: DraftMapper,
     private val gtfsMapper: GtfsDtoMapper,
-    private val feeds: GtfsFeedRepository,
+    private val feedService: GtfsFeedService,
     private val jobs: DraftJobService,
 ) {
     private fun jobDto(j: DraftJob) = DraftJobDto(j.id, j.state.name, j.phase.name, j.error)
 
-    private fun feedCodeOf(rev: GtfsRevision): String = feeds.findById(rev.feedId).map { it.code }.orElse("")
+    private fun feedCodeOf(rev: GtfsRevision): String = feedService.codeOf(rev.feedId) ?: ""
 
     private fun dto(rev: GtfsRevision): DraftDto = mapper.toDto(rev, feedCodeOf(rev), drafts.currentLock(rev))
 
@@ -47,7 +47,7 @@ class DraftController(
     fun draftEdits(
         @Argument id: String,
         @Argument limit: Int,
-    ): List<DraftEditDto> = edits.findByRevisionIdOrderBySeqAsc(id.toLong()).takeLast(limit).map(mapper::toDto)
+    ): List<DraftEditDto> = editService.editsFor(id.toLong()).takeLast(limit).map(mapper::toDto)
 
     @QueryMapping
     fun draftJob(

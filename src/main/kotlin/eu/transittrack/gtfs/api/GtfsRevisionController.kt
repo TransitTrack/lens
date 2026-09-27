@@ -5,14 +5,14 @@ import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
 import eu.transittrack.gtfs.api.dto.RevisionDto
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.gtfs.revision.RevisionService
 
 @Controller
 class GtfsRevisionController(
-    private val revisions: GtfsRevisionRepository,
-    private val feeds: GtfsFeedRepository,
+    private val revisionService: RevisionService,
+    private val feedService: GtfsFeedService,
     private val mapper: GtfsDtoMapper,
 ) {
     @QueryMapping
@@ -20,9 +20,9 @@ class GtfsRevisionController(
         @Argument feedCode: String,
         @Argument status: GtfsRevisionStatus?,
     ): List<RevisionDto> {
-        val feed = feeds.findByCode(feedCode) ?: return emptyList()
-        return revisions
-            .findByFeedNewestFirst(feed.id!!)
+        val feed = feedService.get(feedCode) ?: return emptyList()
+        return revisionService
+            .revisionsForFeed(feed.id!!)
             .filter {
                 status == null || it.status == status
             }.map { mapper.toDto(it, feedCode) }
@@ -32,8 +32,8 @@ class GtfsRevisionController(
     fun revision(
         @Argument id: String,
     ): RevisionDto? {
-        val revision = revisions.findById(id.toLong()).orElse(null) ?: return null
-        val code = feeds.findById(revision.feedId).map { it.code }.orElse("")
+        val revision = revisionService.findOrNull(id.toLong()) ?: return null
+        val code = feedService.codeOf(revision.feedId) ?: ""
         return mapper.toDto(revision, code)
     }
 }

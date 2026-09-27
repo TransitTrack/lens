@@ -72,7 +72,7 @@ data class OptimizationRunRequest(
 /**
  * Submits and tracks optimization runs. `submit` resolves the feed's ACTIVE revision and persists a
  * `QUEUED` row synchronously, then dispatches the actual analysis onto the dedicated one-core
- * `scheduleOptimizationExecutor` (registered in `eu.transittrack.config.Configurations`). The run's
+ * `scheduleOptimizationExecutor` (registered in [ScheduleOptimizeExecutorConfiguration]). The run's
  * `revisionId` is frozen at submission and never re-read from the feed afterward, so a later
  * activation cannot change which revision an in-flight run analyzes.
  *

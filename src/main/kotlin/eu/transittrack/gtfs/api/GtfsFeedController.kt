@@ -8,13 +8,13 @@ import org.springframework.stereotype.Controller
 import eu.transittrack.gtfs.api.dto.FeedDto
 import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.feed.GtfsFeedService
-import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+import eu.transittrack.gtfs.revision.RevisionService
 
 @Controller
 class GtfsFeedController(
     private val feedService: GtfsFeedService,
-    private val revisions: GtfsRevisionRepository,
+    private val revisionService: RevisionService,
     private val mapper: GtfsDtoMapper,
 ) {
     @QueryMapping fun feeds(): List<FeedDto> = feedService.list().map(mapper::toDto)
@@ -27,14 +27,14 @@ class GtfsFeedController(
     @SchemaMapping(typeName = "Feed")
     fun revisions(feed: FeedDto): List<RevisionDto> {
         val feedId = feed.feedId ?: return emptyList()
-        return revisions.findByFeedNewestFirst(feedId).map { mapper.toDto(it, feed.code) }
+        return revisionService.revisionsForFeed(feedId).map { mapper.toDto(it, feed.code) }
     }
 
     @SchemaMapping(typeName = "Feed")
     fun activeRevision(feed: FeedDto): RevisionDto? {
         val feedId = feed.feedId ?: return null
-        return revisions
-            .findByFeedNewestFirst(feedId)
+        return revisionService
+            .revisionsForFeed(feedId)
             .firstOrNull { it.status == GtfsRevisionStatus.ACTIVE }
             ?.let { mapper.toDto(it, feed.code) }
     }

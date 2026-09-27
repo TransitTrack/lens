@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.config.GraphQlConfiguration
+import eu.transittrack.gtfs.api.GraphQlConfiguration
 import eu.transittrack.schedule.compare.ScheduleComparison
 import eu.transittrack.schedule.compare.ScheduleComparisonService
 import eu.transittrack.schedule.compare.StopChangeKind

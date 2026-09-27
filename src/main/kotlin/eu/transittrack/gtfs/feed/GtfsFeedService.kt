@@ -86,6 +86,8 @@ class GtfsFeedService(
 
     fun list(): List<GtfsFeed> = repo.findAll()
 
+    fun codeOf(feedId: Long): String? = repo.findById(feedId).map { it.code }.orElse(null)
+
     @Transactional
     fun markIngested(feedId: Long) {
         repo.findById(feedId).ifPresent {
