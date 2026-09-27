@@ -4,6 +4,7 @@ import java.time.Instant
 import java.time.LocalDate
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -44,7 +45,7 @@ class AvlReportRow(
     @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "current_status") var currentStatus: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "occupancy_status") var occupancyStatus: Int?,
     @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "congestion_level") var congestionLevel: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "match_status", nullable = false) var matchStatus: MatchStatus,
+    @Enumerated @Column(name = "match_status", nullable = false) var matchStatus: MatchStatus,
     @Column(name = "matched_at") var matchedAt: Instant?,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,

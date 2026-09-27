@@ -3,6 +3,7 @@ package eu.transittrack.avl.model
 import java.time.Instant
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -41,7 +42,7 @@ class VehicleMatch(
     @Column var heading: Double?,
     @Column var score: Double?,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Enumerated
     @Column(name = "prediction_status", nullable = false)
     var predictionStatus: PredictionStatus = PredictionStatus.PENDING,
     @Column(name = "predicted_at") var predictedAt: Instant? = null,

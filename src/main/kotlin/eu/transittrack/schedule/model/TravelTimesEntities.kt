@@ -2,6 +2,7 @@ package eu.transittrack.schedule.model
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -25,7 +26,7 @@ class TravelTimesForStopPath(
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
     @Column(name = "travel_time_sec") var travelTimeSec: Int?,
     @Column(name = "dwell_time_sec") var dwellTimeSec: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Enumerated
     @Column(name = "how_set", nullable = false)
     var howSet: TravelTimeSource = TravelTimeSource.SCHEDULE,
 ) : RevisionScoped(revisionId)

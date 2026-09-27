@@ -3,6 +3,7 @@ package eu.transittrack.predict.model
 import java.time.Instant
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
+import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
@@ -23,7 +24,7 @@ class PredictionAccuracy(
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(nullable = false) var algorithm: PredictionAlgorithm,
+    @Enumerated @Column(nullable = false) var algorithm: PredictionAlgorithm,
     @Column(name = "predicted_ts", nullable = false) var predictedTs: Instant,
     @Column(name = "actual_ts", nullable = false) var actualTs: Instant,
     @Column(name = "error_sec", nullable = false) var errorSec: Int,

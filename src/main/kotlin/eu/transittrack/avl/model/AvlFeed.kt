@@ -30,15 +30,15 @@ class AvlFeed(
     @Column(nullable = false) var name: String,
     @Column(name = "gtfs_feed_code", nullable = false) var gtfsFeedCode: String,
     @Column(nullable = false) var url: String,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(nullable = false) var format: AvlFormat,
+    @Enumerated @Column(nullable = false) var format: AvlFormat,
     @Column(name = "poll_interval_sec", nullable = false) var pollIntervalSec: Int,
-    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Enumerated
     @Column(name = "assignment_mode", nullable = false)
     var assignmentMode: AvlAssignmentMode,
-    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Enumerated
     @Column(name = "prediction_algorithm", nullable = false)
     var predictionAlgorithm: PredictionAlgorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE,
-    @JdbcTypeCode(SqlTypes.SMALLINT)
+    @Enumerated
     @Column(name = "prediction_mode", nullable = false)
     var predictionMode: PredictionMode = PredictionMode.SINGLE,
     @Column(nullable = false) var enabled: Boolean,
