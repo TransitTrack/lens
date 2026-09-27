@@ -132,7 +132,7 @@ class AvlMatchProcessor(
             reason: String? = null,
         ): Int {
             log.info("finished processing matches for feed '{}' result {}, reason: {}", feed.code, processed, reason)
-            metrics.avlMatchBatch(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()), processed)
+            metrics.avlMatchBatch(feed.code, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()), processed)
             return processed
         }
 
@@ -159,14 +159,16 @@ class AvlMatchProcessor(
                     stats.accumulate(report, match, prev, ctx)
 
                     metrics.avlReportMatched(
-                        feed,
+                        feed.code,
+                        feed.assignmentMode.name.lowercase(),
                         when (match) {
                             is MatchOutcome.Matched -> TransitTrackMetrics.MatchMetricOutcome.MATCHED
                             MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
                             MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
                         },
                         Duration.between(reportStartedAt, Instant.now()),
-                        match,
+                        deviationM = (match as? MatchOutcome.Matched)?.deviationM,
+                        score = (match as? MatchOutcome.Matched)?.score,
                     )
                     processed++
                 }

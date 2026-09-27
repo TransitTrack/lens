@@ -329,7 +329,7 @@ class ScheduleOptimizationService(
             run.state = OptimizationRunState.SUCCEEDED
             run.completedAt = Instant.now()
             runs.save(run)
-            metrics.optimizationRunFinished(OptimizationRunState.SUCCEEDED, Duration.between(run.startedAt, run.completedAt))
+            metrics.optimizationRunFinished(OptimizationRunState.SUCCEEDED.name, Duration.between(run.startedAt, run.completedAt))
         } catch (t: Exception) {
             log.error("optimization run {} failed", runId, t)
             markFailed(runId)
@@ -345,7 +345,7 @@ class ScheduleOptimizationService(
         val candidates = pipeline.analyze(run)
         if (candidates.isNotEmpty()) {
             recommendations.saveAll(candidates)
-            candidates.forEach { metrics.optimizationRecommendation(it.kind, it.status) }
+            candidates.forEach { metrics.optimizationRecommendation(it.kind.name, it.status.name) }
         }
     }
 
@@ -358,7 +358,7 @@ class ScheduleOptimizationService(
                 run.error = SANITIZED_FAILURE_MESSAGE
                 runs.save(run)
                 val started = run.startedAt ?: run.completedAt!!
-                metrics.optimizationRunFinished(OptimizationRunState.FAILED, Duration.between(started, run.completedAt))
+                metrics.optimizationRunFinished(OptimizationRunState.FAILED.name, Duration.between(started, run.completedAt))
             }
         }.onFailure { log.error("optimization run {} could not be marked FAILED", runId, it) }
     }

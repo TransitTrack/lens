@@ -5,6 +5,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+.bootui
+.codex
+
 ### STS ###
 .apt_generated
 .classpath

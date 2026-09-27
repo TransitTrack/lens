@@ -8,8 +8,8 @@ import org.springframework.context.ApplicationContext
 
 import eu.transittrack.avl.ingest.AvlRetentionScheduler
 import eu.transittrack.avl.match.AvlSilentVehicleSweeper
+import eu.transittrack.avl.observability.AvlMetricsGaugeRefresher
 import eu.transittrack.gtfs.export.ExportTempFileSweeper
-import eu.transittrack.observability.TransitTrackMetricsGaugeRefresher
 import eu.transittrack.predict.PredictionRetentionScheduler
 import eu.transittrack.schedule.optimize.OptimizationRetentionScheduler
 import eu.transittrack.support.PostgresPerMethodTest
@@ -28,6 +28,6 @@ class SingletonJobsRoleGatingTest(
         assert(ctx.getBeansOfType(PredictionRetentionScheduler::class.java).isEmpty())
         assert(ctx.getBeansOfType(OptimizationRetentionScheduler::class.java).isEmpty())
         assert(ctx.getBeansOfType(ExportTempFileSweeper::class.java).isEmpty())
-        assert(ctx.getBeansOfType(TransitTrackMetricsGaugeRefresher::class.java).isEmpty())
+        assert(ctx.getBeansOfType(AvlMetricsGaugeRefresher::class.java).isEmpty())
     }
 }

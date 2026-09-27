@@ -15,13 +15,6 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
-import eu.transittrack.avl.match.MatchOutcome
-import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.predict.PredictionAlgorithm
-import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
-import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
-import eu.transittrack.schedule.optimize.model.OptimizationRunState
-
 /**
  * The sole owner of TransitTrack business metrics. Keep labels bounded: feeds and configuration
  * enums are useful dimensions; vehicle/trip/revision identifiers and exception messages are not.
@@ -95,29 +88,31 @@ class TransitTrackMetrics(
     }
 
     fun avlPollFinished(
-        feed: AvlFeed,
+        feedCode: String,
+        format: String,
         outcome: Outcome,
         elapsed: Duration,
     ) = safely("avl_poll_finished") {
-        val tags = avlTags(feed, "outcome", outcome.tag())
+        val tags = avlTags(feedCode, format, "outcome", outcome.tag())
         counter("transittrack.avl.polls", tags).increment()
         timer("transittrack.avl.poll.duration", tags).record(elapsed)
         if (outcome ==
             Outcome.SUCCESS
         ) {
             val now = Instant.now()
-            setGauge("transittrack.avl.feed.last.success.timestamp", tags("feed", feed.code), now.epochSecond)
-            setAgeGauge("transittrack.avl.feed.age", tags("feed", feed.code), now)
+            setGauge("transittrack.avl.feed.last.success.timestamp", tags("feed", feedCode), now.epochSecond)
+            setAgeGauge("transittrack.avl.feed.age", tags("feed", feedCode), now)
         }
     }
 
     fun avlReports(
-        feed: AvlFeed,
+        feedCode: String,
+        format: String,
         decoded: Int,
         accepted: Int,
         stale: Int = 0,
     ) = safely("avl_reports") {
-        val tags = avlTags(feed)
+        val tags = avlTags(feedCode, format)
         counter("transittrack.avl.reports", tags + Tag.of("result", "decoded")).increment(decoded.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "accepted")).increment(accepted.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "stale")).increment(stale.toDouble())
@@ -126,24 +121,23 @@ class TransitTrackMetrics(
     }
 
     /**
-     * Count of GTFS services active today for [feed]'s active revision — zero means every AVL
+     * Count of GTFS services active today for [feedCode]'s active revision — zero means every AVL
      * report that can't resolve its trip by a literal descriptor match (the common case whenever
      * the feed's real-time `trip_id`s don't line up 1:1 with the static schedule) is guaranteed to
-     * go UNMATCHED, since both [eu.transittrack.avl.match.TrustDescriptorMatcher]'s route+time
-     * fallback and [eu.transittrack.avl.match.FullInferenceMatcher] require a non-empty
-     * `activeServiceIds`. Surfaces schedule/calendar timing problems (e.g. a newly-activated
-     * revision whose `calendar.txt` doesn't cover the current date yet) as a metric instead of
-     * only as a drop in match rate.
+     * go UNMATCHED, since both `TrustDescriptorMatcher`'s route+time fallback and
+     * `FullInferenceMatcher` require a non-empty `activeServiceIds`. Surfaces schedule/calendar
+     * timing problems (e.g. a newly-activated revision whose `calendar.txt` doesn't cover the
+     * current date yet) as a metric instead of only as a drop in match rate.
      */
     fun avlActiveServices(
-        feed: AvlFeed,
+        feedCode: String,
         activeServiceCount: Int,
     ) = safely("avl_active_services") {
-        setGauge("transittrack.avl.feed.active.services", tags("feed", feed.code), activeServiceCount.toLong())
+        setGauge("transittrack.avl.feed.active.services", tags("feed", feedCode), activeServiceCount.toLong())
         if (activeServiceCount == 0) {
             log.warn(
                 "avl feed '{}': zero active GTFS services for today - matching will fail for reports without a literal trip_id match",
-                feed.code,
+                feedCode,
             )
         }
     }
@@ -159,12 +153,12 @@ class TransitTrackMetrics(
     }
 
     fun avlMatchBatch(
-        feed: AvlFeed,
+        feedCode: String,
         outcome: Outcome,
         elapsed: Duration,
         count: Int,
     ) = safely("avl_match_batch") {
-        val tags = tags("feed", feed.code, "outcome", outcome.tag())
+        val tags = tags("feed", feedCode, "outcome", outcome.tag())
         counter("transittrack.avl.match.batches", tags).increment()
         timer("transittrack.avl.match.batch.duration", tags).record(elapsed)
         DistributionSummary
@@ -175,12 +169,12 @@ class TransitTrackMetrics(
     }
 
     fun predictionBatch(
-        feed: AvlFeed,
+        feedCode: String,
         outcome: Outcome,
         elapsed: Duration,
         count: Int,
     ) = safely("prediction_batch") {
-        val tags = tags("feed", feed.code, "outcome", outcome.tag())
+        val tags = tags("feed", feedCode, "outcome", outcome.tag())
         counter("transittrack.prediction.batches", tags).increment()
         timer("transittrack.prediction.batch.duration", tags).record(elapsed)
         DistributionSummary
@@ -200,26 +194,29 @@ class TransitTrackMetrics(
         setGauge("transittrack.prediction.oldest.pending.match.age", tags("feed", feedCode), ageSeconds)
     }
 
+    /** [deviationM]/[score] are only present when the caller's match outcome was actually matched. */
     fun avlReportMatched(
-        feed: AvlFeed,
+        feedCode: String,
+        assignmentMode: String,
         outcome: MatchMetricOutcome,
         elapsed: Duration,
-        match: MatchOutcome?,
+        deviationM: Double? = null,
+        score: Double? = null,
     ) = safely("avl_report_matched") {
-        val tags = tags("feed", feed.code, "assignment_mode", feed.assignmentMode.tag(), "outcome", outcome.tag())
+        val tags = tags("feed", feedCode, "assignment_mode", assignmentMode, "outcome", outcome.tag())
         counter("transittrack.avl.reports.matched", tags).increment()
         timer("transittrack.avl.match.duration", tags).record(elapsed)
-        if (match is MatchOutcome.Matched) {
+        if (deviationM != null) {
             DistributionSummary
                 .builder("transittrack.avl.match.deviation")
-                .tags(tags("feed", feed.code, "assignment_mode", feed.assignmentMode.tag()))
+                .tags(tags("feed", feedCode, "assignment_mode", assignmentMode))
                 .baseUnit("meters")
                 .register(registry)
-                .record(match.deviationM)
-            match.score?.let {
+                .record(deviationM)
+            score?.let {
                 DistributionSummary
                     .builder("transittrack.avl.match.score")
-                    .tags(tags("feed", feed.code, "assignment_mode", feed.assignmentMode.tag()))
+                    .tags(tags("feed", feedCode, "assignment_mode", assignmentMode))
                     .register(registry)
                     .record(it)
             }
@@ -227,40 +224,40 @@ class TransitTrackMetrics(
     }
 
     fun predictionRun(
-        feed: AvlFeed,
-        algorithm: PredictionAlgorithm,
+        feedCode: String,
+        algorithm: String,
         outcome: Outcome,
         elapsed: Duration,
         generated: Int,
     ) = safely("prediction_run") {
-        val tags = tags("feed", feed.code, "algorithm", algorithm.tag(), "outcome", outcome.tag())
+        val tags = tags("feed", feedCode, "algorithm", algorithm, "outcome", outcome.tag())
         counter("transittrack.prediction.runs", tags).increment()
         timer("transittrack.prediction.run.duration", tags).record(elapsed)
         if (outcome ==
             Outcome.SUCCESS
         ) {
-            counter("transittrack.predictions.generated", tags("feed", feed.code, "algorithm", algorithm.tag()))
+            counter("transittrack.predictions.generated", tags("feed", feedCode, "algorithm", algorithm))
                 .increment(generated.toDouble())
         }
-        setGauge("transittrack.prediction.last.computed.timestamp", tags("feed", feed.code), Instant.now().epochSecond)
+        setGauge("transittrack.prediction.last.computed.timestamp", tags("feed", feedCode), Instant.now().epochSecond)
     }
 
     fun predictionCrossings(
-        feed: AvlFeed,
+        feedCode: String,
         count: Int,
-    ) = increment("transittrack.prediction.crossings", tags("feed", feed.code), count)
+    ) = increment("transittrack.prediction.crossings", tags("feed", feedCode), count)
 
     fun predictionLearningSamples(
-        feed: AvlFeed,
+        feedCode: String,
         count: Int,
-    ) = increment("transittrack.prediction.learning.samples", tags("feed", feed.code), count)
+    ) = increment("transittrack.prediction.learning.samples", tags("feed", feedCode), count)
 
     fun predictionAccuracy(
-        feed: AvlFeed,
-        algorithm: PredictionAlgorithm,
+        feedCode: String,
+        algorithm: String,
         errorSec: Int,
     ) = safely("prediction_accuracy") {
-        val tags = tags("feed", feed.code, "algorithm", algorithm.tag())
+        val tags = tags("feed", feedCode, "algorithm", algorithm)
         counter("transittrack.prediction.accuracy.samples", tags).increment()
         DistributionSummary
             .builder("transittrack.prediction.error")
@@ -277,25 +274,24 @@ class TransitTrackMetrics(
     }
 
     /**
-     * A [eu.transittrack.schedule.optimize.ScheduleOptimizationService] run reached a terminal
-     * state (`SUCCEEDED`/`FAILED`). Only the bounded state name is tagged — never the run id, feed,
-     * or planner identity.
+     * A `ScheduleOptimizationService` run reached a terminal state (`SUCCEEDED`/`FAILED`). Only the
+     * bounded state name is tagged — never the run id, feed, or planner identity.
      */
     fun optimizationRunFinished(
-        state: OptimizationRunState,
+        state: String,
         elapsed: Duration,
     ) = safely("optimization_run_finished") {
-        val tags = tags("state", state.tag())
+        val tags = tags("state", state.lowercase())
         counter("transittrack.schedule.optimization.runs", tags).increment()
         timer("transittrack.schedule.optimization.run.duration", tags).record(elapsed)
     }
 
-    /** One [eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow] persisted by a run's analysis. */
+    /** One `OptimizationRecommendationRow` persisted by a run's analysis. */
     fun optimizationRecommendation(
-        kind: OptimizationRecommendationKind,
-        status: OptimizationRecommendationStatus,
+        kind: String,
+        status: String,
     ) = safely("optimization_recommendation") {
-        counter("transittrack.schedule.optimization.recommendations", tags("kind", kind.tag(), "status", status.tag()))
+        counter("transittrack.schedule.optimization.recommendations", tags("kind", kind.lowercase(), "status", status.lowercase()))
             .increment()
     }
 
@@ -408,9 +404,10 @@ class TransitTrackMetrics(
     }
 
     private fun avlTags(
-        feed: AvlFeed,
+        feedCode: String,
+        format: String,
         vararg extra: String,
-    ): List<Tag> = tags("feed", feed.code, "format", feed.format.tag(), *extra)
+    ): List<Tag> = tags("feed", feedCode, "format", format, *extra)
 
     private fun tags(vararg values: String): List<Tag> = values.toList().chunked(2).map { Tag.of(it[0], it[1]) }
 

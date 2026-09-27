@@ -46,7 +46,12 @@ class AvlIngestService(
             try {
                 source.fetch(feed)
             } catch (e: Exception) {
-                metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
+                metrics
+                    .avlPollFinished(
+                        feed.code, feed.format.name.lowercase(), TransitTrackMetrics.Outcome.FAILED,
+                        Duration
+                            .between(startedAt, Instant.now()),
+                    )
                 pollRecorder.recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
                 throw e
             }
@@ -54,7 +59,12 @@ class AvlIngestService(
             try {
                 decoder.decode(payload, feed.toDescriptor())
             } catch (e: Exception) {
-                metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))
+                metrics
+                    .avlPollFinished(
+                        feed.code, feed.format.name.lowercase(), TransitTrackMetrics.Outcome.FAILED,
+                        Duration
+                            .between(startedAt, Instant.now()),
+                    )
                 pollRecorder.recordPoll(feed.id!!, status = "ERR: ${e.message?.take(200)}", count = 0)
                 throw e
             }
@@ -74,8 +84,13 @@ class AvlIngestService(
         val fresh = current.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: true }
         writer.insertReports(fresh.map { toRow(feed.id!!, it) })
         pollRecorder.recordPoll(feed.id!!, status = "OK", count = fresh.size)
-        metrics.avlReports(feed, decoded.size, fresh.size, stale.size)
-        metrics.avlPollFinished(feed, TransitTrackMetrics.Outcome.SUCCESS, Duration.between(startedAt, Instant.now()))
+        metrics.avlReports(feed.code, feed.format.name.lowercase(), decoded.size, fresh.size, stale.size)
+        metrics
+            .avlPollFinished(
+                feed.code, feed.format.name.lowercase(), TransitTrackMetrics.Outcome.SUCCESS,
+                Duration
+                    .between(startedAt, Instant.now()),
+            )
         log.trace("avl feed '{}': {} decoded, {} new, {} stale", feed.code, decoded.size, fresh.size, stale.size)
         return fresh.size
     }

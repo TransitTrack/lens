@@ -123,7 +123,7 @@ class PredictionProcessor(
             failed: Int,
         ): Int {
             val outcome = if (failed > 0) TransitTrackMetrics.Outcome.FAILED else TransitTrackMetrics.Outcome.SUCCESS
-            metrics.predictionBatch(feed, outcome, Duration.between(startedAt, Instant.now()), processed)
+            metrics.predictionBatch(feed.code, outcome, Duration.between(startedAt, Instant.now()), processed)
             return processed
         }
 

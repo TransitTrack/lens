@@ -1,4 +1,4 @@
-package eu.transittrack.observability
+package eu.transittrack.avl.observability
 
 import java.time.Instant
 
@@ -14,13 +14,18 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.PredictProperties
 
-/** Refreshes database-derived queue gauges outside Prometheus's scrape thread. */
+/**
+ * Refreshes database-derived queue gauges outside Prometheus's scrape thread. Lives in `avl` rather
+ * than `observability` because it queries AVL/prediction repositories directly — `observability`
+ * itself stays a leaf package that only ever records what its callers tell it.
+ */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
 @ConditionalOnRole(Role.FEED_PROCESSOR)
-class TransitTrackMetricsGaugeRefresher(
+class AvlMetricsGaugeRefresher(
     private val feeds: AvlFeedRepository,
     private val reports: AvlReportRowRepository,
     private val vehicleMatches: VehicleMatchRepository,
@@ -66,7 +71,7 @@ class TransitTrackMetricsGaugeRefresher(
             feeds.findAllEnabled().forEach { feed ->
                 val ctx = contextFactory.open(feed) ?: return@forEach
                 val serviceDate = Instant.now().atZone(ctx.zone).toLocalDate()
-                metrics.avlActiveServices(feed, ctx.activeServiceIds(serviceDate).size)
+                metrics.avlActiveServices(feed.code, ctx.activeServiceIds(serviceDate).size)
             }
         }.onFailure { log.debug("failed to refresh active-service-calendar gauge", it) }
     }

@@ -103,16 +103,16 @@ class PredictionService(
                 generated.size
             }.onSuccess { generated ->
                 metrics.predictionRun(
-                    feed,
-                    strategy.algorithm,
+                    feed.code,
+                    strategy.algorithm.name.lowercase(),
                     TransitTrackMetrics.Outcome.SUCCESS,
                     Duration.between(startedAt, Instant.now()),
                     generated,
                 )
             }.onFailure {
                 metrics.predictionRun(
-                    feed,
-                    strategy.algorithm,
+                    feed.code,
+                    strategy.algorithm.name.lowercase(),
                     TransitTrackMetrics.Outcome.FAILED,
                     Duration.between(startedAt, Instant.now()),
                     0,
@@ -141,7 +141,7 @@ class PredictionService(
                 geom.line.lengthM,
                 props.learn.maxPlausibleTravelTimeSec,
             )
-        metrics.predictionCrossings(feed, crossings.size)
+        metrics.predictionCrossings(feed.code, crossings.size)
         var cursor = prev.reportTs
         val algorithmsToScore =
             if (feed.predictionMode == PredictionMode.EVALUATION) PredictionAlgorithm.entries else listOf(feed.predictionAlgorithm)
@@ -174,7 +174,7 @@ class PredictionService(
                     revisionId = ctx.revisionId,
                 ),
             )
-            metrics.predictionLearningSamples(feed, 1)
+            metrics.predictionLearningSamples(feed.code, 1)
             fillActualAndScoreAccuracy(feed, existingPredictions, crossing.stopPathIndex, cursor, now, algorithmsToScore)
         }
     }
@@ -247,7 +247,7 @@ class PredictionService(
                     createdAt = now,
                 ),
             )
-            metrics.predictionAccuracy(feed, algorithm, errorSec)
+            metrics.predictionAccuracy(feed.code, algorithm.name.lowercase(), errorSec)
         }
     }
 }

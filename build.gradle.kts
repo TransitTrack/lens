@@ -69,7 +69,7 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.17.0")
+    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.19.0")
 
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
