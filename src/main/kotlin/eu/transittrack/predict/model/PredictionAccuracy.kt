@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -30,7 +31,10 @@ class PredictionAccuracy(
     @Column(name = "error_sec", nullable = false) var errorSec: Int,
     @Column(name = "abs_error_sec", nullable = false) var absErrorSec: Int,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "predictionAccuracySeq")
+    @SequenceGenerator(name = "predictionAccuracySeq", sequenceName = "prediction_accuracy_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 @Repository

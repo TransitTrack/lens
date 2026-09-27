@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -46,7 +47,10 @@ class VehicleMatch(
     @Column(name = "prediction_status", nullable = false)
     var predictionStatus: PredictionStatus = PredictionStatus.PENDING,
     @Column(name = "predicted_at") var predictedAt: Instant? = null,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehicleMatchSeq")
+    @SequenceGenerator(name = "vehicleMatchSeq", sequenceName = "vehicle_match_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 interface PendingPredictionMetrics {
@@ -89,7 +93,7 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
         @Param("limit") limit: Int,
     ): List<VehicleMatch>
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("update VehicleMatch set predictionStatus = :status, predictedAt = :at where id in :ids")
     fun markPredicted(

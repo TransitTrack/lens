@@ -29,7 +29,7 @@ class DraftEdit(
 ) {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "draftEditSeq")
-    @SequenceGenerator(name = "draftEditSeq", sequenceName = "draft_edit_seq", allocationSize = 1)
+    @SequenceGenerator(name = "draftEditSeq", sequenceName = "draft_edit_seq", allocationSize = 50)
     var id: Long? = null
 }
 

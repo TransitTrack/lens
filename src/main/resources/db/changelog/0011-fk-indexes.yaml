@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0011-fk-indexes
+      author: transittrack
+      changes:
+        # None of these foreign keys had an index leading on their own column: every existing
+        # index/unique constraint on these tables leads with revision_id instead, so a parent-key
+        # lookup or an ON DELETE CASCADE from the referenced table falls back to a full scan.
+        - createIndex:
+            indexName: ix_block_trip_block
+            tableName: block_trip
+            columns: [ { column: { name: block_id } } ]
+        - createIndex:
+            indexName: ix_block_trip_trip
+            tableName: block_trip
+            columns: [ { column: { name: trip_id } } ]
+        - createIndex:
+            indexName: ix_schedule_time_trip
+            tableName: schedule_time
+            columns: [ { column: { name: trip_id } } ]
+        - createIndex:
+            indexName: ix_stop_path_pattern
+            tableName: stop_path
+            columns: [ { column: { name: trip_pattern_id } } ]
+        - createIndex:
+            indexName: ix_tt_stop_path_pattern
+            tableName: travel_times_for_stop_path
+            columns: [ { column: { name: trip_pattern_id } } ]
+        - createIndex:
+            indexName: ix_trip_pattern
+            tableName: trips
+            columns: [ { column: { name: trip_pattern_id } } ]
+        - createIndex:
+            indexName: ix_vehicle_match_report
+            tableName: vehicle_match
+            columns: [ { column: { name: avl_report_id } } ]

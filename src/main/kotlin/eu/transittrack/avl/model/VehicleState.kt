@@ -6,6 +6,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -41,7 +42,10 @@ class VehicleState(
     @Column(name = "snapped_lat") var snappedLat: Double?,
     @Column(name = "snapped_lon") var snappedLon: Double?,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehicleStateSeq")
+    @SequenceGenerator(name = "vehicleStateSeq", sequenceName = "vehicle_state_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 @Repository
@@ -64,7 +68,7 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
      * once per feed with [thresholdSec] precomputed in application code — a correlated subquery on
      * [AvlFeed] here would otherwise be re-evaluated for every [VehicleState] row on every sweep tick.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query(
         """
@@ -86,7 +90,7 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
     ): Int
 
     /** Flags [feedId]'s still-matched vehicles `stale = true` once they've been silent past [thresholdSec]. */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query(
         """

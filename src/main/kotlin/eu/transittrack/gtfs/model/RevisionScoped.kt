@@ -44,7 +44,8 @@ interface RevisionScopedRepository<E : RevisionScoped, ID : Any> : JpaRepository
     @Query("select e from #{#entityName} e where e.revisionId = :revisionId")
     fun findByRevisionId(revisionId: Long): List<E>
 
-    @Modifying @Transactional
+    @Modifying(clearAutomatically = true)
+    @Transactional
     @Query("delete from #{#entityName} e where e.revisionId = :revisionId")
     fun deleteByRevisionId(revisionId: Long): Int
 

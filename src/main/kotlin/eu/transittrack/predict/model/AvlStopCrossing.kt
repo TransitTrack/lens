@@ -6,6 +6,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -29,7 +30,10 @@ class AvlStopCrossing(
     @Column(name = "route_id") var routeId: String?,
     @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "direction_id") var directionId: Int?,
     @Column(name = "revision_id", nullable = false) var revisionId: Long,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlStopCrossingSeq")
+    @SequenceGenerator(name = "avlStopCrossingSeq", sequenceName = "avl_stop_crossing_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 @Repository

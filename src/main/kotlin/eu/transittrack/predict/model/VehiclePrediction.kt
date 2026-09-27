@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -32,7 +33,10 @@ class VehiclePrediction(
     @Column(name = "actual_departure_ts") var actualDepartureTs: Instant?,
     @Column(name = "confidence_sec") var confidenceSec: Int?,
     @Column(name = "computed_at", nullable = false) var computedAt: Instant,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehiclePredictionSeq")
+    @SequenceGenerator(name = "vehiclePredictionSeq", sequenceName = "vehicle_prediction_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 @Repository

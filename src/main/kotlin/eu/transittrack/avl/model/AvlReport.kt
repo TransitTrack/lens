@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -48,7 +49,10 @@ class AvlReportRow(
     @Enumerated @Column(name = "match_status", nullable = false) var matchStatus: MatchStatus,
     @Column(name = "matched_at") var matchedAt: Instant?,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlReportSeq")
+    @SequenceGenerator(name = "avlReportSeq", sequenceName = "avl_report_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 interface VehicleTsProjection {
@@ -117,7 +121,7 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
         @Param("since") since: Instant,
     ): List<AvlReportRow>
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("update AvlReportRow set matchedAt = :at, matchStatus = :status where id in :ids")
     fun markMatchedBatch(

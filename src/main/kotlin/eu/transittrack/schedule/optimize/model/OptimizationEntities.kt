@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.LockModeType
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -50,7 +51,10 @@ class OptimizationRunRow(
     @Column(name = "completed_at") var completedAt: Instant? = null,
     @Column var error: String? = null,
     @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now(),
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "scheduleOptimizationRunSeq")
+    @SequenceGenerator(name = "scheduleOptimizationRunSeq", sequenceName = "schedule_optimization_run_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 interface OptimizationRunRepository : JpaRepository<OptimizationRunRow, Long> {
@@ -92,7 +96,14 @@ class OptimizationRecommendationRow(
     @JdbcTypeCode(SqlTypes.JSON) @Column(name = "proposed_value") var proposedValue: String? = null,
     @JdbcTypeCode(SqlTypes.JSON) @Column var evidence: String? = null,
     @Column(name = "conflict_key") var conflictKey: String? = null,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "scheduleOptimizationRecommendationSeq")
+    @SequenceGenerator(
+        name = "scheduleOptimizationRecommendationSeq",
+        sequenceName = "schedule_optimization_recommendation_seq",
+        allocationSize = 50,
+    )
+    var id: Long? = null,
 )
 
 interface OptimizationRecommendationRepository : JpaRepository<OptimizationRecommendationRow, Long> {

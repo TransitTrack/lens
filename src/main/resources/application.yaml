@@ -26,6 +26,7 @@ spring:
     properties:
       hibernate.jdbc.batch_size: 100
       hibernate.order_inserts: true
+      hibernate.order_updates: true
       hibernate.generate_statistics: true
   threads:
     virtual:

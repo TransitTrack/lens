@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -49,7 +50,10 @@ class AvlFeed(
     @Column(name = "last_poll_report_count") var lastPollReportCount: Int? = null,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlFeedSeq")
+    @SequenceGenerator(name = "avlFeedSeq", sequenceName = "avl_feed_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 @Repository

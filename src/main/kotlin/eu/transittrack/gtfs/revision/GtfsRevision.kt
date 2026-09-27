@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
@@ -42,5 +43,8 @@ class GtfsRevision(
     @Column(name = "editor_claim_expires_at") var editorClaimExpiresAt: Instant? = null,
     @Column(name = "version", nullable = false) var version: Long = 0,
     @Column(name = "created_by") var createdBy: String? = null,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "gtfsRevisionSeq")
+    @SequenceGenerator(name = "gtfsRevisionSeq", sequenceName = "gtfs_revision_seq", allocationSize = 50)
+    var id: Long? = null,
 )

@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 @Entity
@@ -24,5 +25,8 @@ class GtfsFeed(
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
     @Column(name = "last_ingest_at") var lastIngestAt: Instant? = null,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "gtfsFeedSeq")
+    @SequenceGenerator(name = "gtfsFeedSeq", sequenceName = "gtfs_feed_seq", allocationSize = 50)
+    var id: Long? = null,
 )

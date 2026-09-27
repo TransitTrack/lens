@@ -6,6 +6,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.springframework.data.jpa.repository.JpaRepository
@@ -19,7 +20,10 @@ class TravelTimeObservation(
     @Column(name = "sample_count", nullable = false) var sampleCount: Long,
     @Column(name = "mean_sec", nullable = false) var meanSec: Double,
     @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY) var id: Long? = null,
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "travelTimeObservationSeq")
+    @SequenceGenerator(name = "travelTimeObservationSeq", sequenceName = "travel_time_observation_seq", allocationSize = 50)
+    var id: Long? = null,
 )
 
 @Repository

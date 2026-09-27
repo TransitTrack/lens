@@ -62,7 +62,7 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
      * Atomically claim the editor lock: sets the holder only when the lock is free, expired, already
      * held by [who], or [takeOver] is set. Returns the affected-row count (1 = claimed, 0 = locked).
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query(
         value =
             "update gtfs_revision set editor_claim_by = :who, editor_claim_expires_at = :exp " +
@@ -83,7 +83,7 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
      * currently free. Returns 1 when claimed, 0 when a rebuild is already in flight. Replaces the
      * former read-check-then-save, which was a TOCTOU across separate transactions.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("update GtfsRevision r set r.deriving = true where r.id = :id and r.deriving = false")
     fun tryClaimRebuild(id: Long): Int
@@ -93,7 +93,7 @@ interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
      * mid-run). Safe to call only at startup, when the in-memory job registry guarantees no rebuild
      * is legitimately in flight. Returns the number of rows cleared.
      */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     @Query("update GtfsRevision r set r.deriving = false where r.deriving = true")
     fun clearDanglingDeriving(): Int
