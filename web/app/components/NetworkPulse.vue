@@ -64,7 +64,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
 
 <template>
   <section
-    class="network-pulse overflow-hidden rounded-xl border border-default bg-default shadow-sm"
+    class="network-pulse overflow-hidden border border-default bg-default shadow-sm"
     :class="{ 'dashboard-enter': hasLivePositions }"
     aria-labelledby="network-pulse-heading"
   >
@@ -94,15 +94,15 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
     </header>
 
     <div
-      class="network-pulse__body grid min-h-[28rem] lg:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.8fr)]"
+      class="network-pulse__body grid min-h-112 lg:grid-cols-[minmax(0,1.7fr)_minmax(18rem,0.8fr)]"
     >
       <NoRealtimeState
         v-if="!hasRealtimeSource"
-        class="min-h-[28rem] lg:col-span-2"
+        class="min-h-112 lg:col-span-2"
         what="the live network"
       />
 
-      <div v-else-if="error" class="flex min-h-[28rem] items-center p-4 lg:col-span-2">
+      <div v-else-if="error" class="flex min-h-112 items-center p-4 lg:col-span-2">
         <UAlert
           class="w-full"
           color="error"
@@ -115,12 +115,12 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
 
       <template v-else-if="showSkeleton">
         <div
-          class="network-pulse__map min-h-[20rem] border-b border-default p-4 lg:border-b-0 lg:border-r"
+          class="network-pulse__map min-h-80 border-b border-default p-4 lg:border-b-0 lg:border-r"
         >
-          <USkeleton class="h-full min-h-[18rem] w-full rounded-lg" />
+          <USkeleton class="h-full min-h-72 w-full rounded-lg" />
         </div>
         <aside
-          class="network-pulse__signals flex min-h-[20rem] flex-col gap-3 p-4 sm:p-5"
+          class="network-pulse__signals flex min-h-80 flex-col gap-3 p-4 sm:p-5"
           aria-label="Operating signals"
         >
           <div v-for="index in 3" :key="index" class="rounded-lg border border-default p-4">
@@ -132,9 +132,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
       </template>
 
       <template v-else>
-        <div
-          class="network-pulse__map min-h-[20rem] border-b border-default lg:border-b-0 lg:border-r"
-        >
+        <div class="network-pulse__map min-h-80 border-b border-default lg:border-b-0 lg:border-r">
           <VehicleMap
             :vehicles="vehicles"
             :extent="extent"

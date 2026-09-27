@@ -3,16 +3,20 @@ import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import SparklineChart from '~/components/SparklineChart.vue'
-import VehicleFactsGrid, {type Fact} from '~/components/VehicleFactsGrid.vue'
+import VehicleFactsGrid, { type Fact } from '~/components/VehicleFactsGrid.vue'
 import VehicleTelemetry from '~/components/VehicleTelemetry.vue'
 import VehicleAvlLog from '~/components/VehicleAvlLog.vue'
-import {useFeeds} from '~/composables/useFeeds'
-import {useFeedExtent} from '~/composables/useFeedExtent'
-import {usePollControl} from '~/composables/usePollControl'
-import {useUnits} from '~/composables/useUnits'
-import {useAdherenceHistory} from '~/composables/useAdherenceHistory'
-import {useVehicleDetailQuery, useAvlTrailQuery, useAgenciesDetailQuery} from '~~/generated/graphql'
-import {adherenceBadge} from '~/utils/adherence'
+import { useFeeds } from '~/composables/useFeeds'
+import { useFeedExtent } from '~/composables/useFeedExtent'
+import { usePollControl } from '~/composables/usePollControl'
+import { useUnits } from '~/composables/useUnits'
+import { useAdherenceHistory } from '~/composables/useAdherenceHistory'
+import {
+  useVehicleDetailQuery,
+  useAvlTrailQuery,
+  useAgenciesDetailQuery,
+} from '~~/generated/graphql'
+import { adherenceBadge } from '~/utils/adherence'
 import {
   haversineM,
   avgIntervalSec,
@@ -29,31 +33,31 @@ import {
   cardinal,
   trailCoords,
 } from '~/utils/vehicleDetail'
-import type {GeoJSON} from 'geojson'
+import type { GeoJSON } from 'geojson'
 
 const route = useRoute()
-const {selectedFeedCode, selectedAvlFeedCode, feedPath} = useFeeds()
-const {extent} = useFeedExtent(selectedFeedCode)
-const {intervalMs} = usePollControl()
+const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
+const { extent } = useFeedExtent(selectedFeedCode)
+const { intervalMs } = usePollControl()
 const units = useUnits()
 const toast = useToast()
 const vehicleId = computed(() => String(route.params.vehicleId))
 
-const {result, loading, error} = useVehicleDetailQuery(
-  () => ({feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value}),
-  () => ({enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value}),
+const { result, loading, error } = useVehicleDetailQuery(
+  () => ({ feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value }),
+  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
 )
 
-const {result: trailResult} = useAvlTrailQuery(
-  () => ({feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60}),
-  () => ({enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value}),
+const { result: trailResult } = useAvlTrailQuery(
+  () => ({ feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60 }),
+  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
 )
-const {result: agenciesResult} = useAgenciesDetailQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
+const { result: agenciesResult } = useAgenciesDetailQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
 )
-const agencyTimezone = computed(() =>
-  agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
+const agencyTimezone = computed(
+  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )
 
 const vehicle = computed(() => result.value?.vehicle ?? null)
@@ -69,7 +73,7 @@ const follow = ref(false)
 const avlLogOpen = ref(false)
 
 const adherenceSec = computed(() => vehicle.value?.scheduleAdherenceSec ?? null)
-const {points: adherenceHistory} = useAdherenceHistory(adherenceSec, vehicleId)
+const { points: adherenceHistory } = useAdherenceHistory(adherenceSec, vehicleId)
 const sparkValues = computed(() => adherenceHistory.value.map((p) => p.sec))
 
 const algorithms = computed(() => algorithmsIn(predictions.value))
@@ -81,7 +85,7 @@ watch(
       algorithm.value = bestAlgorithm(algos, acc)
     }
   },
-  {immediate: true},
+  { immediate: true },
 )
 const selectedAccuracy = computed(() => accuracyFor(algorithm.value, accuracy.value))
 
@@ -96,13 +100,13 @@ const stops = computed(
   () =>
     (vehicle.value
       ? stopFeatureCollection(vehicle.value)
-      : {type: 'FeatureCollection', features: []}) as GeoJSON.FeatureCollection,
+      : { type: 'FeatureCollection', features: [] }) as GeoJSON.FeatureCollection,
 )
 const marker = computed(() => {
   const v = vehicle.value
   if (!v) return null
   const pos = v.snappedPosition ?? v.position
-  return {lng: pos.lon, lat: pos.lat, bearing: v.bearing}
+  return { lng: pos.lon, lat: pos.lat, bearing: v.bearing }
 })
 
 const rows = computed(() =>
@@ -124,7 +128,7 @@ const currentStatus = computed(() => currentStatusLabel(latestReport.value?.curr
 const descMismatch = computed(() => {
   const declared = latestReport.value?.descTripId
   const matched = vehicle.value?.trip?.tripId
-  return declared && matched && declared !== matched ? {declared, matched} : null
+  return declared && matched && declared !== matched ? { declared, matched } : null
 })
 
 const gpsOffsetM = computed(() =>
@@ -133,7 +137,7 @@ const gpsOffsetM = computed(() =>
 
 const distToNextStopM = computed(() => {
   const cs = vehicle.value?.currentStop
-  return cs ? haversineM(vehicle.value?.position, {lat: cs.stopLat, lon: cs.stopLon}) : null
+  return cs ? haversineM(vehicle.value?.position, { lat: cs.stopLat, lon: cs.stopLon }) : null
 })
 
 const speedTrail = computed(() =>
@@ -167,9 +171,9 @@ async function copyCoords() {
   if (!coords.value) return
   try {
     await navigator.clipboard.writeText(coords.value)
-    toast.add({title: 'Coordinates copied', color: 'success', icon: 'i-lucide-check'})
+    toast.add({ title: 'Coordinates copied', color: 'success', icon: 'i-lucide-check' })
   } catch {
-    toast.add({title: 'Copy failed', color: 'error'})
+    toast.add({ title: 'Copy failed', color: 'error' })
   }
 }
 
@@ -178,20 +182,20 @@ const facts = computed<Fact[]>(() => {
   if (!v) return []
   const dir = v.trip?.directionId
   return [
-    {label: 'Vehicle ID', value: v.vehicleId},
-    {label: 'Label', value: v.label ?? undefined},
-    {label: 'Route', value: v.trip?.route?.routeShortName ?? v.trip?.routeId ?? undefined},
-    {label: 'Direction', value: dir == null ? undefined : `Direction ${dir}`},
-    {label: 'Headsign', value: v.trip?.tripHeadsign ?? undefined},
-    {label: 'Block', value: v.block?.blockId ?? undefined},
+    { label: 'Vehicle ID', value: v.vehicleId },
+    { label: 'Label', value: v.label ?? undefined },
+    { label: 'Route', value: v.trip?.route?.routeShortName ?? v.trip?.routeId ?? undefined },
+    { label: 'Direction', value: dir == null ? undefined : `Direction ${dir}` },
+    { label: 'Headsign', value: v.trip?.tripHeadsign ?? undefined },
+    { label: 'Block', value: v.block?.blockId ?? undefined },
     {
       label: 'Trip',
       value: blockProgress.value
         ? `${blockProgress.value.index} of ${blockProgress.value.total}`
         : undefined,
     },
-    {label: 'Occupancy', value: v.occupancyStatus ?? undefined},
-    {label: 'Status', value: currentStatus.value ?? undefined},
+    { label: 'Occupancy', value: v.occupancyStatus ?? undefined },
+    { label: 'Status', value: currentStatus.value ?? undefined },
   ]
 })
 
@@ -262,7 +266,7 @@ function signedSec(sec: number | null): string {
           @click="avlLogOpen = true"
         />
       </UTooltip>
-      <NavbarActions :updated-at="vehicle?.reportTs"/>
+      <NavbarActions :updated-at="vehicle?.reportTs" />
     </template>
 
     <UAlert
@@ -276,12 +280,12 @@ function signedSec(sec: number | null): string {
     />
     <div v-else-if="loading && !vehicle" class="flex min-h-0 flex-1">
       <div class="flex w-104 shrink-0 flex-col gap-3 border-l border-default p-4">
-        <USkeleton class="h-5 w-2/3"/>
-        <USkeleton class="h-6 w-full"/>
-        <USkeleton class="h-9 w-full"/>
-        <USkeleton v-for="i in 8" :key="i" class="h-12 w-full"/>
+        <USkeleton class="h-5 w-2/3" />
+        <USkeleton class="h-6 w-full" />
+        <USkeleton class="h-9 w-full" />
+        <USkeleton v-for="i in 8" :key="i" class="h-12 w-full" />
       </div>
-      <USkeleton class="min-w-0 flex-1 rounded-none"/>
+      <USkeleton class="min-w-0 flex-1 rounded-none" />
     </div>
     <UAlert
       v-else-if="!vehicle"
@@ -294,8 +298,9 @@ function signedSec(sec: number | null): string {
     />
 
     <div v-else class="flex min-h-0 flex-1">
-      <aside class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-r border-default bg-elevated/20 p-4">
-
+      <aside
+        class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-r border-default bg-elevated/20 p-2"
+      >
         <UAlert
           v-if="descMismatch"
           color="warning"
@@ -304,12 +309,16 @@ function signedSec(sec: number | null): string {
           :description="`Feed reports trip ${descMismatch.declared}; matched to ${descMismatch.matched}.`"
         />
 
-        <section class="flex flex-col gap-3 rounded-lg border border-default bg-default p-3">
+        <section class="flex flex-col gap-3 rounded-lg bg-default p-1">
           <div class="flex flex-1 flex-row justify-between gap-3">
             <div class="min-w-0">
-              <div class="text-xs font-medium uppercase tracking-wide text-dimmed">Live assignment</div>
+              <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
+                Live assignment
+              </div>
               <div class="mt-1 truncate text-sm font-semibold text-highlighted">
-                {{ vehicle.trip?.tripHeadsign ?? vehicle.trip?.route?.routeLongName ?? 'Unknown trip' }}
+                {{
+                  vehicle.trip?.tripHeadsign ?? vehicle.trip?.route?.routeLongName ?? 'Unknown trip'
+                }}
               </div>
             </div>
             <div class="flex shrink-0 flex-wrap justify-end gap-1.5">
@@ -321,7 +330,7 @@ function signedSec(sec: number | null): string {
                 v-if="cardinal(vehicle.bearing)"
                 class="inline-flex items-center gap-1 text-sm text-muted"
               >
-                <UIcon name="i-lucide-compass" class="size-3.5"/>
+                <UIcon name="i-lucide-compass" class="size-3.5" />
                 {{ cardinal(vehicle.bearing) }} · {{ Math.round(vehicle.bearing ?? 0) }}°
               </span>
             </div>
@@ -346,9 +355,9 @@ function signedSec(sec: number | null): string {
           </div>
         </section>
 
-        <section class="rounded-lg border border-default bg-default p-3">
+        <section class="bg-default border-t border-default pt-4 p-1">
           <div class="mb-2 text-sm font-medium text-highlighted">Vehicle &amp; trip</div>
-          <VehicleFactsGrid :items="facts"/>
+          <VehicleFactsGrid :items="facts" />
         </section>
 
         <!-- Position & progress -->
@@ -379,7 +388,7 @@ function signedSec(sec: number | null): string {
             class="inline-flex w-fit items-center gap-1 font-mono text-xs text-dimmed hover:text-muted"
             @click="copyCoords"
           >
-            <UIcon name="i-lucide-copy" class="size-3"/>
+            <UIcon name="i-lucide-copy" class="size-3" />
             {{ coords }}
           </button>
         </section>
@@ -397,11 +406,7 @@ function signedSec(sec: number | null): string {
         <!-- Algorithm -->
         <section class="flex flex-col gap-2 rounded-lg border border-default bg-default p-3">
           <div class="text-sm font-medium text-highlighted">Prediction model</div>
-          <USelectMenu
-            v-model="algorithm"
-            :items="algorithms"
-            placeholder="Prediction algorithm"
-          />
+          <USelectMenu v-model="algorithm" :items="algorithms" placeholder="Prediction algorithm" />
           <p v-if="selectedAccuracy" class="text-xs text-dimmed">
             avg error ±{{ Math.round(selectedAccuracy.meanAbsErrorSec) }}s (bias
             {{ signedSec(selectedAccuracy.meanErrorSec) }}) over
@@ -417,58 +422,62 @@ function signedSec(sec: number | null): string {
               {{ agencyTimezone ? `Service time · ${agencyTimezone}` : `${rows.length} stops` }}
             </span>
           </div>
-        <ol class="overflow-hidden rounded-lg border border-default bg-default">
-          <li
-            v-for="r in rows"
-            :key="r.stopPathIndex"
-            class="flex gap-3 border-l-2 py-2 pl-3"
-            :class="{
-              'border-primary bg-elevated/40': r.state === 'current',
-              'border-default': r.state !== 'current',
-              'opacity-55': r.state === 'passed',
-            }"
-          >
-            <div class="min-w-0 flex-1">
-              <NuxtLink
-                :to="feedPath(`/explore/stops/${encodeURIComponent(r.stopId)}`)"
-                class="block truncate text-sm font-medium text-highlighted hover:text-primary hover:underline"
-              >
-                {{ r.stopName }}
-              </NuxtLink>
-              <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
-                <span>sched {{ hhmm(r.scheduledArrival) }}</span>
-                <span v-if="r.eta">
-                  {{ r.arrived ? 'arrived' : r.state === 'passed' ? 'was due' : 'eta' }}
-                  {{ hhmm(r.eta) }}
-                  <template v-if="!r.arrived && r.state !== 'passed'">
-                    ({{ relative(r.eta) }})</template
-                  >
-                </span>
-                <span v-if="r.confidenceSec != null">±{{ r.confidenceSec }}s</span>
+          <ol class="overflow-hidden bg-default">
+            <li
+              v-for="r in rows"
+              :key="r.stopPathIndex"
+              class="flex gap-3 border-l-2 py-2 pl-3"
+              :class="{
+                'border-primary bg-elevated/40': r.state === 'current',
+                'border-default': r.state !== 'current',
+                'opacity-55': r.state === 'passed',
+              }"
+            >
+              <div class="min-w-0 flex-1">
+                <NuxtLink
+                  :to="feedPath(`/explore/stops/${encodeURIComponent(r.stopId)}`)"
+                  class="block truncate text-sm font-medium text-highlighted hover:text-primary hover:underline"
+                >
+                  {{ r.stopName }}
+                </NuxtLink>
+                <div
+                  class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted"
+                >
+                  <span>sched {{ hhmm(r.scheduledArrival) }}</span>
+                  <span v-if="r.eta">
+                    {{ r.arrived ? 'arrived' : r.state === 'passed' ? 'was due' : 'eta' }}
+                    {{ hhmm(r.eta) }}
+                    <template v-if="!r.arrived && r.state !== 'passed'">
+                      ({{ relative(r.eta) }})</template
+                    >
+                  </span>
+                  <span v-if="r.confidenceSec != null">±{{ r.confidenceSec }}s</span>
+                </div>
               </div>
-            </div>
-            <div class="flex shrink-0 flex-col items-end gap-1">
-              <UBadge
-                v-if="r.deltaVsScheduleSec != null"
-                :color="adherenceBadge(r.deltaVsScheduleSec).color"
-                variant="subtle"
-              >
-                {{ adherenceBadge(r.deltaVsScheduleSec).label }}
-              </UBadge>
-              <span
-                v-if="r.errorVsPredictionSec != null"
-                class="text-xs"
-                :class="Math.abs(r.errorVsPredictionSec) <= 30 ? 'text-success' : 'text-warning'"
-              >
-                pred {{ signedSec(r.errorVsPredictionSec) }}
-              </span>
-            </div>
-          </li>
-        </ol>
+              <div class="flex shrink-0 flex-col items-end gap-1">
+                <UBadge
+                  v-if="r.deltaVsScheduleSec != null"
+                  :color="adherenceBadge(r.deltaVsScheduleSec).color"
+                  variant="subtle"
+                >
+                  {{ adherenceBadge(r.deltaVsScheduleSec).label }}
+                </UBadge>
+                <span
+                  v-if="r.errorVsPredictionSec != null"
+                  class="text-xs"
+                  :class="Math.abs(r.errorVsPredictionSec) <= 30 ? 'text-success' : 'text-warning'"
+                >
+                  pred {{ signedSec(r.errorVsPredictionSec) }}
+                </span>
+              </div>
+            </li>
+          </ol>
         </section>
       </aside>
       <div class="relative min-w-0 flex-1">
-        <div class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur">
+        <div
+          class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
+        >
           Live route view
         </div>
         <VehicleRouteMap

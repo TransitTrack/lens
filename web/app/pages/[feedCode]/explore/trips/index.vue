@@ -1,30 +1,30 @@
 <script setup lang="ts">
-import type {TableColumn} from '@nuxt/ui'
+import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
 import TripTimeFilter from '~/components/TripTimeFilter.vue'
-import {useFeeds} from '~/composables/useFeeds'
-import {useAgencyFilter} from '~/composables/useAgencyFilter'
-import {useExploreQuery} from '~/composables/useExploreQuery'
+import { useFeeds } from '~/composables/useFeeds'
+import { useAgencyFilter } from '~/composables/useAgencyFilter'
+import { useExploreQuery } from '~/composables/useExploreQuery'
 import {
   useExploreRoutesQuery,
   useTripsByRouteQuery,
   type TripsByRouteQuery,
 } from '~~/generated/graphql'
-import {formatHm, parseHm, inWindow} from '~/utils/tripFilters'
+import { formatHm, parseHm, inWindow } from '~/utils/tripFilters'
 
-const {selectedFeedCode, feedPath} = useFeeds()
-const {agencyId} = useAgencyFilter()
-const {param} = useExploreQuery()
+const { selectedFeedCode, feedPath } = useFeeds()
+const { agencyId } = useAgencyFilter()
+const { param } = useExploreQuery()
 
 const routeId = param('route')
 const dir = param('dir')
 const from = param('from')
 const to = param('to')
 
-const {result: routesResult} = useExploreRoutesQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
+const { result: routesResult } = useExploreRoutesQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
 )
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
@@ -47,9 +47,9 @@ watch(agencyId, () => {
   }
 })
 
-const {result, loading} = useTripsByRouteQuery(
-  () => ({feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value && !!routeId.value}),
+const { result, loading } = useTripsByRouteQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value && !!routeId.value }),
 )
 
 type Trip = TripsByRouteQuery['trips'][number]
@@ -58,8 +58,8 @@ const directionItems = computed(() => {
   const set = new Set<number>()
   for (const t of result.value?.trips ?? []) if (t.directionId != null) set.add(t.directionId)
   return [
-    {label: 'Both directions', value: null},
-    ...[...set].sort((a, b) => a - b).map((d) => ({label: `Direction ${d}`, value: String(d)})),
+    { label: 'Both directions', value: null },
+    ...[...set].sort((a, b) => a - b).map((d) => ({ label: `Direction ${d}`, value: String(d) })),
   ]
 })
 
@@ -85,28 +85,34 @@ const rows = computed(() => {
     .sort((a, b) => (a.startTimeSec ?? Infinity) - (b.startTimeSec ?? Infinity))
 })
 
-const selectedRoute = computed(() =>
-  (routesResult.value?.routes ?? []).find((route) => route.routeId === routeId.value) ?? null,
+const selectedRoute = computed(
+  () => (routesResult.value?.routes ?? []).find((route) => route.routeId === routeId.value) ?? null,
 )
 
 const tripStats = computed(() => {
   const trips = rows.value
-  const startTimes = trips.map((trip) => trip.startTimeSec).filter((time): time is number => time != null)
+  const startTimes = trips
+    .map((trip) => trip.startTimeSec)
+    .filter((time): time is number => time != null)
   return {
     trips: trips.length,
-    directions: new Set(trips.map((trip) => trip.directionId).filter((direction) => direction != null)).size,
+    directions: new Set(
+      trips.map((trip) => trip.directionId).filter((direction) => direction != null),
+    ).size,
     services: new Set(trips.map((trip) => trip.serviceId).filter(Boolean)).size,
-    span: startTimes.length ? `${formatHm(Math.min(...startTimes))}–${formatHm(Math.max(...startTimes))}` : '—',
+    span: startTimes.length
+      ? `${formatHm(Math.min(...startTimes))}–${formatHm(Math.max(...startTimes))}`
+      : '—',
   }
 })
 
 const columns: TableColumn<Trip>[] = [
-  {accessorKey: 'tripId', header: 'Trip'},
-  {accessorKey: 'tripHeadsign', header: 'Headsign'},
-  {accessorKey: 'directionId', header: 'Dir'},
-  {accessorKey: 'startTimeSec', header: 'Start'},
-  {accessorKey: 'endTimeSec', header: 'End'},
-  {accessorKey: 'serviceId', header: 'Service'},
+  { accessorKey: 'tripId', header: 'Trip' },
+  { accessorKey: 'tripHeadsign', header: 'Headsign' },
+  { accessorKey: 'directionId', header: 'Dir' },
+  { accessorKey: 'startTimeSec', header: 'Start' },
+  { accessorKey: 'endTimeSec', header: 'End' },
+  { accessorKey: 'serviceId', header: 'Service' },
 ]
 
 function onSelect(_e: Event, row: { original: Trip }) {
@@ -115,12 +121,15 @@ function onSelect(_e: Event, row: { original: Trip }) {
 </script>
 
 <template>
-  <AppPage title="Trips" description="Scheduled journeys, service coverage, and stop-level timetable detail">
+  <AppPage
+    title="Trips"
+    description="Scheduled journeys, service coverage, and stop-level timetable detail"
+  >
     <template #toolbar>
-      <ExploreToolbar/>
+      <ExploreToolbar />
     </template>
 
-    <section class="flex flex-wrap items-center gap-2 rounded-xl border border-default bg-default p-3">
+    <section class="flex flex-wrap items-center gap-2 border border-default bg-default p-3">
       <USelectMenu
         :model-value="routeId"
         :items="routeItems"
@@ -138,54 +147,73 @@ function onSelect(_e: Event, row: { original: Trip }) {
           class="w-72"
           @update:model-value="dir = $event"
         />
-        <UInput
-          v-model="search"
-          icon="i-lucide-search"
-          placeholder="Filter trips…"
-          class="w-72"
-        />
+        <UInput v-model="search" icon="i-lucide-search" placeholder="Filter trips…" class="w-72" />
       </template>
     </section>
 
-    <TripTimeFilter v-if="routeId"/>
+    <TripTimeFilter v-if="routeId" />
 
-    <div v-if="!routeId" class="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
+    <div
+      v-if="!routeId"
+      class="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center"
+    >
       <div class="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <UIcon name="i-lucide-route" class="size-6"/>
+        <UIcon name="i-lucide-route" class="size-6" />
       </div>
       <div class="text-base font-medium text-highlighted">Choose a route to analyse</div>
-      <p class="text-sm text-muted">Review scheduled journeys, operating span, service calendars, and stop-level timetable detail.</p>
+      <p class="text-sm text-muted">
+        Review scheduled journeys, operating span, service calendars, and stop-level timetable
+        detail.
+      </p>
     </div>
 
     <div v-else-if="loading && !rows.length" class="flex flex-col gap-2">
-      <USkeleton v-for="i in 8" :key="i" class="h-10 w-full"/>
+      <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
     </div>
 
     <template v-else>
-      <section class="grid overflow-hidden rounded-xl border border-default bg-default sm:grid-cols-2 xl:grid-cols-4">
+      <section
+        class="grid overflow-hidden border border-default bg-default sm:grid-cols-2 xl:grid-cols-4"
+      >
         <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Visible trips</span>
-          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ tripStats.trips }}</span>
-          <span class="text-xs text-muted">{{ selectedRoute?.routeShortName ?? selectedRoute?.routeId }}</span>
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            tripStats.trips
+          }}</span>
+          <span class="text-xs text-muted">{{
+            selectedRoute?.routeShortName ?? selectedRoute?.routeId
+          }}</span>
         </div>
         <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Directions</span>
-          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ tripStats.directions }}</span>
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            tripStats.directions
+          }}</span>
           <span class="text-xs text-muted">In the selected view</span>
         </div>
-        <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r">
-          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Service calendars</span>
-          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ tripStats.services }}</span>
+        <div
+          class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r"
+        >
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
+            >Service calendars</span
+          >
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            tripStats.services
+          }}</span>
           <span class="text-xs text-muted">Distinct service IDs</span>
         </div>
         <div class="flex flex-col gap-1 p-4">
-          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Operating span</span>
-          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ tripStats.span }}</span>
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
+            >Operating span</span
+          >
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            tripStats.span
+          }}</span>
           <span class="text-xs text-muted">First to last departure</span>
         </div>
       </section>
 
-      <section class="overflow-hidden rounded-xl border border-default bg-default">
+      <section class="overflow-hidden border border-default bg-default">
         <div class="flex items-center justify-between border-b border-default px-4 py-3">
           <div>
             <div class="text-sm font-medium text-highlighted">Scheduled journeys</div>
@@ -194,9 +222,11 @@ function onSelect(_e: Event, row: { original: Trip }) {
           <span class="text-xs text-dimmed">{{ rows.length }} trips</span>
         </div>
         <UTable :data="rows" :columns="columns" @select="onSelect">
-        <template #directionId-cell="{ row }">{{ row.original.directionId ?? '—' }}</template>
-        <template #startTimeSec-cell="{ row }">{{ formatHm(row.original.startTimeSec) }}</template>
-        <template #endTimeSec-cell="{ row }">{{ formatHm(row.original.endTimeSec) }}</template>
+          <template #directionId-cell="{ row }">{{ row.original.directionId ?? '—' }}</template>
+          <template #startTimeSec-cell="{ row }">{{
+            formatHm(row.original.startTimeSec)
+          }}</template>
+          <template #endTimeSec-cell="{ row }">{{ formatHm(row.original.endTimeSec) }}</template>
         </UTable>
       </section>
     </template>
