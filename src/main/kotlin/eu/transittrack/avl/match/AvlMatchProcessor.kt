@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -58,6 +59,7 @@ class AvlMatchProcessor(
     private val metrics: TransitTrackMetrics,
     props: AvlProperties,
     @Qualifier("avlFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
+    @Value("\${spring.threads.virtual.enabled:false}") private val useVirtualThreads: Boolean,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.match
@@ -66,6 +68,7 @@ class AvlMatchProcessor(
     private val scheduler =
         ThreadPoolTaskScheduler().apply {
             poolSize = 4
+            setVirtualThreads(useVirtualThreads)
             setThreadNamePrefix("avl-match-")
             initialize()
         }

@@ -9,6 +9,7 @@ import jakarta.annotation.PreDestroy
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.context.event.EventListener
@@ -52,6 +53,7 @@ class PredictionProcessor(
     private val metrics: TransitTrackMetrics,
     props: PredictProperties,
     @Qualifier("predictorFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
+    @Value("\${spring.threads.virtual.enabled:false}") private val useVirtualThreads: Boolean,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val cfg = props.run
@@ -59,6 +61,7 @@ class PredictionProcessor(
     private val scheduler =
         ThreadPoolTaskScheduler().apply {
             poolSize = 4
+            setVirtualThreads(useVirtualThreads)
             setThreadNamePrefix("avl-predict-")
             initialize()
         }

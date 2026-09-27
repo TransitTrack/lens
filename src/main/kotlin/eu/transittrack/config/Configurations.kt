@@ -15,6 +15,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer // Imports the correct extension function
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.persistence.autoconfigure.EntityScan
 import org.springframework.context.annotation.Bean
@@ -26,6 +27,7 @@ import org.springframework.graphql.execution.ErrorType
 import org.springframework.graphql.execution.RuntimeWiringConfigurer
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
+import org.springframework.validation.annotation.Validated
 
 import eu.transittrack.FeedsProperties
 import eu.transittrack.GtfsProperties
@@ -43,6 +45,7 @@ import eu.transittrack.schedule.optimize.RecommendationConflictException
 class AsyncConfiguration(
     private val feedsProperties: FeedsProperties,
     private val optimizeProps: OptimizationProperties,
+    @Value("\${spring.threads.virtual.enabled:false}") private val useVirtualThreads: Boolean,
 ) {
     @Bean
     fun gtfsIngestExecutor(): ThreadPoolTaskExecutor =
@@ -51,6 +54,7 @@ class AsyncConfiguration(
             maxPoolSize = 1
             queueCapacity = feedsProperties.feeds.size * 5
             setThreadNamePrefix("gtfs-ingest-")
+            setVirtualThreads(useVirtualThreads)
             setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
             initialize()
         }
@@ -67,6 +71,7 @@ class AsyncConfiguration(
             maxPoolSize = 1
             queueCapacity = optimizeProps.executor.queueCapacity
             setThreadNamePrefix("schedule-optimize-")
+            setVirtualThreads(useVirtualThreads)
             setRejectedExecutionHandler(ThreadPoolExecutor.CallerRunsPolicy())
             initialize()
         }

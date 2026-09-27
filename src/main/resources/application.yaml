@@ -27,7 +27,9 @@ spring:
       hibernate.jdbc.batch_size: 100
       hibernate.order_inserts: true
       hibernate.generate_statistics: true
-
+  threads:
+    virtual:
+      enabled: true
 management:
   endpoints:
     web:
@@ -203,3 +205,5 @@ logging:
   level:
     eu.transittrack: debug
     root: warn
+bootui:
+  enabled: on
