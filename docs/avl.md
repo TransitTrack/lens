@@ -5,8 +5,6 @@ Location) data from provider real-time feeds, matches each vehicle report to the
 derived schedule model of a GTFS feed, and exposes live vehicle state over a
 Spring GraphQL read API.
 
-Design reference:
-[`docs/superpowers/specs/2026-09-04-avl-ingestion-matching-design.md`](superpowers/specs/2026-09-04-avl-ingestion-matching-design.md).
 Schema migrations: `src/main/resources/db/changelog/0002-avl.yaml`.
 
 GTFS-Realtime `VehiclePosition` is the first (and currently only) supported

@@ -5,8 +5,6 @@ This subsystem (`eu.transittrack.predict`) computes per-stop arrival/departure
 what actually happened, and exposes both — plus a derived route-level
 headway/wait-time view — over a Spring GraphQL read API.
 
-Design reference:
-[`docs/superpowers/specs/2026-09-05-prediction-generation-design.md`](superpowers/specs/2026-09-05-prediction-generation-design.md).
 Schema migration: `src/main/resources/db/changelog/0003-predict.yaml`.
 Builds directly on top of the AVL subsystem — see [`docs/avl.md`](avl.md) first.
 

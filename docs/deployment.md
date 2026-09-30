@@ -2,8 +2,7 @@
 
 This covers running transittrack as a container: the image build, the local
 `docker compose` stack, and the Kubernetes role-split topology (Helm chart)
-for horizontally-scaled deployments. Design reference:
-[docs/superpowers/specs/2026-09-18-k8s-role-split-design.md](superpowers/specs/2026-09-18-k8s-role-split-design.md).
+for horizontally-scaled deployments.
 
 ---
 

@@ -1,9 +1,7 @@
 # Vehicle dashboard
 
 A Nuxt 4 / Vue 3 / NuxtUI live dashboard for AVL-matched vehicles, reading the
-`transittrack` backend's GraphQL API. See
-`docs/superpowers/specs/2026-09-06-vehicle-dashboard-ui-design.md` for the
-design.
+`transittrack` backend's GraphQL API.
 
 ## Prerequisites
 

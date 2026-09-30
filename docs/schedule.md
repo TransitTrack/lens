@@ -5,14 +5,10 @@ ingested GTFS revision: **trip patterns**, **stop paths** (inter-stop segments
 with geometry and length), **blocks** (a vehicle's ordered work for a service
 day), and per-trip **schedule times** with schedule-based travel/dwell defaults.
 
-Design specs:
-[`2026-08-30-derived-schedule-model-design.md`](superpowers/specs/2026-08-30-derived-schedule-model-design.md)
-(original model) and
-[`2026-09-03-schedule-derivation-processors-design.md`](superpowers/specs/2026-09-03-schedule-derivation-processors-design.md)
-(current build: six `@Order`ed `IngestionPostProcessor` beans in
-`schedule.derive`, travel times moved to `travel_times_for_stop_path`) and
-[`2026-09-03-graphql-deprefix-schedtrip-merge-design.md`](superpowers/specs/2026-09-03-graphql-deprefix-schedtrip-merge-design.md)
-(de-prefixed GraphQL names; `SchedTrip` merged into `Trip` as derived columns on `trips`).
+Current build: six `@Order`ed `IngestionPostProcessor` beans in
+`schedule.derive`, travel times moved to `travel_times_for_stop_path`;
+GraphQL names are de-prefixed, with `SchedTrip` merged into `Trip` as
+derived columns on `trips`.
 This is sub-project #1 of 3 toward AVL-based arrival/departure prediction
 (the others: AVL ingestion, prediction engine).
 

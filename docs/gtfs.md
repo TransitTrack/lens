@@ -5,9 +5,6 @@ from remote URLs, stores the full GTFS Schedule spec in PostgreSQL, and keeps
 every import as an immutable **revision**. A Spring GraphQL read API serves the
 active revision of each feed.
 
-Design reference:
-[`docs/superpowers/specs/2026-08-30-gtfs-ingestion-versioned-storage-design.md`](superpowers/specs/2026-08-30-gtfs-ingestion-versioned-storage-design.md).
-
 Out of scope: GTFS-Realtime, trip planning / routing.
 
 ---
