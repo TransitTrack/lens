@@ -1,11 +1,11 @@
-import {patternLine, simplifyLine, hexColor, routeTypeLabel} from '~/utils/gtfs'
+import { patternLine, simplifyLine, hexColor, routeTypeLabel } from '~/utils/gtfs'
+import { useFeedGeometryQuery } from '~~/generated/graphql'
+import type { GeoJSON } from 'geojson'
 
 /** ~3m at mid latitudes — well under what's visually distinguishable at the
  * zoom levels this network layer is shown at, but cuts raw GPS-resolution
  * shape points substantially (see `simplifyLine`). */
 const LINE_SIMPLIFY_TOLERANCE_DEG = 0.00003
-import {useFeedGeometryQuery} from '~~/generated/graphql'
-import type {GeoJSON} from "geojson";
 
 /** Feature properties carried on each route polyline — read by hover handlers. */
 export interface RouteLineProps {
@@ -24,8 +24,8 @@ export interface RouteLineProps {
  * safe to mount behind a live-polling map as a static base layer.
  */
 export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
-  const {result, loading} = useFeedGeometryQuery(
-    () => ({feedCode: gtfsFeedCode.value ?? ''}),
+  const { result, loading } = useFeedGeometryQuery(
+    () => ({ feedCode: gtfsFeedCode.value ?? '' }),
     () => ({
       enabled: !!gtfsFeedCode.value,
       // This is the whole agency's trip-pattern + stop geometry — hundreds to
@@ -57,7 +57,7 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
         return {
           type: 'Feature' as const,
           properties: props,
-          geometry: {type: 'LineString' as const, coordinates: coords},
+          geometry: { type: 'LineString' as const, coordinates: coords },
         }
       })
       .filter((f): f is GeoJSON.Feature => f != null),
@@ -69,10 +69,13 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
       .filter((s) => s.stopLat != null && s.stopLon != null && (s.locationType ?? 0) === 0)
       .map((s) => ({
         type: 'Feature' as const,
-        properties: {name: s.stopName ?? s.stopId},
-        geometry: {type: 'Point' as const, coordinates: [s.stopLon as number, s.stopLat as number]},
+        properties: { name: s.stopName ?? s.stopId },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [s.stopLon as number, s.stopLat as number],
+        },
       })),
   }))
 
-  return {lines, stops, loading}
+  return { lines, stops, loading }
 }

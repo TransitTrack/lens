@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import type {CommandPaletteGroup, NavigationMenuItem} from '@nuxt/ui'
+import type { NavigationMenuItem } from '@nuxt/ui'
 import AppLogo from '~/components/AppLogo.vue'
 import UserMenu from '~/components/UserMenu.vue'
 import FeedSwitcher from '~/components/FeedSwitcher.vue'
 import FeedDrawer from '~/components/FeedDrawer.vue'
 import NotificationsSlideover from '~/components/NotificationsSlideover.vue'
-import {useFeeds} from '~/composables/useFeeds'
-import {useFeedAlerts} from '~/composables/useFeedAlerts'
-import {useDashboard} from '~/composables/useDashboard'
+import { useFeeds } from '~/composables/useFeeds'
+import { useFeedAlerts } from '~/composables/useFeedAlerts'
+import { useDashboard } from '~/composables/useDashboard'
 
 useFeedAlerts()
 
-const {feeds, selectedFeedCode, feedIsUnknown, feedPath} = useFeeds()
-const {isNotificationsSlideoverOpen} = useDashboard()
+const { feeds, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
+const { isNotificationsSlideoverOpen } = useDashboard()
 
 // If the URL points at a feed that doesn't exist, fall back to the first one.
 watch(feedIsUnknown, (unknown) => {
   if (unknown && feeds.value[0]) {
-    navigateTo(`/${feeds.value[0].code}`, {replace: true})
+    navigateTo(`/${feeds.value[0].code}`, { replace: true })
   }
 })
 
@@ -139,7 +139,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
 ])
 
 const groups = computed(() => [
-  {id: 'links', label: 'Go to', items: primaryNav.value.flatMap((i) => i.children ?? [i])},
+  { id: 'links', label: 'Go to', items: primaryNav.value.flatMap((i) => i.children ?? [i]) },
   {
     id: 'feeds',
     label: 'Switch feed',
@@ -159,7 +159,7 @@ const groups = computed(() => [
     <UHeader mode="drawer" :ui="{ center: 'flex-1 justify-center' }">
       <template #left>
         <NuxtLink :to="feedPath()" aria-label="Home">
-          <AppLogo :font-size="16" :icon-only="false"/>
+          <AppLogo :font-size="16" :icon-only="false" />
         </NuxtLink>
       </template>
 
@@ -185,26 +185,26 @@ const groups = computed(() => [
           @click="isNotificationsSlideoverOpen = true"
         >
           <UChip color="error" inset>
-            <UIcon name="i-lucide-bell" class="size-5 shrink-0"/>
+            <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
           </UChip>
         </UButton>
-        <UserMenu/>
+        <UserMenu />
       </template>
 
       <template #content>
-        <UNavigationMenu :items="primaryNav" orientation="vertical" class="mx-auto"/>
-        <USeparator class="my-3"/>
-        <FeedSwitcher block/>
+        <UNavigationMenu :items="primaryNav" orientation="vertical" class="mx-auto" />
+        <USeparator class="my-3" />
+        <FeedSwitcher block />
       </template>
     </UHeader>
 
     <main>
-      <slot v-if="selectedFeedCode"/>
+      <slot v-if="selectedFeedCode" />
     </main>
 
-    <FeedSwitcher/>
-    <UDashboardSearch v-model:open="searchOpen" :groups="groups"/>
-    <FeedDrawer/>
-    <NotificationsSlideover/>
+    <FeedSwitcher />
+    <UDashboardSearch v-model:open="searchOpen" :groups="groups" />
+    <FeedDrawer />
+    <NotificationsSlideover />
   </div>
 </template>

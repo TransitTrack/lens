@@ -6,8 +6,8 @@
  * markers. Hovering a route highlights every pattern of that route and shows a
  * detail popup.
  */
-import type {CircleLayerSpecification, LineLayerSpecification} from 'maplibre-gl'
-import type {RouteLineProps} from '~/composables/useFeedGeometry'
+import type { CircleLayerSpecification, LineLayerSpecification } from 'maplibre-gl'
+import type { RouteLineProps } from '~/composables/useFeedGeometry'
 
 const props = withDefaults(
   defineProps<{
@@ -23,7 +23,7 @@ const props = withDefaults(
      * that must stay on top regardless of mount order) */
     before?: string
   }>(),
-  {dim: false, showStops: true, interactive: true},
+  { dim: false, showStops: true, interactive: true, before: undefined },
 )
 
 // useMap() with no key resolves the <MglMap> we're nested inside.
@@ -67,7 +67,7 @@ const stopPaint = computed<CircleLayerSpecification['paint']>(() => ({
 
 interface LayerMouseEvent {
   features?: { properties?: Record<string, unknown> }[]
-  lngLat?: { lng: number, lat: number }
+  lngLat?: { lng: number; lat: number }
 }
 
 function onMove(e: LayerMouseEvent) {
@@ -114,7 +114,7 @@ function onLeave() {
   </MglGeoJsonSource>
 
   <MglGeoJsonSource v-if="showStops" source-id="feed-network-stops" :data="stops">
-    <MglCircleLayer layer-id="feed-network-stops-circles" :before="before" :paint="stopPaint"/>
+    <MglCircleLayer layer-id="feed-network-stops-circles" :before="before" :paint="stopPaint" />
   </MglGeoJsonSource>
 
   <MglPopup
@@ -138,7 +138,9 @@ function onLeave() {
         {{ hoverInfo.longName }}
       </div>
       <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-dimmed">
-        <span v-if="hoverInfo.typeLabel && hoverInfo.typeLabel !== '—'">{{ hoverInfo.typeLabel }}</span>
+        <span v-if="hoverInfo.typeLabel && hoverInfo.typeLabel !== '—'">{{
+          hoverInfo.typeLabel
+        }}</span>
         <span v-if="hoverInfo.tripCount">{{ hoverInfo.tripCount }} trips</span>
       </div>
       <div v-if="hoverInfo.headsign" class="text-xs text-muted">→ {{ hoverInfo.headsign }}</div>

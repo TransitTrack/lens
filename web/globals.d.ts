@@ -1,6 +1,6 @@
 declare module '@vue/composition-api' {
-  import {DefineComponent} from 'vue'
-  const component: DefineComponent<{}, {}, any>
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent<unknown, unknown, unknown>
   export default component
   export * from 'vue'
 }
