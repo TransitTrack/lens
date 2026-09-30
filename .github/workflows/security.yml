@@ -41,7 +41,7 @@ jobs:
         run: ./gradlew bootJar --no-daemon -x test
 
       - name: Trivy scan (backend jar)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: build/libs
@@ -97,7 +97,7 @@ jobs:
 
       # pnpm-lock.yaml is parsed directly - no install needed.
       - name: Trivy scan (frontend deps)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: web
