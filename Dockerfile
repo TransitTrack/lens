@@ -8,6 +8,7 @@ RUN ./gradlew --version
 
 COPY src src
 COPY extension-api extension-api
+COPY examples examples
 
 RUN ./gradlew bootJar --no-daemon -x test
 
