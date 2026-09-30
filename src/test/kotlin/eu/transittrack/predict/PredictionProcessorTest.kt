@@ -104,7 +104,10 @@ class PredictionProcessorTest(
 
     @BeforeAll
     fun ingest() {
+        // See AvlMatchProcessorTest/AvlPollerTest for why this is needed, and why it runs *after*
+        // the truncate rather than before.
         truncateBeforeFixture()
+        lockProvider.clearCache()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

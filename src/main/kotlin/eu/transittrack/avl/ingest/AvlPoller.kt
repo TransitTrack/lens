@@ -53,7 +53,12 @@ class AvlPoller(
     fun start() = reconcile()
 
     @Scheduled(fixedDelay = 60_000)
-    @SchedulerLock(name = "avl-poller-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT10S")
+    // lockAtLeastFor is intentionally ~zero: this only needs to keep two pods from reconciling at
+    // the exact same instant (actual feed ownership is separately serialized by feedLocks/ShedLock
+    // per feed id below). A nonzero minimum instead blocks *any* re-entry into this method - even a
+    // direct same-process call, since ShedLock's AOP advice wraps every call through the proxy, not
+    // just scheduler-triggered ones - which would make back-to-back reconcile() calls no-op.
+    @SchedulerLock(name = "avl-poller-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
     fun reconcile() {
         val enabled = feeds.findAllEnabled().associateBy { it.id!! }
         val owned = feedLocks.reconcileOwnership(enabled.keys)

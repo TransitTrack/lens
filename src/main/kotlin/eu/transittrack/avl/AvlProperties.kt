@@ -1,9 +1,11 @@
 package eu.transittrack.avl
 
 import java.time.Duration
+import java.time.temporal.ChronoUnit
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
+import org.springframework.boot.convert.DurationUnit
 
 @ConfigurationProperties("transittrack.avl")
 data class AvlProperties(
@@ -18,7 +20,8 @@ data class AvlProperties(
          * guards against a feed occasionally emitting stale/bogus timestamps (observed on the
          * `wroclaw` feed) that would otherwise get matched against the wrong service date/trip.
          */
-        val maxReportAge: Duration = Duration.ofMinutes(10),
+        @DurationUnit(ChronoUnit.HOURS)
+        val maxReportAgeHours: Duration = Duration.ofMinutes(10),
     )
 
     data class Retention(

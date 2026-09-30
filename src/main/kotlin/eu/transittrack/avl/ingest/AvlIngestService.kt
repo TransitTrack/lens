@@ -71,7 +71,7 @@ class AvlIngestService(
 
         // Relative to the poll's own fetch time rather than wall-clock now(), so a slow poll or a
         // feed clock skewed from ours doesn't itself make otherwise-fresh reports look stale.
-        val cutoff = payload.fetchedAt.minus(props.ingest.maxReportAge)
+        val cutoff = payload.fetchedAt.minus(props.ingest.maxReportAgeHours)
         val (stale, current) = decoded.partition { it.ts.isBefore(cutoff) }
         if (stale.isNotEmpty()) {
             log.warn(

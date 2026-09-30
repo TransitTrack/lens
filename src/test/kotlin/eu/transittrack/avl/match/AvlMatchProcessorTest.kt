@@ -81,7 +81,15 @@ class AvlMatchProcessorTest(
 
     @BeforeAll
     fun ingest() {
+        // See AvlPollerTest for why this is needed: JdbcTemplateLockProvider's in-memory registry
+        // of lock names it believes already have a row otherwise survives the truncate, so a later
+        // UPDATE against the now-gone row matches zero rows and every subsequent lock() attempt for
+        // that name (including the one reconcile()'s own @SchedulerLock acquires) silently fails as
+        // "locked". Runs *after* the truncate, not before: a background @Scheduled reconcile tick
+        // can race the truncate and re-populate the cache in between an earlier clearCache() call
+        // and the truncate actually deleting its row.
         truncateBeforeFixture()
+        lockProvider.clearCache()
         feedService.register(FeedInput("g", "G", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("g")
     }

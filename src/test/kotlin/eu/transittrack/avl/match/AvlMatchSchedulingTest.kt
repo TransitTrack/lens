@@ -36,11 +36,14 @@ class AvlMatchSchedulingTest(
     // See AvlPollerTest for why both resets are needed: this class's cached Spring context (and
     // its singleton coordinator + lock provider bean) survives across @Test methods, but each
     // method truncates every table, including `shedlock`.
+    // clearCache() must run *after* the truncate, not before: a background @Scheduled reconcile
+    // tick can race the truncate and re-populate the cache for a name in between an earlier
+    // clearCache() call and the truncate actually deleting its row (see AvlPollerTest).
     @BeforeEach
     override fun truncateBeforeEachTest() {
         sharedCoordinator.releaseAll()
-        lockProvider.clearCache()
         super.truncateBeforeEachTest()
+        lockProvider.clearCache()
     }
 
     private fun feed(enabled: Boolean = true) =

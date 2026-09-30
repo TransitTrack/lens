@@ -78,7 +78,8 @@ class AvlMatchProcessor(
     fun start() = reconcile()
 
     @Scheduled(fixedDelay = 30_000)
-    @SchedulerLock(name = "avl-match-processor-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT10S")
+    // See AvlPoller.reconcile for why lockAtLeastFor is ~zero rather than a nonzero minimum.
+    @SchedulerLock(name = "avl-match-processor-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
     fun reconcile() {
         val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
         val owned = feedLocks.reconcileOwnership(enabled)

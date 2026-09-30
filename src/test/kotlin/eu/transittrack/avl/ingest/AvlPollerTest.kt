@@ -41,12 +41,14 @@ class AvlPollerTest(
     // exist; separately, JdbcTemplateLockProvider (via ShedLock's StorageBasedLockProvider) keeps
     // its own in-memory registry of lock names it believes already have a row, so it stops
     // attempting INSERT for that name — an UPDATE against a truncated-away row then matches zero
-    // rows and the "lock" silently fails. Reset both before the truncate that starts each test.
+    // rows and the "lock" silently fails. clearCache() must run *after* the truncate, not before:
+    // a background @Scheduled reconcile tick can race the truncate and re-populate the cache for a
+    // name in between an earlier clearCache() call and the truncate actually deleting its row.
     @BeforeEach
     override fun truncateBeforeEachTest() {
         sharedCoordinator.releaseAll()
-        lockProvider.clearCache()
         super.truncateBeforeEachTest()
+        lockProvider.clearCache()
     }
 
     private fun feed(enabled: Boolean = true) =
