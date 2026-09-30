@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "transittrack.fullname" . }}-api
+  name: {{ include "lens.fullname" . }}-api
   labels:
-    {{- include "transittrack.labels" . | nindent 4 }}
+    {{- include "lens.labels" . | nindent 4 }}
 spec:
   selector:
-    app.kubernetes.io/name: {{ include "transittrack.fullname" . }}
-    transittrack.role: api
+    app.kubernetes.io/name: {{ include "lens.fullname" . }}
+    lens.role: api
   ports:
     - port: {{ .Values.roles.api.service.port }}
       targetPort: 8080

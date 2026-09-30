@@ -176,10 +176,10 @@ jobs:
       - uses: azure/setup-helm@v4
 
       - name: Lint
-        run: helm lint deploy/helm/transittrack
+        run: helm lint deploy/helm/lens
 
       - name: Template (render sanity check)
-        run: helm template transittrack deploy/helm/transittrack > /dev/null
+        run: helm template lens deploy/helm/lens > /dev/null
 
       # Tag push (vX.Y.Z) -> that exact chart version. Otherwise (main / PR / manual) -> the
       # version already in Chart.yaml suffixed with the short SHA, so every build is distinguishable
@@ -193,14 +193,14 @@ jobs:
           if [[ "$REF_TYPE" == "tag" && "$REF_NAME" == v* ]]; then
             echo "chart_version=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
           else
-            base=$(grep '^version:' deploy/helm/transittrack/Chart.yaml | awk '{print $2}')
+            base=$(grep '^version:' deploy/helm/lens/Chart.yaml | awk '{print $2}')
             echo "chart_version=${base}+$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Package
         run: |
           mkdir -p dist
-          helm package deploy/helm/transittrack \
+          helm package deploy/helm/lens \
             --version "${{ steps.version.outputs.chart_version }}" \
             --destination dist
 

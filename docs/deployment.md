@@ -149,14 +149,14 @@ force-kills it — otherwise the freed-up feeds wait out the full
 
 ## 5. Kubernetes / Helm
 
-The chart at `deploy/helm/transittrack/` renders one Deployment per role
+The chart at `deploy/helm/lens/` renders one Deployment per role
 (from `values.yaml`'s `roles` map) plus a Service for the `api` role:
 
 ```bash
-helm lint deploy/helm/transittrack
-helm template transittrack deploy/helm/transittrack   # inspect the rendered manifests
-helm install transittrack deploy/helm/transittrack \
-  --set image.repository=your-registry/transittrack \
+helm lint deploy/helm/lens
+helm template lens deploy/helm/lens   # inspect the rendered manifests
+helm install lens deploy/helm/lens \
+  --set image.repository=your-registry/lens \
   --set image.tag=1.2.3
 ```
 
@@ -164,7 +164,7 @@ Key `values.yaml` knobs:
 
 ```yaml
 image:
-  repository: transittrack
+  repository: lens
   tag: local
 
 roles:
@@ -179,11 +179,11 @@ roles:
     replicaCount: 1
 
 postgres:
-  host: transittrack-postgres
+  host: lens-postgres
   port: 5432
   database: explorer
   username: postgres
-  passwordSecretName: transittrack-postgres   # a Secret you create/manage separately
+  passwordSecretName: lens-postgres   # a Secret you create/manage separately
   passwordSecretKey: password
 ```
 
@@ -227,7 +227,7 @@ its own image and is **off by default** in the Helm chart —
 `frontend.enabled: false`.
 
 ```bash
-docker build -t transittrack-web:local web/
+docker build -t lens-web:local web/
 ```
 
 `web/Dockerfile` is a two-stage build: `node:22-alpine` runs `pnpm run
@@ -243,19 +243,19 @@ env-substitution-on-startup feature (any `*.template` under
 variable, not a rebuild:
 
 ```bash
-docker run -p 8081:80 -e BACKEND_URL=http://your-backend:8080 transittrack-web:local
+docker run -p 8081:80 -e BACKEND_URL=http://your-backend:8080 lens-web:local
 ```
 
 To turn it on in the Helm chart:
 
 ```bash
-helm template transittrack deploy/helm/transittrack --set frontend.enabled=true
+helm template lens deploy/helm/lens --set frontend.enabled=true
 ```
 
 ```yaml
 frontend:
   enabled: true
-  image: { repository: your-registry/transittrack-web, tag: "1.2.3" }
+  image: { repository: your-registry/lens-web, tag: "1.2.3" }
   replicaCount: 1
   service: { port: 80 }
   backendUrl: ""   # empty (default) = the in-cluster api Service, http://<release>-api:<roles.api.service.port>

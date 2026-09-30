@@ -1,5 +1,5 @@
 image:
-  repository: transittrack
+  repository: lens
   tag: local
   pullPolicy: IfNotPresent
 
@@ -23,7 +23,7 @@ roles:
 frontend:
   enabled: false   # optional: the Nuxt vehicle dashboard, disabled by default
   image:
-    repository: transittrack-web
+    repository: lens-web
     tag: local
     pullPolicy: IfNotPresent
   replicaCount: 1
@@ -34,11 +34,11 @@ frontend:
   backendUrl: ""
 
 postgres:
-  host: transittrack-postgres
+  host: lens-postgres
   port: 5432
   database: explorer
   username: postgres
-  passwordSecretName: transittrack-postgres
+  passwordSecretName: lens-postgres
   passwordSecretKey: password
 
 resources:

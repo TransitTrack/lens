@@ -1,5 +1,5 @@
 apiVersion: v2
-name: transittrack
+name: lens
 description: Transittrack backend, split across api/ingester/feed-processor/predictor roles
 type: application
 version: 0.1.0

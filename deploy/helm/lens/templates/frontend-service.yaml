@@ -1,0 +1,15 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lens.fullname" . }}-frontend
+  labels:
+    {{- include "lens.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "lens.fullname" . }}
+    lens.role: frontend
+  ports:
+    - port: {{ .Values.frontend.service.port }}
+      targetPort: 80
+{{- end }}
