@@ -4,18 +4,19 @@ import VehicleMap from '../../app/components/VehicleMap.vue'
 import { fixtures } from '../../mocks/handlers'
 
 // @indoorequal/vue-maplibre-gl is aliased to tests/mocks/vue-maplibre-gl.ts:
-// MglMarker renders a `.mgl-marker-stub` probe per marker.
+// MglSymbolLayer renders a `.mgl-symbol-feature-stub` probe per GeoJSON feature
+// and re-emits `click` with the clicked feature, the shape VehicleMap.vue's
+// vehicle icon layer expects.
 
 describe('VehicleMap', () => {
-  it('renders one marker per vehicle', async () => {
+  it('renders one icon per vehicle', async () => {
     const wrapper = await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
-    expect(wrapper.findAll('.mgl-marker-stub')).toHaveLength(fixtures.vehicles.length)
+    expect(wrapper.findAll('.mgl-symbol-feature-stub')).toHaveLength(fixtures.vehicles.length)
   })
 
-  it('exposes flyTo', async () => {
+  it('opens the popup for the clicked vehicle', async () => {
     const wrapper = await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
-    const vm = wrapper.vm as unknown as { flyTo: (vehicleId: string) => void }
-    expect(typeof vm.flyTo).toBe('function')
-    expect(() => vm.flyTo('bus-1')).not.toThrow()
+    await wrapper.get('.mgl-symbol-feature-stub').trigger('click')
+    expect(wrapper.find('.mgl-popup-stub').text()).toContain(fixtures.vehicles[0]!.label)
   })
 })
