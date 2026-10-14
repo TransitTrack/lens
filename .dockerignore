@@ -2,6 +2,10 @@
 .gradle
 .idea
 .kotlin
+.bootui
+.claude
+.codex
+.superpowers
 build
 web
 docs

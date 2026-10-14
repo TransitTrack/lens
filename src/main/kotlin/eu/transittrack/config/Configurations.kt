@@ -10,7 +10,7 @@ import okhttp3.ResponseBody.Companion.asResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import okio.ForwardingSource
-import okio.buffer // Imports the correct extension function
+import okio.buffer
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.persistence.autoconfigure.EntityScan
 import org.springframework.context.annotation.Bean
@@ -18,10 +18,8 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
-import org.springframework.validation.annotation.Validated
 
 import eu.transittrack.FeedsProperties
-import eu.transittrack.GtfsProperties
 import eu.transittrack.HttpClientProperties
 
 @Configuration
