@@ -25,6 +25,17 @@ docker build -t transittrack:local .
 No `SPRING_PROFILES_ACTIVE` is baked into the image — it's supplied per
 container/Deployment (see [§3](#3-roles)).
 
+CI publishes the backend image to GHCR differently: it builds and pushes via
+the Jib Gradle plugin (see the `jib {}` block in `build.gradle.kts`,
+and `.github/workflows/build-publish.yml`) rather than this Dockerfile,
+producing a multi-arch (`linux/amd64` + `linux/arm64`) manifest list without
+needing Docker or QEMU emulation — JVM bytecode is platform-independent, so
+Jib assembles the same app layers against each platform's base-image variant
+directly. The frontend image, which does need a real per-platform build step
+(the Node/pnpm build), is still built from `web/Dockerfile` via
+`docker buildx` with QEMU for the arm64 leg. This Dockerfile remains the way
+to build a local, single-arch image for development (see below).
+
 ### Smoke-testing the image locally
 
 ```bash
@@ -274,10 +285,11 @@ worked, buildable example.
 The image's `bootJar` manifest points at Spring Boot's `PropertiesLauncher`
 instead of the default `JarLauncher`, which reads the `loader.path`
 system property/environment variable (`LOADER_PATH`) at startup and adds
-every jar or directory listed there to the app's classloader. The
-Dockerfile creates an empty `/extensions` directory and sets
-`LOADER_PATH=/extensions`; drop extension jars there (bind mount, custom
-image layer, or the Helm knobs below) and they're picked up automatically
+every jar or directory listed there to the app's classloader. Both the
+Dockerfile and the Jib config used for the published image create an empty
+`/extensions` directory and set `LOADER_PATH=/extensions`; drop extension
+jars there (bind mount, custom image layer, or the Helm knobs below) and
+they're picked up automatically
 via each jar's own
 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
 — the same mechanism core's own auto-configuration uses.
