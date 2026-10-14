@@ -11,6 +11,7 @@ plugins {
     id("com.diffplug.spotless") version "8.10.2"
     id("com.google.protobuf") version "0.10.0"
     id("org.jetbrains.kotlinx.benchmark") version "0.5.0"
+    id("com.google.cloud.tools.jib") version "3.5.2"
 }
 
 group = "eu.transittrack"
@@ -352,10 +353,68 @@ tasks.register<Test>("extensionLoadingTest") {
 
 // PropertiesLauncher (instead of the default JarLauncher) reads `loader.path` at startup and adds
 // every jar/directory listed there to the app classloader, so extension jars dropped into
-// /extensions (see Dockerfile) are picked up without repackaging the fat jar.
+// /extensions (see Dockerfile, and the Jib config below for the published image) are picked up
+// without repackaging the fat jar.
 tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
     manifest {
         attributes("Main-Class" to "org.springframework.boot.loader.launch.PropertiesLauncher")
+    }
+}
+
+// Builds/pushes the published backend image without a Dockerfile or Docker daemon - CI uses this
+// (via the `jib` task) to push a multi-arch (amd64+arm64) manifest list straight to GHCR, and
+// `jibBuildTar` to produce a single-platform tarball for Trivy to scan before that push happens.
+// The root Dockerfile is kept as-is for local single-arch builds (see docs/deployment.md); this
+// doesn't replace it, it's only what CI publishes.
+jib {
+    // Containerizes the already-built bootJar fat jar as a single file and runs it with the same
+    // `java -cp <jar> PropertiesLauncher` invocation the Dockerfile uses (see mainClass below),
+    // instead of Jib's default of exploding classes/libs into separate layers and invoking the
+    // main class directly - that default would bypass PropertiesLauncher and break the
+    // LOADER_PATH/extension mechanism above.
+    containerizingMode = "packaged"
+
+    from {
+        image = "eclipse-temurin:25-jre"
+        platforms {
+            // Multi-arch for the real push; CI overrides this to a single platform
+            // (-Djib.from.platforms=linux/amd64, a Jib-recognized override) when building the
+            // tarball for Trivy, since jibBuildTar can't produce a multi-platform tarball.
+            platform {
+                architecture = "amd64"
+                os = "linux"
+            }
+            platform {
+                architecture = "arm64"
+                os = "linux"
+            }
+        }
+    }
+
+    to {
+        // Overridden in CI via -Djib.to.image/-Djib.to.tags/-Djib.to.auth.*; this default only
+        // matters for a local `./gradlew jib`/`jibBuildTar`/`jibDockerBuild` run.
+        image = "lens-backend"
+    }
+
+    container {
+        // Set explicitly (rather than left to manifest auto-detection) so packaged mode's
+        // entrypoint is unambiguous: `java -cp <jar> org.springframework.boot.loader.launch.PropertiesLauncher`.
+        mainClass = "org.springframework.boot.loader.launch.PropertiesLauncher"
+        ports = listOf("8080")
+        environment = mapOf("LOADER_PATH" to "/extensions")
+        // Jib can't `useradd` a named user into the base image like the Dockerfile does; running
+        // as a fixed non-root uid:gid gets the same "not root" security property.
+        user = "1000:1000"
+    }
+
+    extraDirectories {
+        paths {
+            path {
+                setFrom(file("docker/jib-extra"))
+                setInto("/")
+            }
+        }
     }
 }
 

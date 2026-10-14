@@ -1,17 +1,36 @@
 services:
+  lens-backend:
+    image: ghcr.io/transittrack/lens:main
+    restart: unless-stopped
+    environment:
+      POSTGRES_PORT_5432_TCP_ADDR: postgres
+      POSTGRES_PORT_5432_TCP_PORT: 5432
+    depends_on:
+      - postgres
+  lens-frontend:
+    image: ghcr.io/transittrack/lens-web:main
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: "http://lens-backend:8080"
+    depends_on:
+      - lens-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lens.rule=Host(`lens-app.goeuropa.xyz`)"
+      - "traefik.http.routers.lens.entrypoints=websecure"
+      - "traefik.http.routers.lens.tls.certresolver=myresolver"
+      - "traefik.http.services.lens.loadbalancer.server.port=3000"
   postgres:
     image: postgres:18-alpine
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_DB: explorer
       POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/18/docker
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.20.1
-    restart: always
+    restart: unless-stopped
     depends_on:
       - postgres
     environment:
@@ -19,11 +38,9 @@ services:
       PG_EXPORTER_EXTEND_QUERY_PATH: /etc/postgres-exporter/queries.yaml
     volumes:
       - ./docker/postgres-exporter/queries.yaml:/etc/postgres-exporter/queries.yaml:ro
-    # ports:
-    #   - "9187:9187"
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
-    restart: always
+    restart: unless-stopped
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -33,7 +50,7 @@ services:
     #   - "8081:8080"
   prometheus:
     image: prom/prometheus:v3
-    restart: always
+    restart: unless-stopped
     depends_on:
       - postgres-exporter
       - cadvisor
@@ -46,7 +63,7 @@ services:
     #   - "9090:9090"
   grafana:
     image: grafana/grafana:latest
-    restart: always
+    restart: unless-stopped
     depends_on:
       - prometheus
     environment:
@@ -55,8 +72,12 @@ services:
       - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana_data:/var/lib/grafana
-    ports:
-      - "4000:3000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lensgrafana.rule=Host(`lens-grafana.goeuropa.xyz`)"
+      - "traefik.http.routers.lensgrafana.entrypoints=websecure"
+      - "traefik.http.routers.lensgrafana.tls.certresolver=myresolver"
+      - "traefik.http.services.lensgrafana.loadbalancer.server.port=3000"
 
 volumes:
   prometheus_data:
