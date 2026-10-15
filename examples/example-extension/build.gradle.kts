@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.4.21"
-    kotlin("plugin.spring") version "2.4.21"
+    kotlin("jvm")
+    kotlin("plugin.spring")
 }
 
 group = "com.example.transittrackext"
@@ -9,7 +9,9 @@ repositories {
     mavenCentral()
 }
 
+val springContextVersion = project.property("springContextVersion") as String
+
 dependencies {
     implementation(project(":extension-api"))
-    implementation("org.springframework:spring-context:7.0.9")
+    implementation("org.springframework:spring-context:$springContextVersion")
 }

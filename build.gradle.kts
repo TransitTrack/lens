@@ -1,16 +1,16 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "2.4.21"
-    kotlin("plugin.spring") version "2.4.21"
-    kotlin("plugin.jpa") version "2.4.21"
-    kotlin("kapt") version "2.4.21"
-    kotlin("plugin.serialization") version "2.4.21"
-    id("org.springframework.boot") version "4.1.1"
-    id("io.spring.dependency-management") version "1.1.7"
-    id("com.diffplug.spotless") version "8.10.2"
-    id("com.google.protobuf") version "0.10.0"
-    id("org.jetbrains.kotlinx.benchmark") version "0.5.0"
+    kotlin("jvm")
+    kotlin("plugin.spring")
+    kotlin("plugin.jpa")
+    kotlin("kapt")
+    kotlin("plugin.serialization")
+    id("org.springframework.boot")
+    id("io.spring.dependency-management")
+    id("com.diffplug.spotless")
+    id("com.google.protobuf")
+    id("org.jetbrains.kotlinx.benchmark")
 }
 
 group = "eu.transittrack"
@@ -35,6 +35,20 @@ sourceSets {
     }
 }
 
+val graphqlJavaExtendedScalarsVersion = project.property("graphqlJavaExtendedScalarsVersion") as String
+val okhttpVersion = project.property("okhttpVersion") as String
+val gtfsValidatorVersion = project.property("gtfsValidatorVersion") as String
+val gsonVersion = project.property("gsonVersion") as String
+val floggerVersion = project.property("floggerVersion") as String
+val guavaVersion = project.property("guavaVersion") as String
+val classgraphVersion = project.property("classgraphVersion") as String
+val bootuiVersion = project.property("bootuiVersion") as String
+val mockitoKotlinVersion = project.property("mockitoKotlinVersion") as String
+val assertkVersion = project.property("assertkVersion") as String
+val protobufVersion = project.property("protobufVersion") as String
+val shedlockVersion = project.property("shedlockVersion") as String
+val kotlinxBenchmarkVersion = project.property("kotlinxBenchmarkVersion") as String
+
 dependencies {
     implementation(project(":extension-api"))
 
@@ -52,24 +66,24 @@ dependencies {
         }
     }
 
-    implementation("com.graphql-java:graphql-java-extended-scalars:24.0")
+    implementation("com.graphql-java:graphql-java-extended-scalars:$graphqlJavaExtendedScalarsVersion")
     implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:5.5.0")
+    implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
+    implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
 
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:8.0.1")
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:8.0.1")
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-core:8.0.1")
-    implementation("com.google.code.gson:gson:2.14.0")
-    implementation("com.google.flogger:flogger-slf4j-backend:0.9")
-    implementation("com.google.guava:guava:33.6.0-jre")
-    implementation("io.github.classgraph:classgraph:4.8.194")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:$gtfsValidatorVersion")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:$gtfsValidatorVersion")
+    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-core:$gtfsValidatorVersion")
+    implementation("com.google.code.gson:gson:$gsonVersion")
+    implementation("com.google.flogger:flogger-slf4j-backend:$floggerVersion")
+    implementation("com.google.guava:guava:$guavaVersion")
+    implementation("io.github.classgraph:classgraph:$classgraphVersion")
 
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:1.19.0")
+    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:$bootuiVersion")
 
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
@@ -78,24 +92,24 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-graphql-test")
     testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.0")
-    testImplementation("org.mockito.kotlin:mockito-kotlin:6.3.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testImplementation("com.willowtreeapps.assertk:assertk:0.28.1")
+    testImplementation("com.willowtreeapps.assertk:assertk:$assertkVersion")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation(kotlin("test"))
 
     protobuf(files("src/proto"))
-    implementation("com.google.protobuf:protobuf-java:4.36.1")
+    implementation("com.google.protobuf:protobuf-java:$protobufVersion")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.9.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.9.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:$shedlockVersion")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:$shedlockVersion")
 
-    testImplementation("net.javacrumbs.shedlock:shedlock-core:7.9.0")
+    testImplementation("net.javacrumbs.shedlock:shedlock-core:$shedlockVersion")
 
-    "benchmarkImplementation"("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:0.5.0")
+    "benchmarkImplementation"("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:$kotlinxBenchmarkVersion")
 }
 
 kotlin {
@@ -264,7 +278,7 @@ kotlin {
 
 protobuf {
     protoc {
-        artifact = "com.google.protobuf:protoc:4.36.1"
+        artifact = "com.google.protobuf:protoc:$protobufVersion"
     }
 }
 

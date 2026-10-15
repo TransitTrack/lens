@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.4.21"
+    kotlin("jvm")
 }
 
 group = "eu.transittrack"
@@ -8,9 +8,11 @@ repositories {
     mavenCentral()
 }
 
+val assertkVersion = project.property("assertkVersion") as String
+
 dependencies {
     testImplementation(kotlin("test"))
-    testImplementation("com.willowtreeapps.assertk:assertk:0.28.1")
+    testImplementation("com.willowtreeapps.assertk:assertk:$assertkVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
