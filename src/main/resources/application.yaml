@@ -78,45 +78,44 @@ transittrack:
         avl:
           url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
           assignment-mode: descriptor_then_infer
-      - code: wroclaw
-        name: Wroclaw
-        auto-activate: true
-        polling-cron: "0 * * * * *"
-        url: https://iplaner.pl/gtfs/wroclaw.zip
-        avl:
-          enabled: false
-          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
-          prediction-algorithm: kalman
-          prediction-mode: single
-          assignment-mode: descriptor_then_infer
-      - code: bucharest
-        name: Bucharest zone feeds
-        polling-cron: "0 * * * * *"
-        url: https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip
-        avl:
-          url: https://gtfs.tpbi.ro/api/gtfs-rt/vehiclePositions
-          assignment-mode: descriptor_then_infer
-
-      - code: stpt
-        name: Societatea de transport public Timisoara
-        polling-cron: "0 * * * * *"
-        url: https://smtt.ro/transit/gtfs/maps/smtt-timisoara-ro.zip
-        avl:
-          format: STPT
-          url: https://live.stpt.ro/gtfs-vehicles.php
-          prediction-algorithm: kalman
-          prediction-mode: evaluation
-          assignment-mode: descriptor_then_infer
-      - code: ctp
-        name: Compania de transport public Cluj
-        polling-cron: "0 * * * * *"
-        url: https://external.gtfs.ro/cluj/CLUJ.zip
-        avl:
-          format: gtfs_rt
-          url: https://cluj-rt-feed.gtfs.ro/vehiclePositions
-          prediction-algorithm: kalman
-          prediction-mode: evaluation
-          assignment-mode: descriptor_then_infer
+#      - code: wroclaw
+#        name: Wroclaw
+#        auto-activate: true
+#        polling-cron: "0 * * * * *"
+#        url: https://iplaner.pl/gtfs/wroclaw.zip
+#        avl:
+#          enabled: false
+#          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
+#          prediction-algorithm: kalman
+#          prediction-mode: single
+#          assignment-mode: descriptor_then_infer
+#      - code: bucharest
+#        name: Bucharest zone feeds
+#        polling-cron: "0 * * * * *"
+#        url: https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip
+#        avl:
+#          url: https://gtfs.tpbi.ro/api/gtfs-rt/vehiclePositions
+#          assignment-mode: descriptor_then_infer
+#      - code: stpt
+#        name: Societatea de transport public Timisoara
+#        polling-cron: "0 * * * * *"
+#        url: https://smtt.ro/transit/gtfs/maps/smtt-timisoara-ro.zip
+#        avl:
+#          format: STPT
+#          url: https://live.stpt.ro/gtfs-vehicles.php
+#          prediction-algorithm: kalman
+#          prediction-mode: evaluation
+#          assignment-mode: descriptor_then_infer
+#      - code: ctp
+#        name: Compania de transport public Cluj
+#        polling-cron: "0 * * * * *"
+#        url: https://external.gtfs.ro/cluj/CLUJ.zip
+#        avl:
+#          format: gtfs_rt
+#          url: https://cluj-rt-feed.gtfs.ro/vehiclePositions
+#          prediction-algorithm: kalman
+#          prediction-mode: evaluation
+#          assignment-mode: descriptor_then_infer
   #      - code: otl
   #        name: Oradea
   #        polling-cron: "0 * * * * *"
@@ -134,7 +133,7 @@ transittrack:
       keep-revisions-per-feed: 2
     polling:
       enabled: true
-      sweep-cron: "0 */15 * * * *"
+      sweep-cron: "0 0 3 * * *"
     title-sanitizing:
       enabled: false
   schedule:
@@ -166,7 +165,7 @@ transittrack:
       report-duration: PT24H
       match-duration: PT72H
       stale-vehicle-duration: PT30M
-      sweep-cron: "0 * * * * *"
+      sweep-cron: "0 0 * * * *"
     match:
       backtrack-tolerance-m: 30.0
       max-deviation-m: 60.0

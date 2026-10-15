@@ -2,7 +2,7 @@
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /workspace
 
-COPY gradlew build.gradle.kts settings.gradle.kts ./
+COPY gradlew build.gradle.kts gradle.properties settings.gradle.kts ./
 COPY gradle gradle
 RUN ./gradlew --version
 
