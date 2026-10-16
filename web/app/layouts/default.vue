@@ -8,11 +8,43 @@ import NotificationsSlideover from '~/components/NotificationsSlideover.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { useDashboard } from '~/composables/useDashboard'
+import { isInProgressRevisionStatus } from '~/utils/feedStatus'
+import { useFeedReadinessQuery } from '~~/generated/graphql'
 
 useFeedAlerts()
 
-const { feeds, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
+const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
 const { isNotificationsSlideoverOpen } = useDashboard()
+
+const { result, loading, error } = useFeedReadinessQuery(
+  () => ({ code: selectedFeedCode.value ?? '' }),
+  () => ({
+    enabled: !!selectedFeedCode.value,
+    pollInterval: 3_000,
+  }),
+)
+const readinessFeed = computed(() => {
+  const feed = result.value?.feed ?? null
+  return feed?.code === selectedFeedCode.value ? feed : null
+})
+
+const feedIsPreparing = computed(
+  () =>
+    error.value != null ||
+    !readinessFeed?.value?.activeRevision &&
+      readinessFeed?.value?.revisions.some((revision) =>
+        isInProgressRevisionStatus(revision.status),
+      ),
+)
+const feedIsLoading = computed(
+  () => !!selectedFeedCode.value && loading.value && !readinessFeed.value,
+)
+const feedIsBlocked = computed(() => {
+  return feedIsLoading.value || feedIsPreparing.value
+})
+const preparingFeedName = computed(
+  () => readinessFeed.value?.name ?? selectedFeed.value?.name ?? 'feed',
+)
 
 // If the URL points at a feed that doesn't exist, fall back to the first one.
 watch(feedIsUnknown, (unknown) => {
@@ -138,8 +170,14 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
   },
 ])
 
+const navigationItems = computed(() => (feedIsBlocked.value ? [] : primaryNav.value))
+
 const groups = computed(() => [
-  { id: 'links', label: 'Go to', items: primaryNav.value.flatMap((i) => i.children ?? [i]) },
+  {
+    id: 'links',
+    label: 'Go to',
+    items: feedIsBlocked.value ? [] : primaryNav.value.flatMap((i) => i.children ?? [i]),
+  },
   {
     id: 'feeds',
     label: 'Switch feed',
@@ -164,7 +202,7 @@ const groups = computed(() => [
       </template>
 
       <UNavigationMenu
-        :items="primaryNav"
+        :items="navigationItems"
         :ui="{
           link: 'text-sm px-2 py-2 gap-2',
           linkLeadingIcon: 'size-4',
@@ -192,14 +230,32 @@ const groups = computed(() => [
       </template>
 
       <template #content>
-        <UNavigationMenu :items="primaryNav" orientation="vertical" class="mx-auto" />
+        <UNavigationMenu :items="navigationItems" orientation="vertical" class="mx-auto" />
         <USeparator class="my-3" />
         <FeedSwitcher block />
       </template>
     </UHeader>
 
     <main>
-      <slot v-if="selectedFeedCode" />
+      <UContainer
+        v-if="feedIsBlocked"
+        class="flex min-h-[calc(100vh-var(--ui-header-height))] items-center justify-center py-6"
+      >
+        <section class="w-full max-w-md space-y-3" aria-live="polite">
+          <div class="flex items-center gap-2 text-sm font-medium text-muted">
+            <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+            Preparing {{ preparingFeedName }}
+          </div>
+          <UProgress color="primary" />
+          <p class="text-sm text-dimmed">
+            <template v-if="feedIsPreparing">
+              Preparing the first dataset. Browsing will unlock when it is ready.
+            </template>
+            <template v-else>Loading feed status…</template>
+          </p>
+        </section>
+      </UContainer>
+      <slot v-else-if="selectedFeedCode" />
     </main>
 
     <FeedSwitcher />

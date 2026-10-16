@@ -1,0 +1,13 @@
+query FeedReadiness($code: String!) {
+  feed(code: $code) {
+    code
+    name
+    activeRevision {
+      id
+    }
+    revisions {
+      id
+      status
+    }
+  }
+}

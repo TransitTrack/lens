@@ -1666,6 +1666,13 @@ export type UpdateFeedMutationVariables = Exact<{
 
 export type UpdateFeedMutation = { updateFeed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean } };
 
+export type FeedReadinessQueryVariables = Exact<{
+  code: string;
+}>;
+
+
+export type FeedReadinessQuery = { feed: { code: string, name: string, activeRevision: { id: string } | null, revisions: Array<{ id: string, status: RevisionStatus }> } | null };
+
 export type FeedsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -3563,6 +3570,44 @@ export function useUpdateFeedMutation(options: VueApolloComposable.UseMutationOp
   return VueApolloComposable.useMutation<UpdateFeedMutation, UpdateFeedMutationVariables>(UpdateFeedDocument, options);
 }
 export type UpdateFeedMutationCompositionFunctionResult = VueApolloComposable.UseMutationReturn<UpdateFeedMutation, UpdateFeedMutationVariables>;
+export const FeedReadinessDocument = gql`
+    query FeedReadiness($code: String!) {
+  feed(code: $code) {
+    code
+    name
+    activeRevision {
+      id
+    }
+    revisions {
+      id
+      status
+    }
+  }
+}
+    `;
+
+/**
+ * __useFeedReadinessQuery__
+ *
+ * To run a query within a Vue component, call `useFeedReadinessQuery` and pass it any options that fit your needs.
+ * When your component renders, `useFeedReadinessQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useFeedReadinessQuery({
+ *   code: // value for 'code'
+ * });
+ */
+export function useFeedReadinessQuery(variables: FeedReadinessQueryVariables | VueCompositionApi.Ref<FeedReadinessQueryVariables> | ReactiveFunction<FeedReadinessQueryVariables>, options: VueApolloComposable.UseQueryOptions<FeedReadinessQuery, FeedReadinessQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<FeedReadinessQuery, FeedReadinessQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<FeedReadinessQuery, FeedReadinessQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<FeedReadinessQuery, FeedReadinessQueryVariables>(FeedReadinessDocument, variables, options);
+}
+export function useFeedReadinessLazyQuery(variables?: FeedReadinessQueryVariables | VueCompositionApi.Ref<FeedReadinessQueryVariables> | ReactiveFunction<FeedReadinessQueryVariables>, options: VueApolloComposable.UseQueryOptions<FeedReadinessQuery, FeedReadinessQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<FeedReadinessQuery, FeedReadinessQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<FeedReadinessQuery, FeedReadinessQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<FeedReadinessQuery, FeedReadinessQueryVariables>(FeedReadinessDocument, variables, options);
+}
+export type FeedReadinessQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<FeedReadinessQuery, FeedReadinessQueryVariables>;
 export const FeedsDocument = gql`
     query Feeds {
   feeds {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   revisionStatusMeta,
+  isInProgressRevisionStatus,
   cronSummary,
   rowCount,
   PIPELINE_STEPS,
@@ -34,6 +35,22 @@ describe('revisionStatusMeta', () => {
     expect(revisionStatusMeta(null).color).toBe('neutral')
     expect(revisionStatusMeta('WHAT').label).toBe('WHAT')
   })
+})
+
+describe('isInProgressRevisionStatus', () => {
+  it.each(['PENDING', 'DOWNLOADING', 'VALIDATING', 'PARSING', 'DERIVING'])(
+    'recognises %s as an in-progress ingest stage',
+    (status) => {
+      expect(isInProgressRevisionStatus(status)).toBe(true)
+    },
+  )
+
+  it.each(['READY', 'ACTIVE', 'SUPERSEDED', 'FAILED', 'UNCHANGED', 'DRAFT', null])(
+    'does not treat %s as an in-progress ingest stage',
+    (status) => {
+      expect(isInProgressRevisionStatus(status)).toBe(false)
+    },
+  )
 })
 
 describe('cronSummary', () => {

@@ -13,6 +13,19 @@ export type RevisionStatus =
 
 export type BadgeColor = 'neutral' | 'info' | 'warning' | 'success' | 'error'
 
+const IN_PROGRESS_REVISION_STATUSES = new Set<RevisionStatus>([
+  'PENDING',
+  'DOWNLOADING',
+  'VALIDATING',
+  'PARSING',
+  'DERIVING',
+])
+
+/** Whether an ingest revision is still moving through the import pipeline. */
+export function isInProgressRevisionStatus(status: string | null | undefined): boolean {
+  return IN_PROGRESS_REVISION_STATUSES.has(status as RevisionStatus)
+}
+
 /** Ordered ingestion pipeline stages, for the processing stepper. */
 export const PIPELINE_STEPS = [
   { key: 'DOWNLOADING', label: 'Download' },
