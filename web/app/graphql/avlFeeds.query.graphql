@@ -4,6 +4,7 @@ query AvlFeeds {
     name
     gtfsFeedCode
     format
+    predictionAlgorithms
     enabled
     pollIntervalSec
     lastPollAt

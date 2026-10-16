@@ -75,8 +75,7 @@ class PredictionService(
         }
 
         val horizon = buildHorizon(outcome.tripRowId, outcome.tripPatternId, outcome.stopPathIndex, ctx)
-        val algorithmsToRun =
-            if (feed.predictionMode == PredictionMode.EVALUATION) strategies.values else listOfNotNull(strategies[feed.predictionAlgorithm])
+        val algorithmsToRun = feed.predictionAlgorithms.mapNotNull { strategies[it] }
         for (strategy in algorithmsToRun) {
             val startedAt = Instant.now()
             runCatching {
@@ -143,8 +142,7 @@ class PredictionService(
             )
         metrics.predictionCrossings(feed.code, crossings.size)
         var cursor = prev.reportTs
-        val algorithmsToScore =
-            if (feed.predictionMode == PredictionMode.EVALUATION) PredictionAlgorithm.entries else listOf(feed.predictionAlgorithm)
+        val algorithmsToScore = feed.predictionAlgorithms
 
         // Fetched once per matched report rather than once per crossing: every crossing in this
         // loop shares the same trip pattern / feed+vehicle+trip, so these don't change mid-loop.

@@ -32,12 +32,12 @@ class PredictSchemaMigrationTest(
     }
 
     @Test
-    fun `avl_feed has new prediction columns`() {
+    fun `avl_feed has new prediction column`() {
         val n = jdbc.queryForObject(
             "select count(*) from information_schema.columns where table_name = 'avl_feed' " +
-                "and column_name in ('prediction_algorithm', 'prediction_mode')",
+                "and column_name = 'prediction_algorithms'",
             Int::class.java,
         )
-        assertThat(n).isEqualTo(2)
+        assertThat(n).isEqualTo(1)
     }
 }

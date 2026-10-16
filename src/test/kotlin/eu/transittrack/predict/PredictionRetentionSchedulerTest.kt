@@ -41,8 +41,8 @@ class PredictionRetentionSchedulerTest(
         )
         jdbc.update(
             "insert into avl_feed (id, code, name, gtfs_feed_code, url, format, poll_interval_sec, " +
-                "assignment_mode, enabled, source, prediction_algorithm, prediction_mode, created_at, updated_at) " +
-                "values (1, 'f1', 'F1', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', 0, 0, now(), now())",
+                "assignment_mode, enabled, source, prediction_algorithms, created_at, updated_at) " +
+                "values (1, 'f1', 'F1', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', '[\"SCHEDULE_ADHERENCE\"]', now(), now())",
         )
 
         // travel_time_observation: one surviving (real pattern), one orphan (no matching trip_patterns row)

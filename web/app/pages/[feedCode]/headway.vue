@@ -15,12 +15,31 @@ import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import BarChart from '~/components/BarChart.vue'
 import type {Bar} from '~/utils/chart'
 
-const {selectedFeedCode, selectedAvlFeedCode} = useFeeds()
+const {selectedFeed, selectedFeedCode, selectedAvlFeedCode} = useFeeds()
 const {intervalMs} = usePollControl()
 
 const selectedRouteId = ref<string | null>(null)
 const selectedStopId = ref<string | null>(null)
 const selectedDirectionId = ref<number | null>(null)
+const selectedAlgorithm = ref<string | null>(null)
+
+function algorithmLabel(algorithm: string): string {
+  return algorithm
+    .toLowerCase()
+    .split('_')
+    .map((w) => w[0]!.toUpperCase() + w.slice(1))
+    .join(' ')
+}
+const algorithmOptions = computed(() =>
+  (selectedFeed.value?.predictionAlgorithms ?? []).map((a) => ({label: algorithmLabel(a), value: a})),
+)
+// A feed configured with a single algorithm has nothing to pick between; clear
+// the selection if the feed changes and no longer offers the current pick.
+watch(algorithmOptions, (opts) => {
+  if (selectedAlgorithm.value && !opts.some((o) => o.value === selectedAlgorithm.value)) {
+    selectedAlgorithm.value = null
+  }
+})
 
 const {result: routesResult} = useRoutesQuery(
   () => ({feedCode: selectedFeedCode.value ?? ''}),
@@ -99,6 +118,7 @@ const {
     stopId: selectedStopId.value ?? '',
     routeId: selectedRouteId.value ?? '',
     directionId: selectedDirectionId.value,
+    algorithm: selectedAlgorithm.value,
   }),
   () => ({enabled: querySelected.value, pollInterval: intervalMs.value}),
 )
@@ -110,6 +130,7 @@ const {result: boardResult} = useStopBoardQuery(
     stopId: selectedStopId.value ?? '',
     routeId: selectedRouteId.value,
     directionId: selectedDirectionId.value,
+    algorithm: selectedAlgorithm.value,
   }),
   () => ({enabled: querySelected.value, pollInterval: intervalMs.value}),
 )
@@ -219,6 +240,15 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
           :loading="patternsLoading && !routePatterns.length"
           class="w-56"
           @update:model-value="selectedStopId = $event"
+        />
+        <USelectMenu
+          v-if="algorithmOptions.length > 1"
+          :model-value="selectedAlgorithm"
+          :items="algorithmOptions"
+          value-key="value"
+          placeholder="Algorithm"
+          class="w-48"
+          @update:model-value="selectedAlgorithm = $event"
         />
       </div>
     </template>

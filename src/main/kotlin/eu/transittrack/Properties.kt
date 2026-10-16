@@ -6,7 +6,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.NestedConfigurationProperty
 
 import eu.transittrack.predict.PredictionAlgorithm
-import eu.transittrack.predict.PredictionMode
 
 /**
  * Shared outbound HTTP client settings, used for both GTFS feed downloads and AVL feed polling.
@@ -81,8 +80,7 @@ data class FeedsProperties(
         val assignmentMode: AvlAssignmentMode = AvlAssignmentMode.FULL_INFERENCE,
         val enabled: Boolean = true,
         val headers: Map<String, String> = emptyMap(),
-        val predictionAlgorithm: PredictionAlgorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE,
-        val predictionMode: PredictionMode = PredictionMode.SINGLE,
+        val predictionAlgorithms: List<PredictionAlgorithm> = listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE),
     )
 }
 

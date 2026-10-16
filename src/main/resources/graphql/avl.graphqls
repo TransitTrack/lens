@@ -12,6 +12,7 @@ type AvlFeed {
     format: String!
     pollIntervalSec: Int!
     assignmentMode: String!
+    predictionAlgorithms: [String!]!
     enabled: Boolean!
     lastPollAt: String
     lastPollStatus: String

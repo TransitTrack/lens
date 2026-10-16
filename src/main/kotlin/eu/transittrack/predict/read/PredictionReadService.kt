@@ -77,15 +77,17 @@ class PredictionReadService(
         stopId: String,
         routeId: String?,
         directionId: Int?,
+        algorithm: PredictionAlgorithm? = null,
     ): List<StopPredictionDto> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val revisionId = revisionResolver.resolve(feed.gtfsFeedCode, null)
         val patternIds = tripPatterns(revisionId, routeId, directionId).map { it.id!! }.toSet()
         val matchingStopPaths = stopPaths.findByStopId(revisionId, stopId).filter { it.tripPatternId in patternIds }
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
+        val resolvedAlgorithm = algorithm ?: feed.predictionAlgorithms.first()
         return matchingStopPaths.flatMap { sp ->
             predictions
-                .findByTripPatternIdAndStopPathIndexAndAlgorithm(sp.tripPatternId, sp.stopPathIndex, feed.predictionAlgorithm)
+                .findByTripPatternIdAndStopPathIndexAndAlgorithm(sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm)
                 .filter { it.predictedArrivalTs != null && it.actualArrivalTs == null }
                 .map { r ->
                     val sched = scheduleTimes.findByTripOrdered(revisionId, r.tripRowId).firstOrNull { it.stopPathIndex == r.stopPathIndex }

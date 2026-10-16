@@ -36,7 +36,8 @@ class PredictionQueryController(
         @Argument stopId: String,
         @Argument routeId: String?,
         @Argument directionId: Int?,
-    ) = read.stopPredictions(feedCode, stopId, routeId, directionId)
+        @Argument algorithm: String?,
+    ) = read.stopPredictions(feedCode, stopId, routeId, directionId, algorithm?.let { PredictionAlgorithm.valueOf(it) })
 
     @QueryMapping
     fun headway(
@@ -44,5 +45,6 @@ class PredictionQueryController(
         @Argument stopId: String,
         @Argument routeId: String,
         @Argument directionId: Int?,
-    ) = headwayRead.headway(feedCode, stopId, routeId, directionId)
+        @Argument algorithm: String?,
+    ) = headwayRead.headway(feedCode, stopId, routeId, directionId, algorithm?.let { PredictionAlgorithm.valueOf(it) })
 }

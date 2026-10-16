@@ -30,8 +30,8 @@ class PredictionEntitiesPersistenceTest(
         jdbcTemplate.update(
             "insert into avl_feed " +
                 "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
-                "prediction_algorithm, prediction_mode, enabled, source, created_at, updated_at) values " +
-                "(1, 'feed-1', 'feed', 'g', 'http://x', 0, 30, 0, 0, 0, true, 'CONFIG', now(), now())",
+                "prediction_algorithms, enabled, source, created_at, updated_at) values " +
+                "(1, 'feed-1', 'feed', 'g', 'http://x', 0, 30, 0, '[\"SCHEDULE_ADHERENCE\"]', true, 'CONFIG', now(), now())",
         )
     }
 

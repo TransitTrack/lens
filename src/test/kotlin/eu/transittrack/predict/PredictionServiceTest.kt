@@ -201,12 +201,12 @@ class PredictionServiceTest(
     }
 
     @Test
-    fun `evaluation mode runs all three algorithms`() {
+    fun `listing all three algorithms runs all three`() {
         val (trip, geom) = t1Geom()
         val len = geom.line.lengthM
 
         val feed = feedRow()
-        feed.predictionMode = PredictionMode.EVALUATION
+        feed.predictionAlgorithms = PredictionAlgorithm.entries
         feeds.save(feed)
 
         insertReport("bus-2", geom.line.pointAt(0.25 * len), ts(8, 5))

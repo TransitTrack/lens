@@ -31,19 +31,18 @@ class PredictPropertiesTest {
     }
 
     @Test
-    fun `binds prediction algorithm and mode on a feed`() {
+    fun `binds prediction algorithms on a feed`() {
         val p = bindFeeds(
             mapOf(
                 "transittrack.feed.feeds[0].code" to "mbta",
                 "transittrack.feed.feeds[0].name" to "MBTA",
                 "transittrack.feed.feeds[0].url" to "https://example.test/gtfs.zip",
                 "transittrack.feed.feeds[0].avl.url" to "https://example.test/vp.pb",
-                "transittrack.feed.feeds[0].avl.prediction-algorithm" to "KALMAN",
-                "transittrack.feed.feeds[0].avl.prediction-mode" to "EVALUATION",
+                "transittrack.feed.feeds[0].avl.prediction-algorithms[0]" to "SCHEDULE_ADHERENCE",
+                "transittrack.feed.feeds[0].avl.prediction-algorithms[1]" to "KALMAN",
             ),
         )
         val avl = p.feeds.single().avl!!
-        assertThat(avl.predictionAlgorithm).isEqualTo(PredictionAlgorithm.KALMAN)
-        assertThat(avl.predictionMode).isEqualTo(PredictionMode.EVALUATION)
+        assertThat(avl.predictionAlgorithms).isEqualTo(listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.KALMAN))
     }
 }

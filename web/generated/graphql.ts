@@ -58,6 +58,7 @@ export type AvlFeed = {
   lastPollStatus?: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   pollIntervalSec: Scalars['Int']['output'];
+  predictionAlgorithms: Array<Scalars['String']['output']>;
 };
 
 export type AvlReport = {
@@ -773,6 +774,7 @@ export type QueryFrequenciesArgs = {
 
 
 export type QueryHeadwayArgs = {
+  algorithm?: InputMaybe<Scalars['String']['input']>;
   directionId?: InputMaybe<Scalars['Int']['input']>;
   feedCode: Scalars['String']['input'];
   routeId: Scalars['String']['input'];
@@ -865,6 +867,7 @@ export type QueryStopArgs = {
 
 
 export type QueryStopPredictionsArgs = {
+  algorithm?: InputMaybe<Scalars['String']['input']>;
   directionId?: InputMaybe<Scalars['Int']['input']>;
   feedCode: Scalars['String']['input'];
   routeId?: InputMaybe<Scalars['String']['input']>;
@@ -1335,7 +1338,7 @@ export type AgenciesDetailQuery = { agencies: Array<{ agencyId: string | null, a
 export type AvlFeedsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, format: string, enabled: boolean, pollIntervalSec: number, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
+export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, format: string, predictionAlgorithms: Array<string>, enabled: boolean, pollIntervalSec: number, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
 
 export type AvlLogQueryVariables = Exact<{
   feedCode: string;
@@ -1683,6 +1686,7 @@ export type HeadwayInfoQueryVariables = Exact<{
   stopId: string;
   routeId: string;
   directionId?: number | null | undefined;
+  algorithm?: string | null | undefined;
 }>;
 
 
@@ -1782,6 +1786,7 @@ export type StopBoardQueryVariables = Exact<{
   stopId: string;
   routeId?: string | null | undefined;
   directionId?: number | null | undefined;
+  algorithm?: string | null | undefined;
 }>;
 
 
@@ -1933,6 +1938,7 @@ export const AvlFeedsDocument = gql`
     name
     gtfsFeedCode
     format
+    predictionAlgorithms
     enabled
     pollIntervalSec
     lastPollAt
@@ -3646,12 +3652,13 @@ export function useFeedsLazyQuery(options: VueApolloComposable.UseQueryOptions<F
 }
 export type FeedsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<FeedsQuery, FeedsQueryVariables>;
 export const HeadwayInfoDocument = gql`
-    query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int) {
+    query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int, $algorithm: String) {
   headway(
     feedCode: $feedCode
     stopId: $stopId
     routeId: $routeId
     directionId: $directionId
+    algorithm: $algorithm
   ) {
     stopId
     routeId
@@ -3679,6 +3686,7 @@ export const HeadwayInfoDocument = gql`
  *   stopId: // value for 'stopId'
  *   routeId: // value for 'routeId'
  *   directionId: // value for 'directionId'
+ *   algorithm: // value for 'algorithm'
  * });
  */
 export function useHeadwayInfoQuery(variables: HeadwayInfoQueryVariables | VueCompositionApi.Ref<HeadwayInfoQueryVariables> | ReactiveFunction<HeadwayInfoQueryVariables>, options: VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<HeadwayInfoQuery, HeadwayInfoQueryVariables>> = {}) {
@@ -4128,12 +4136,13 @@ export function useStopDetailLazyQuery(variables?: StopDetailQueryVariables | Vu
 }
 export type StopDetailQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<StopDetailQuery, StopDetailQueryVariables>;
 export const StopBoardDocument = gql`
-    query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int) {
+    query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int, $algorithm: String) {
   stopPredictions(
     feedCode: $feedCode
     stopId: $stopId
     routeId: $routeId
     directionId: $directionId
+    algorithm: $algorithm
   ) {
     stopPathIndex
     scheduledArrival
@@ -4161,6 +4170,7 @@ export const StopBoardDocument = gql`
  *   stopId: // value for 'stopId'
  *   routeId: // value for 'routeId'
  *   directionId: // value for 'directionId'
+ *   algorithm: // value for 'algorithm'
  * });
  */
 export function useStopBoardQuery(variables: StopBoardQueryVariables | VueCompositionApi.Ref<StopBoardQueryVariables> | ReactiveFunction<StopBoardQueryVariables>, options: VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<StopBoardQuery, StopBoardQueryVariables>> = {}) {

@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0014-prediction-algorithms
+      author: transittrack
+      comment: >
+        Collapses avl_feed's prediction_algorithm (single algorithm) + prediction_mode
+        (SINGLE/EVALUATION) columns into one prediction_algorithms JSON array, naming exactly the
+        algorithms to run instead of toggling a mode that implicitly meant "all of them".
+      changes:
+        - addColumn:
+            tableName: avl_feed
+            columns:
+              - column: { name: prediction_algorithms, type: JSONB, defaultValueComputed: "'[\"SCHEDULE_ADHERENCE\"]'::jsonb" }
+        - sql:
+            sql: >
+              update avl_feed set prediction_algorithms =
+                case
+                  when prediction_mode = 1 then '["SCHEDULE_ADHERENCE","HISTORICAL_AVERAGE","KALMAN"]'::jsonb
+                  else to_jsonb(array[
+                    case prediction_algorithm
+                      when 0 then 'SCHEDULE_ADHERENCE'
+                      when 1 then 'HISTORICAL_AVERAGE'
+                      when 2 then 'KALMAN'
+                    end
+                  ])
+                end
+        - addNotNullConstraint:
+            tableName: avl_feed
+            columnName: prediction_algorithms
+            columnDataType: JSONB
+        - dropColumn: { tableName: avl_feed, columnName: prediction_algorithm }
+        - dropColumn: { tableName: avl_feed, columnName: prediction_mode }

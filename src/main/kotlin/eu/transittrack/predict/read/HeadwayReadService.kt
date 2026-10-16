@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.read.RevisionResolver
+import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.read.dto.HeadwayDto
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
@@ -33,10 +34,11 @@ class HeadwayReadService(
         stopId: String,
         routeId: String,
         directionId: Int?,
+        algorithm: PredictionAlgorithm? = null,
     ): HeadwayDto {
         val arrivals =
             read
-                .stopPredictions(feedCode, stopId, routeId, directionId)
+                .stopPredictions(feedCode, stopId, routeId, directionId, algorithm)
                 .mapNotNull { it.predictedArrival?.let(Instant::parse) }
                 .sorted()
         val waitSec =

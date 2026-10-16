@@ -8,6 +8,8 @@ export interface AnnotatedFeed {
   /** linked AVL (realtime) feed code, if any */
   avlFeedCode: string | null
   hasRealtime: boolean
+  /** prediction algorithms configured for the linked AVL feed, if any */
+  predictionAlgorithms: string[]
   /** last-poll status of the linked AVL feed */
   realtimeStatus: string | null
   realtimeHealthy: boolean
@@ -39,6 +41,7 @@ export function useFeeds() {
         enabled: f.enabled,
         avlFeedCode: linked?.code ?? null,
         hasRealtime: !!linked,
+        predictionAlgorithms: linked?.predictionAlgorithms ?? [],
         realtimeStatus: linked?.lastPollStatus ?? null,
         realtimeHealthy: !!linked && isHealthy(linked.lastPollStatus),
       }
