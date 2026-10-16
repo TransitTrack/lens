@@ -1,0 +1,24 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0013-feed-delete-cascade-gaps
+      author: transittrack
+      comment: >
+        vehicle_state.feed_id was never given a foreign key, so deleting an avl_feed row (e.g. via
+        AvlFeedCleanupListener, on gtfs feed deletion) left its live per-vehicle match state behind
+        as orphans instead of cascading like avl_report/vehicle_match/vehicle_prediction/
+        prediction_accuracy/avl_stop_crossing already do. schedule_optimization_run.revision_id and
+        travel_time_observation/kalman_travel_time_state.trip_pattern_id are also FK-less, but that
+        is documented, deliberate design elsewhere (OptimizationRetentionSchedulerTest's own comment;
+        PredictionRetentionScheduler's hourly orphan sweep) and is left alone here. The delete
+        clears out any orphans that already accumulated before the constraint existed, so the
+        constraint can be added cleanly.
+      changes:
+        - sql:
+            sql: delete from vehicle_state where feed_id not in (select id from avl_feed)
+        - addForeignKeyConstraint:
+            constraintName: fk_vehicle_state_feed
+            baseTableName: vehicle_state
+            baseColumnNames: feed_id
+            referencedTableName: avl_feed
+            referencedColumnNames: id
+            onDelete: CASCADE

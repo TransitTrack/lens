@@ -2,6 +2,7 @@ package eu.transittrack.gtfs.feed
 
 import java.time.Instant
 
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -30,6 +31,7 @@ data class FeedInput(
 @Service
 class GtfsFeedService(
     private val repo: GtfsFeedRepository,
+    private val events: ApplicationEventPublisher,
 ) {
     @Transactional
     fun register(input: FeedInput): GtfsFeed {
@@ -79,6 +81,7 @@ class GtfsFeedService(
 //            throw FeedProtectedException("feed '$code' is config-managed")
 //        }
         repo.delete(feed)
+        events.publishEvent(GtfsFeedDeletedEvent(code))
         return true
     }
 
