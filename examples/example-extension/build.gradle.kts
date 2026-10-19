@@ -16,3 +16,9 @@ dependencies {
     implementation(project(":extension-api"))
     implementation("org.springframework:spring-context:$springContextVersion")
 }
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
