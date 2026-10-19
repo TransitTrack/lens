@@ -1,7 +1,8 @@
 package eu.transittrack.avl.match
 
+import org.locationtech.jts.geom.Coordinate
+
 import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.Point
 
 /** Result of matching one AVL report against the derived schedule. */
 sealed interface MatchOutcome {
@@ -13,7 +14,7 @@ sealed interface MatchOutcome {
         val distanceAlongTripM: Double,
         val deviationM: Double,
         val scheduleAdherenceSec: Int?,
-        val snapped: Point,
+        val snapped: Coordinate,
         val heading: Double?,
         val score: Double?,
         val revisionId: Long,
