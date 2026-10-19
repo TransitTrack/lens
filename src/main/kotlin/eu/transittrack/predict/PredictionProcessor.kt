@@ -2,29 +2,25 @@ package eu.transittrack.predict
 
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ScheduledFuture
-import jakarta.annotation.PreDestroy
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.boot.context.event.ApplicationReadyEvent
-import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 
+import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.MatchOutcome
+import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.PredictionStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.concurrency.FeedReconciler
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
 import eu.transittrack.observability.TransitTrackMetrics
@@ -37,9 +33,9 @@ import eu.transittrack.observability.TransitTrackMetrics
  * simply takes longer to drain, or drains across several of its own cycles; nothing is ever dropped,
  * unlike the fixed-capacity executor this replaces.
  *
- * Mirrors [eu.transittrack.avl.match.AvlMatchProcessor]'s shape exactly: one `scheduleWithFixedDelay`
- * task per enabled feed on a dedicated [ThreadPoolTaskScheduler], reconciled every 60s. [processBatch]
- * is the synchronous, deterministic entry point used by tests and manual/ops triggers.
+ * The task lifecycle (one `scheduleWithFixedDelay` task per enabled feed, reconciled every 30s) lives
+ * in [FeedReconciler]. [processBatch] is the synchronous, deterministic entry point used by tests and
+ * manual/ops triggers.
  */
 @Component
 @ConditionalOnProperty("transittrack.predict.enabled", havingValue = "true")
@@ -47,62 +43,29 @@ import eu.transittrack.observability.TransitTrackMetrics
 class PredictionProcessor(
     private val vehicleMatches: VehicleMatchRepository,
     private val reports: AvlReportRowRepository,
-    private val feeds: AvlFeedRepository,
+    feeds: AvlFeedRepository,
     private val contextFactory: AvlMatchContextFactory,
     private val predictionService: PredictionService,
     private val metrics: TransitTrackMetrics,
     props: PredictProperties,
-    @Qualifier("predictorFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
-    @Value("\${spring.threads.virtual.enabled:false}") private val useVirtualThreads: Boolean,
-) {
-    private val log = LoggerFactory.getLogger(javaClass)
+    @Qualifier("predictorFeedLockCoordinator") feedLocks: FeedLockCoordinator,
+    @Value("\${spring.threads.virtual.enabled:false}") useVirtualThreads: Boolean,
+) : FeedReconciler(feeds, feedLocks, "avl-predict-", useVirtualThreads) {
     private val cfg = props.run
 
-    private val scheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 4
-            setVirtualThreads(useVirtualThreads)
-            setThreadNamePrefix("avl-predict-")
-            initialize()
-        }
-    private val tasks = ConcurrentHashMap<Long, ScheduledFuture<*>>()
+    override fun intervalFor(feed: AvlFeed): Duration = Duration.ofMillis(cfg.intervalMs)
 
-    @EventListener(ApplicationReadyEvent::class)
-    fun start() = reconcile()
+    override fun isEligible(feed: AvlFeed): Boolean = contextFactory.hasActiveRevision(feed)
 
-    @Scheduled(fixedDelay = 30_000)
+    override fun run(feedCode: String) {
+        runCatching { processFeed(feedCode) }
+            .onFailure { log.warn("prediction processing for feed '{}' failed", feedCode, it) }
+    }
+
+    @Scheduled(fixedDelay = 60_000)
     // See AvlPoller.reconcile for why lockAtLeastFor is ~zero rather than a nonzero minimum.
     @SchedulerLock(name = "prediction-processor-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
-    fun reconcile() {
-        val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
-        val owned = feedLocks.reconcileOwnership(enabled)
-        tasks.keys
-            .filter { it !in owned }
-            .forEach { id -> tasks.remove(id)?.cancel(false) }
-        for (id in owned) {
-            if (!tasks.containsKey(id)) {
-                tasks[id] =
-                    scheduler.scheduleWithFixedDelay(
-                        { runFeed(id) },
-                        Duration.ofMillis(cfg.intervalMs),
-                    )
-            }
-        }
-    }
-
-    private fun runFeed(feedId: Long) {
-        runCatching { processFeed(feedId) }
-            .onFailure { log.warn("prediction processing for feed '{}' failed", feedId, it) }
-    }
-
-    /** test hook */
-    fun runningFeedIds(): Set<Long> = tasks.keys.toSet()
-
-    @PreDestroy
-    fun shutdown() {
-        feedLocks.releaseAll()
-        scheduler.shutdown()
-    }
+    override fun reconcile() = reconcileTasks()
 
     /**
      * Processes every currently-enabled feed once, synchronously, and returns the total number of
@@ -112,12 +75,12 @@ class PredictionProcessor(
     fun processBatch(): Int =
         feeds
             .findAllEnabled()
-            .sumOf { processFeed(it.id!!) }
+            .sumOf { processFeed(it.code) }
 
     /** Claims and processes one feed's own PENDING `vehicle_match` batch. Returns rows processed. */
-    private fun processFeed(feedId: Long): Int {
+    private fun processFeed(feedId: String): Int {
         val startedAt = Instant.now()
-        val feed = feeds.findById(feedId).orElse(null) ?: return 0
+        val feed = feeds.findByCode(feedId) ?: return 0
 
         fun finish(
             processed: Int,
@@ -128,16 +91,19 @@ class PredictionProcessor(
             return processed
         }
 
-        val batch = vehicleMatches.findClaimBatch(feedId, cfg.claimBatchSize)
+        val batch = vehicleMatches.findClaimBatch(feed.code, cfg.claimBatchSize)
         if (batch.isEmpty()) return finish(0, 0)
 
         val doneIds = mutableListOf<Long>()
         val failedIds = mutableListOf<Long>()
-        val contextsByRevision = HashMap<Long, eu.transittrack.avl.match.AvlMatchContext>()
+        val contextsByRevision = HashMap<Long, AvlMatchContext>()
 
         for ((vehicleId, vehicleMatchesForVehicle) in batch.groupBy { it.vehicleId }) {
             val sorted = vehicleMatchesForVehicle.sortedBy { it.ts }
-            var prev = vehicleMatches.findTopByFeedIdAndVehicleIdAndTsLessThanOrderByTsDesc(feedId, vehicleId, sorted.first().ts)?.toPrev()
+            var prev =
+                vehicleMatches
+                    .findPreviousForVehicle(feed.code, vehicleId, sorted.first().ts)
+                    ?.toPrev()
 
             for (row in sorted) {
                 val outcome = row.toMatchOutcome()

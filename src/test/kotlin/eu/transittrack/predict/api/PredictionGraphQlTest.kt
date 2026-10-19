@@ -89,6 +89,8 @@ class PredictionGraphQlTest(
 
     private var feedId = 0L
 
+    private fun feedRow() = feeds.findById(feedId).orElseThrow()
+
     @BeforeAll
     fun setup() {
         truncateBeforeFixture()
@@ -129,7 +131,7 @@ class PredictionGraphQlTest(
         ) {
             reports.save(
                 AvlReportRow(
-                    feedId = feedId, vehicleId = "bus-1", vehicleLabel = null, ts = at,
+                    feedCode = feed.code, vehicleId = "bus-1", vehicleLabel = null, ts = at,
                     lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
                     descTripId = null, descRouteId = null, descDirectionId = null,
                     descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
@@ -182,10 +184,10 @@ class PredictionGraphQlTest(
 
     @Test
     fun `vehiclePredictions schedules arrivals in the agency timezone`() {
-        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-1")!!
         val prediction =
             vehiclePredictions
-                .findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", state.tripRowId!!)
+                .findByVehicleTrip(feedRow().code, "bus-1", state.tripRowId!!)
                 .first()
         val schedule =
             scheduleTimes

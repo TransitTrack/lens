@@ -69,7 +69,7 @@ class HistoricalAverageAlgorithm(
                 lastTs = lastTs.plusSeconds(layover.toLong())
             }
             val travelSec =
-                observations.findByTripPatternIdAndStopPathIndex(stop.tripPatternId, stop.stopPathIndex)?.meanSec
+                observations.findByPatternAndStop(stop.tripPatternId, stop.stopPathIndex)?.meanSec
                     ?: seedTravelTimeSec(ctx, seeds, stop.tripPatternId, stop.stopPathIndex)
                     ?: continue
             lastTs = lastTs.plusSeconds(travelSec.toLong())
@@ -120,7 +120,7 @@ class KalmanAlgorithm(
                 val layover = ctx.blockTripOf(previousTripRowId)?.layoverAfterSec ?: 0
                 lastTs = lastTs.plusSeconds(layover.toLong())
             }
-            val state = states.findByTripPatternIdAndStopPathIndex(stop.tripPatternId, stop.stopPathIndex)
+            val state = states.findByPatternAndStop(stop.tripPatternId, stop.stopPathIndex)
             val travelSec =
                 state?.estimateSec
                     ?: seedTravelTimeSec(ctx, seeds, stop.tripPatternId, stop.stopPathIndex)

@@ -15,6 +15,8 @@ const props = withDefaults(
     stops: GeoJSON.FeatureCollection
     /** softer styling for use as an underlay beneath vehicle markers */
     dim?: boolean
+    /** hide the route lines while keeping the network data mounted */
+    showRoutes?: boolean
     /** hide the stop dots (they can be noisy on a fleet map) */
     showStops?: boolean
     /** enable hover highlight + detail popup on routes */
@@ -23,7 +25,7 @@ const props = withDefaults(
      * that must stay on top regardless of mount order) */
     before?: string
   }>(),
-  { dim: false, showStops: true, interactive: true, before: undefined },
+  { dim: false, showRoutes: true, showStops: true, interactive: true, before: undefined },
 )
 
 // useMap() with no key resolves the <MglMap> we're nested inside.
@@ -86,6 +88,13 @@ function onLeave() {
   const canvas = map.map?.getCanvas()
   if (canvas) canvas.style.cursor = ''
 }
+
+watch(
+  () => props.showRoutes,
+  (visible) => {
+    if (!visible) onLeave()
+  },
+)
 </script>
 
 <template>
@@ -94,13 +103,13 @@ function onLeave() {
       layer-id="feed-network-routes-casing"
       :before="before"
       :paint="casingPaint"
-      :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+      :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: showRoutes ? 'visible' : 'none' }"
     />
     <MglLineLayer
       layer-id="feed-network-routes-line"
       :before="before"
       :paint="linePaint"
-      :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+      :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: showRoutes ? 'visible' : 'none' }"
     />
     <!-- Wide invisible line so thin routes are easy to hover. -->
     <MglLineLayer
@@ -108,6 +117,7 @@ function onLeave() {
       layer-id="feed-network-routes-hit"
       :before="before"
       :paint="{ 'line-color': '#000000', 'line-opacity': 0, 'line-width': 16 }"
+      :layout="{ visibility: showRoutes ? 'visible' : 'none' }"
       @mousemove="onMove"
       @mouseleave="onLeave"
     />

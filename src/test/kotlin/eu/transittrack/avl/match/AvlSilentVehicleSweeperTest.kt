@@ -54,15 +54,15 @@ class AvlSilentVehicleSweeperTest(
         stateUpdatedSecondsAgo: Long = reportSecondsAgo,
     ) {
         jdbc.update(
-            "insert into avl_report (feed_id, vehicle_id, ts, lat, lon, match_status, created_at) " +
-                "values (1, ?, ?, 44.0, 26.0, 1, ?)",
+            "insert into avl_report (feed_code, vehicle_id, ts, lat, lon, match_status, created_at) " +
+                "values ('a', ?, ?, 44.0, 26.0, 1, ?)",
             vehicleId, secondsAgo(reportSecondsAgo), secondsAgo(reportSecondsAgo),
         )
         jdbc.update(
-            "insert into vehicle_state (feed_id, vehicle_id, report_ts, lat, lon, matched, stale, " +
+            "insert into vehicle_state (feed_code, vehicle_id, report_ts, lat, lon, matched, stale, " +
                 "consecutive_failures, revision_id, trip_row_id, block_pk, trip_pattern_id, " +
                 "stop_path_index, distance_along_trip_m, updated_at) " +
-                "values (1, ?, ?, 44.0, 26.0, true, ?, 0, 7, 8, 9, 10, 2, 123.0, ?)",
+                "values ('a', ?, ?, 44.0, 26.0, true, ?, 0, 7, 8, 9, 10, 2, 123.0, ?)",
             vehicleId, secondsAgo(reportSecondsAgo), stale, secondsAgo(stateUpdatedSecondsAgo),
         )
     }

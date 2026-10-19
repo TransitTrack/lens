@@ -57,7 +57,7 @@ class StopTimeAnalyzerTest(
     private val json = JsonMapper.builder().build()
     private val analyzer = StopTimeAnalyzer(OptimizationProperties(), json)
 
-    private fun seedFeedAndRevision(code: String = "g"): Triple<Long, Long, Long> {
+    private fun seedFeedAndRevision(code: String = "g"): Triple<String, Long, String> {
         val feed =
             feeds.save(
                 GtfsFeed(code, "G", null, "http://x/z.zip", null, true, null, FeedSource.API, Instant.now(), Instant.now()),
@@ -72,7 +72,7 @@ class StopTimeAnalyzerTest(
                     enabled = true, headers = null, source = AvlFeedSourceKind.CONFIG, createdAt = Instant.now(), updatedAt = Instant.now(),
                 ),
             )
-        return Triple(feed.id!!, revision.id!!, avlFeed.id!!)
+        return Triple(feed.code, revision.id!!, avlFeed.code)
     }
 
     private fun pattern(
@@ -199,7 +199,7 @@ class StopTimeAnalyzerTest(
     }
 
     private fun crossing(
-        feedId: Long,
+        feedCode: String,
         tripRowId: Long,
         patternId: Long,
         revisionId: Long,
@@ -211,7 +211,7 @@ class StopTimeAnalyzerTest(
         tripStartSec: Int,
     ) = crossings.save(
         AvlStopCrossing(
-            feedId = feedId,
+            feedCode = feedCode,
             vehicleId = "v1",
             tripRowId = tripRowId,
             tripPatternId = patternId,
@@ -227,14 +227,14 @@ class StopTimeAnalyzerTest(
     )
 
     private fun baseRun(
-        feedId: Long,
+        feedCode: String,
         revisionId: Long,
         serviceId: String = "WK",
         routeId: String = "R1",
         minimumSamples: Int = 2,
     ) = runs.save(
         OptimizationRunRow(
-            feedId = feedId, revisionId = revisionId, serviceId = serviceId, routeId = routeId, directionId = 0,
+            feedCode = feedCode, revisionId = revisionId, serviceId = serviceId, routeId = routeId, directionId = 0,
             observedFrom = Instant.parse("2026-09-01T00:00:00Z"), observedTo = Instant.parse("2026-09-08T00:00:00Z"),
             minimumSamples = minimumSamples,
         ),
@@ -243,16 +243,16 @@ class StopTimeAnalyzerTest(
     private fun contextFor(
         run: OptimizationRunRow,
         eligibleTrips: List<Trip>,
-        avlFeedIds: List<Long>,
+        avlFeedCodes: List<String>,
     ) = OptimizationAnalysisContext(
         run = run,
         eligibleTrips = eligibleTrips,
-        avlFeedIdsSupplier = { avlFeedIds },
+        avlFeedCodesSupplier = { avlFeedCodes },
         crossingsSupplier = {
             val eligibleTripRowIds = eligibleTrips.mapNotNull { it.id }.toSet()
             crossings
                 .findForAnalysis(
-                    avlFeedIds, run.revisionId, run.observedFrom, run.observedTo, run.serviceId, run.routeId,
+                    avlFeedCodes, run.revisionId, run.observedFrom, run.observedTo, run.serviceId, run.routeId,
                     run.directionId, run.windowFromSec, run.windowToSec,
                 ).filter { it.tripRowId in eligibleTripRowIds }
         },
@@ -263,7 +263,7 @@ class StopTimeAnalyzerTest(
 
     @Test
     fun `proposes a stop-time recommendation from robust median with prediction evidence, excluding a nonselected trip`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -274,28 +274,28 @@ class StopTimeAnalyzerTest(
         scheduleTimesFor(revisionId, other.id!!, 30_000, segmentTravelSec = 300)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 9_999.0, at.plusSeconds(120), "WK", "R1", 28_800)
-        crossing(avlFeedId, other.id!!, tp.id!!, revisionId, 1, 900.0, at, "OTHER", "R1", 30_000)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 9_999.0, at.plusSeconds(120), "WK", "R1", 28_800)
+        crossing(avlFeedCode, other.id!!, tp.id!!, revisionId, 1, 900.0, at, "OTHER", "R1", 30_000)
 
         accuracies.save(
             PredictionAccuracy(
-                avlFeedId, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                avlFeedCode, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
                 at, at.plusSeconds(5), errorSec = 5, absErrorSec = 5, createdAt = at,
             ),
         )
         accuracies.save(
             PredictionAccuracy(
-                avlFeedId, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                avlFeedCode, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
                 at.plusSeconds(60), at.plusSeconds(55), errorSec = -5, absErrorSec = 5,
                 createdAt = at.plusSeconds(60),
             ),
         )
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val eligibleTrips = listOf(selected)
-        val result = analyzer.analyze(contextFor(run, eligibleTrips, listOf(avlFeedId)))
+        val result = analyzer.analyze(contextFor(run, eligibleTrips, listOf(avlFeedCode)))
 
         assertThat(result).hasSize(1)
         val recommendation = result.single()
@@ -309,42 +309,42 @@ class StopTimeAnalyzerTest(
 
     @Test
     fun `does not propose a stop-time recommendation from undersampled evidence`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
         val selected = trip(revisionId, tp.id!!, "T1", "R1", "WK", 28_800)
         scheduleTimesFor(revisionId, selected.id!!, 28_800, segmentTravelSec = 300)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
 
-        val run = baseRun(feedId, revisionId, minimumSamples = 2)
-        val result = analyzer.analyze(contextFor(run, listOf(selected), listOf(avlFeedId)))
+        val run = baseRun(feedCode, revisionId, minimumSamples = 2)
+        val result = analyzer.analyze(contextFor(run, listOf(selected), listOf(avlFeedCode)))
 
         assertThat(result).isEmpty()
     }
 
     @Test
     fun `discards a stop-time candidate that would make a trip's cumulative times decrease`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
         val selected = trip(revisionId, tp.id!!, "T1", "R1", "WK", 28_800)
         scheduleTimesFor(revisionId, selected.id!!, 28_800, segmentTravelSec = 40)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 5.0, at, "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 5.0, at.plusSeconds(60), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 5.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 5.0, at.plusSeconds(60), "WK", "R1", 28_800)
 
-        val run = baseRun(feedId, revisionId)
-        val result = analyzer.analyze(contextFor(run, listOf(selected), listOf(avlFeedId)))
+        val run = baseRun(feedCode, revisionId)
+        val result = analyzer.analyze(contextFor(run, listOf(selected), listOf(avlFeedCode)))
 
         assertThat(result).isEmpty()
     }
 
     @Test
     fun `omits an interpolated cell from a stop-time recommendation's targets while keeping downstream explicit cells`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor3(revisionId, tp.id!!)
 
@@ -352,11 +352,11 @@ class StopTimeAnalyzerTest(
         scheduleTimesWithInterpolatedMiddle(revisionId, selected.id!!, 28_800, segmentTravelSec = 300)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
 
-        val run = baseRun(feedId, revisionId)
-        val result = analyzer.analyze(contextFor(run, listOf(selected), listOf(avlFeedId)))
+        val run = baseRun(feedCode, revisionId)
+        val result = analyzer.analyze(contextFor(run, listOf(selected), listOf(avlFeedCode)))
 
         assertThat(result).hasSize(1)
         val recommendation = result.single()
@@ -368,13 +368,13 @@ class StopTimeAnalyzerTest(
 
     @Test
     fun `produces nothing and does not throw when no AVL feed is mapped`() {
-        val (feedId, revisionId, _) = seedFeedAndRevision()
+        val (feedCode, revisionId, _) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
         val selected = trip(revisionId, tp.id!!, "T1", "R1", "WK", 28_800)
         scheduleTimesFor(revisionId, selected.id!!, 28_800, segmentTravelSec = 300)
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val result = analyzer.analyze(contextFor(run, listOf(selected), emptyList()))
 
         assertThat(result).isEmpty()

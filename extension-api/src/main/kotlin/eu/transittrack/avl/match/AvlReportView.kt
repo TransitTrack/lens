@@ -3,10 +3,12 @@ package eu.transittrack.avl.match
 import java.time.Instant
 import java.time.LocalDate
 
+import eu.transittrack.Point
+
 /** Lean, JPA-free mirror of `eu.transittrack.avl.model.AvlReportRow`. */
 data class AvlReportView(
     val id: Long,
-    val feedId: Long,
+    val feedCode: String,
     val vehicleId: String,
     val vehicleLabel: String?,
     val ts: Instant,
@@ -26,4 +28,6 @@ data class AvlReportView(
     val currentStatus: Int?,
     val occupancyStatus: Int?,
     val congestionLevel: Int?,
-)
+) {
+    val point: Point = Point(lat, lon)
+}

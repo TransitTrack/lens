@@ -32,7 +32,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 /**
  * [AvlWriter] commits through its own stateless-session transaction on a separate connection, so this
  * test must NOT run inside the default rollback transaction — the seeded `avl_feed` parent of the
- * `avl_report.feed_id` FK must be committed and visible. Hence `NOT_SUPPORTED` + explicit cleanup.
+ * `avl_report.feed_code` FK must be committed and visible. Hence `NOT_SUPPORTED` + explicit cleanup.
  */
 @PostgresSliceTest
 @Import(AvlWriter::class, AvlPollRecorder::class, GtfsRealtimeVehiclePositionDecoder::class)

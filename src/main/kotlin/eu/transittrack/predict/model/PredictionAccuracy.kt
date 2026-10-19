@@ -14,6 +14,7 @@ import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 import eu.transittrack.predict.PredictionAlgorithm
@@ -21,7 +22,7 @@ import eu.transittrack.predict.PredictionAlgorithm
 @Entity
 @Table(name = "prediction_accuracy")
 class PredictionAccuracy(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
@@ -39,10 +40,14 @@ class PredictionAccuracy(
 
 @Repository
 interface PredictionAccuracyRepository : JpaRepository<PredictionAccuracy, Long> {
-    fun findByFeedIdAndAlgorithmAndCreatedAtAfter(
-        feedId: Long,
-        algorithm: PredictionAlgorithm,
-        since: Instant,
+    @Query(
+        "select e from PredictionAccuracy e where e.feedCode = :feedCode and e.algorithm = :algorithm " +
+            "and e.createdAt > :since",
+    )
+    fun findRecentByFeedAndAlgorithm(
+        @Param("feedCode") feedCode: String,
+        @Param("algorithm") algorithm: PredictionAlgorithm,
+        @Param("since") since: Instant,
     ): List<PredictionAccuracy>
 
     /**
@@ -52,11 +57,11 @@ interface PredictionAccuracyRepository : JpaRepository<PredictionAccuracy, Long>
      * algorithms.
      */
     @Query(
-        "select p from PredictionAccuracy p where p.feedId in :feedIds and p.tripRowId in :tripRowIds " +
+        "select p from PredictionAccuracy p where p.feedCode in :feedCodes and p.tripRowId in :tripRowIds " +
             "and p.stopPathIndex = :stopPathIndex and p.createdAt >= :from and p.createdAt < :to",
     )
     fun findForTargets(
-        feedIds: Collection<Long>,
+        feedCodes: Collection<String>,
         tripRowIds: Collection<Long>,
         stopPathIndex: Int,
         from: Instant,

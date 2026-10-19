@@ -29,6 +29,8 @@ const vehicles = [
     stale: false,
     scheduleAdherenceSec: 20,
     stopPathIndex: 2,
+    distanceAlongTripM: 2450,
+    pattern: { lengthM: 4000 },
     speedMps: 8.2,
   },
   {
@@ -40,6 +42,8 @@ const vehicles = [
     stale: true,
     scheduleAdherenceSec: null,
     stopPathIndex: null,
+    distanceAlongTripM: null,
+    pattern: null,
     speedMps: null,
   },
 ]

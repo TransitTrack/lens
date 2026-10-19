@@ -335,10 +335,7 @@ interface CalendarDateRepository : RevisionScopedRepository<CalendarDate, Long> 
     fun findDistinctServiceIds(revisionId: Long): List<String>
 }
 
-interface FeedInfoRepository : JpaRepository<FeedInfo, Long> {
-    @Query("select fi from FeedInfo fi where fi.revisionId = :revisionId")
-    fun findByRevisionId(revisionId: Long): FeedInfo?
-}
+interface FeedInfoRepository : RevisionScopedRepository<FeedInfo, Long>
 
 interface FrequencyRepository : RevisionScopedRepository<Frequency, Long> {
     @Query("select f from Frequency f where f.revisionId = :revisionId and f.tripId = :tripId")

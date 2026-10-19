@@ -1,5 +1,8 @@
 package eu.transittrack.schedule.derive
 
+import java.time.Duration
+import java.time.Instant
+
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.ApplicationEventPublisher
@@ -61,10 +64,14 @@ class DerivationService(
 
         try {
             for (postProcessor in ordered) {
+                val start = Instant.now()
+                log.info("Post processing data using {} processor.", postProcessor.javaClass.simpleName)
                 @Suppress("UNCHECKED_CAST")
-                (postProcessor.postProcess(revisionId) as? Map<String, Long>)?.let {
-                    revisionService.mergeRowCounts(revisionId, it)
-                }
+                (postProcessor.postProcess(revisionId) as? Map<String, Long>)
+                    ?.let {
+                        log.info("Processing data [{}] took {}.", it, Duration.between(start, Instant.now()))
+                        revisionService.mergeRowCounts(revisionId, it)
+                    }
             }
         } catch (e: Exception) {
             ordered.forEach { runCatching { it.onIngestionFailure(revisionId) } }

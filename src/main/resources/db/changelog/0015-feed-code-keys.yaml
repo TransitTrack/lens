@@ -1,0 +1,188 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0015-feed-code-keys-avl-report
+      author: transittrack
+      comment: >
+        avl_report/vehicle_match/vehicle_state/vehicle_prediction/prediction_accuracy/
+        avl_stop_crossing all key their rows by avl_feed's numeric id. Switching to avl_feed.code
+        (already unique/not-null) makes these rows self-describing without a join back to
+        avl_feed, and immune to the id churn of a feed being deleted and recreated under the same
+        code. schedule_optimization_run is handled separately below: its feed_id is gtfs_feed.id,
+        a different table entirely.
+      changes:
+        - addColumn:
+            tableName: avl_report
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update avl_report t set feed_code = f.code from avl_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: avl_report, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropForeignKeyConstraint: { baseTableName: avl_report, constraintName: fk_avl_report_feed }
+        - dropIndex: { tableName: avl_report, indexName: ix_avl_report_feed_vehicle_ts }
+        - dropColumn: { tableName: avl_report, columnName: feed_id }
+        - addForeignKeyConstraint:
+            baseTableName: avl_report
+            baseColumnNames: feed_code
+            constraintName: fk_avl_report_feed
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            onDelete: CASCADE
+        - createIndex:
+            indexName: ix_avl_report_feed_vehicle_ts
+            tableName: avl_report
+            columns: [ { column: { name: feed_code } }, { column: { name: vehicle_id } }, { column: { name: ts, descending: true } } ]
+
+  - changeSet:
+      id: 0015-feed-code-keys-vehicle-match
+      author: transittrack
+      comment: >
+        vehicle_match.feed_id was never FK-constrained (it cascades transitively via
+        avl_report_id -> avl_report -> avl_feed), so no FK is added back here either — only the
+        column itself changes.
+      changes:
+        - addColumn:
+            tableName: vehicle_match
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update vehicle_match t set feed_code = f.code from avl_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: vehicle_match, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropIndex: { tableName: vehicle_match, indexName: ix_vehicle_match_feed_vehicle_ts }
+        - dropColumn: { tableName: vehicle_match, columnName: feed_id }
+        - createIndex:
+            indexName: ix_vehicle_match_feed_vehicle_ts
+            tableName: vehicle_match
+            columns: [ { column: { name: feed_code } }, { column: { name: vehicle_id } }, { column: { name: ts, descending: true } } ]
+
+  - changeSet:
+      id: 0015-feed-code-keys-vehicle-state
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: vehicle_state
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update vehicle_state t set feed_code = f.code from avl_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: vehicle_state, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropForeignKeyConstraint: { baseTableName: vehicle_state, constraintName: fk_vehicle_state_feed }
+        - dropUniqueConstraint: { tableName: vehicle_state, constraintName: uq_vehicle_state_feed_vehicle }
+        - dropIndex: { tableName: vehicle_state, indexName: ix_vehicle_state_feed_updated }
+        - dropColumn: { tableName: vehicle_state, columnName: feed_id }
+        - addForeignKeyConstraint:
+            baseTableName: vehicle_state
+            baseColumnNames: feed_code
+            constraintName: fk_vehicle_state_feed
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            onDelete: CASCADE
+        - addUniqueConstraint: { tableName: vehicle_state, columnNames: "feed_code, vehicle_id", constraintName: uq_vehicle_state_feed_vehicle }
+        - createIndex:
+            indexName: ix_vehicle_state_feed_updated
+            tableName: vehicle_state
+            columns: [ { column: { name: feed_code } }, { column: { name: updated_at } } ]
+
+  - changeSet:
+      id: 0015-feed-code-keys-vehicle-prediction
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: vehicle_prediction
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update vehicle_prediction t set feed_code = f.code from avl_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: vehicle_prediction, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropForeignKeyConstraint: { baseTableName: vehicle_prediction, constraintName: fk_vehicle_prediction_feed }
+        - dropUniqueConstraint: { tableName: vehicle_prediction, constraintName: uq_vehicle_prediction_key }
+        - dropIndex: { tableName: vehicle_prediction, indexName: ix_vehicle_prediction_vehicle }
+        - dropColumn: { tableName: vehicle_prediction, columnName: feed_id }
+        - addForeignKeyConstraint:
+            baseTableName: vehicle_prediction
+            baseColumnNames: feed_code
+            constraintName: fk_vehicle_prediction_feed
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: vehicle_prediction
+            columnNames: "feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm"
+            constraintName: uq_vehicle_prediction_key
+        - createIndex:
+            indexName: ix_vehicle_prediction_vehicle
+            tableName: vehicle_prediction
+            columns: [ { column: { name: feed_code } }, { column: { name: vehicle_id } }, { column: { name: trip_row_id } } ]
+
+  - changeSet:
+      id: 0015-feed-code-keys-prediction-accuracy
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: prediction_accuracy
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update prediction_accuracy t set feed_code = f.code from avl_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: prediction_accuracy, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropForeignKeyConstraint: { baseTableName: prediction_accuracy, constraintName: fk_prediction_accuracy_feed }
+        - dropIndex: { tableName: prediction_accuracy, indexName: ix_prediction_accuracy_feed_algo_created }
+        - dropColumn: { tableName: prediction_accuracy, columnName: feed_id }
+        - addForeignKeyConstraint:
+            baseTableName: prediction_accuracy
+            baseColumnNames: feed_code
+            constraintName: fk_prediction_accuracy_feed
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            onDelete: CASCADE
+        - createIndex:
+            indexName: ix_prediction_accuracy_feed_algo_created
+            tableName: prediction_accuracy
+            columns: [ { column: { name: feed_code } }, { column: { name: algorithm } }, { column: { name: created_at } } ]
+
+  - changeSet:
+      id: 0015-feed-code-keys-avl-stop-crossing
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: avl_stop_crossing
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update avl_stop_crossing t set feed_code = f.code from avl_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: avl_stop_crossing, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropForeignKeyConstraint: { baseTableName: avl_stop_crossing, constraintName: fk_avl_stop_crossing_feed }
+        - dropIndex: { tableName: avl_stop_crossing, indexName: ix_avl_stop_crossing_feed_observed }
+        - dropIndex: { tableName: avl_stop_crossing, indexName: ix_avl_stop_crossing_feed_revision_observed }
+        - dropColumn: { tableName: avl_stop_crossing, columnName: feed_id }
+        - addForeignKeyConstraint:
+            baseTableName: avl_stop_crossing
+            baseColumnNames: feed_code
+            constraintName: fk_avl_stop_crossing_feed
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            onDelete: CASCADE
+        - createIndex:
+            indexName: ix_avl_stop_crossing_feed_observed
+            tableName: avl_stop_crossing
+            columns: [ { column: { name: feed_code } }, { column: { name: observed_at } } ]
+        - createIndex:
+            indexName: ix_avl_stop_crossing_feed_revision_observed
+            tableName: avl_stop_crossing
+            columns: [ { column: { name: feed_code } }, { column: { name: revision_id } }, { column: { name: observed_at } } ]
+
+  - changeSet:
+      id: 0015-feed-code-keys-schedule-optimization-run
+      author: transittrack
+      comment: >
+        schedule_optimization_run.feed_id is gtfs_feed.id, not avl_feed.id — a run analyzes one
+        GTFS feed's frozen revision, unrelated to any AVL feed. No FK/index existed on this column
+        before (deliberate — see 0013's comment), so none is added now either.
+      changes:
+        - addColumn:
+            tableName: schedule_optimization_run
+            columns:
+              - column: { name: feed_code, type: VARCHAR(64) }
+        - sql:
+            sql: update schedule_optimization_run t set feed_code = f.code from gtfs_feed f where f.id = t.feed_id
+        - addNotNullConstraint: { tableName: schedule_optimization_run, columnName: feed_code, columnDataType: VARCHAR(64) }
+        - dropColumn: { tableName: schedule_optimization_run, columnName: feed_id }

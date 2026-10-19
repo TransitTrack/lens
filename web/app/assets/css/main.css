@@ -7,8 +7,9 @@
 }
 
 :root {
-  /* widen the app shell past Nuxt UI's 80rem default */
-  --ui-container: 90rem;
+  /* Every application surface uses the whole browser canvas. Individual
+     components keep their own readable padding rather than a global width cap. */
+  --ui-container: 100%;
   --map-popup-bg: #fff;
   --map-popup-text: #18181b;
   --map-popup-muted: #52525b;
@@ -34,6 +35,13 @@
   border: 1px solid var(--map-popup-border);
   border-radius: 0.75rem;
   box-shadow: 0 12px 28px rgb(0 0 0 / 24%);
+}
+
+/* The vehicle inspection card carries several operational fields. Its content
+ * scrolls within the map viewport instead of being squeezed into MapLibre's
+ * default 240px popup. */
+.maplibregl-popup.vehicle-operation-popup .maplibregl-popup-content {
+  max-height: min(42rem, calc(100vh - 3rem));
 }
 
 .maplibregl-popup-anchor-top .maplibregl-popup-tip,

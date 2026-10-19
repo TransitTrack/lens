@@ -5,7 +5,7 @@ import java.time.Instant
 /** Lean, JPA-free mirror of `eu.transittrack.avl.model.VehicleState`. */
 data class VehicleStateView(
     val id: Long?,
-    val feedId: Long,
+    val feedCode: String,
     val vehicleId: String,
     val vehicleLabel: String?,
     val reportTs: Instant,

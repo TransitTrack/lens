@@ -3,6 +3,7 @@ package eu.transittrack.gtfs.store
 import jakarta.persistence.EntityManagerFactory
 
 import org.hibernate.SessionFactory
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
@@ -22,6 +23,10 @@ class StatelessSessionRevisionWriter(
     emf: EntityManagerFactory,
     repositories: ObjectProvider<RevisionScopedRepository<*, *>>,
 ) : RevisionWriter {
+    companion object {
+        val logger = LoggerFactory.getLogger(StatelessSessionRevisionWriter::class.java)
+    }
+
     private val sessionFactory: SessionFactory = emf.unwrap(SessionFactory::class.java)
     private val repositoryMap: Map<Class<*>, RevisionScopedRepository<*, *>> =
         repositories.associateBy {
@@ -32,11 +37,19 @@ class StatelessSessionRevisionWriter(
     override fun write(rows: List<RevisionScoped>) {
         if (rows.isEmpty()) return
         val unmapped = ArrayList<RevisionScoped>()
-        for (row in rows) {
+        val groupsOfObjects = rows.groupBy { it.javaClass }
+
+        for ((type, items) in groupsOfObjects) {
             @Suppress("UNCHECKED_CAST")
-            val repo = repositoryMap[row.javaClass] as? RevisionScopedRepository<RevisionScoped, Any>
-            if (repo != null) repo.save(row) else unmapped += row
+            val repo = repositoryMap[type] as? RevisionScopedRepository<RevisionScoped, Any>
+            if (repo != null) {
+                repo.saveAll(items)
+            } else {
+                logger.error("Unable to save revision scope for type $type")
+                unmapped += items
+            }
         }
+
         // Entities whose repository is a plain JpaRepository (e.g. FeedInfo) never land
         // in repositoryMap; insert them directly rather than dropping them silently.
         if (unmapped.isNotEmpty()) {

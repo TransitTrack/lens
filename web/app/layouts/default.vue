@@ -55,6 +55,34 @@ watch(feedIsUnknown, (unknown) => {
 
 const searchOpen = ref(false)
 const route = useRoute()
+const currentTime = ref(new Date())
+const timeMounted = ref(false)
+let clockTimer: ReturnType<typeof setInterval> | undefined
+
+const formattedClock = computed(() => {
+  const date = currentTime.value
+  const twoDigits = (value: number) => String(value).padStart(2, '0')
+  return `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`
+})
+
+const formattedCalendarDate = computed(() => {
+  const date = currentTime.value
+  const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date)
+  const twoDigits = (value: number) => String(value).padStart(2, '0')
+  return `${weekday}, ${date.getFullYear()}.${twoDigits(date.getMonth() + 1)}.${twoDigits(date.getDate())}`
+})
+
+onMounted(() => {
+  timeMounted.value = true
+  currentTime.value = new Date()
+  clockTimer = setInterval(() => {
+    currentTime.value = new Date()
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  if (clockTimer) clearInterval(clockTimer)
+})
 
 /** current route is `to` or a page nested under it (e.g. a detail page) */
 function underPath(to: string): boolean {
@@ -215,6 +243,19 @@ const groups = computed(() => [
       />
 
       <template #right>
+        <time
+          v-if="timeMounted"
+          :datetime="currentTime.toISOString()"
+          class="hidden items-center gap-2 rounded-md bg-elevated px-3 py-1 shadow-sm lg:flex"
+          aria-label="Current local date and time"
+        >
+          <span class="text-xl font-bold tracking-tight tabular-nums text-highlighted">
+            {{ formattedClock }}
+          </span>
+          <span class="border-l border-default pl-2 text-xs font-medium text-muted">
+            {{ formattedCalendarDate }}
+          </span>
+        </time>
         <UButton
           color="neutral"
           variant="ghost"

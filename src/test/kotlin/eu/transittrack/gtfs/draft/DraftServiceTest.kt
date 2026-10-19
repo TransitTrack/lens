@@ -250,7 +250,7 @@ class DraftServiceTest(
 
         val reverted = drafts.revertToFork(draft.id!!, "nobody")
         assertThat(stops.findByRevisionId(reverted.id!!).size).isEqualTo(stops.findByRevisionId(activeRev).size)
-        assertThat(editRepo.countByRevisionId(reverted.id!!)).isEqualTo(0L)
+        assertThat(editRepo.countByRevision(reverted.id!!)).isEqualTo(0L)
         assertThat(reverted.derivationStale).isEqualTo(true)
     }
 

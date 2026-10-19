@@ -30,10 +30,8 @@ class TrustDescriptorMatcher(
         prev: VehicleStateView?,
         ctx: MatchContext,
     ): MatchOutcome {
-        val point = Point(report.lat, report.lon)
-
         // 1. Resolve the trip: descTripId first, else route + descriptor fields.
-        val (trip, geom) = resolveTrip(report, ctx, point) ?: return MatchOutcome.Failed
+        val (trip, geom) = resolveTrip(report, ctx, report.point) ?: return MatchOutcome.Failed
 
         // 2. service date + actual service seconds
         val serviceDate = inferServiceDate(report, trip, ctx.zone)
@@ -45,7 +43,7 @@ class TrustDescriptorMatcher(
         val stopHintAlong = stopHintAlongM(report, geom, trip.tripPatternId, ctx)
         var activeTrip = trip
         var activeGeom = geom
-        var sm = spatial.match(activeGeom, point, maxOfNullable(prevAlong, stopHintAlong))
+        var sm = spatial.match(activeGeom, report.point, maxOfNullable(prevAlong, stopHintAlong))
 
         // 4. block advance: prev is at/near the end of this trip AND report ts is past the trip end
         if (sm == null && prevAlong != null) {
@@ -62,7 +60,7 @@ class TrustDescriptorMatcher(
             if (advanced != null) {
                 activeTrip = advanced.first
                 activeGeom = advanced.second
-                sm = spatial.match(activeGeom, point, null)
+                sm = spatial.match(activeGeom, report.point, null)
             }
         }
         val match = sm ?: return MatchOutcome.Failed
@@ -113,7 +111,7 @@ class TrustDescriptorMatcher(
         // A present start time is authoritative: exactly one trip must carry it, otherwise the
         // descriptor is inconsistent with this revision and we defer to inference.
         report.descStartTimeSec?.let { start ->
-            val exact = candidates.filter { it.startTimeSec == start }
+            val exact = candidates.filter { it.startTimeSec != null && it.startTimeSec!! >= start }
             return when {
                 exact.size == 1 -> geometryOf(exact.single(), ctx)
                 exact.isEmpty() -> null

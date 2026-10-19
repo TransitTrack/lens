@@ -34,27 +34,27 @@ class AvlRetentionSchedulerTest(
 
         for ((id, age) in listOf(10L to 30L, 11L to 1L)) {
             jdbc.update(
-                "insert into avl_report (id, feed_id, vehicle_id, ts, lat, lon, match_status, created_at) " +
-                    "values (?, 1, 'v', ?, 44.0, 26.0, 0, ?)",
+                "insert into avl_report (id, feed_code, vehicle_id, ts, lat, lon, match_status, created_at) " +
+                    "values (?, 'a', 'v', ?, 44.0, 26.0, 0, ?)",
                 id, ago(age), ago(age),
             )
         }
 
         for ((id, age) in listOf(20L to 100L, 21L to 1L)) {
             jdbc.update(
-                "insert into vehicle_match (id, avl_report_id, feed_id, vehicle_id, ts, revision_id, " +
+                "insert into vehicle_match (id, avl_report_id, feed_code, vehicle_id, ts, revision_id, " +
                     "trip_row_id, stop_path_index, distance_along_trip_m, deviation_m, snapped_lat, " +
                     "snapped_lon, created_at) " +
-                    "values (?, 11, 1, 'v', ?, 1, 1, 0, 0.0, 0.0, 44.0, 26.0, ?)",
+                    "values (?, 11, 'a', 'v', ?, 1, 1, 0, 0.0, 0.0, 44.0, 26.0, ?)",
                 id, ago(age), ago(age),
             )
         }
 
         for ((id, age) in listOf(30L to 20L, 31L to 1L)) {
             jdbc.update(
-                "insert into vehicle_state (id, feed_id, vehicle_id, report_ts, lat, lon, matched, stale, " +
+                "insert into vehicle_state (id, feed_code, vehicle_id, report_ts, lat, lon, matched, stale, " +
                     "consecutive_failures, updated_at) " +
-                    "values (?, 1, ?, ?, 44.0, 26.0, false, false, 0, ?)",
+                    "values (?, 'a', ?, ?, 44.0, 26.0, false, false, 0, ?)",
                 id, "v$id", ago(age), ago(age),
             )
         }

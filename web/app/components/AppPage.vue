@@ -10,6 +10,11 @@ defineProps<{
    * can flex to fill it without scrolling the document.
    */
   fullBleed?: boolean
+  /**
+   * Lets a full-bleed workspace use the full application canvas instead of
+   * the reading-width content container. Useful for dispatch maps and grids.
+   */
+  fullWidth?: boolean
 }>()
 
 const slots = useSlots()
@@ -55,6 +60,7 @@ const hasHeader = computed(() => !!slots.actions || !!slots.leading)
       v-if="fullBleed"
       data-testid="app-page-bleed"
       class="flex min-h-0 flex-1 flex-col py-6"
+      :class="fullWidth && '!max-w-none !px-0 !py-0'"
     >
       <div class="flex min-h-0 flex-1 flex-col overflow-hidden border border-default">
         <slot />

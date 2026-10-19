@@ -201,7 +201,10 @@ class GtfsReadService(
         revisionId: String?,
     ): FeedInfoDto? {
         val rev = resolver.resolve(feedCode, revisionId)
-        return feedInfos.findByRevisionId(rev)?.let { FeedInfoDto.of(it, rev, feedCode) }
+        return feedInfos
+            .findByRevisionId(rev)
+            .firstOrNull()
+            ?.let { FeedInfoDto.of(it, rev, feedCode) }
     }
 
     fun pathways(

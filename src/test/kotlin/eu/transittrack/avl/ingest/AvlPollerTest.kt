@@ -20,6 +20,12 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.gtfs.feed.FeedSource
+import eu.transittrack.gtfs.feed.GtfsFeed
+import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.revision.GtfsRevision
+import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(
@@ -29,6 +35,8 @@ import eu.transittrack.support.PostgresPerMethodTest
 class AvlPollerTest(
     @Autowired val poller: AvlPoller,
     @Autowired val feeds: AvlFeedRepository,
+    @Autowired val gtfsFeeds: GtfsFeedRepository,
+    @Autowired val revisions: GtfsRevisionRepository,
     @Autowired @Qualifier("avlFeedLockCoordinator") val sharedCoordinator: FeedLockCoordinator,
     @Autowired val lockProvider: JdbcTemplateLockProvider,
 ) : PostgresPerMethodTest() {
@@ -59,32 +67,57 @@ class AvlPollerTest(
             source = AvlFeedSourceKind.CONFIG, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
         )
 
+    /** Gives GTFS feed "g" an active revision, so [AvlPoller.reconcile] considers an AVL feed
+     * pointed at it ready to poll — no need for the full ingestion pipeline here, just the two rows
+     * [eu.transittrack.avl.match.AvlMatchContextFactory.hasActiveRevision] actually checks. */
+    private fun activateGtfsFeed() {
+        val gtfsFeed =
+            gtfsFeeds.save(
+                GtfsFeed(
+                    code = "g", name = "G", description = null, url = "https://x.test/g.zip",
+                    pollingCron = null, enabled = true, autoActivate = true, source = FeedSource.CONFIG,
+                    createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+                ),
+            )
+        revisions.save(GtfsRevision(feedId = gtfsFeed.id!!, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "u"))
+    }
+
     @Test
-    fun `reconcile starts a task for an enabled feed`() {
+    fun `reconcile starts a task for an enabled feed with an active gtfs revision`() {
+        activateGtfsFeed()
         val saved = feeds.save(feed(enabled = true))
         poller.reconcile()
-        assertThat(poller.runningFeedIds()).contains(saved.id!!)
+        assertThat(poller.runningFeedIds()).contains(saved.code)
+    }
+
+    @Test
+    fun `reconcile does not start a task for a feed whose gtfs feed has no active revision`() {
+        val saved = feeds.save(feed(enabled = true))
+        poller.reconcile()
+        assertThat(poller.runningFeedIds()).doesNotContain(saved.code)
     }
 
     @Test
     fun `reconcile cancels the task when a feed is disabled`() {
+        activateGtfsFeed()
         val saved = feeds.save(feed(enabled = true))
         poller.reconcile()
-        assertThat(poller.runningFeedIds()).contains(saved.id!!)
+        assertThat(poller.runningFeedIds()).contains(saved.code)
 
         saved.enabled = false
         feeds.save(saved)
         poller.reconcile()
-        assertThat(poller.runningFeedIds()).doesNotContain(saved.id!!)
+        assertThat(poller.runningFeedIds()).doesNotContain(saved.code)
     }
 
     @Test
     fun `reconcile does not start a task for a feed already owned by another coordinator`() {
+        activateGtfsFeed()
         val saved = feeds.save(feed(enabled = true))
         val otherPod = FeedLockCoordinator(lockProvider, "avl-feed", Duration.ofMinutes(3), Duration.ofSeconds(50))
-        otherPod.reconcileOwnership(setOf(saved.id!!))
+        otherPod.reconcileOwnership(setOf(saved.code))
 
         poller.reconcile()
-        assertThat(poller.runningFeedIds()).doesNotContain(saved.id!!)
+        assertThat(poller.runningFeedIds()).doesNotContain(saved.code)
     }
 }

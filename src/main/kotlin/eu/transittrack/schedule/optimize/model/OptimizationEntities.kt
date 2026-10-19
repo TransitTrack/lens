@@ -26,17 +26,17 @@ enum class OptimizationRecommendationKind { STOP_TIME, TRIP_SHIFT }
 enum class OptimizationRecommendationStatus { PENDING, SELECTED, APPLIED, DISMISSED, UNAVAILABLE }
 
 /**
- * One asynchronous analysis request. `feedId`/`revisionId` freeze the feed's ACTIVE revision at
+ * One asynchronous analysis request. `feedCode`/`revisionId` freeze the feed's ACTIVE revision at
  * submission time — see [eu.transittrack.schedule.optimize.ScheduleOptimizationService]; a run is
  * never translated to a later revision even if one is activated while it is `QUEUED`/`RUNNING`.
- * Filter fields are the full normalized request inputs (all optional besides the feed/observed
- * window/minimum-sample count, enforced by
- * [eu.transittrack.schedule.optimize.OptimizationRunRequest]).
+ * `feedCode` is `gtfs_feed.code` — unrelated to any `avl_feed`. Filter fields are the full
+ * normalized request inputs (all optional besides the feed/observed window/minimum-sample count,
+ * enforced by [eu.transittrack.schedule.optimize.OptimizationRunRequest]).
  */
 @Entity
 @Table(name = "schedule_optimization_run")
 class OptimizationRunRow(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "revision_id", nullable = false) var revisionId: Long,
     @Column(name = "service_id") var serviceId: String? = null,
     @Column(name = "route_id") var routeId: String? = null,
@@ -64,11 +64,11 @@ interface OptimizationRunRepository : JpaRepository<OptimizationRunRow, Long> {
      * arbitrary `offset`/`limit` pair maps directly to `OFFSET`/`LIMIT`.
      */
     @Query(
-        value = "select * from schedule_optimization_run where feed_id = :feedId order by created_at desc offset :offset limit :limit",
+        value = "select * from schedule_optimization_run where feed_code = :feedCode order by created_at desc offset :offset limit :limit",
         nativeQuery = true,
     )
     fun page(
-        @Param("feedId") feedId: Long,
+        @Param("feedCode") feedCode: String,
         @Param("offset") offset: Int,
         @Param("limit") limit: Int,
     ): List<OptimizationRunRow>

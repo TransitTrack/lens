@@ -58,7 +58,7 @@ class TripShiftAnalyzerTest(
     private val json = JsonMapper.builder().build()
     private val analyzer = TripShiftAnalyzer(OptimizationProperties(), json)
 
-    private fun seedFeedAndRevision(code: String = "g"): Triple<Long, Long, Long> {
+    private fun seedFeedAndRevision(code: String = "g"): Triple<String, Long, String> {
         val feed =
             feeds.save(
                 GtfsFeed(code, "G", null, "http://x/z.zip", null, true, null, FeedSource.API, Instant.now(), Instant.now()),
@@ -73,7 +73,7 @@ class TripShiftAnalyzerTest(
                     enabled = true, headers = null, source = AvlFeedSourceKind.CONFIG, createdAt = Instant.now(), updatedAt = Instant.now(),
                 ),
             )
-        return Triple(feed.id!!, revision.id!!, avlFeed.id!!)
+        return Triple(feed.code, revision.id!!, avlFeed.code)
     }
 
     private fun pattern(
@@ -149,7 +149,7 @@ class TripShiftAnalyzerTest(
     }
 
     private fun crossing(
-        feedId: Long,
+        feedCode: String,
         tripRowId: Long,
         patternId: Long,
         revisionId: Long,
@@ -161,21 +161,21 @@ class TripShiftAnalyzerTest(
         tripStartSec: Int,
     ) = crossings.save(
         AvlStopCrossing(
-            feedId = feedId, vehicleId = "v1", tripRowId = tripRowId, tripPatternId = patternId,
+            feedCode = feedCode, vehicleId = "v1", tripRowId = tripRowId, tripPatternId = patternId,
             stopPathIndex = stopPathIndex, observedAt = observedAt, observedTravelTimeSec = observedTravelTimeSec,
             serviceId = serviceId, tripStartSec = tripStartSec, routeId = routeId, directionId = 0, revisionId = revisionId,
         ),
     )
 
     private fun baseRun(
-        feedId: Long,
+        feedCode: String,
         revisionId: Long,
         serviceId: String = "WK",
         routeId: String = "R1",
         minimumSamples: Int = 2,
     ) = runs.save(
         OptimizationRunRow(
-            feedId = feedId, revisionId = revisionId, serviceId = serviceId, routeId = routeId, directionId = 0,
+            feedCode = feedCode, revisionId = revisionId, serviceId = serviceId, routeId = routeId, directionId = 0,
             observedFrom = Instant.parse("2026-09-01T00:00:00Z"), observedTo = Instant.parse("2026-09-08T00:00:00Z"),
             minimumSamples = minimumSamples,
         ),
@@ -184,19 +184,19 @@ class TripShiftAnalyzerTest(
     private fun contextFor(
         run: OptimizationRunRow,
         eligibleTrips: List<Trip>,
-        avlFeedIds: List<Long>,
+        avlFeedCodes: List<String>,
         alreadyRecorded: List<OptimizationRecommendationRow> = emptyList(),
     ): OptimizationAnalysisContext {
         val ctx =
             OptimizationAnalysisContext(
                 run = run,
                 eligibleTrips = eligibleTrips,
-                avlFeedIdsSupplier = { avlFeedIds },
+                avlFeedCodesSupplier = { avlFeedCodes },
                 crossingsSupplier = {
                     val eligibleTripRowIds = eligibleTrips.mapNotNull { it.id }.toSet()
                     crossings
                         .findForAnalysis(
-                            avlFeedIds, run.revisionId, run.observedFrom, run.observedTo, run.serviceId, run.routeId,
+                            avlFeedCodes, run.revisionId, run.observedFrom, run.observedTo, run.serviceId, run.routeId,
                             run.directionId, run.windowFromSec, run.windowToSec,
                         ).filter { it.tripRowId in eligibleTripRowIds }
                 },
@@ -210,7 +210,7 @@ class TripShiftAnalyzerTest(
 
     @Test
     fun `proposes an order-preserving trip shift that reduces headway deviation among uneven gaps`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -222,17 +222,17 @@ class TripShiftAnalyzerTest(
         scheduleTimesFor(revisionId, t3.id!!, 1_700, segmentTravelSec = 200)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
         accuracies.save(
             PredictionAccuracy(
-                avlFeedId, "v1", t2.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE, at, at.plusSeconds(3),
+                avlFeedCode, "v1", t2.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE, at, at.plusSeconds(3),
                 errorSec = 3, absErrorSec = 3, createdAt = at,
             ),
         )
 
-        val run = baseRun(feedId, revisionId)
-        val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedId)))
+        val run = baseRun(feedCode, revisionId)
+        val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedCode)))
 
         assertThat(result).hasSize(1)
         val recommendation = result.single()
@@ -244,7 +244,7 @@ class TripShiftAnalyzerTest(
 
     @Test
     fun `rejects a trip shift that would cross an adjacent trip, storing nothing`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -256,18 +256,18 @@ class TripShiftAnalyzerTest(
         scheduleTimesFor(revisionId, t3.id!!, 3_900, segmentTravelSec = 200)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, -250.0, at, "WK", "R1", 3_700)
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, -240.0, at.plusSeconds(60), "WK", "R1", 3_700)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, -250.0, at, "WK", "R1", 3_700)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, -240.0, at.plusSeconds(60), "WK", "R1", 3_700)
 
-        val run = baseRun(feedId, revisionId)
-        val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedId)))
+        val run = baseRun(feedCode, revisionId)
+        val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedCode)))
 
         assertThat(result).isEmpty()
     }
 
     @Test
     fun `skips a trip already targeted by a stop-time recommendation recorded earlier in the run`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -279,10 +279,10 @@ class TripShiftAnalyzerTest(
         scheduleTimesFor(revisionId, t3.id!!, 1_700, segmentTravelSec = 200)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val fakeStopTimeRow =
             OptimizationRecommendationRow(
                 runId = run.id!!,
@@ -292,7 +292,7 @@ class TripShiftAnalyzerTest(
                 reason = "test",
                 proposedValue = json.writeValueAsString(mapOf("targets" to listOf(mapOf("tripId" to "T2")))),
             )
-        val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedId), alreadyRecorded = listOf(fakeStopTimeRow)))
+        val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedCode), alreadyRecorded = listOf(fakeStopTimeRow)))
 
         assertThat(result).isEmpty()
     }

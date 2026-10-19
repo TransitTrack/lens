@@ -14,7 +14,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRow
  * [OptimizationAnalysisPipeline] before any analyzer runs.
  *
  * [eligibleTrips] is eager because virtually every analyzer needs the schedule population and it
- * is already a single query. [avlFeedIds]/[crossings] are lazy — computed and cached on first
+ * is already a single query. [avlFeedCodes]/[crossings] are lazy — computed and cached on first
  * access — specifically because they are AVL-evidence-specific: an analyzer that never consumes
  * AVL crossings (e.g. a future structural analyzer) never pays their query cost. [scheduleFor] and
  * [stopSeqByIndex] memoize per key so multiple analyzers (or multiple partitions within one
@@ -23,13 +23,13 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 class OptimizationAnalysisContext internal constructor(
     val run: OptimizationRunRow,
     val eligibleTrips: List<Trip>,
-    avlFeedIdsSupplier: () -> List<Long>,
+    avlFeedCodesSupplier: () -> List<String>,
     crossingsSupplier: () -> List<AvlStopCrossing>,
     private val scheduleTimes: ScheduleTimeRepository,
     private val stopPaths: StopPathRepository,
     private val predictionAccuracy: PredictionAccuracyRepository,
 ) {
-    val avlFeedIds: List<Long> by lazy(avlFeedIdsSupplier)
+    val avlFeedCodes: List<String> by lazy(avlFeedCodesSupplier)
     val crossings: List<AvlStopCrossing> by lazy(crossingsSupplier)
 
     private val scheduleCache = mutableMapOf<Long, List<ScheduleTime>>()
@@ -51,7 +51,7 @@ class OptimizationAnalysisContext internal constructor(
         tripRowIds: List<Long>,
         stopPathIndex: Int,
     ): Map<String, Double?> {
-        val rows = predictionAccuracy.findForTargets(avlFeedIds, tripRowIds, stopPathIndex, run.observedFrom, run.observedTo)
+        val rows = predictionAccuracy.findForTargets(avlFeedCodes, tripRowIds, stopPathIndex, run.observedFrom, run.observedTo)
         val meanError = if (rows.isEmpty()) null else rows.map { it.errorSec }.average()
         val meanAbsError = if (rows.isEmpty()) null else rows.map { it.absErrorSec }.average()
         return linkedMapOf("predictionMeanErrorSec" to meanError, "predictionMeanAbsErrorSec" to meanAbsError)

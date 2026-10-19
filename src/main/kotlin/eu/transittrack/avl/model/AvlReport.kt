@@ -26,7 +26,7 @@ enum class MatchStatus { PENDING, MATCHED, UNMATCHED, SKIPPED }
 @Entity
 @Table(name = "avl_report")
 class AvlReportRow(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "vehicle_label") var vehicleLabel: String?,
     @Column(nullable = false) var ts: Instant,
@@ -61,7 +61,7 @@ interface VehicleTsProjection {
 }
 
 interface PendingAvlMetrics {
-    val feedId: Long
+    val feedCode: String
     val pendingCount: Long
     val oldestCreatedAt: Instant?
 }
@@ -69,41 +69,46 @@ interface PendingAvlMetrics {
 @Repository
 interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
     @Query(
-        "select r.feedId as feedId, count(r) as pendingCount, min(r.createdAt) as oldestCreatedAt " +
-            "from AvlReportRow r where r.matchStatus = 0 group by r.feedId",
+        "select r.feedCode as feedCode, count(r) as pendingCount, min(r.createdAt) as oldestCreatedAt " +
+            "from AvlReportRow r where r.matchStatus = 0 group by r.feedCode",
     )
     fun pendingMetricsByFeed(): List<PendingAvlMetrics>
 
-    @Query("select t from AvlReportRow t where t.matchStatus = 0 order by t.feedId, t.vehicleId, t.ts limit :limit")
+    @Query("select t from AvlReportRow t where t.matchStatus = 0 order by t.feedCode, t.vehicleId, t.ts limit :limit")
     fun findClaimBatch(
         @Param("limit") limit: Int,
     ): List<AvlReportRow>
 
     @Query(
-        "select t from AvlReportRow t where t.matchStatus = 0 and t.feedId = :feedId " +
+        "select t from AvlReportRow t where t.matchStatus = 0 and t.feedCode = :feedCode " +
             "order by t.vehicleId, t.ts limit :limit",
     )
     fun findClaimBatch(
-        @Param("feedId") feedId: Long,
+        @Param("feedCode") feedCode: String,
         @Param("limit") limit: Int,
     ): List<AvlReportRow>
 
     @Query(
         "select r.vehicleId as vehicleId, max(r.ts) as ts from AvlReportRow r " +
-            "where r.feedId = :feedId group by r.vehicleId",
+            "where r.feedCode = :feedCode group by r.vehicleId",
     )
-    fun latestTsByVehicle(feedId: Long): List<VehicleTsProjection>
+    fun latestTsByVehicle(feedCode: String): List<VehicleTsProjection>
 
-    fun findByFeedIdAndVehicleIdOrderByTsDesc(
-        feedId: Long,
-        vehicleId: String,
+    @Query("select t from AvlReportRow t where t.feedCode = :feedCode and t.vehicleId = :vehicleId order by t.ts desc")
+    fun findByVehicle(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
         pageable: org.springframework.data.domain.Pageable,
     ): List<AvlReportRow>
 
-    fun findByFeedIdAndVehicleIdAndTsGreaterThanEqualOrderByTsDesc(
-        feedId: Long,
-        vehicleId: String,
-        ts: Instant,
+    @Query(
+        "select t from AvlReportRow t where t.feedCode = :feedCode and t.vehicleId = :vehicleId " +
+            "and t.ts >= :ts order by t.ts desc",
+    )
+    fun findByVehicleSince(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
+        @Param("ts") ts: Instant,
         pageable: org.springframework.data.domain.Pageable,
     ): List<AvlReportRow>
 
@@ -112,11 +117,11 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
      * (see [eu.transittrack.avl.match.trendHeadingDeg]) without an N+1 per vehicle.
      */
     @Query(
-        "select t from AvlReportRow t where t.feedId = :feedId and t.vehicleId in :vehicleIds and t.ts >= :since " +
+        "select t from AvlReportRow t where t.feedCode = :feedCode and t.vehicleId in :vehicleIds and t.ts >= :since " +
             "order by t.vehicleId, t.ts desc",
     )
     fun findTrail(
-        @Param("feedId") feedId: Long,
+        @Param("feedCode") feedCode: String,
         @Param("vehicleIds") vehicleIds: Collection<String>,
         @Param("since") since: Instant,
     ): List<AvlReportRow>

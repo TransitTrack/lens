@@ -4,6 +4,7 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.math.abs
 
+import org.hibernate.StatelessSession
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
@@ -70,57 +71,65 @@ class PredictionService(
         val serviceDate = inferServiceDate(report.toView(), trip, ctx.zone)
         val now = Instant.now()
 
-        if (prev != null && prev.tripRowId == outcome.tripRowId) {
-            processCrossings(feed, report, prev, outcome, trip, ctx, now)
-        }
+        // Everything below writes through the same StatelessSession/transaction: a matched report
+        // can fan out into dozens of individual upserts (per horizon stop, per algorithm, plus
+        // crossings/learning), and committing each one separately made that commit's fsync the
+        // dominant cost of the whole prediction pipeline.
+        writer.inTransaction { session ->
+            if (prev != null && prev.tripRowId == outcome.tripRowId) {
+                processCrossings(session, feed, report, prev, outcome, trip, ctx, now)
+            }
 
-        val horizon = buildHorizon(outcome.tripRowId, outcome.tripPatternId, outcome.stopPathIndex, ctx)
-        val algorithmsToRun = feed.predictionAlgorithms.mapNotNull { strategies[it] }
-        for (strategy in algorithmsToRun) {
-            val startedAt = Instant.now()
-            runCatching {
-                val generated = strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec ?: 0, report.ts, ctx)
-                for (p in generated) {
-                    writer.upsertPrediction(
-                        VehiclePredictionUpsert(
-                            feedId = feed.id!!,
-                            vehicleId = report.vehicleId,
-                            tripRowId = p.tripRowId,
-                            blockPk = outcome.blockPk,
-                            tripPatternId = p.tripPatternId,
-                            stopPathIndex = p.stopPathIndex,
-                            algorithm = strategy.algorithm,
-                            predictedArrivalTs = p.predictedArrivalTs,
-                            predictedDepartureTs = p.predictedDepartureTs,
-                            actualArrivalTs = null,
-                            actualDepartureTs = null,
-                            confidenceSec = p.confidenceSec,
-                            computedAt = now,
-                        ),
+            val horizon = buildHorizon(outcome.tripRowId, outcome.tripPatternId, outcome.stopPathIndex, ctx)
+            val algorithmsToRun = feed.predictionAlgorithms.mapNotNull { strategies[it] }
+            for (strategy in algorithmsToRun) {
+                val startedAt = Instant.now()
+                runCatching {
+                    val generated = strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec ?: 0, report.ts, ctx)
+                    for (p in generated) {
+                        writer.upsertPrediction(
+                            session,
+                            VehiclePredictionUpsert(
+                                feedCode = feed.code,
+                                vehicleId = report.vehicleId,
+                                tripRowId = p.tripRowId,
+                                blockPk = outcome.blockPk,
+                                tripPatternId = p.tripPatternId,
+                                stopPathIndex = p.stopPathIndex,
+                                algorithm = strategy.algorithm,
+                                predictedArrivalTs = p.predictedArrivalTs,
+                                predictedDepartureTs = p.predictedDepartureTs,
+                                actualArrivalTs = null,
+                                actualDepartureTs = null,
+                                confidenceSec = p.confidenceSec,
+                                computedAt = now,
+                            ),
+                        )
+                    }
+                    generated.size
+                }.onSuccess { generated ->
+                    metrics.predictionRun(
+                        feed.code,
+                        strategy.algorithm.name.lowercase(),
+                        TransitTrackMetrics.Outcome.SUCCESS,
+                        Duration.between(startedAt, Instant.now()),
+                        generated,
                     )
-                }
-                generated.size
-            }.onSuccess { generated ->
-                metrics.predictionRun(
-                    feed.code,
-                    strategy.algorithm.name.lowercase(),
-                    TransitTrackMetrics.Outcome.SUCCESS,
-                    Duration.between(startedAt, Instant.now()),
-                    generated,
-                )
-            }.onFailure {
-                metrics.predictionRun(
-                    feed.code,
-                    strategy.algorithm.name.lowercase(),
-                    TransitTrackMetrics.Outcome.FAILED,
-                    Duration.between(startedAt, Instant.now()),
-                    0,
-                )
-            }.getOrThrow()
+                }.onFailure {
+                    metrics.predictionRun(
+                        feed.code,
+                        strategy.algorithm.name.lowercase(),
+                        TransitTrackMetrics.Outcome.FAILED,
+                        Duration.between(startedAt, Instant.now()),
+                        0,
+                    )
+                }.getOrThrow()
+            }
         }
     }
 
     private fun processCrossings(
+        session: StatelessSession,
         feed: AvlFeed,
         report: AvlReportRow,
         prev: PrevVehicleMatch,
@@ -151,14 +160,15 @@ class PredictionService(
                 .findByTripPatternOrdered(ctx.revisionId, outcome.tripPatternId)
                 .associate { it.stopPathIndex to it.travelTimeSec?.toDouble() }
         val existingPredictions =
-            predictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feed.id!!, report.vehicleId, outcome.tripRowId)
+            predictions.findByVehicleTrip(feed.code, report.vehicleId, outcome.tripRowId)
 
         for (crossing in crossings) {
             cursor = cursor.plusSeconds(crossing.observedTravelTimeSec.toLong())
-            learn(outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, stopPathSeedSec, now)
+            learn(session, outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, stopPathSeedSec, now)
             writer.insertCrossing(
+                session,
                 AvlStopCrossing(
-                    feedId = feed.id!!,
+                    feedCode = feed.code,
                     vehicleId = report.vehicleId,
                     tripRowId = outcome.tripRowId,
                     tripPatternId = outcome.tripPatternId,
@@ -173,11 +183,12 @@ class PredictionService(
                 ),
             )
             metrics.predictionLearningSamples(feed.code, 1)
-            fillActualAndScoreAccuracy(feed, existingPredictions, crossing.stopPathIndex, cursor, now, algorithmsToScore)
+            fillActualAndScoreAccuracy(session, feed, existingPredictions, crossing.stopPathIndex, cursor, now, algorithmsToScore)
         }
     }
 
     private fun learn(
+        session: StatelessSession,
         tripPatternId: Long,
         stopPathIndex: Int,
         sample: Double,
@@ -186,11 +197,11 @@ class PredictionService(
     ) {
         val seed = stopPathSeedSec[stopPathIndex] ?: sample
 
-        val prevObs = observations.findByTripPatternIdAndStopPathIndex(tripPatternId, stopPathIndex)
+        val prevObs = observations.findByPatternAndStop(tripPatternId, stopPathIndex)
         val newObs = updateRunningAverage(prevObs?.let { RunningAverageState(it.sampleCount, it.meanSec) }, seed, sample)
-        writer.upsertObservation(tripPatternId, stopPathIndex, newObs.sampleCount, newObs.meanSec, now)
+        writer.upsertObservation(session, tripPatternId, stopPathIndex, newObs.sampleCount, newObs.meanSec, now)
 
-        val prevKalman = kalmanStates.findByTripPatternIdAndStopPathIndex(tripPatternId, stopPathIndex)
+        val prevKalman = kalmanStates.findByPatternAndStop(tripPatternId, stopPathIndex)
         val newKalman =
             updateKalman(
                 prevKalman?.let { KalmanState(it.estimateSec, it.errorVariance, it.sampleCount) },
@@ -199,10 +210,19 @@ class PredictionService(
                 props.learn.kalmanMeasurementNoiseSec2,
                 sample,
             )
-        writer.upsertKalmanState(tripPatternId, stopPathIndex, newKalman.estimateSec, newKalman.errorVariance, newKalman.sampleCount, now)
+        writer.upsertKalmanState(
+            session,
+            tripPatternId,
+            stopPathIndex,
+            newKalman.estimateSec,
+            newKalman.errorVariance,
+            newKalman.sampleCount,
+            now,
+        )
     }
 
     private fun fillActualAndScoreAccuracy(
+        session: StatelessSession,
         feed: AvlFeed,
         existing: List<VehiclePrediction>,
         stopPathIndex: Int,
@@ -214,8 +234,9 @@ class PredictionService(
             val row = existing.firstOrNull { it.stopPathIndex == stopPathIndex && it.algorithm == algorithm } ?: continue
             val predictedTs = row.predictedArrivalTs ?: continue
             writer.upsertPrediction(
+                session,
                 VehiclePredictionUpsert(
-                    feedId = row.feedId,
+                    feedCode = row.feedCode,
                     vehicleId = row.vehicleId,
                     tripRowId = row.tripRowId,
                     blockPk = row.blockPk,
@@ -232,8 +253,9 @@ class PredictionService(
             )
             val errorSec = Duration.between(predictedTs, actualTs).seconds.toInt()
             writer.insertAccuracy(
+                session,
                 PredictionAccuracy(
-                    feedId = feed.id!!,
+                    feedCode = feed.code,
                     vehicleId = row.vehicleId,
                     tripRowId = row.tripRowId,
                     stopPathIndex = stopPathIndex,
@@ -253,7 +275,7 @@ class PredictionService(
 private fun AvlReportRow.toView() =
     AvlReportView(
         id = id!!,
-        feedId = feedId,
+        feedCode = feedCode,
         vehicleId = vehicleId,
         vehicleLabel = vehicleLabel,
         ts = ts,

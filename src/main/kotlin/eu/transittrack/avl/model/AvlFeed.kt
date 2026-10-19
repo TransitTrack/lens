@@ -15,6 +15,7 @@ import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 import eu.transittrack.AvlAssignmentMode
@@ -62,9 +63,12 @@ interface AvlFeedRepository : JpaRepository<AvlFeed, Long> {
 
     /**
      * Used by [eu.transittrack.schedule.optimize.OptimizationAnalysisPipeline] to translate an
-     * optimization run's `gtfs_feed` id into the `avl_feed` id(s) whose crossings/prediction-accuracy
-     * evidence belong to it — `avl_stop_crossing`/`prediction_accuracy` are keyed by `avl_feed.id`,
-     * not `gtfs_feed.id`.
+     * optimization run's `gtfs_feed` code into the `avl_feed` code(s) whose crossings/prediction-accuracy
+     * evidence belong to it — `avl_stop_crossing`/`prediction_accuracy` are keyed by `avl_feed.code`,
+     * not `gtfs_feed.code`.
      */
-    fun findByGtfsFeedCode(gtfsFeedCode: String): List<AvlFeed>
+    @Query("select f from AvlFeed f where f.gtfsFeedCode = :gtfsFeedCode")
+    fun findByGtfsFeedCode(
+        @Param("gtfsFeedCode") gtfsFeedCode: String,
+    ): List<AvlFeed>
 }

@@ -75,12 +75,11 @@ class AvlSilentVehicleSweeper(
         var unmatched = 0
         var staled = 0
         for (feed in feeds.findAllEnabled()) {
-            val feedId = feed.id!!
             val unmatchThresholdSec = maxOf(feed.pollIntervalSec * cfg.silentUnmatchCycles, cfg.silentUnmatchMinSec)
             val staleThresholdSec = maxOf(feed.pollIntervalSec * cfg.silentStaleCycles, cfg.silentUnmatchMinSec)
             // Unmatch first: a vehicle past this threshold skips the stale pass below (matched -> false).
-            unmatched += vehicleStates.unmatchSilent(feedId, unmatchThresholdSec, now)
-            staled += vehicleStates.staleSilent(feedId, staleThresholdSec, now)
+            unmatched += vehicleStates.unmatchSilent(feed.code, unmatchThresholdSec, now)
+            staled += vehicleStates.staleSilent(feed.code, staleThresholdSec, now)
         }
         return SweepCounts(staled = staled, unmatched = unmatched)
     }

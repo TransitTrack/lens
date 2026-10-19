@@ -27,7 +27,7 @@ enum class PredictionStatus { PENDING, DONE, FAILED }
 @Table(name = "vehicle_match")
 class VehicleMatch(
     @Column(name = "avl_report_id", nullable = false) var avlReportId: Long,
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(nullable = false) var ts: Instant,
     @Column(name = "revision_id", nullable = false) var revisionId: Long,
@@ -54,23 +54,28 @@ class VehicleMatch(
 )
 
 interface PendingPredictionMetrics {
-    val feedId: Long
+    val feedCode: String
     val pendingCount: Long
     val oldestCreatedAt: Instant?
 }
 
 @Repository
 interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
-    fun findByFeedIdAndVehicleIdOrderByTsDesc(
-        feedId: Long,
-        vehicleId: String,
+    @Query("select e from VehicleMatch e where e.feedCode = :feedCode and e.vehicleId = :vehicleId order by e.ts desc")
+    fun findByVehicle(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
         pageable: Pageable,
     ): List<VehicleMatch>
 
-    fun findByFeedIdAndVehicleIdAndTsGreaterThanEqualOrderByTsDesc(
-        feedId: Long,
-        vehicleId: String,
-        ts: Instant,
+    @Query(
+        "select e from VehicleMatch e where e.feedCode = :feedCode and e.vehicleId = :vehicleId " +
+            "and e.ts >= :ts order by e.ts desc",
+    )
+    fun findByVehicleSince(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
+        @Param("ts") ts: Instant,
         pageable: Pageable,
     ): List<VehicleMatch>
 
@@ -78,18 +83,28 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
      * when a claimed batch's oldest row for this vehicle isn't the vehicle's very first match. Relies
      * on [findClaimBatch] claiming PENDING rows oldest-first per vehicle: any earlier row for the same
      * vehicle was necessarily already processed in a prior batch, so this is never itself PENDING. */
-    fun findTopByFeedIdAndVehicleIdAndTsLessThanOrderByTsDesc(
-        feedId: Long,
-        vehicleId: String,
-        ts: Instant,
+    @Query(
+        "select e from VehicleMatch e where e.feedCode = :feedCode and e.vehicleId = :vehicleId " +
+            "and e.ts < :ts order by e.ts desc limit 1",
+    )
+    fun findPreviousForVehicle(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
+        @Param("ts") ts: Instant,
     ): VehicleMatch?
 
+    // Ordered by ts first (global FIFO), vehicleId only as a tiebreaker: ordering by vehicleId first
+    // sorts vehicle IDs as strings (e.g. "1002" < "547" lexicographically), so once a backlog exceeds
+    // `limit` rows, the same lexicographically-early vehicle IDs would win every single claim and
+    // starve the rest indefinitely. Sorting by ts first still preserves the oldest-first-per-vehicle
+    // guarantee the comment above relies on, since any older row for the same vehicle necessarily
+    // sorts before a newer one.
     @Query(
-        "select t from VehicleMatch t where t.predictionStatus = 0 and t.feedId = :feedId " +
-            "order by t.vehicleId, t.ts limit :limit",
+        "select t from VehicleMatch t where t.predictionStatus = 0 and t.feedCode = :feedCode " +
+            "order by t.ts, t.vehicleId limit :limit",
     )
     fun findClaimBatch(
-        @Param("feedId") feedId: Long,
+        @Param("feedCode") feedCode: String,
         @Param("limit") limit: Int,
     ): List<VehicleMatch>
 
@@ -103,8 +118,8 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
     )
 
     @Query(
-        "select r.feedId as feedId, count(r) as pendingCount, min(r.createdAt) as oldestCreatedAt " +
-            "from VehicleMatch r where r.predictionStatus = 0 group by r.feedId",
+        "select r.feedCode as feedCode, count(r) as pendingCount, min(r.createdAt) as oldestCreatedAt " +
+            "from VehicleMatch r where r.predictionStatus = 0 group by r.feedCode",
     )
     fun pendingPredictionMetricsByFeed(): List<PendingPredictionMetrics>
 }

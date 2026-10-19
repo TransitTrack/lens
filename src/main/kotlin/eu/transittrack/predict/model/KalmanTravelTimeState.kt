@@ -10,6 +10,8 @@ import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 @Entity
@@ -29,8 +31,9 @@ class KalmanTravelTimeState(
 
 @Repository
 interface KalmanTravelTimeStateRepository : JpaRepository<KalmanTravelTimeState, Long> {
-    fun findByTripPatternIdAndStopPathIndex(
-        tripPatternId: Long,
-        stopPathIndex: Int,
+    @Query("select e from KalmanTravelTimeState e where e.tripPatternId = :tripPatternId and e.stopPathIndex = :stopPathIndex")
+    fun findByPatternAndStop(
+        @Param("tripPatternId") tripPatternId: Long,
+        @Param("stopPathIndex") stopPathIndex: Int,
     ): KalmanTravelTimeState?
 }

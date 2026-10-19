@@ -37,12 +37,12 @@ class PredictionReadService(
         vehicleId: String,
     ): List<StopPredictionDto> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
-        val state = vehicleStates.findByFeedIdAndVehicleId(feed.id!!, vehicleId) ?: return emptyList()
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feed.code, vehicleId) ?: return emptyList()
         val tripRowId = state.tripRowId ?: return emptyList()
         val revisionId = state.revisionId ?: return emptyList()
         val tripPatternId = state.tripPatternId ?: return emptyList()
 
-        val rows = predictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feed.id!!, vehicleId, tripRowId)
+        val rows = predictions.findByVehicleTrip(feed.code, vehicleId, tripRowId)
         val schedule = scheduleTimes.findByTripOrdered(revisionId, tripRowId).associateBy { it.stopPathIndex }
         val stopPathsByIndex = stopPaths.findByTripPatternOrdered(revisionId, tripPatternId).associateBy { it.stopPathIndex }
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
@@ -87,7 +87,7 @@ class PredictionReadService(
         val resolvedAlgorithm = algorithm ?: feed.predictionAlgorithms.first()
         return matchingStopPaths.flatMap { sp ->
             predictions
-                .findByTripPatternIdAndStopPathIndexAndAlgorithm(sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm)
+                .findByPatternStopAlgorithm(sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm)
                 .filter { it.predictedArrivalTs != null && it.actualArrivalTs == null }
                 .map { r ->
                     val sched = scheduleTimes.findByTripOrdered(revisionId, r.tripRowId).firstOrNull { it.stopPathIndex == r.stopPathIndex }
@@ -130,7 +130,7 @@ class PredictionReadService(
         val since = Instant.now().minus(sinceDays.toLong(), ChronoUnit.DAYS)
         val algorithms = algorithm?.let { listOf(it) } ?: PredictionAlgorithm.entries.toList()
         return algorithms.mapNotNull { alg ->
-            val rows = accuracy.findByFeedIdAndAlgorithmAndCreatedAtAfter(feed.id!!, alg, since)
+            val rows = accuracy.findRecentByFeedAndAlgorithm(feed.code, alg, since)
             if (rows.isEmpty()) return@mapNotNull null
             PredictionAccuracySummaryDto(
                 algorithm = alg.name,

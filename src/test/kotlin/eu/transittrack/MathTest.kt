@@ -26,4 +26,12 @@ class MathTest {
     fun `haversine is zero for identical points`() {
         assertThat(haversineMeters(51.1, 17.0, 51.1, 17.0)).isZero()
     }
+
+    @Test
+    fun `bearing points due north, east, south and west`() {
+        assertThat(bearingDegrees(51.100, 17.000, 51.110, 17.000)).isCloseTo(0.0, 0.5)
+        assertThat(bearingDegrees(51.100, 17.000, 51.100, 17.010)).isCloseTo(90.0, 0.5)
+        assertThat(bearingDegrees(51.110, 17.000, 51.100, 17.000)).isCloseTo(180.0, 0.5)
+        assertThat(bearingDegrees(51.100, 17.010, 51.100, 17.000)).isCloseTo(270.0, 0.5)
+    }
 }

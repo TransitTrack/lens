@@ -117,7 +117,7 @@ class AvlGraphQlTest(
         ) {
             reports.save(
                 AvlReportRow(
-                    feedId = feedId, vehicleId = "bus-1", vehicleLabel = null, ts = at,
+                    feedCode = "a", vehicleId = "bus-1", vehicleLabel = null, ts = at,
                     lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
                     descTripId = null, descRouteId = null, descDirectionId = null,
                     descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
@@ -144,14 +144,14 @@ class AvlGraphQlTest(
 
     @BeforeEach
     fun refreshVehicleReport() {
-        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        val state = vehicleStates.findByFeedCodeAndVehicleId("a", "bus-1")!!
         state.reportTs = Instant.now().minusSeconds(60)
         vehicleStates.saveAndFlush(state)
     }
 
     @Test
     fun `vehicles with reports older than one hour are hidden even when recently processed`() {
-        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        val state = vehicleStates.findByFeedCodeAndVehicleId("a", "bus-1")!!
         state.reportTs = Instant.now().minusSeconds(3601)
         state.updatedAt = Instant.now()
         vehicleStates.saveAndFlush(state)

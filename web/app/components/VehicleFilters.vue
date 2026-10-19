@@ -43,7 +43,7 @@ function reset() {
       :model-value="model.query"
       icon="i-lucide-search"
       placeholder="Search vehicle, route, destination"
-      class="w-64 max-w-full"
+      class="w-full"
       @update:model-value="model = { ...model, query: $event }"
     />
     <USelectMenu
@@ -52,7 +52,7 @@ function reset() {
       value-key="value"
       placeholder="Route"
       icon="i-lucide-route"
-      class="w-44"
+      class="w-34"
       @update:model-value="model = { ...model, routeId: $event }"
     />
     <USelectMenu
@@ -67,10 +67,10 @@ function reset() {
     />
     <UButton
       v-if="dirty"
-      color="neutral"
-      variant="ghost"
+      color="error"
+      variant="solid"
+      size="sm"
       icon="i-lucide-x"
-      label="Clear"
       @click="reset"
     />
   </div>

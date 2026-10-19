@@ -82,7 +82,7 @@ class TrustDescriptorMatcherTest(
     ): AvlReportView =
         AvlReportView(
             id = 1L,
-            feedId = 1L,
+            feedCode = "f1",
             vehicleId = "v",
             vehicleLabel = null,
             ts = ts,

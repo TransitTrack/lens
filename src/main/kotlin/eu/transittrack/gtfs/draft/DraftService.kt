@@ -163,7 +163,7 @@ class DraftService(
         val lock = currentLock(d)
         if (lock != null && lock.editor != editor) throw LockNotHeldException(draftId)
         wipeRows(draftId)
-        edits.deleteByRevisionId(draftId)
+        edits.deleteForRevision(draftId)
         revisions.deleteById(draftId)
     }
 
@@ -178,7 +178,7 @@ class DraftService(
         if (lock != null && lock.editor != editor) throw LockNotHeldException(draftId)
         val base = d.baseRevisionId ?: error("draft $draftId has no base revision")
         wipeRows(draftId)
-        edits.deleteByRevisionId(draftId)
+        edits.deleteForRevision(draftId)
         // wipeRows commits on ScheduleWriter/RevisionWriter's own connections; the entity-field
         // updates below are in this JPA transaction. If the re-copy throws, that wipe still stands,
         // so persist an honest "empty draft, must re-revert" state (in a REQUIRES_NEW txn that

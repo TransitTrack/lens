@@ -2,7 +2,6 @@
 import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import FeedCoveredArea from '~/components/FeedCoveredArea.vue'
 import FeedFeatures from '~/components/FeedFeatures.vue'
 import FeedDatasetHistory from '~/components/FeedDatasetHistory.vue'
 import {useFeeds} from '~/composables/useFeeds'
@@ -229,13 +228,6 @@ async function saveFeed() {
       <!-- Body: wide-left / sidebar-right -->
       <div class="grid gap-4 lg:grid-cols-3">
         <div class="flex flex-col gap-4 lg:col-span-2">
-          <FeedCoveredArea
-            :feed-code="feed.code"
-            :extent="extent"
-            :routes="routes"
-            :full-map-to="feedPath('/explore/routes')"
-          />
-
           <div
             v-if="rev && rowCounts.length"
             class="flex flex-col gap-3 rounded-lg border border-default p-4"

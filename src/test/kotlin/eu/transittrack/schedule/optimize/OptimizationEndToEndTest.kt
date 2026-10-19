@@ -119,7 +119,7 @@ class OptimizationEndToEndTest(
         val at = Instant.parse("2026-09-02T08:00:00Z")
         crossings.save(
             AvlStopCrossing(
-                feedId = avlFeed.id!!, vehicleId = "v1", tripRowId = t1.id!!, tripPatternId = patternId,
+                feedCode = avlFeed.code, vehicleId = "v1", tripRowId = t1.id!!, tripPatternId = patternId,
                 stopPathIndex = segmentStopPathIndex, observedAt = at, observedTravelTimeSec = observedTravelTimeSec,
                 serviceId = t1.serviceId, tripStartSec = t1.startTimeSec!!, routeId = t1.routeId, directionId = t1.directionId ?: 0,
                 revisionId = base,
@@ -127,7 +127,7 @@ class OptimizationEndToEndTest(
         )
         crossings.save(
             AvlStopCrossing(
-                feedId = avlFeed.id!!, vehicleId = "v1", tripRowId = t1.id!!, tripPatternId = patternId,
+                feedCode = avlFeed.code, vehicleId = "v1", tripRowId = t1.id!!, tripPatternId = patternId,
                 stopPathIndex = segmentStopPathIndex, observedAt = at.plusSeconds(60), observedTravelTimeSec = observedTravelTimeSec,
                 serviceId = t1.serviceId, tripStartSec = t1.startTimeSec!!, routeId = t1.routeId, directionId = t1.directionId ?: 0,
                 revisionId = base,

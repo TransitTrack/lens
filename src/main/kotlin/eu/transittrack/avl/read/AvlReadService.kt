@@ -31,7 +31,7 @@ class AvlReadService(
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
-            .findByFeedIdOrderByUpdatedAtDesc(feed.id!!)
+            .findByFeedCodeOrderByUpdatedAtDesc(feed.code)
             .filter { it.reportTs.isAfter(cutoff) }
             .filter { !matchedOnly || it.matched }
             .map { VehicleDto.of(it, feed.gtfsFeedCode) }
@@ -44,7 +44,7 @@ class AvlReadService(
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
-            .findByFeedIdAndVehicleId(feed.id!!, vehicleId)
+            .findByFeedCodeAndVehicleId(feed.code, vehicleId)
             ?.takeIf { it.reportTs.isAfter(cutoff) }
             ?.let { VehicleDto.of(it, feed.gtfsFeedCode) }
     }
@@ -64,28 +64,28 @@ class AvlReadService(
         val sinceInstant = since?.let { Instant.parse(it) }
         val rows =
             if (sinceInstant != null) {
-                reports.findByFeedIdAndVehicleIdAndTsGreaterThanEqualOrderByTsDesc(
-                    feed.id!!,
+                reports.findByVehicleSince(
+                    feed.code,
                     vehicleId,
                     sinceInstant,
                     pageable,
                 )
             } else {
-                reports.findByFeedIdAndVehicleIdOrderByTsDesc(feed.id!!, vehicleId, pageable)
+                reports.findByVehicle(feed.code, vehicleId, pageable)
             }
         // One bulk fetch over the same window rather than resolving each report's match
         // individually — a report has at most one VehicleMatch (keyed by avl_report_id).
         val matchesByReportId =
             (
                 if (sinceInstant != null) {
-                    vehicleMatches.findByFeedIdAndVehicleIdAndTsGreaterThanEqualOrderByTsDesc(
-                        feed.id!!,
+                    vehicleMatches.findByVehicleSince(
+                        feed.code,
                         vehicleId,
                         sinceInstant,
                         pageable,
                     )
                 } else {
-                    vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feed.id!!, vehicleId, pageable)
+                    vehicleMatches.findByVehicle(feed.code, vehicleId, pageable)
                 }
             ).associateBy { it.avlReportId }
         return rows.map { r ->

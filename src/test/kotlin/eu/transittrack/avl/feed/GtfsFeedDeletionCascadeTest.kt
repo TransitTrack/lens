@@ -72,7 +72,7 @@ class GtfsFeedDeletionCascadeTest(
 
         vehicleStateRepo.save(
             VehicleState(
-                feedId = avlFeed.id!!,
+                feedCode = avlFeed.code,
                 vehicleId = "v1",
                 vehicleLabel = null,
                 reportTs = now,
@@ -101,6 +101,6 @@ class GtfsFeedDeletionCascadeTest(
 
         assertThat(revisionRepo.findById(revision.id!!).orElse(null)).isNull()
         assertThat(avlFeedRepo.findByCode("w")).isNull()
-        assertThat(vehicleStateRepo.findByFeedId(avlFeed.id!!)).isEmpty()
+        assertThat(vehicleStateRepo.findByFeedCode(avlFeed.code)).isEmpty()
     }
 }

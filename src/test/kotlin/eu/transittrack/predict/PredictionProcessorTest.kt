@@ -39,6 +39,7 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.PredictionStatus
+import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.concurrency.FeedLockCoordinator
@@ -163,19 +164,19 @@ class PredictionProcessorTest(
         vehicleId: String,
         p: Point,
         at: Instant,
-    ) {
-        reports.save(
-            AvlReportRow(
-                feedId = feedId, vehicleId = vehicleId, vehicleLabel = null, ts = at,
-                lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
-                descTripId = null, descRouteId = null, descDirectionId = null,
-                descStartDate = at.atZone(factory.open(feedRow())!!.zone).toLocalDate(), descStartTimeSec = null,
-                descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
-                currentStatus = null, occupancyStatus = null, congestionLevel = null,
-                matchStatus = MatchStatus.PENDING, matchedAt = null, createdAt = at,
-            ),
-        )
-    }
+    ): Long =
+        reports
+            .save(
+                AvlReportRow(
+                    feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
+                    lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
+                    descTripId = null, descRouteId = null, descDirectionId = null,
+                    descStartDate = at.atZone(factory.open(feedRow())!!.zone).toLocalDate(), descStartTimeSec = null,
+                    descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
+                    currentStatus = null, occupancyStatus = null, congestionLevel = null,
+                    matchStatus = MatchStatus.PENDING, matchedAt = null, createdAt = at,
+                ),
+            ).id!!
 
     @Test
     fun `processBatch drains every claimed row for a vehicle in one pass, threading prev across the batch`() {
@@ -192,26 +193,58 @@ class PredictionProcessorTest(
         // One AvlMatchProcessor pass matches all three reports, producing three PENDING vehicle_match rows.
         processor.processBatch()
 
-        val matchedBefore = vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())
+        val matchedBefore = vehicleMatches.findByVehicle(feedRow().code, "bus-1", Pageable.unpaged())
         assertThat(matchedBefore).hasSize(3)
         assertThat(matchedBefore.all { it.predictionStatus == PredictionStatus.PENDING }).isTrue()
 
         // One PredictionProcessor pass must claim and process the whole batch, not just the first row.
         predictionProcessor.processBatch()
 
-        val matchedAfter = vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())
+        val matchedAfter = vehicleMatches.findByVehicle(feedRow().code, "bus-1", Pageable.unpaged())
         assertThat(matchedAfter).hasSize(3)
         assertThat(matchedAfter.all { it.predictionStatus == PredictionStatus.DONE }).isTrue()
 
         // Crossing detection must have fired between consecutive claimed rows (not just against stale
         // prior state) — this is what a broken prev-threading loop in processFeed would fail to produce.
-        val observedCrossings = crossings.findAll().filter { it.feedId == feedId && it.tripPatternId == patternId }
+        val observedCrossings = crossings.findAll().filter { it.feedCode == feedRow().code && it.tripPatternId == patternId }
         assertThat(observedCrossings.size).isEqualTo(2)
 
         assertThat(travelTimeObservations.findAll().any { it.tripPatternId == patternId }).isTrue()
 
-        val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
+        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!)
         assertThat(preds.any { it.actualArrivalTs != null }).isTrue()
+    }
+
+    @Test
+    fun `findClaimBatch claims the globally oldest rows first, not grouped by vehicle id string order`() {
+        val (trip, _) = t1Geom()
+        val revisionId = factory.open(feedRow())!!.revisionId
+
+        // "1002" sorts before "547" lexicographically ('1' < '5'), even though its report is newer.
+        // A claim-batch ordered by vehicle id first would return "1002"'s row here; ordering by ts
+        // first must return "547"'s older row instead.
+        val newerReportId = insertReport("1002", Point(0.0, 0.0), ts(9, 0))
+        val olderReportId = insertReport("547", Point(0.0, 0.0), ts(8, 0))
+
+        fun insertVehicleMatch(
+            vehicleId: String,
+            at: Instant,
+            avlReportId: Long,
+        ) = vehicleMatches.save(
+            VehicleMatch(
+                avlReportId = avlReportId, feedCode = feedRow().code, vehicleId = vehicleId, ts = at,
+                revisionId = revisionId, tripRowId = trip.id!!, blockPk = null, tripPatternId = trip.tripPatternId,
+                stopPathIndex = 0, distanceAlongTripM = 0.0, deviationM = 0.0, scheduleAdherenceSec = null,
+                snappedLat = 0.0, snappedLon = 0.0, heading = null, score = null, createdAt = at,
+            ),
+        )
+
+        insertVehicleMatch("1002", ts(9, 0), newerReportId)
+        insertVehicleMatch("547", ts(8, 0), olderReportId)
+
+        val claimed = vehicleMatches.findClaimBatch(feedRow().code, 1)
+        assertThat(claimed).hasSize(1)
+        assertThat(claimed.first().vehicleId).isEqualTo("547")
     }
 
     @Test
@@ -220,13 +253,13 @@ class PredictionProcessorTest(
         // minimum even across an explicit release()/unlock(), which is correct ShedLock behavior
         // but would make this test's second assertion (release frees it) flaky/wrong.
         val otherPod = FeedLockCoordinator(lockProvider, "predictor-feed", Duration.ofMinutes(3), Duration.ZERO)
-        otherPod.reconcileOwnership(setOf(feedId))
+        otherPod.reconcileOwnership(setOf(feedRow().code))
 
         predictionProcessor.reconcile()
-        assertThat(predictionProcessor.runningFeedIds()).doesNotContain(feedId)
+        assertThat(predictionProcessor.runningFeedIds()).doesNotContain(feedRow().code)
 
-        otherPod.release(feedId)
+        otherPod.release(feedRow().code)
         predictionProcessor.reconcile()
-        assertThat(predictionProcessor.runningFeedIds()).contains(feedId)
+        assertThat(predictionProcessor.runningFeedIds()).contains(feedRow().code)
     }
 }

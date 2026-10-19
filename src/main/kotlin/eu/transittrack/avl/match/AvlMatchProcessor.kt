@@ -2,19 +2,12 @@ package eu.transittrack.avl.match
 
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ScheduledFuture
-import jakarta.annotation.PreDestroy
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
-import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.boot.context.event.ApplicationReadyEvent
-import org.springframework.context.event.EventListener
 import org.springframework.scheduling.annotation.Scheduled
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
@@ -29,9 +22,12 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.bearingDegrees
 import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.concurrency.FeedReconciler
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.haversineMeters
 import eu.transittrack.observability.TransitTrackMetrics
 
 /**
@@ -40,76 +36,42 @@ import eu.transittrack.observability.TransitTrackMetrics
  * upsert on success; a stale `vehicle_state` upsert on failure). Outcomes for a feed are flushed as a
  * single batch once all of its claimed reports are processed, followed by a summary log line.
  *
- * Mirrors [eu.transittrack.avl.ingest.AvlPoller]'s shape: one `scheduleWithFixedDelay` task per enabled
- * feed on a dedicated [ThreadPoolTaskScheduler], reconciled every 60s against [AvlFeedRepository], so a
- * slow or high-volume feed can never delay or starve another feed's claim/processing turn. [processBatch]
- * stays as a synchronous, deterministic entry point driving every enabled feed once — used by tests and
- * manual/ops triggers; it does not touch the scheduler.
+ * The task lifecycle (one `scheduleWithFixedDelay` task per enabled feed, reconciled every 30s, so a
+ * slow or high-volume feed can never delay or starve another feed's claim/processing turn) lives in
+ * [FeedReconciler]. [processBatch] stays as a synchronous, deterministic entry point driving every
+ * enabled feed once — used by tests and manual/ops triggers; it does not touch the scheduler.
  */
 @Component
 @ConditionalOnProperty("transittrack.avl.enabled", havingValue = "true")
 @ConditionalOnRole(Role.FEED_PROCESSOR)
 class AvlMatchProcessor(
     private val reports: AvlReportRowRepository,
-    private val feeds: AvlFeedRepository,
+    feeds: AvlFeedRepository,
     private val vehicleStates: VehicleStateRepository,
     private val contextFactory: AvlMatchContextFactory,
     matchers: List<VehicleMatcher>,
     private val writer: AvlWriter,
     private val metrics: TransitTrackMetrics,
     props: AvlProperties,
-    @Qualifier("avlFeedLockCoordinator") private val feedLocks: FeedLockCoordinator,
-    @Value("\${spring.threads.virtual.enabled:false}") private val useVirtualThreads: Boolean,
-) {
-    private val log = LoggerFactory.getLogger(javaClass)
+    @Qualifier("avlFeedLockCoordinator") feedLocks: FeedLockCoordinator,
+    @Value("\${spring.threads.virtual.enabled:false}") useVirtualThreads: Boolean,
+) : FeedReconciler(feeds, feedLocks, "avl-match-", useVirtualThreads) {
     private val cfg = props.match
     private val matchers: Map<AvlAssignmentMode, VehicleMatcher> = matchers.associateBy { it.mode }
 
-    private val scheduler =
-        ThreadPoolTaskScheduler().apply {
-            poolSize = 4
-            setVirtualThreads(useVirtualThreads)
-            setThreadNamePrefix("avl-match-")
-            initialize()
-        }
-    private val tasks = ConcurrentHashMap<Long, ScheduledFuture<*>>()
+    override fun intervalFor(feed: AvlFeed): Duration = Duration.ofMillis(cfg.matchIntervalMs)
 
-    @EventListener(ApplicationReadyEvent::class)
-    fun start() = reconcile()
+    override fun isEligible(feed: AvlFeed): Boolean = contextFactory.hasActiveRevision(feed)
 
-    @Scheduled(fixedDelay = 30_000)
+    override fun run(feedCode: String) {
+        runCatching { processFeed(feedCode) }
+            .onFailure { log.warn("avl match for feed '{}' failed", feedCode, it) }
+    }
+
+    @Scheduled(fixedDelay = 60_000)
     // See AvlPoller.reconcile for why lockAtLeastFor is ~zero rather than a nonzero minimum.
     @SchedulerLock(name = "avl-match-processor-reconcile-lock", lockAtMostFor = "PT30M", lockAtLeastFor = "PT0S")
-    fun reconcile() {
-        val enabled = feeds.findAllEnabled().mapNotNull { it.id }.toSet()
-        val owned = feedLocks.reconcileOwnership(enabled)
-        tasks.keys
-            .filter { it !in owned }
-            .forEach { id -> tasks.remove(id)?.cancel(false) }
-        for (id in owned) {
-            if (!tasks.containsKey(id)) {
-                tasks[id] =
-                    scheduler.scheduleWithFixedDelay(
-                        { runFeed(id) },
-                        Duration.ofMillis(cfg.matchIntervalMs),
-                    )
-            }
-        }
-    }
-
-    private fun runFeed(feedId: Long) {
-        runCatching { processFeed(feedId) }
-            .onFailure { log.warn("avl match for feed '{}' failed", feedId, it) }
-    }
-
-    /** test hook */
-    fun runningFeedIds(): Set<Long> = tasks.keys.toSet()
-
-    @PreDestroy
-    fun shutdown() {
-        tasks.keys.toList().forEach { feedLocks.release(it) }
-        scheduler.shutdown()
-    }
+    override fun reconcile() = reconcileTasks()
 
     /**
      * Processes every currently-enabled feed once, synchronously, and returns the total number of
@@ -119,12 +81,12 @@ class AvlMatchProcessor(
     fun processBatch(): Int =
         feeds
             .findAllEnabled()
-            .sumOf { processFeed(it.id!!) }
+            .sumOf { processFeed(it.code) }
 
     /** Claims and processes one feed's own PENDING batch. Returns the number of reports processed. */
-    private fun processFeed(feedId: Long): Int {
+    private fun processFeed(feedCode: String): Int {
         val startedAt = Instant.now()
-        val feed = feeds.findById(feedId).orElse(null) ?: return 0
+        val feed = feeds.findByCode(feedCode) ?: return 0
 
         log.info("processing matches for feed '{}'", feed.code)
 
@@ -137,24 +99,35 @@ class AvlMatchProcessor(
             return processed
         }
 
-        val batch = reports.findClaimBatch(feedId, cfg.claimBatchSize)
+        val batch = reports.findClaimBatch(feed.code, cfg.claimBatchSize)
         if (batch.isEmpty()) return finish(0, "no batch found")
         val ctx = contextFactory.open(feed) ?: return finish(0, "failed to open context") // leave rows PENDING when no active revision
         val matcher = matchers[feed.assignmentMode] ?: return finish(0, "no matchers found for assignment mode")
 
         val vehiclesForFeed = batch.groupBy { it.vehicleId }
-        val vehiclesPreviousStates = vehicleStates.findByFeedId(feedId).associateBy { it.vehicleId }
+        val vehiclesPreviousStates = vehicleStates.findByFeedCode(feed.code).associateBy { it.vehicleId }
         val stats = BatchProcessingStats(feed)
         var processed = 0
 
         for ((vehicleId, vehicleReports) in vehiclesForFeed) {
             val prev = vehiclesPreviousStates[vehicleId]
+            var cursorLat = prev?.lat
+            var cursorLon = prev?.lon
+            var cursorTs = prev?.reportTs
 
             // oldest-first so the sequential constraint sees a vehicle's reports in order
             vehicleReports
                 .sortedBy { it.ts }
                 .forEach { report ->
-                    val reportStartedAt = Instant.now()
+                    // Many GTFS-RT feeds omit bearing/speed; derive them from the vehicle's last
+                    // known position when the feed itself doesn't report them. The cursor walks the
+                    // batch's own reports (not just `prev`) so a multi-report batch derives each
+                    // report's kinematics from its immediate predecessor, not a stale starting point.
+                    report.fillMissingKinematics(cursorLat, cursorLon, cursorTs)
+                    cursorLat = report.lat
+                    cursorLon = report.lon
+                    cursorTs = report.ts
+
                     val match = matcher.match(report.toView(), prev?.toView(), ctx)
 
                     stats.accumulate(report, match, prev, ctx)
@@ -167,7 +140,7 @@ class AvlMatchProcessor(
                             MatchOutcome.Failed -> TransitTrackMetrics.MatchMetricOutcome.FAILED
                             MatchOutcome.Skipped -> TransitTrackMetrics.MatchMetricOutcome.SKIPPED
                         },
-                        Duration.between(reportStartedAt, Instant.now()),
+                        Duration.between(report.createdAt, Instant.now()),
                         deviationM = (match as? MatchOutcome.Matched)?.deviationM,
                         score = (match as? MatchOutcome.Matched)?.score,
                     )
@@ -201,7 +174,7 @@ class AvlMatchProcessor(
                     matches.add(
                         VehicleMatch(
                             avlReportId = report.id!!,
-                            feedId = feed.id!!,
+                            feedCode = feed.code,
                             vehicleId = report.vehicleId,
                             ts = report.ts,
                             revisionId = outcome.revisionId,
@@ -221,7 +194,7 @@ class AvlMatchProcessor(
                     )
                     stateUpserts.add(
                         VehicleStateUpsert(
-                            feedId = feed.id!!,
+                            feedCode = feed.code,
                             vehicleId = report.vehicleId,
                             vehicleLabel = report.vehicleLabel,
                             reportTs = report.ts,
@@ -253,7 +226,7 @@ class AvlMatchProcessor(
                     val cleared = failures >= cfg.unmatchAfterFailures
                     stateUpserts.add(
                         VehicleStateUpsert(
-                            feedId = feed.id!!,
+                            feedCode = feed.code,
                             vehicleId = report.vehicleId,
                             vehicleLabel = report.vehicleLabel,
                             reportTs = report.ts,
@@ -315,10 +288,28 @@ class AvlMatchProcessor(
     }
 }
 
+/**
+ * Fills [AvlReportRow.bearing]/[AvlReportRow.speedMps] from the vehicle's last known position when
+ * the feed itself didn't report them, instead of leaving the matcher/vehicle-state without a heading
+ * or speed signal. `prevTs`/`ts` equal or out of order (e.g. a duplicate/backdated report) is left
+ * alone rather than dividing by a non-positive elapsed time.
+ */
+private fun AvlReportRow.fillMissingKinematics(
+    prevLat: Double?,
+    prevLon: Double?,
+    prevTs: Instant?,
+) {
+    if (prevLat == null || prevLon == null || prevTs == null) return
+    val elapsedSec = Duration.between(prevTs, ts).seconds
+    if (elapsedSec <= 0) return
+    if (bearing == null) bearing = bearingDegrees(prevLat, prevLon, lat, lon)
+    if (speedMps == null) speedMps = haversineMeters(prevLat, prevLon, lat, lon) / elapsedSec
+}
+
 private fun AvlReportRow.toView() =
     AvlReportView(
         id = id!!,
-        feedId = feedId,
+        feedCode = feedCode,
         vehicleId = vehicleId,
         vehicleLabel = vehicleLabel,
         ts = ts,
@@ -343,7 +334,7 @@ private fun AvlReportRow.toView() =
 private fun VehicleState.toView() =
     VehicleStateView(
         id = id,
-        feedId = feedId,
+        feedCode = feedCode,
         vehicleId = vehicleId,
         vehicleLabel = vehicleLabel,
         reportTs = reportTs,

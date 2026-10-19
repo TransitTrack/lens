@@ -12,7 +12,11 @@ query Vehicles($feedCode: String!, $matchedOnly: Boolean) {
     stale
     scheduleAdherenceSec
     stopPathIndex
+    distanceAlongTripM
     speedMps
+    pattern {
+      lengthM
+    }
     trip {
       routeId
       tripHeadsign

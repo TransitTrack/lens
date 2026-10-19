@@ -12,6 +12,10 @@ import assertk.assertions.hasSize
 import assertk.assertions.isCloseTo
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isGreaterThan
+import assertk.assertions.isGreaterThanOrEqualTo
+import assertk.assertions.isLessThan
+import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
@@ -142,7 +146,7 @@ class AvlMatchProcessorTest(
     ) {
         reports.save(
             AvlReportRow(
-                feedId = feedId, vehicleId = vehicleId, vehicleLabel = null, ts = at,
+                feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
                 lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
                 descTripId = null, descRouteId = null, descDirectionId = null,
                 descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
@@ -170,13 +174,32 @@ class AvlMatchProcessorTest(
 
         // vehicle_state is upserted once per report in the same oldest-first order, so it ends up
         // reflecting the last (newest) one processed.
-        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-1")!!
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-1")!!
         assertThat(state.matched).isTrue()
         assertThat(state.consecutiveFailures).isEqualTo(0)
         assertThat(state.tripRowId).isEqualTo(trip.id)
         assertThat(state.distanceAlongTripM!!).isCloseTo(0.60 * len, 0.1 * len)
 
-        assertThat(vehicleMatches.findByFeedIdAndVehicleIdOrderByTsDesc(feedId, "bus-1", Pageable.unpaged())).hasSize(2)
+        assertThat(vehicleMatches.findByVehicle(feedRow().code, "bus-1", Pageable.unpaged())).hasSize(2)
+    }
+
+    @Test
+    fun `missing bearing and speed are derived from the vehicle's previous position`() {
+        val (_, geom) = t1Geom()
+        val len = geom.line.lengthM
+
+        // insertReport always leaves bearing/speedMps null, as a real feed that omits them would.
+        insertReport("bus-4", geom.line.pointAt(0.25 * len), ts(8, 10))
+        insertReport("bus-4", geom.line.pointAt(0.60 * len), ts(8, 12))
+
+        processor.processBatch()
+
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-4")!!
+        assertThat(state.bearing).isNotNull()
+        assertThat(state.bearing!!).isGreaterThanOrEqualTo(0.0)
+        assertThat(state.bearing!!).isLessThan(360.0)
+        assertThat(state.speedMps).isNotNull()
+        assertThat(state.speedMps!!).isGreaterThan(0.0)
     }
 
     @Test
@@ -196,7 +219,7 @@ class AvlMatchProcessorTest(
         assertThat(reports.findAll().map { it.matchStatus }.toSet())
             .isEqualTo(setOf(MatchStatus.UNMATCHED))
 
-        val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-2")!!
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-2")!!
         // a vehicle that never had a trip assignment stays unmatched from the first failure
         assertThat(state.matched).isFalse()
         assertThat(state.stale).isTrue()
@@ -213,13 +236,13 @@ class AvlMatchProcessorTest(
 
         insertReport("bus-3", geom.line.pointAt(0.3 * len), ts(8, 0))
         processor.processBatch()
-        assertThat(vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-3")!!.matched).isTrue()
+        assertThat(vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-3")!!.matched).isTrue()
 
         // unmatchAfterFailures = 5: cycles 1..4 retain the trip (stale), cycle 5 drops it
         for (cycle in 1..5) {
             insertReport("bus-3", garbage, ts(8, cycle * 2))
             processor.processBatch()
-            val state = vehicleStates.findByFeedIdAndVehicleId(feedId, "bus-3")!!
+            val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-3")!!
             assertThat(state.stale).isTrue()
             assertThat(state.consecutiveFailures).isEqualTo(cycle)
             if (cycle < 5) {
@@ -238,13 +261,13 @@ class AvlMatchProcessorTest(
         // minimum even across an explicit release()/unlock(), which is correct ShedLock behavior
         // but would make this test's second assertion (release frees it) flaky/wrong.
         val otherPod = FeedLockCoordinator(lockProvider, "avl-feed", Duration.ofMinutes(3), Duration.ZERO)
-        otherPod.reconcileOwnership(setOf(feedId))
+        otherPod.reconcileOwnership(setOf(feedRow().code))
 
         processor.reconcile()
-        assertThat(processor.runningFeedIds()).doesNotContain(feedId)
+        assertThat(processor.runningFeedIds()).doesNotContain(feedRow().code)
 
-        otherPod.release(feedId)
+        otherPod.release(feedRow().code)
         processor.reconcile()
-        assertThat(processor.runningFeedIds()).contains(feedId)
+        assertThat(processor.runningFeedIds()).contains(feedRow().code)
     }
 }

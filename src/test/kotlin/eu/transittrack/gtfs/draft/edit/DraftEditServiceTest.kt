@@ -179,7 +179,7 @@ class DraftEditServiceTest(
 
         assertThat(rC.edit!!.seq).isEqualTo(2)
         assertThat(rC.canRedo).isEqualTo(false)
-        val journal = edits.findByRevisionIdOrderBySeqAsc(draft.id!!)
+        val journal = edits.findByRevision(draft.id!!)
         assertThat(journal.map { it.seq to it.undone }).isEqualTo(listOf(1 to false, 2 to false))
 
         // undo walks back C then A (past where B was)

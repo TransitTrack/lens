@@ -300,7 +300,7 @@ class IngestionService(
         entities: List<GtfsEntity>,
         def: GtfsFileDef,
     ): Long {
-        log.info("Loading CSV ${def.entityType} from file ${def.fileName}")
+        log.info("Loading SHAPES ${def.entityType} from file ${def.fileName}")
         val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         val perShape = LinkedHashMap<String, MutableList<ShapePoint>>()
         var total = 0L

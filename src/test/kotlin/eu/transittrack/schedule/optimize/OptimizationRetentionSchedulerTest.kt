@@ -18,9 +18,9 @@ import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Drives [OptimizationRetentionScheduler.prune] directly (like [eu.transittrack.predict.PredictionRetentionSchedulerTest])
- * against a real Postgres schema: `schedule_optimization_run.feed_id`/`revision_id` carry no FK
+ * against a real Postgres schema: `schedule_optimization_run.feed_code`/`revision_id` carry no FK
  * constraint (see migration `0007-optimization-runs.yaml`), so rows can be seeded with arbitrary
- * ids without a real feed/revision.
+ * codes/ids without a real feed/revision.
  */
 @PostgresSliceTest
 class OptimizationRetentionSchedulerTest(
@@ -37,8 +37,8 @@ class OptimizationRetentionSchedulerTest(
         // cascade-delete with it.
         jdbc.update(
             "insert into schedule_optimization_run " +
-                "(id, feed_id, revision_id, observed_from, observed_to, minimum_samples, state, created_at) " +
-                "values (1, 1, 1, ?, ?, 1, 'SUCCEEDED', ?)",
+                "(id, feed_code, revision_id, observed_from, observed_to, minimum_samples, state, created_at) " +
+                "values (1, 'f1', 1, ?, ?, 1, 'SUCCEEDED', ?)",
             Timestamp.from(now.minus(100, ChronoUnit.DAYS)),
             Timestamp.from(now.minus(93, ChronoUnit.DAYS)),
             Timestamp.from(now.minus(100, ChronoUnit.DAYS)),
@@ -51,8 +51,8 @@ class OptimizationRetentionSchedulerTest(
         // Fresh run, retained, with its own recommendation, also retained.
         jdbc.update(
             "insert into schedule_optimization_run " +
-                "(id, feed_id, revision_id, observed_from, observed_to, minimum_samples, state, created_at) " +
-                "values (2, 1, 1, ?, ?, 1, 'SUCCEEDED', ?)",
+                "(id, feed_code, revision_id, observed_from, observed_to, minimum_samples, state, created_at) " +
+                "values (2, 'f1', 1, ?, ?, 1, 'SUCCEEDED', ?)",
             Timestamp.from(now.minus(2, ChronoUnit.DAYS)),
             Timestamp.from(now.minus(1, ChronoUnit.DAYS)),
             Timestamp.from(now.minus(2, ChronoUnit.DAYS)),

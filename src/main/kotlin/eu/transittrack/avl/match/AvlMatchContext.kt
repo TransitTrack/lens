@@ -156,6 +156,14 @@ class AvlMatchContextFactory(
         return openForRevision(revisionId)
     }
 
+    /** Whether `feed.gtfsFeedCode` currently has an active revision, without building a full
+     * context — used to gate scheduling (e.g. [eu.transittrack.avl.ingest.AvlPoller]) for a feed
+     * whose GTFS data isn't ready yet. */
+    fun hasActiveRevision(feed: AvlFeed): Boolean {
+        val gtfsFeed = feeds.findByCode(feed.gtfsFeedCode) ?: return false
+        return revisionService.activeRevisionId(gtfsFeed.id!!) != null
+    }
+
     /** Opens a context bound to a specific, already-known revision — e.g. re-opening the revision a
      * persisted `vehicle_match` row was made under, which may no longer be the feed's active one. */
     fun openForRevision(revisionId: Long): AvlMatchContext {

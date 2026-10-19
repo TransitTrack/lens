@@ -20,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional
 @Entity
 @Table(name = "vehicle_state")
 class VehicleState(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "vehicle_label") var vehicleLabel: String?,
     @Column(name = "report_ts", nullable = false) var reportTs: Instant,
@@ -50,20 +50,20 @@ class VehicleState(
 
 @Repository
 interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
-    @Query("from VehicleState where feedId = :feedId and vehicleId = :vehicleId order by updatedAt desc")
-    fun findByFeedIdAndVehicleId(
-        feedId: Long,
+    @Query("from VehicleState where feedCode = :feedCode and vehicleId = :vehicleId order by updatedAt desc")
+    fun findByFeedCodeAndVehicleId(
+        feedCode: String,
         vehicleId: String,
     ): VehicleState?
 
-    @Query("from VehicleState where feedId = :feedId order by updatedAt desc")
-    fun findByFeedIdOrderByUpdatedAtDesc(feedId: Long): List<VehicleState>
+    @Query("from VehicleState where feedCode = :feedCode order by updatedAt desc")
+    fun findByFeedCodeOrderByUpdatedAtDesc(feedCode: String): List<VehicleState>
 
-    @Query("from VehicleState where feedId = :feedId")
-    fun findByFeedId(feedId: Long): List<VehicleState>
+    @Query("from VehicleState where feedCode = :feedCode")
+    fun findByFeedCode(feedCode: String): List<VehicleState>
 
     /**
-     * Drops the trip/block assignment and flips `matched -> false` for [feedId]'s vehicles silent
+     * Drops the trip/block assignment and flips `matched -> false` for [feedCode]'s vehicles silent
      * past [thresholdSec] as of [asOf]. Used by [eu.transittrack.avl.match.AvlSilentVehicleSweeper],
      * once per feed with [thresholdSec] precomputed in application code — a correlated subquery on
      * [AvlFeed] here would otherwise be re-evaluated for every [VehicleState] row on every sweep tick.
@@ -77,32 +77,32 @@ interface VehicleStateRepository : JpaRepository<VehicleState, Long> {
           vs.revisionId = null, vs.tripRowId = null, vs.blockPk = null, vs.tripPatternId = null,
           vs.stopPathIndex = null, vs.distanceAlongTripM = null, vs.scheduleAdherenceSec = null,
           vs.snappedLat = null, vs.snappedLon = null
-        where vs.feedId = :feedId and vs.tripRowId is not null
+        where vs.feedCode = :feedCode and vs.tripRowId is not null
           and timestampdiff(second,
-                (select max(r.ts) from AvlReportRow r where r.feedId = vs.feedId and r.vehicleId = vs.vehicleId),
+                (select max(r.ts) from AvlReportRow r where r.feedCode = vs.feedCode and r.vehicleId = vs.vehicleId),
                 :asOf) > :thresholdSec
         """,
     )
     fun unmatchSilent(
-        feedId: Long,
+        feedCode: String,
         thresholdSec: Int,
         asOf: Instant,
     ): Int
 
-    /** Flags [feedId]'s still-matched vehicles `stale = true` once they've been silent past [thresholdSec]. */
+    /** Flags [feedCode]'s still-matched vehicles `stale = true` once they've been silent past [thresholdSec]. */
     @Modifying(clearAutomatically = true)
     @Transactional
     @Query(
         """
         update VehicleState vs set vs.stale = true
-        where vs.feedId = :feedId and vs.matched = true and vs.stale = false
+        where vs.feedCode = :feedCode and vs.matched = true and vs.stale = false
           and timestampdiff(second,
-                (select max(r.ts) from AvlReportRow r where r.feedId = vs.feedId and r.vehicleId = vs.vehicleId),
+                (select max(r.ts) from AvlReportRow r where r.feedCode = vs.feedCode and r.vehicleId = vs.vehicleId),
                 :asOf) > :thresholdSec
         """,
     )
     fun staleSilent(
-        feedId: Long,
+        feedCode: String,
         thresholdSec: Int,
         asOf: Instant,
     ): Int

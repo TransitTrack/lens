@@ -78,11 +78,12 @@ object GtfsFileRegistry {
 
     val defs: List<GtfsFileDef> =
         listOf(
+            csv("feed_info.txt", "gtfs_feed_info", false, 0, ::mapFeedInfo),
+            csv("calendar.txt", "gtfs_calendar", false, 1, ::mapCalendar),
+            csv("calendar_dates.txt", "gtfs_calendar_date", false, 2, ::mapCalendarDate),
             csv("agency.txt", "gtfs_agency", true, 10, ::mapAgency),
             csv("levels.txt", "gtfs_level", false, 15, ::mapLevel),
             csv("stops.txt", "gtfs_stop", true, 20, ::mapStop),
-            csv("calendar.txt", "gtfs_calendar", false, 25, ::mapCalendar),
-            csv("calendar_dates.txt", "gtfs_calendar_date", false, 26, ::mapCalendarDate),
             csv("routes.txt", "gtfs_route", true, 30, ::mapRoute),
             csv("networks.txt", "gtfs_network", false, 31, ::mapNetwork),
             csv("route_networks.txt", "gtfs_route_network", false, 32, ::mapRouteNetwork),
@@ -125,7 +126,6 @@ object GtfsFileRegistry {
             ),
             geojson("locations.geojson", "gtfs_location", false, 73, ::mapGeojson),
             csv("booking_rules.txt", "gtfs_booking_rule", false, 74, ::mapBookingRule),
-            csv("feed_info.txt", "gtfs_feed_info", false, 80, ::mapFeedInfo),
             csv("translations.txt", "gtfs_translation", false, 85, ::mapTranslation),
             csv("attributions.txt", "gtfs_attribution", false, 86, ::mapAttribution),
         )

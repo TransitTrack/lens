@@ -39,9 +39,9 @@ class AvlMetricsGaugeRefresher(
     @SchedulerLock(name = "metrics-gauge-avl-queue", lockAtMostFor = "PT2M", lockAtLeastFor = "PT20S")
     fun refreshAvlQueue() {
         runCatching {
-            val pending = reports.pendingMetricsByFeed().associateBy { it.feedId }
+            val pending = reports.pendingMetricsByFeed().associateBy { it.feedCode }
             feeds.findAllEnabled().forEach { feed ->
-                val stats = pending[feed.id!!]
+                val stats = pending[feed.code]
                 metrics.avlQueue(feed.code, stats?.pendingCount ?: 0, stats?.oldestCreatedAt)
             }
         }.onFailure { log.debug("failed to refresh AVL queue metrics", it) }
@@ -52,9 +52,9 @@ class AvlMetricsGaugeRefresher(
     fun refreshPredictionQueue() {
         if (!predictProps.enabled) return
         runCatching {
-            val pending = vehicleMatches.pendingPredictionMetricsByFeed().associateBy { it.feedId }
+            val pending = vehicleMatches.pendingPredictionMetricsByFeed().associateBy { it.feedCode }
             feeds.findAllEnabled().forEach { feed ->
-                val stats = pending[feed.id!!]
+                val stats = pending[feed.code]
                 metrics.predictionQueue(feed.code, stats?.pendingCount ?: 0, stats?.oldestCreatedAt)
             }
         }.onFailure { log.debug("failed to refresh prediction queue metrics", it) }

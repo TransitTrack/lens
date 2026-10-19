@@ -64,9 +64,9 @@ class DraftEditRepositoryTest(
         edit(rev.id!!, 1)
         edit(rev.id!!, 2)
         edit(rev.id!!, 3, undone = true)
-        assertThat(repo.findTopByRevisionIdAndUndoneFalseOrderBySeqDesc(rev.id!!)!!.seq).isEqualTo(2)
-        assertThat(repo.findTopByRevisionIdAndUndoneTrueOrderBySeqAsc(rev.id!!)!!.seq).isEqualTo(3)
-        assertThat(repo.deleteByRevisionIdAndUndoneTrue(rev.id!!)).isEqualTo(1)
-        assertThat(repo.findByRevisionIdOrderBySeqAsc(rev.id!!)).hasSize(2)
+        assertThat(repo.findLastApplied(rev.id!!)!!.seq).isEqualTo(2)
+        assertThat(repo.findNextRedo(rev.id!!)!!.seq).isEqualTo(3)
+        assertThat(repo.deleteUndone(rev.id!!)).isEqualTo(1)
+        assertThat(repo.findByRevision(rev.id!!)).hasSize(2)
     }
 }

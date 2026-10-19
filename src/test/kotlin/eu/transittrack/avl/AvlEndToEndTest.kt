@@ -180,11 +180,11 @@ class AvlEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p25, svcTs(1).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         assertThat(
-            reports.findByFeedIdAndVehicleIdOrderByTsDesc(feedRow.id!!, "bus-1", PageRequest.of(0, 2)).size,
+            reports.findByVehicle(feedRow.code, "bus-1", PageRequest.of(0, 2)).size,
         ).isEqualTo(1)
 
         assertThat(processor.processBatch()).isEqualTo(1)
-        val s1 = vehicleStates.findByFeedIdAndVehicleId(feedRow.id!!, "bus-1")!!
+        val s1 = vehicleStates.findByFeedCodeAndVehicleId(feedRow.code, "bus-1")!!
         assertThat(s1.matched).isTrue()
         assertThat(s1.tripRowId).isEqualTo(trip.id)
         assertThat(s1.distanceAlongTripM!!).isCloseTo(0.25 * len, 0.1 * len)
@@ -193,7 +193,7 @@ class AvlEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p60, svcTs(9).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
-        val s2 = vehicleStates.findByFeedIdAndVehicleId(feedRow.id!!, "bus-1")!!
+        val s2 = vehicleStates.findByFeedCodeAndVehicleId(feedRow.code, "bus-1")!!
         assertThat(s2.matched).isTrue()
         assertThat(s2.distanceAlongTripM!!).isGreaterThan(s1.distanceAlongTripM!!)
         assertThat(s2.consecutiveFailures).isEqualTo(0)
@@ -202,7 +202,7 @@ class AvlEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(far, svcTs(15).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
-        val s3 = vehicleStates.findByFeedIdAndVehicleId(feedRow.id!!, "bus-1")!!
+        val s3 = vehicleStates.findByFeedCodeAndVehicleId(feedRow.code, "bus-1")!!
         assertThat(s3.matched).isFalse()
         assertThat(s3.stale).isTrue()
         assertThat(s3.consecutiveFailures).isEqualTo(1)

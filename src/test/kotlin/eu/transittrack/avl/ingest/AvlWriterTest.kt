@@ -27,7 +27,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 /**
  * [AvlWriter] commits through its own [org.hibernate.StatelessSession] transaction, so this test must
  * NOT run inside the default rollback transaction — otherwise the seeded `avl_feed` row (parent of the
- * mandated `avl_report.feed_id` FK) would be invisible to the stateless session's connection. Hence
+ * mandated `avl_report.feed_code` FK) would be invisible to the stateless session's connection. Hence
  * `NOT_SUPPORTED` + explicit cleanup in `@AfterEach`.
  */
 @PostgresSliceTest
@@ -40,6 +40,7 @@ class AvlWriterTest(
     @Autowired val feeds: AvlFeedRepository,
 ) : PostgresPerMethodTest() {
     private var feedId = 0L
+    private val feedCode = "f1"
 
     @BeforeEach
     fun seed() {
@@ -47,7 +48,7 @@ class AvlWriterTest(
             feeds
                 .save(
                     AvlFeed(
-                        code = "f1", name = "F1", gtfsFeedCode = "g", url = "http://x",
+                        code = feedCode, name = "F1", gtfsFeedCode = "g", url = "http://x",
                         format = AvlFormat.GTFS_RT, pollIntervalSec = 30,
                         assignmentMode = AvlAssignmentMode.TRUST_DESCRIPTOR, enabled = true,
                         headers = null, source = AvlFeedSourceKind.CONFIG,
@@ -65,7 +66,7 @@ class AvlWriterTest(
 
     private fun report(v: String) =
         AvlReportRow(
-            feedId = feedId, vehicleId = v, vehicleLabel = null, ts = Instant.parse("2026-09-04T10:00:00Z"),
+            feedCode = feedCode, vehicleId = v, vehicleLabel = null, ts = Instant.parse("2026-09-04T10:00:00Z"),
             lat = 44.0, lon = 26.0, bearing = null, speedMps = null, odometerM = null, descTripId = null,
             descRouteId = null, descDirectionId = null, descStartDate = null, descStartTimeSec = null,
             descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
@@ -75,7 +76,7 @@ class AvlWriterTest(
 
     private fun upsert(matched: Boolean) =
         VehicleStateUpsert(
-            feedId = feedId, vehicleId = "v", vehicleLabel = null, reportTs = Instant.parse("2026-09-04T10:00:00Z"),
+            feedCode = feedCode, vehicleId = "v", vehicleLabel = null, reportTs = Instant.parse("2026-09-04T10:00:00Z"),
             lat = 44.0, lon = 26.0, bearing = null, speedMps = null, occupancyStatus = null,
             matched = matched, stale = !matched, consecutiveFailures = if (matched) 0 else 1,
             revisionId = null, tripRowId = null, blockPk = null, tripPatternId = null, stopPathIndex = null,
@@ -93,7 +94,7 @@ class AvlWriterTest(
     fun `upsert replaces the single state row`() {
         writer.upsertState(upsert(matched = false))
         writer.upsertState(upsert(matched = true))
-        assertThat(states.findByFeedIdOrderByUpdatedAtDesc(feedId).size).isEqualTo(1)
-        assertThat(states.findByFeedIdAndVehicleId(feedId, "v")!!.matched).isEqualTo(true)
+        assertThat(states.findByFeedCodeOrderByUpdatedAtDesc(feedCode).size).isEqualTo(1)
+        assertThat(states.findByFeedCodeAndVehicleId(feedCode, "v")!!.matched).isEqualTo(true)
     }
 }

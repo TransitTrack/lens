@@ -103,7 +103,7 @@ class ScheduleOptimizationService(
         val run =
             runs.save(
                 OptimizationRunRow(
-                    feedId = feed.id!!,
+                    feedCode = feed.code,
                     revisionId = revision.id!!,
                     serviceId = request.serviceId,
                     routeId = request.routeId,
@@ -128,7 +128,7 @@ class ScheduleOptimizationService(
         offset: Int,
     ): List<OptimizationRunRow> {
         val feed = feeds.findByCode(feedCode) ?: throw IllegalArgumentException("no feed '$feedCode'")
-        return runs.page(feed.id!!, offset, limit)
+        return runs.page(feed.code, offset, limit)
     }
 
     /** Stable `(run_id, status, id)` pagination; `status` null returns every status. */
@@ -198,12 +198,12 @@ class ScheduleOptimizationService(
 
         val revision = revisions.findById(run.revisionId).orElse(null)
         checkNotNull(revision) { "run $runId's frozen revision ${run.revisionId} no longer exists" }
-        check(revision.feedId == run.feedId) { "run $runId's frozen revision no longer belongs to its feed" }
+        val feed = feeds.findByCode(run.feedCode) ?: throw IllegalStateException("feed ${run.feedCode} no longer exists")
+        check(revision.feedId == feed.id) { "run $runId's frozen revision no longer belongs to its feed" }
         check(revision.status == GtfsRevisionStatus.ACTIVE) {
             "run $runId's frozen revision ${run.revisionId} is no longer the active revision " +
                 "(status ${revision.status}); a newer import has superseded it"
         }
-        val feed = feeds.findById(run.feedId).orElseThrow { IllegalStateException("feed ${run.feedId} no longer exists") }
 
         val groupedTargets = expandTargets(selected)
         val conflicting =

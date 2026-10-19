@@ -29,7 +29,7 @@ class OptimizationEntitiesPersistenceTest(
     private fun newRun(revisionId: Long = 11) =
         runs.save(
             OptimizationRunRow(
-                feedId = 7,
+                feedCode = "feed-7",
                 revisionId = revisionId,
                 serviceId = "weekday",
                 routeId = "R1",

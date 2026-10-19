@@ -4,7 +4,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.model.AvlFeedRepository
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.observability.TransitTrackMetrics
@@ -26,7 +25,6 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRow
  */
 @Component
 class OptimizationAnalysisPipeline(
-    private val gtfsFeeds: GtfsFeedRepository,
     private val avlFeeds: AvlFeedRepository,
     private val trips: TripRepository,
     private val scheduleTimes: ScheduleTimeRepository,
@@ -59,8 +57,8 @@ class OptimizationAnalysisPipeline(
             OptimizationAnalysisContext(
                 run = run,
                 eligibleTrips = eligibleTrips,
-                avlFeedIdsSupplier = { avlFeedIdsFor(run.feedId) },
-                crossingsSupplier = { loadCrossings(run, eligibleTrips, context.avlFeedIds) },
+                avlFeedCodesSupplier = { avlFeedCodesFor(run.feedCode) },
+                crossingsSupplier = { loadCrossings(run, eligibleTrips, context.avlFeedCodes) },
                 scheduleTimes = scheduleTimes,
                 stopPaths = stopPaths,
                 predictionAccuracy = predictionAccuracy,
@@ -86,21 +84,18 @@ class OptimizationAnalysisPipeline(
         return context.recommendationsSoFar
     }
 
-    private fun avlFeedIdsFor(gtfsFeedId: Long): List<Long> {
-        val code = gtfsFeeds.findById(gtfsFeedId).orElse(null)?.code ?: return emptyList()
-        return avlFeeds.findByGtfsFeedCode(code).mapNotNull { it.id }
-    }
+    private fun avlFeedCodesFor(gtfsFeedCode: String): List<String> = avlFeeds.findByGtfsFeedCode(gtfsFeedCode).map { it.code }
 
     private fun loadCrossings(
         run: OptimizationRunRow,
         eligibleTrips: List<Trip>,
-        avlFeedIds: List<Long>,
+        avlFeedCodes: List<String>,
     ): List<AvlStopCrossing> {
-        if (avlFeedIds.isEmpty()) return emptyList()
+        if (avlFeedCodes.isEmpty()) return emptyList()
         val eligibleTripRowIds = eligibleTrips.mapNotNull { it.id }.toSet()
         return crossings
             .findForAnalysis(
-                avlFeedIds,
+                avlFeedCodes,
                 run.revisionId,
                 run.observedFrom,
                 run.observedTo,

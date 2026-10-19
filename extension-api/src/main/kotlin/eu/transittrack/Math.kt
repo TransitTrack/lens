@@ -24,6 +24,21 @@ fun haversineMeters(
     return r * 2 * atan2(sqrt(a), sqrt(1 - a))
 }
 
+/** Initial forward azimuth from point 1 to point 2, in compass degrees `[0, 360)` (0 = north). */
+fun bearingDegrees(
+    lat1: Double,
+    lon1: Double,
+    lat2: Double,
+    lon2: Double,
+): Double {
+    val phi1 = toRadians(lat1)
+    val phi2 = toRadians(lat2)
+    val dLon = toRadians(lon2 - lon1)
+    val y = sin(dLon) * cos(phi2)
+    val x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dLon)
+    return (toDegrees(atan2(y, x)) + 360.0) % 360.0
+}
+
 fun median(values: List<Int>): Int? {
     if (values.isEmpty()) {
         return null

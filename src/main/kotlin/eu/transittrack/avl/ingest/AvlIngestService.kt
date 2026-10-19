@@ -80,9 +80,9 @@ class AvlIngestService(
             )
         }
 
-        val latest = reports.latestTsByVehicle(feed.id!!).associate { it.vehicleId to it.ts }
+        val latest = reports.latestTsByVehicle(feed.code).associate { it.vehicleId to it.ts }
         val fresh = current.filter { latest[it.vehicleId]?.isBefore(it.ts) ?: true }
-        writer.insertReports(fresh.map { toRow(feed.id!!, it) })
+        writer.insertReports(fresh.map { toRow(feed.code, it) })
         pollRecorder.recordPoll(feed.id!!, status = "OK", count = fresh.size)
         metrics.avlReports(feed.code, feed.format.name.lowercase(), decoded.size, fresh.size, stale.size)
         metrics
@@ -98,10 +98,10 @@ class AvlIngestService(
     private fun AvlFeed.toDescriptor() = FeedDescriptor(code, name, url, format, headers)
 
     private fun toRow(
-        feedId: Long,
+        feedCode: String,
         r: AvlReport,
     ) = AvlReportRow(
-        feedId = feedId,
+        feedCode = feedCode,
         vehicleId = r.vehicleId,
         vehicleLabel = r.vehicleLabel,
         ts = r.ts,

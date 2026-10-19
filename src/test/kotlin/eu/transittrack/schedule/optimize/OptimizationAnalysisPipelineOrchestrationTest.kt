@@ -10,7 +10,6 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 import eu.transittrack.avl.model.AvlFeedRepository
-import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.observability.TransitTrackMetrics
@@ -44,7 +43,7 @@ class OptimizationAnalysisPipelineOrchestrationTest {
 
     private fun run() =
         OptimizationRunRow(
-            feedId = 1, revisionId = 1, observedFrom = java.time.Instant.EPOCH,
+            feedCode = "f1", revisionId = 1, observedFrom = java.time.Instant.EPOCH,
             observedTo = java.time.Instant.EPOCH
                 .plusSeconds(1),
             minimumSamples = 1, id = 42,
@@ -55,7 +54,6 @@ class OptimizationAnalysisPipelineOrchestrationTest {
         trips: TripRepository,
         metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
     ) = OptimizationAnalysisPipeline(
-        gtfsFeeds = mock<GtfsFeedRepository>(),
         avlFeeds = mock<AvlFeedRepository>(),
         trips = trips,
         scheduleTimes = mock<ScheduleTimeRepository>(),

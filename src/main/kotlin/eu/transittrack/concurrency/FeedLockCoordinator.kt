@@ -9,12 +9,16 @@ import net.javacrumbs.shedlock.core.LockProvider
 import net.javacrumbs.shedlock.core.SimpleLock
 
 /**
- * Grants continuous, distributed ownership of feed ids to whichever caller's [reconcileOwnership]
+ * Grants continuous, distributed ownership of feed codes to whichever caller's [reconcileOwnership]
  * wins the race for a given feed's ShedLock lock. Meant for components that run a persistent
  * per-feed background loop (poll/match/predict), where two owners running the same feed at once
  * would corrupt shared, non-atomically-claimed state (see the design doc's Problem section).
  *
- * Call [reconcileOwnership] once per reconcile tick with the full candidate feed id set; it
+ * Keyed by `avl_feed.code` rather than its numeric id: the code is the stable, human-meaningful feed
+ * identity (what shows up in config/logs/ShedLock rows), whereas the id is an incidental surrogate
+ * key that only matters inside this database.
+ *
+ * Call [reconcileOwnership] once per reconcile tick with the full candidate feed code set; it
  * extends locks already held, attempts to acquire locks for newly-candidate feeds, and releases
  * locks for feeds no longer in the candidate set. A held lock that can't be extended (e.g. it
  * expired and another instance claimed it first) is dropped from ownership.
@@ -25,32 +29,32 @@ class FeedLockCoordinator(
     private val lockAtMostFor: Duration,
     private val lockAtLeastFor: Duration,
 ) {
-    private val held = ConcurrentHashMap<Long, SimpleLock>()
+    private val held = ConcurrentHashMap<String, SimpleLock>()
 
     @Synchronized
-    fun reconcileOwnership(candidateFeedIds: Set<Long>): Set<Long> {
-        held.keys.filter { it !in candidateFeedIds }.forEach { release(it) }
+    fun reconcileOwnership(candidateFeedCodes: Set<String>): Set<String> {
+        held.keys.filter { it !in candidateFeedCodes }.forEach { release(it) }
 
-        for (feedId in candidateFeedIds) {
-            val current = held[feedId]
+        for (feedCode in candidateFeedCodes) {
+            val current = held[feedCode]
             if (current != null) {
                 val extended = current.extend(lockAtMostFor, lockAtLeastFor)
                 if (extended.isPresent) {
-                    held[feedId] = extended.get()
+                    held[feedCode] = extended.get()
                 } else {
-                    held.remove(feedId)
+                    held.remove(feedCode)
                 }
             } else {
-                val config = LockConfiguration(Instant.now(), lockName(feedId), lockAtMostFor, lockAtLeastFor)
-                lockProvider.lock(config).ifPresent { held[feedId] = it }
+                val config = LockConfiguration(Instant.now(), lockName(feedCode), lockAtMostFor, lockAtLeastFor)
+                lockProvider.lock(config).ifPresent { held[feedCode] = it }
             }
         }
         return held.keys.toSet()
     }
 
     @Synchronized
-    fun release(feedId: Long) {
-        held.remove(feedId)?.unlock()
+    fun release(feedCode: String) {
+        held.remove(feedCode)?.unlock()
     }
 
     @Synchronized
@@ -58,5 +62,5 @@ class FeedLockCoordinator(
         held.keys.toList().forEach { release(it) }
     }
 
-    private fun lockName(feedId: Long) = "$lockGroup:$feedId"
+    private fun lockName(feedCode: String) = "$lockGroup:$feedCode"
 }

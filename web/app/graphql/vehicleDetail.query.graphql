@@ -27,6 +27,9 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
     }
     block {
       blockId
+      serviceId
+      startTimeSec
+      endTimeSec
       blockTrips {
         listIndex
         trip {
@@ -40,6 +43,8 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
       tripHeadsign
       directionId
       routeId
+      startTimeSec
+      endTimeSec
       route {
         routeShortName
         routeLongName
@@ -55,6 +60,7 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
     }
     pattern {
       patternKey
+      lengthM
       stopPaths {
         stopPathIndex
         stopId

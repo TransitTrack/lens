@@ -73,7 +73,7 @@ class RevisionService(
         extra: Map<String, Long>,
     ) {
         val r = revision(revisionId)
-        r.rowCounts = r.rowCounts + extra
+        r.rowCounts += extra
         revisions.save(r)
     }
 
@@ -91,7 +91,7 @@ class RevisionService(
     @Transactional
     fun deriveDates(revisionId: Long) {
         val r = revision(revisionId)
-        val info = feedInfos.findByRevisionId(revisionId)
+        val info = feedInfos.findByRevisionId(revisionId).firstOrNull()
         var start = info?.feedStartDate
         var end = info?.feedEndDate
         if (start == null || end == null) {
@@ -160,7 +160,9 @@ class RevisionService(
         // Never prune a revision some DRAFT was forked from, even once it is SUPERSEDED and
         // beyond the keep-count — a draft's history must outlive retention trimming.
         val draftBaseIds = revisions.findBaseRevisionIdsReferencedByDrafts().toSet()
-        val toDelete = terminal.filter { it.id !in keepIds && it.id !in draftBaseIds }.sortedBy { it.createdAt }
+        val toDelete = terminal
+            .filter { it.id !in keepIds && it.id !in draftBaseIds }
+            .sortedBy { it.createdAt }
         for (r in toDelete) {
             writer.deleteAllForRevision(r.id!!)
             revisions.delete(r)

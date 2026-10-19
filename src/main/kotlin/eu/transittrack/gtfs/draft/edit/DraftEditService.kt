@@ -47,7 +47,7 @@ class DraftEditService(
 
     private fun ctx(revisionId: Long) = EditContext(revisionId, stopTimes, trips, frequencies, tripPatterns, calendars, calendarDates, json)
 
-    fun editsFor(revisionId: Long): List<DraftEdit> = edits.findByRevisionIdOrderBySeqAsc(revisionId)
+    fun editsFor(revisionId: Long): List<DraftEdit> = edits.findByRevision(revisionId)
 
     private fun guard(
         draftId: Long,
@@ -70,8 +70,8 @@ class DraftEditService(
     ) = DraftEditResultData(
         d,
         edit,
-        canUndo = edits.findTopByRevisionIdAndUndoneFalseOrderBySeqDesc(d.id!!) != null,
-        canRedo = edits.findTopByRevisionIdAndUndoneTrueOrderBySeqAsc(d.id!!) != null,
+        canUndo = edits.findLastApplied(d.id!!) != null,
+        canRedo = edits.findNextRedo(d.id!!) != null,
     )
 
     private fun bump(d: GtfsRevision) {
@@ -106,15 +106,15 @@ class DraftEditService(
             check(!(op.needsFreshDerivation && d.derivationStale)) { "rebuild the draft before filtering by pattern" }
             val planned = op.plan(c)
 
-            edits.deleteByRevisionIdAndUndoneTrue(draftId) // truncate redo tail
+            edits.deleteUndone(draftId) // truncate redo tail
             planned.mutate()
 
-            // Ordering is safe: the findByRevisionIdOrderBySeqAsc query below forces a Hibernate flush,
+            // Ordering is safe: the findByRevision query below forces a Hibernate flush,
             // and within one flush Hibernate runs INSERTs before DELETEs — so the queued redo-tail
             // deletes are applied before nextSeq is computed, and it cannot collide with
             // uq_draft_edit_revision_seq. A future `select max(seq)` projection must keep that property:
             // it must stay a query over draft_edit (which auto-flushes), not an in-memory shortcut.
-            val nextSeq = (edits.findByRevisionIdOrderBySeqAsc(draftId).maxOfOrNull { it.seq } ?: 0) + 1
+            val nextSeq = (edits.findByRevision(draftId).maxOfOrNull { it.seq } ?: 0) + 1
             edits.save(
                 DraftEdit(
                     revisionId = draftId,
@@ -140,7 +140,7 @@ class DraftEditService(
     ): DraftEditResultData {
         val op = opFactory(ctx(draftId))
         val d = applyBatchInternal(draftId, editor, expectedVersion, listOf(op))
-        return result(d, edits.findTopByRevisionIdAndUndoneFalseOrderBySeqDesc(draftId))
+        return result(d, edits.findLastApplied(draftId))
     }
 
     @Transactional
@@ -150,7 +150,7 @@ class DraftEditService(
         expectedVersion: Long,
     ): DraftEditResultData {
         val d = guard(draftId, editor, expectedVersion)
-        val top = edits.findTopByRevisionIdAndUndoneFalseOrderBySeqDesc(draftId) ?: return result(d, null)
+        val top = edits.findLastApplied(draftId) ?: return result(d, null)
         EditOpRegistry.mutationFor(top.op, json.readTree(top.inverse))(ctx(draftId))
         top.undone = true
         edits.save(top)
@@ -165,7 +165,7 @@ class DraftEditService(
         expectedVersion: Long,
     ): DraftEditResultData {
         val d = guard(draftId, editor, expectedVersion)
-        val next = edits.findTopByRevisionIdAndUndoneTrueOrderBySeqAsc(draftId) ?: return result(d, null)
+        val next = edits.findNextRedo(draftId) ?: return result(d, null)
         EditOpRegistry.mutationFor(next.op, json.readTree(next.forward))(ctx(draftId))
         next.undone = false
         edits.save(next)

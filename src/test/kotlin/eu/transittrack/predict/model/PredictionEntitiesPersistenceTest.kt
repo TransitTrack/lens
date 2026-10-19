@@ -43,7 +43,7 @@ class PredictionEntitiesPersistenceTest(
                 updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
             ),
         )
-        val found = observations.findByTripPatternIdAndStopPathIndex(10L, 2)
+        val found = observations.findByPatternAndStop(10L, 2)
         assertThat(found).isNotNull()
         assertThat(found!!.meanSec).isEqualTo(42.5)
     }
@@ -56,7 +56,7 @@ class PredictionEntitiesPersistenceTest(
                 sampleCount = 1L, updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
             ),
         )
-        val found = kalmanStates.findByTripPatternIdAndStopPathIndex(11L, 3)
+        val found = kalmanStates.findByPatternAndStop(11L, 3)
         assertThat(found).isNotNull()
         assertThat(found!!.estimateSec).isEqualTo(30.0)
     }
@@ -65,7 +65,7 @@ class PredictionEntitiesPersistenceTest(
     fun `vehicle_prediction ordered by stop_path_index`() {
         predictions.save(
             VehiclePrediction(
-                feedId = 1L, vehicleId = "v1", tripRowId = 7L, blockPk = null, tripPatternId = 4L,
+                feedCode = "feed-1", vehicleId = "v1", tripRowId = 7L, blockPk = null, tripPatternId = 4L,
                 stopPathIndex = 3, algorithm = PredictionAlgorithm.KALMAN,
                 predictedArrivalTs = Instant.parse("2026-09-04T10:05:00Z"), predictedDepartureTs = null,
                 actualArrivalTs = null, actualDepartureTs = null, confidenceSec = 30,
@@ -74,19 +74,19 @@ class PredictionEntitiesPersistenceTest(
         )
         predictions.save(
             VehiclePrediction(
-                feedId = 1L, vehicleId = "v1", tripRowId = 7L, blockPk = null, tripPatternId = 4L,
+                feedCode = "feed-1", vehicleId = "v1", tripRowId = 7L, blockPk = null, tripPatternId = 4L,
                 stopPathIndex = 1, algorithm = PredictionAlgorithm.KALMAN,
                 predictedArrivalTs = Instant.parse("2026-09-04T10:01:00Z"), predictedDepartureTs = null,
                 actualArrivalTs = null, actualDepartureTs = null, confidenceSec = 30,
                 computedAt = Instant.parse("2026-09-04T10:00:00Z"),
             ),
         )
-        val ordered = predictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(1L, "v1", 7L)
+        val ordered = predictions.findByVehicleTrip("feed-1", "v1", 7L)
         assertThat(ordered).hasSize(2)
         assertThat(ordered.first().stopPathIndex).isEqualTo(1)
         assertThat(ordered.last().stopPathIndex).isEqualTo(3)
 
-        val byPattern = predictions.findByTripPatternIdAndStopPathIndexAndAlgorithm(4L, 1, PredictionAlgorithm.KALMAN)
+        val byPattern = predictions.findByPatternStopAlgorithm(4L, 1, PredictionAlgorithm.KALMAN)
         assertThat(byPattern).hasSize(1)
     }
 
@@ -94,7 +94,7 @@ class PredictionEntitiesPersistenceTest(
     fun `prediction_accuracy filters by created_at`() {
         accuracies.save(
             PredictionAccuracy(
-                feedId = 1L, vehicleId = "v2", tripRowId = 8L, stopPathIndex = 1,
+                feedCode = "feed-1", vehicleId = "v2", tripRowId = 8L, stopPathIndex = 1,
                 algorithm = PredictionAlgorithm.HISTORICAL_AVERAGE,
                 predictedTs = Instant.parse("2026-09-04T10:00:00Z"),
                 actualTs = Instant.parse("2026-09-04T10:00:10Z"),
@@ -104,7 +104,7 @@ class PredictionEntitiesPersistenceTest(
         )
         accuracies.save(
             PredictionAccuracy(
-                feedId = 1L, vehicleId = "v2", tripRowId = 8L, stopPathIndex = 1,
+                feedCode = "feed-1", vehicleId = "v2", tripRowId = 8L, stopPathIndex = 1,
                 algorithm = PredictionAlgorithm.HISTORICAL_AVERAGE,
                 predictedTs = Instant.parse("2026-09-04T11:00:00Z"),
                 actualTs = Instant.parse("2026-09-04T11:00:05Z"),
@@ -112,8 +112,8 @@ class PredictionEntitiesPersistenceTest(
                 createdAt = Instant.parse("2026-09-04T11:00:00Z"),
             ),
         )
-        val recent = accuracies.findByFeedIdAndAlgorithmAndCreatedAtAfter(
-            1L, PredictionAlgorithm.HISTORICAL_AVERAGE, Instant.parse("2026-09-04T10:00:00Z"),
+        val recent = accuracies.findRecentByFeedAndAlgorithm(
+            "feed-1", PredictionAlgorithm.HISTORICAL_AVERAGE, Instant.parse("2026-09-04T10:00:00Z"),
         )
         assertThat(recent).hasSize(1)
         assertThat(recent.first().errorSec).isEqualTo(5)

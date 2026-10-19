@@ -148,7 +148,7 @@ class PredictionServiceTest(
     ) {
         reports.save(
             AvlReportRow(
-                feedId = feedId, vehicleId = vehicleId, vehicleLabel = null, ts = at,
+                feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
                 lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
                 descTripId = null, descRouteId = null, descDirectionId = null,
                 descStartDate = at.atZone(factory.open(feedRow())!!.zone).toLocalDate(), descStartTimeSec = null,
@@ -171,7 +171,7 @@ class PredictionServiceTest(
         processor.processBatch()
         predictionProcessor.processBatch()
 
-        val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
+        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!)
         assertThat(preds).isNotEmpty()
         assertThat(preds.map { it.algorithm }.toSet()).isEqualTo(setOf(PredictionAlgorithm.SCHEDULE_ADHERENCE))
         preds.forEach { assertThat(it.actualArrivalTs).isNull() }
@@ -189,7 +189,7 @@ class PredictionServiceTest(
         processor.processBatch()
         predictionProcessor.processBatch()
 
-        val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-1", trip.id!!)
+        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!)
         assertThat(preds.any { it.actualArrivalTs != null }).isTrue()
 
         val patternId = trip.tripPatternId!!
@@ -197,7 +197,7 @@ class PredictionServiceTest(
         assertThat(predictionAccuracies.findAll().any { it.tripRowId == trip.id }).isTrue()
         val observed = crossings.findAll()
         assertThat(observed).isNotEmpty()
-        assertThat(observed.all { it.feedId == feedId && it.tripRowId == trip.id && it.tripPatternId == patternId }).isTrue()
+        assertThat(observed.all { it.feedCode == feedRow().code && it.tripRowId == trip.id && it.tripPatternId == patternId }).isTrue()
     }
 
     @Test
@@ -214,7 +214,7 @@ class PredictionServiceTest(
         processor.processBatch()
         predictionProcessor.processBatch()
 
-        val preds = vehiclePredictions.findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(feedId, "bus-2", trip.id!!)
+        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-2", trip.id!!)
         assertThat(preds).isNotEmpty()
         val algorithms = preds.map { it.algorithm }.toSet()
         assertThat(algorithms).contains(PredictionAlgorithm.SCHEDULE_ADHERENCE)

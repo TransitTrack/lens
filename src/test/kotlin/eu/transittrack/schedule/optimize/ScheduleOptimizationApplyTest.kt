@@ -63,11 +63,11 @@ class ScheduleOptimizationApplyTest(
     private val clean = mutableListOf<Long>()
 
     private fun successfulRun(
-        feedId: Long,
+        feedCode: String,
         revisionId: Long,
     ) = runs.save(
         OptimizationRunRow(
-            feedId = feedId,
+            feedCode = feedCode,
             revisionId = revisionId,
             observedFrom = Instant.parse("2026-09-01T00:00:00Z"),
             observedTo = Instant.parse("2026-09-08T00:00:00Z"),
@@ -141,7 +141,7 @@ class ScheduleOptimizationApplyTest(
         val shiftTrip = trips.findByRevisionId(base).first { it.tripId != cellTarget.tripId && it.startTimeSec != null }
         val shiftTripOriginalStopTimes = stopTimes.findByTripId(base, shiftTrip.tripId)
 
-        val run = successfulRun(feedId, base)
+        val run = successfulRun(feedCode, base)
         val cellRec =
             stopTimeRecommendation(
                 run.id!!,
@@ -162,7 +162,7 @@ class ScheduleOptimizationApplyTest(
         assertThat(updated.baseRevisionId).isEqualTo(base)
         assertThat(drafts.currentLock(updated)?.editor).isEqualTo("planner")
 
-        val journal = edits.findByRevisionIdOrderBySeqAsc(updated.id!!)
+        val journal = edits.findByRevision(updated.id!!)
         assertThat(journal).hasSize(2)
         assertThat(journal.map { it.op }.toSet()).isEqualTo(setOf("UPDATE_STOP_TIME", "SHIFT_TRIP"))
 
@@ -191,7 +191,7 @@ class ScheduleOptimizationApplyTest(
         val feedId = feeds.findByCode(feedCode)!!.id!!
         val cellTarget = stopTimes.findByRevisionId(base).first()
 
-        val run = successfulRun(feedId, base)
+        val run = successfulRun(feedCode, base)
         val recA =
             stopTimeRecommendation(
                 run.id!!,
@@ -231,7 +231,7 @@ class ScheduleOptimizationApplyTest(
         val feedId = feeds.findByCode(feedCode)!!.id!!
         val cellTarget = stopTimes.findByRevisionId(base).first()
 
-        val run = successfulRun(feedId, base)
+        val run = successfulRun(feedCode, base)
         val valid =
             stopTimeRecommendation(
                 run.id!!,
@@ -265,7 +265,7 @@ class ScheduleOptimizationApplyTest(
         clean += base
         val feedId = feeds.findByCode(feedCode)!!.id!!
 
-        val run = successfulRun(feedId, base)
+        val run = successfulRun(feedCode, base)
         // Not producible by OptimizationAnalysisPipeline today (it never persists an empty `targets`
         // array), but the apply endpoint must not paper over corrupt/malformed data by reporting
         // success — see ScheduleOptimizationService.apply's noOp check.
@@ -298,7 +298,7 @@ class ScheduleOptimizationApplyTest(
         val feedId = feeds.findByCode(feedCode)!!.id!!
         val cellTarget = stopTimes.findByRevisionId(base).first()
 
-        val run = successfulRun(feedId, base)
+        val run = successfulRun(feedCode, base)
         val rec =
             stopTimeRecommendation(
                 run.id!!,

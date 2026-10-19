@@ -1,5 +1,6 @@
 package eu.transittrack.schedule.derive
 
+import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
@@ -36,6 +37,7 @@ class BlockProcessor(
 ) : IngestionPostProcessor {
     companion object {
         const val ORDER = 40
+        val log = LoggerFactory.getLogger(BlockProcessor::class.java)
     }
 
     override fun postProcess(revisionId: Long): Map<String, Long> {

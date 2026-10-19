@@ -130,7 +130,7 @@ class HeadwayReadServiceTest(
         ) {
             reports.save(
                 AvlReportRow(
-                    feedId = feedId, vehicleId = vehicleId, vehicleLabel = null, ts = at,
+                    feedCode = feed.code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
                     lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
                     descTripId = tripId, descRouteId = "RA", descDirectionId = 0,
                     descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,

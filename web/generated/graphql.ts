@@ -1356,7 +1356,7 @@ export type AvlTrailQueryVariables = Exact<{
 }>;
 
 
-export type AvlTrailQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, currentStatus: string | null, occupancyStatus: string | null, descTripId: string | null, position: { lat: number, lon: number } }> };
+export type AvlTrailQuery = { avlReports: Array<{ vehicleId: string, ts: string, speedMps: number | null, bearing: number | null, currentStatus: string | null, occupancyStatus: string | null, descTripId: string | null, position: { lat: number, lon: number } }> };
 
 export type BlockDetailQueryVariables = Exact<{
   feedCode: string;
@@ -1821,7 +1821,7 @@ export type VehicleDetailQueryVariables = Exact<{
 }>;
 
 
-export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: string | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: string | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: string | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: string | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
 
 export type VehiclesQueryVariables = Exact<{
   feedCode: string;
@@ -1829,7 +1829,7 @@ export type VehiclesQueryVariables = Exact<{
 }>;
 
 
-export type VehiclesQuery = { vehicles: Array<{ vehicleId: string, label: string | null, reportTs: string, bearing: number | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, speedMps: number | null, position: { lat: number, lon: number }, trip: { routeId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null, routeTextColor: string | null } | null } | null }> };
+export type VehiclesQuery = { vehicles: Array<{ vehicleId: string, label: string | null, reportTs: string, bearing: number | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, speedMps: number | null, position: { lat: number, lon: number }, pattern: { lengthM: number | null } | null, trip: { routeId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null, routeTextColor: string | null } | null } | null }> };
 
 export const DraftEditResultFFragmentDoc = gql`
     fragment DraftEditResultF on DraftEditResult {
@@ -2025,6 +2025,7 @@ export type AvlLogQueryCompositionFunctionResult = VueApolloComposable.UseQueryR
 export const AvlTrailDocument = gql`
     query AvlTrail($feedCode: String!, $vehicleId: String!, $limit: Int) {
   avlReports(feedCode: $feedCode, vehicleId: $vehicleId, limit: $limit) {
+    vehicleId
     ts
     position {
       lat
@@ -4361,6 +4362,9 @@ export const VehicleDetailDocument = gql`
     }
     block {
       blockId
+      serviceId
+      startTimeSec
+      endTimeSec
       blockTrips {
         listIndex
         trip {
@@ -4374,6 +4378,8 @@ export const VehicleDetailDocument = gql`
       tripHeadsign
       directionId
       routeId
+      startTimeSec
+      endTimeSec
       route {
         routeShortName
         routeLongName
@@ -4389,6 +4395,7 @@ export const VehicleDetailDocument = gql`
     }
     pattern {
       patternKey
+      lengthM
       stopPaths {
         stopPathIndex
         stopId
@@ -4462,7 +4469,11 @@ export const VehiclesDocument = gql`
     stale
     scheduleAdherenceSec
     stopPathIndex
+    distanceAlongTripM
     speedMps
+    pattern {
+      lengthM
+    }
     trip {
       routeId
       tripHeadsign

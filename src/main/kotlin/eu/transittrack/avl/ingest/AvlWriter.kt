@@ -11,7 +11,7 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.VehicleMatch
 
 data class VehicleStateUpsert(
-    val feedId: Long,
+    val feedCode: String,
     val vehicleId: String,
     val vehicleLabel: String?,
     val reportTs: Instant,
@@ -38,7 +38,7 @@ data class VehicleStateUpsert(
 /**
  * Bulk persistence for the AVL pipeline. `avl_report` and `vehicle_match` go in via a Hibernate
  * [org.hibernate.StatelessSession] (JDBC-batched, no persistence context); `vehicle_state` is a
- * native `INSERT ... ON CONFLICT` upsert keyed on `(feed_id, vehicle_id)`. The `vehicle_state.id`
+ * native `INSERT ... ON CONFLICT` upsert keyed on `(feed_code, vehicle_id)`. The `vehicle_state.id`
  * column is a Postgres IDENTITY, so it is left out of the insert entirely.
  */
 @Component
@@ -72,7 +72,7 @@ class AvlWriter(
     ) {
         session
             .createNativeMutationQuery(UPSERT_SQL)
-            .setParameter("feed_id", s.feedId)
+            .setParameter("feed_code", s.feedCode)
             .setParameter("vehicle_id", s.vehicleId)
             .setParameter("vehicle_label", s.vehicleLabel)
             .setParameter("report_ts", s.reportTs)
@@ -100,17 +100,17 @@ class AvlWriter(
     private companion object {
         const val UPSERT_SQL = """
             insert into vehicle_state (
-                feed_id, vehicle_id, vehicle_label, report_ts, lat, lon, bearing, speed_mps,
+                feed_code, vehicle_id, vehicle_label, report_ts, lat, lon, bearing, speed_mps,
                 occupancy_status, matched, stale, consecutive_failures, revision_id, trip_row_id,
                 block_pk, trip_pattern_id, stop_path_index, distance_along_trip_m,
                 schedule_adherence_sec, snapped_lat, snapped_lon, updated_at
             ) values (
-                :feed_id, :vehicle_id, :vehicle_label, :report_ts, :lat, :lon, :bearing, :speed_mps,
+                :feed_code, :vehicle_id, :vehicle_label, :report_ts, :lat, :lon, :bearing, :speed_mps,
                 :occupancy_status, :matched, :stale, :consecutive_failures, :revision_id, :trip_row_id,
                 :block_pk, :trip_pattern_id, :stop_path_index, :distance_along_trip_m,
                 :schedule_adherence_sec, :snapped_lat, :snapped_lon, :updated_at
             )
-            on conflict (feed_id, vehicle_id) do update set
+            on conflict (feed_code, vehicle_id) do update set
                 vehicle_label = excluded.vehicle_label,
                 report_ts = excluded.report_ts,
                 lat = excluded.lat, lon = excluded.lon,

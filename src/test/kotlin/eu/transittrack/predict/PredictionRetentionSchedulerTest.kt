@@ -73,13 +73,15 @@ class PredictionRetentionSchedulerTest(
 
         // vehicle_prediction: one old (deleted), one young (kept)
         jdbc.update(
-            "insert into vehicle_prediction (feed_id, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, algorithm, computed_at) " +
-                "values (1, 'v1', 1, 100, 0, 0, ?)",
+            "insert into vehicle_prediction " +
+                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, algorithm, computed_at) " +
+                "values ('f1', 'v1', 1, 100, 0, 0, ?)",
             Timestamp.from(now.minus(10, ChronoUnit.HOURS)),
         )
         jdbc.update(
-            "insert into vehicle_prediction (feed_id, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, algorithm, computed_at) " +
-                "values (1, 'v2', 2, 100, 0, 0, ?)",
+            "insert into vehicle_prediction " +
+                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, algorithm, computed_at) " +
+                "values ('f1', 'v2', 2, 100, 0, 0, ?)",
             Timestamp.from(now.minus(1, ChronoUnit.HOURS)),
         )
 
@@ -87,32 +89,32 @@ class PredictionRetentionSchedulerTest(
         val oldAccuracyTs = Timestamp.from(now.minus(40, ChronoUnit.DAYS))
         jdbc.update(
             "insert into prediction_accuracy " +
-                "(feed_id, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
+                "(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
                 "predicted_ts, actual_ts, error_sec, abs_error_sec, created_at) " +
-                "values (1, 'v1', 1, 0, 0, ?, ?, 10, 10, ?)",
+                "values ('f1', 'v1', 1, 0, 0, ?, ?, 10, 10, ?)",
             oldAccuracyTs, oldAccuracyTs, oldAccuracyTs,
         )
         val youngAccuracyTs = Timestamp.from(now.minus(1, ChronoUnit.DAYS))
         jdbc.update(
             "insert into prediction_accuracy " +
-                "(feed_id, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
+                "(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
                 "predicted_ts, actual_ts, error_sec, abs_error_sec, created_at) " +
-                "values (1, 'v2', 2, 0, 0, ?, ?, 10, 10, ?)",
+                "values ('f1', 'v2', 2, 0, 0, ?, ?, 10, 10, ?)",
             youngAccuracyTs, youngAccuracyTs, youngAccuracyTs,
         )
 
         jdbc.update(
             "insert into avl_stop_crossing " +
-                "(feed_id, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
+                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
                 "observed_travel_time_sec, revision_id) " +
-                "values (1, 'v1', 1, 100, 0, ?, 30.0, 1)",
+                "values ('f1', 'v1', 1, 100, 0, ?, 30.0, 1)",
             Timestamp.from(now.minus(100, ChronoUnit.DAYS)),
         )
         jdbc.update(
             "insert into avl_stop_crossing " +
-                "(feed_id, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
+                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
                 "observed_travel_time_sec, revision_id) " +
-                "values (1, 'v2', 2, 100, 0, ?, 30.0, 1)",
+                "values ('f1', 'v2', 2, 100, 0, ?, 30.0, 1)",
             Timestamp.from(now.minus(1, ChronoUnit.DAYS)),
         )
     }

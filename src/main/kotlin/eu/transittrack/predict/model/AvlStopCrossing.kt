@@ -18,7 +18,7 @@ import org.springframework.stereotype.Repository
 @Entity
 @Table(name = "avl_stop_crossing")
 class AvlStopCrossing(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
     @Column(name = "trip_pattern_id", nullable = false) var tripPatternId: Long,
@@ -46,7 +46,7 @@ interface AvlStopCrossingRepository : JpaRepository<AvlStopCrossing, Long> {
      * crossings outside its own scope into memory.
      */
     @Query(
-        "select c from AvlStopCrossing c where c.feedId in :feedIds and c.revisionId = :revisionId " +
+        "select c from AvlStopCrossing c where c.feedCode in :feedCodes and c.revisionId = :revisionId " +
             "and c.observedAt >= :from and c.observedAt < :to " +
             "and (:serviceId is null or c.serviceId = :serviceId) " +
             "and (:routeId is null or c.routeId = :routeId) " +
@@ -55,7 +55,7 @@ interface AvlStopCrossingRepository : JpaRepository<AvlStopCrossing, Long> {
             "and (:windowToSec is null or c.tripStartSec <= :windowToSec)",
     )
     fun findForAnalysis(
-        feedIds: Collection<Long>,
+        feedCodes: Collection<String>,
         revisionId: Long,
         from: Instant,
         to: Instant,

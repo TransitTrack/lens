@@ -76,7 +76,7 @@ class FullInferenceMatcherTest(
     ): AvlReportView =
         AvlReportView(
             id = 1L,
-            feedId = 1L,
+            feedCode = "f1",
             vehicleId = "v",
             vehicleLabel = null,
             ts = ts,
@@ -104,7 +104,7 @@ class FullInferenceMatcherTest(
     ): VehicleStateView =
         VehicleStateView(
             id = null,
-            feedId = 1L,
+            feedCode = "f1",
             vehicleId = "v",
             vehicleLabel = null,
             reportTs = Instant.EPOCH,

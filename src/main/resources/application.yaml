@@ -74,10 +74,11 @@ transittrack:
         name: ZTM
         auto-activate: true
         polling-cron: "0 * * * * *"
+#        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile/?file=20261015_20261031.zip
         url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
         avl:
           url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
-          assignment-mode: descriptor_then_infer
+          assignment-mode: trust_descriptor
           prediction-algorithms:
             - kalman
             - schedule-adherence
@@ -179,6 +180,7 @@ transittrack:
       silent-unmatch-cycles: 5
       silent-unmatch-min-sec: 60
       match-interval-ms: 30_000
+      claim-batch-size: 1_000
   predict:
     enabled: true
     run:

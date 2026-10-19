@@ -28,7 +28,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 /**
  * [PredictionWriter] commits through its own [org.hibernate.StatelessSession] transaction, so this
  * test must NOT run inside the default rollback transaction — otherwise the seeded `avl_feed` row
- * (parent of `vehicle_prediction.feed_id`/`prediction_accuracy.feed_id`) would be invisible to the
+ * (parent of `vehicle_prediction.feed_code`/`prediction_accuracy.feed_code`) would be invisible to the
  * stateless session's connection. Hence `NOT_SUPPORTED` + explicit cleanup in `@AfterEach`.
  */
 @PostgresSliceTest
@@ -70,7 +70,7 @@ class PredictionWriterTest(
 
     private fun prediction(predictedArrivalTs: Instant) =
         VehiclePredictionUpsert(
-            feedId = feedId, vehicleId = "v1", tripRowId = 1L, blockPk = null, tripPatternId = 10L,
+            feedCode = "f1", vehicleId = "v1", tripRowId = 1L, blockPk = null, tripPatternId = 10L,
             stopPathIndex = 2, algorithm = PredictionAlgorithm.KALMAN,
             predictedArrivalTs = predictedArrivalTs, predictedDepartureTs = null,
             actualArrivalTs = null, actualDepartureTs = null, confidenceSec = null,
@@ -79,56 +79,67 @@ class PredictionWriterTest(
 
     @Test
     fun `upsertObservation replaces the single row, latest wins`() {
-        writer.upsertObservation(
-            tripPatternId = 10L, stopPathIndex = 2, sampleCount = 1L, meanSec = 30.0,
-            at = Instant.parse("2026-09-04T10:00:00Z"),
-        )
-        writer.upsertObservation(
-            tripPatternId = 10L, stopPathIndex = 2, sampleCount = 2L, meanSec = 45.0,
-            at = Instant.parse("2026-09-04T10:05:00Z"),
-        )
+        writer.inTransaction { session ->
+            writer.upsertObservation(
+                session, tripPatternId = 10L, stopPathIndex = 2, sampleCount = 1L, meanSec = 30.0,
+                at = Instant.parse("2026-09-04T10:00:00Z"),
+            )
+        }
+        writer.inTransaction { session ->
+            writer.upsertObservation(
+                session, tripPatternId = 10L, stopPathIndex = 2, sampleCount = 2L, meanSec = 45.0,
+                at = Instant.parse("2026-09-04T10:05:00Z"),
+            )
+        }
         val all = observations.findAll()
         assertThat(all.size).isEqualTo(1)
-        assertThat(observations.findByTripPatternIdAndStopPathIndex(10L, 2)!!.meanSec).isEqualTo(45.0)
+        assertThat(observations.findByPatternAndStop(10L, 2)!!.meanSec).isEqualTo(45.0)
     }
 
     @Test
     fun `upsertKalmanState replaces the single row, latest wins`() {
-        writer.upsertKalmanState(
-            tripPatternId = 10L, stopPathIndex = 2, estimateSec = 30.0, errorVariance = 5.0,
-            sampleCount = 1L, at = Instant.parse("2026-09-04T10:00:00Z"),
-        )
-        writer.upsertKalmanState(
-            tripPatternId = 10L, stopPathIndex = 2, estimateSec = 40.0, errorVariance = 3.0,
-            sampleCount = 2L, at = Instant.parse("2026-09-04T10:05:00Z"),
-        )
+        writer.inTransaction { session ->
+            writer.upsertKalmanState(
+                session, tripPatternId = 10L, stopPathIndex = 2, estimateSec = 30.0, errorVariance = 5.0,
+                sampleCount = 1L, at = Instant.parse("2026-09-04T10:00:00Z"),
+            )
+        }
+        writer.inTransaction { session ->
+            writer.upsertKalmanState(
+                session, tripPatternId = 10L, stopPathIndex = 2, estimateSec = 40.0, errorVariance = 3.0,
+                sampleCount = 2L, at = Instant.parse("2026-09-04T10:05:00Z"),
+            )
+        }
         val all = kalmanStates.findAll()
         assertThat(all.size).isEqualTo(1)
-        assertThat(kalmanStates.findByTripPatternIdAndStopPathIndex(10L, 2)!!.estimateSec).isEqualTo(40.0)
+        assertThat(kalmanStates.findByPatternAndStop(10L, 2)!!.estimateSec).isEqualTo(40.0)
     }
 
     @Test
     fun `upsertPrediction replaces the single row, latest wins`() {
-        writer.upsertPrediction(prediction(Instant.parse("2026-09-04T10:10:00Z")))
-        writer.upsertPrediction(prediction(Instant.parse("2026-09-04T10:20:00Z")))
+        writer.inTransaction { session -> writer.upsertPrediction(session, prediction(Instant.parse("2026-09-04T10:10:00Z"))) }
+        writer.inTransaction { session -> writer.upsertPrediction(session, prediction(Instant.parse("2026-09-04T10:20:00Z"))) }
         val all =
-            predictions.findByTripPatternIdAndStopPathIndexAndAlgorithm(10L, 2, PredictionAlgorithm.KALMAN)
+            predictions.findByPatternStopAlgorithm(10L, 2, PredictionAlgorithm.KALMAN)
         assertThat(all.size).isEqualTo(1)
         assertThat(all.first().predictedArrivalTs).isEqualTo(Instant.parse("2026-09-04T10:20:00Z"))
     }
 
     @Test
     fun `insertAccuracy appends a row`() {
-        writer.insertAccuracy(
-            PredictionAccuracy(
-                feedId = feedId, vehicleId = "v1", tripRowId = 1L, stopPathIndex = 2,
-                algorithm = PredictionAlgorithm.KALMAN,
-                predictedTs = Instant.parse("2026-09-04T10:10:00Z"),
-                actualTs = Instant.parse("2026-09-04T10:12:00Z"),
-                errorSec = 120, absErrorSec = 120,
-                createdAt = Instant.parse("2026-09-04T10:12:00Z"),
-            ),
-        )
+        writer.inTransaction { session ->
+            writer.insertAccuracy(
+                session,
+                PredictionAccuracy(
+                    feedCode = "f1", vehicleId = "v1", tripRowId = 1L, stopPathIndex = 2,
+                    algorithm = PredictionAlgorithm.KALMAN,
+                    predictedTs = Instant.parse("2026-09-04T10:10:00Z"),
+                    actualTs = Instant.parse("2026-09-04T10:12:00Z"),
+                    errorSec = 120, absErrorSec = 120,
+                    createdAt = Instant.parse("2026-09-04T10:12:00Z"),
+                ),
+            )
+        }
         assertThat(accuracies.count()).isEqualTo(1L)
     }
 }

@@ -13,6 +13,8 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 
 import eu.transittrack.predict.PredictionAlgorithm
@@ -20,7 +22,7 @@ import eu.transittrack.predict.PredictionAlgorithm
 @Entity
 @Table(name = "vehicle_prediction")
 class VehiclePrediction(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
+    @Column(name = "feed_code", nullable = false) var feedCode: String,
     @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
     @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
     @Column(name = "block_pk") var blockPk: Long?,
@@ -41,15 +43,23 @@ class VehiclePrediction(
 
 @Repository
 interface VehiclePredictionRepository : JpaRepository<VehiclePrediction, Long> {
-    fun findByFeedIdAndVehicleIdAndTripRowIdOrderByStopPathIndex(
-        feedId: Long,
-        vehicleId: String,
-        tripRowId: Long,
+    @Query(
+        "select e from VehiclePrediction e where e.feedCode = :feedCode and e.vehicleId = :vehicleId " +
+            "and e.tripRowId = :tripRowId order by e.stopPathIndex",
+    )
+    fun findByVehicleTrip(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
+        @Param("tripRowId") tripRowId: Long,
     ): List<VehiclePrediction>
 
-    fun findByTripPatternIdAndStopPathIndexAndAlgorithm(
-        tripPatternId: Long,
-        stopPathIndex: Int,
-        algorithm: PredictionAlgorithm,
+    @Query(
+        "select e from VehiclePrediction e where e.tripPatternId = :tripPatternId " +
+            "and e.stopPathIndex = :stopPathIndex and e.algorithm = :algorithm",
+    )
+    fun findByPatternStopAlgorithm(
+        @Param("tripPatternId") tripPatternId: Long,
+        @Param("stopPathIndex") stopPathIndex: Int,
+        @Param("algorithm") algorithm: PredictionAlgorithm,
     ): List<VehiclePrediction>
 }

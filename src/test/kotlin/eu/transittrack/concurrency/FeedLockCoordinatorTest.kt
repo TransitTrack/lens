@@ -38,7 +38,7 @@ class FeedLockCoordinatorTest(
     @Test
     fun `an uncontested coordinator claims every candidate feed`() {
         val a = coordinator()
-        assertThat(a.reconcileOwnership(setOf(1L, 2L, 3L))).isEqualTo(setOf(1L, 2L, 3L))
+        assertThat(a.reconcileOwnership(setOf("a", "b", "c"))).isEqualTo(setOf("a", "b", "c"))
     }
 
     @Test
@@ -46,19 +46,19 @@ class FeedLockCoordinatorTest(
         val a = coordinator()
         val b = coordinator()
 
-        assertThat(a.reconcileOwnership(setOf(1L))).contains(1L)
-        assertThat(b.reconcileOwnership(setOf(1L))).doesNotContain(1L)
+        assertThat(a.reconcileOwnership(setOf("a"))).contains("a")
+        assertThat(b.reconcileOwnership(setOf("a"))).doesNotContain("a")
     }
 
     @Test
     fun `ownership is retained across repeated reconcile ticks via extend`() {
         val a = coordinator()
 
-        assertThat(a.reconcileOwnership(setOf(1L))).contains(1L)
-        val lockUntilAfterFirst = lockUntil("test-feed:1")
+        assertThat(a.reconcileOwnership(setOf("a"))).contains("a")
+        val lockUntilAfterFirst = lockUntil("test-feed:a")
 
-        assertThat(a.reconcileOwnership(setOf(1L))).contains(1L)
-        val lockUntilAfterSecond = lockUntil("test-feed:1")
+        assertThat(a.reconcileOwnership(setOf("a"))).contains("a")
+        val lockUntilAfterSecond = lockUntil("test-feed:a")
 
         assert(lockUntilAfterSecond.isAfter(lockUntilAfterFirst))
     }
@@ -71,10 +71,10 @@ class FeedLockCoordinatorTest(
         val a = coordinator(lockAtLeastFor = Duration.ZERO)
         val b = coordinator()
 
-        a.reconcileOwnership(setOf(1L))
-        a.release(1L)
+        a.reconcileOwnership(setOf("a"))
+        a.release("a")
 
-        assertThat(b.reconcileOwnership(setOf(1L))).contains(1L)
+        assertThat(b.reconcileOwnership(setOf("a"))).contains("a")
     }
 
     @Test
@@ -82,10 +82,10 @@ class FeedLockCoordinatorTest(
         val a = coordinator(lockAtMostFor = Duration.ofMillis(200), lockAtLeastFor = Duration.ZERO)
         val b = coordinator()
 
-        a.reconcileOwnership(setOf(1L))
+        a.reconcileOwnership(setOf("a"))
         Thread.sleep(400)
 
-        assertThat(b.reconcileOwnership(setOf(1L))).contains(1L)
+        assertThat(b.reconcileOwnership(setOf("a"))).contains("a")
     }
 
     @Test
@@ -94,10 +94,10 @@ class FeedLockCoordinatorTest(
         val a = coordinator(lockAtLeastFor = Duration.ZERO)
         val b = coordinator()
 
-        a.reconcileOwnership(setOf(1L))
+        a.reconcileOwnership(setOf("a"))
         a.reconcileOwnership(emptySet())
 
-        assertThat(b.reconcileOwnership(setOf(1L))).contains(1L)
+        assertThat(b.reconcileOwnership(setOf("a"))).contains("a")
     }
 
     @Test
@@ -105,10 +105,10 @@ class FeedLockCoordinatorTest(
         val a = coordinator(lockAtLeastFor = Duration.ZERO)
         val b = coordinator()
 
-        a.reconcileOwnership(setOf(1L, 2L))
+        a.reconcileOwnership(setOf("a", "b"))
         a.releaseAll()
 
-        assertThat(b.reconcileOwnership(setOf(1L, 2L))).isEqualTo(setOf(1L, 2L))
+        assertThat(b.reconcileOwnership(setOf("a", "b"))).isEqualTo(setOf("a", "b"))
     }
 
     private fun lockUntil(name: String) =

@@ -54,7 +54,7 @@ class OptimizationGraphQlTest(
         revisionId: Long = 11,
         state: OptimizationRunState = OptimizationRunState.QUEUED,
     ) = OptimizationRunRow(
-        feedId = 5,
+        feedCode = "feed-5",
         revisionId = revisionId,
         observedFrom = Instant.parse("2026-09-01T00:00:00Z"),
         observedTo = Instant.parse("2026-09-08T00:00:00Z"),

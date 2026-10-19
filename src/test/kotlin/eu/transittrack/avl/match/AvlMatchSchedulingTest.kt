@@ -58,18 +58,18 @@ class AvlMatchSchedulingTest(
     fun `reconcile starts a task for an enabled feed`() {
         val saved = feeds.save(feed(enabled = true))
         processor.reconcile()
-        assertThat(processor.runningFeedIds()).contains(saved.id!!)
+        assertThat(processor.runningFeedIds()).contains(saved.code)
     }
 
     @Test
     fun `reconcile cancels the task when a feed is disabled`() {
         val saved = feeds.save(feed(enabled = true))
         processor.reconcile()
-        assertThat(processor.runningFeedIds()).contains(saved.id!!)
+        assertThat(processor.runningFeedIds()).contains(saved.code)
 
         saved.enabled = false
         feeds.save(saved)
         processor.reconcile()
-        assertThat(processor.runningFeedIds()).doesNotContain(saved.id!!)
+        assertThat(processor.runningFeedIds()).doesNotContain(saved.code)
     }
 }

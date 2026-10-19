@@ -81,7 +81,7 @@ class OptimizationAnalysisContextTest(
         val run =
             runs.save(
                 OptimizationRunRow(
-                    feedId = feed.id!!, revisionId = revision.id!!, observedFrom = Instant.parse("2026-09-01T00:00:00Z"),
+                    feedCode = feed.code, revisionId = revision.id!!, observedFrom = Instant.parse("2026-09-01T00:00:00Z"),
                     observedTo = Instant.parse("2026-09-08T00:00:00Z"), minimumSamples = 1,
                 ),
             )
@@ -91,12 +91,12 @@ class OptimizationAnalysisContextTest(
     private fun context(
         run: OptimizationRunRow,
         eligibleTrips: List<Trip>,
-        avlFeedIdsCalls: MutableList<Unit> = mutableListOf(),
+        avlFeedCodesCalls: MutableList<Unit> = mutableListOf(),
     ) = OptimizationAnalysisContext(
         run = run,
         eligibleTrips = eligibleTrips,
-        avlFeedIdsSupplier = {
-            avlFeedIdsCalls += Unit
+        avlFeedCodesSupplier = {
+            avlFeedCodesCalls += Unit
             emptyList()
         },
         crossingsSupplier = { emptyList() },
@@ -106,15 +106,15 @@ class OptimizationAnalysisContextTest(
     )
 
     @Test
-    fun `does not invoke the AVL feed id supplier until first access`() {
+    fun `does not invoke the AVL feed code supplier until first access`() {
         val (run, trip) = seedRun()
         val calls = mutableListOf<Unit>()
         val ctx = context(run, listOf(trip), calls)
 
         assertThat(calls).hasSize(0)
-        ctx.avlFeedIds
+        ctx.avlFeedCodes
         assertThat(calls).hasSize(1)
-        ctx.avlFeedIds
+        ctx.avlFeedCodes
         assertThat(calls).hasSize(1)
     }
 

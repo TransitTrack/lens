@@ -309,7 +309,7 @@ function signedSec(sec: number | null): string {
           :description="`Feed reports trip ${descMismatch.declared}; matched to ${descMismatch.matched}.`"
         />
 
-        <section class="flex flex-col gap-3 rounded-lg bg-default p-1">
+        <section class="flex flex-col gap-3 p-1">
           <div class="flex flex-1 flex-row justify-between gap-3">
             <div class="min-w-0">
               <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
@@ -355,7 +355,7 @@ function signedSec(sec: number | null): string {
           </div>
         </section>
 
-        <section class="bg-default border-t border-default pt-4 p-1">
+        <section class="border-t border-default pt-4 p-1">
           <div class="mb-2 text-sm font-medium text-highlighted">Vehicle &amp; trip</div>
           <VehicleFactsGrid :items="facts" />
         </section>

@@ -39,8 +39,8 @@ class TripShiftAnalyzer(
 
     override fun analyze(context: OptimizationAnalysisContext): List<OptimizationRecommendationRow> {
         val run = context.run
-        if (context.avlFeedIds.isEmpty()) {
-            log.info("run {}: [{}] no AVL feed mapped to gtfs feed {}; 0 recommendations", run.id, name, run.feedId)
+        if (context.avlFeedCodes.isEmpty()) {
+            log.info("run {}: [{}] no AVL feed mapped to gtfs feed {}; 0 recommendations", run.id, name, run.feedCode)
             return emptyList()
         }
         if (context.crossings.isEmpty()) {

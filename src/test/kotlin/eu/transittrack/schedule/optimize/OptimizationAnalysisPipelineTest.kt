@@ -63,13 +63,13 @@ class OptimizationAnalysisPipelineTest(
 
     private fun pipeline() =
         OptimizationAnalysisPipeline(
-            feeds, avlFeeds, trips, scheduleTimes, stopPaths, crossings, accuracies,
+            avlFeeds, trips, scheduleTimes, stopPaths, crossings, accuracies,
             listOf(StopTimeAnalyzer(OptimizationProperties(), json), TripShiftAnalyzer(OptimizationProperties(), json)),
         )
 
-    /** Returns (gtfsFeedId, revisionId, avlFeedId) — `avl_stop_crossing`/`prediction_accuracy` rows are
-     * keyed by `avl_feed.id`, never `gtfs_feed.id`, so callers seeding evidence must use the third value. */
-    private fun seedFeedAndRevision(code: String = "g"): Triple<Long, Long, Long> {
+    /** Returns (gtfsFeedCode, revisionId, avlFeedCode) — `avl_stop_crossing`/`prediction_accuracy` rows are
+     * keyed by `avl_feed.code`, never `gtfs_feed.code`, so callers seeding evidence must use the third value. */
+    private fun seedFeedAndRevision(code: String = "g"): Triple<String, Long, String> {
         val feed =
             feeds.save(
                 GtfsFeed(code, "G", null, "http://x/z.zip", null, true, null, FeedSource.API, Instant.now(), Instant.now()),
@@ -93,7 +93,7 @@ class OptimizationAnalysisPipelineTest(
                     updatedAt = Instant.now(),
                 ),
             )
-        return Triple(feed.id!!, revision.id!!, avlFeed.id!!)
+        return Triple(feed.code, revision.id!!, avlFeed.code)
     }
 
     private fun pattern(
@@ -237,7 +237,7 @@ class OptimizationAnalysisPipelineTest(
     }
 
     private fun crossing(
-        feedId: Long,
+        feedCode: String,
         tripRowId: Long,
         patternId: Long,
         revisionId: Long,
@@ -249,21 +249,21 @@ class OptimizationAnalysisPipelineTest(
         tripStartSec: Int,
     ) = crossings.save(
         AvlStopCrossing(
-            feedId = feedId, vehicleId = "v1", tripRowId = tripRowId, tripPatternId = patternId,
+            feedCode = feedCode, vehicleId = "v1", tripRowId = tripRowId, tripPatternId = patternId,
             stopPathIndex = stopPathIndex, observedAt = observedAt, observedTravelTimeSec = observedTravelTimeSec,
             serviceId = serviceId, tripStartSec = tripStartSec, routeId = routeId, directionId = 0, revisionId = revisionId,
         ),
     )
 
     private fun baseRun(
-        feedId: Long,
+        feedCode: String,
         revisionId: Long,
         serviceId: String = "WK",
         routeId: String = "R1",
         minimumSamples: Int = 2,
     ) = runs.save(
         OptimizationRunRow(
-            feedId = feedId,
+            feedCode = feedCode,
             revisionId = revisionId,
             serviceId = serviceId,
             routeId = routeId,
@@ -276,7 +276,7 @@ class OptimizationAnalysisPipelineTest(
 
     @Test
     fun `proposes a stop-time recommendation from robust median with prediction evidence, excluding a nonselected trip`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -288,26 +288,26 @@ class OptimizationAnalysisPipelineTest(
         scheduleTimesFor(revisionId, other.id!!, 30_000, segmentTravelSec = 300)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 9_999.0, at.plusSeconds(120), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 9_999.0, at.plusSeconds(120), "WK", "R1", 28_800)
         // Nonselected trip's own crossing must not count toward T1's proposal or itself propose anything.
-        crossing(avlFeedId, other.id!!, tp.id!!, revisionId, 1, 900.0, at, "OTHER", "R1", 30_000)
+        crossing(avlFeedCode, other.id!!, tp.id!!, revisionId, 1, 900.0, at, "OTHER", "R1", 30_000)
 
         accuracies.save(
             PredictionAccuracy(
-                avlFeedId, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                avlFeedCode, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
                 at, at.plusSeconds(5), errorSec = 5, absErrorSec = 5, createdAt = at,
             ),
         )
         accuracies.save(
             PredictionAccuracy(
-                avlFeedId, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                avlFeedCode, "v1", selected.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
                 at.plusSeconds(60), at.plusSeconds(55), errorSec = -5, absErrorSec = 5, createdAt = at.plusSeconds(60),
             ),
         )
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val result = pipeline().analyze(run)
 
         val stopTime = result.filter { it.kind == OptimizationRecommendationKind.STOP_TIME }
@@ -322,16 +322,16 @@ class OptimizationAnalysisPipelineTest(
 
     @Test
     fun `does not propose a stop-time recommendation from undersampled evidence`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
         val selected = trip(revisionId, tp.id!!, "T1", "R1", "WK", 28_800)
         scheduleTimesFor(revisionId, selected.id!!, 28_800, segmentTravelSec = 300)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
 
-        val run = baseRun(feedId, revisionId, minimumSamples = 2)
+        val run = baseRun(feedCode, revisionId, minimumSamples = 2)
         val result = pipeline().analyze(run)
 
         assertThat(result).isEmpty()
@@ -339,7 +339,7 @@ class OptimizationAnalysisPipelineTest(
 
     @Test
     fun `discards a stop-time candidate that would make a trip's cumulative times decrease`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
         val selected = trip(revisionId, tp.id!!, "T1", "R1", "WK", 28_800)
@@ -348,10 +348,10 @@ class OptimizationAnalysisPipelineTest(
         scheduleTimesFor(revisionId, selected.id!!, 28_800, segmentTravelSec = 40)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 5.0, at, "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 5.0, at.plusSeconds(60), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 5.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 5.0, at.plusSeconds(60), "WK", "R1", 28_800)
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val result = pipeline().analyze(run)
 
         assertThat(result.filter { it.kind == OptimizationRecommendationKind.STOP_TIME }).isEmpty()
@@ -359,7 +359,7 @@ class OptimizationAnalysisPipelineTest(
 
     @Test
     fun `proposes an order-preserving trip shift that reduces headway deviation among uneven gaps`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -374,19 +374,19 @@ class OptimizationAnalysisPipelineTest(
         // backs out to an "adherence-adjusted" start of 1000 + (50 - 200) = 850 — exactly the midpoint
         // between T1 and T3, so shifting T2 to 850 eliminates all headway deviation.
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, 48.0, at, "WK", "R1", 1_000)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, 52.0, at.plusSeconds(60), "WK", "R1", 1_000)
         // Evidence must be looked up at the same stop-path index the shift itself was derived from
         // (the earliest crossed segment, index 1 here) — avl_stop_crossing never has an index-0 row,
         // so a lookup hardcoded to index 0 would silently never match and this would fail.
         accuracies.save(
             PredictionAccuracy(
-                avlFeedId, "v1", t2.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                avlFeedCode, "v1", t2.id!!, 1, PredictionAlgorithm.SCHEDULE_ADHERENCE,
                 at, at.plusSeconds(3), errorSec = 3, absErrorSec = 3, createdAt = at,
             ),
         )
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val result = pipeline().analyze(run)
 
         val shifts = result.filter { it.kind == OptimizationRecommendationKind.TRIP_SHIFT }
@@ -400,7 +400,7 @@ class OptimizationAnalysisPipelineTest(
 
     @Test
     fun `rejects a trip shift that would cross an adjacent trip, storing nothing`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor(revisionId, tp.id!!)
 
@@ -413,10 +413,10 @@ class OptimizationAnalysisPipelineTest(
 
         // Observed adherence for T2 would place it before its predecessor T1 (crosses order) — must be rejected.
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, -250.0, at, "WK", "R1", 3_700)
-        crossing(avlFeedId, t2.id!!, tp.id!!, revisionId, 1, -240.0, at.plusSeconds(60), "WK", "R1", 3_700)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, -250.0, at, "WK", "R1", 3_700)
+        crossing(avlFeedCode, t2.id!!, tp.id!!, revisionId, 1, -240.0, at.plusSeconds(60), "WK", "R1", 3_700)
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val result = pipeline().analyze(run)
 
         assertThat(result.filter { it.kind == OptimizationRecommendationKind.TRIP_SHIFT }).isEmpty()
@@ -424,7 +424,7 @@ class OptimizationAnalysisPipelineTest(
 
     @Test
     fun `omits an interpolated cell from a stop-time recommendation's targets while keeping downstream explicit cells`() {
-        val (feedId, revisionId, avlFeedId) = seedFeedAndRevision()
+        val (feedCode, revisionId, avlFeedCode) = seedFeedAndRevision()
         val tp = pattern(revisionId)
         stopPathsFor3(revisionId, tp.id!!)
 
@@ -435,10 +435,10 @@ class OptimizationAnalysisPipelineTest(
         scheduleTimesWithInterpolatedMiddle(revisionId, selected.id!!, 28_800, segmentTravelSec = 300)
 
         val at = Instant.parse("2026-09-02T08:00:00Z")
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
-        crossing(avlFeedId, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 360.0, at, "WK", "R1", 28_800)
+        crossing(avlFeedCode, selected.id!!, tp.id!!, revisionId, 1, 370.0, at.plusSeconds(60), "WK", "R1", 28_800)
 
-        val run = baseRun(feedId, revisionId)
+        val run = baseRun(feedCode, revisionId)
         val result = pipeline().analyze(run)
 
         val stopTime = result.filter { it.kind == OptimizationRecommendationKind.STOP_TIME }
