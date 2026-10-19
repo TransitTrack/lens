@@ -6,6 +6,7 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isTrue
+import org.locationtech.jts.geom.Coordinate
 
 class GeoExtentTest {
     @Test
@@ -15,7 +16,7 @@ class GeoExtentTest {
 
     @Test
     fun `of points spans the bounding box`() {
-        val e = Extent.of(listOf(Point(10.0, 20.0), Point(12.0, 18.0), Point(11.0, 25.0)))
+        val e = Extent.of(listOf(Coordinate(20.0, 10.0), Coordinate(18.0, 12.0), Coordinate(25.0, 11.0)))
         assertThat(e.isEmpty).isFalse()
         assertThat(e.minLat).isEqualTo(10.0)
         assertThat(e.maxLat).isEqualTo(12.0)
@@ -30,8 +31,8 @@ class GeoExtentTest {
 
     @Test
     fun `ofExtents unions children and skips empty ones`() {
-        val a = Extent.of(listOf(Point(10.0, 20.0), Point(11.0, 21.0)))
-        val b = Extent.of(listOf(Point(9.0, 19.0), Point(15.0, 30.0)))
+        val a = Extent.of(listOf(Coordinate(20.0, 10.0), Coordinate(21.0, 11.0)))
+        val b = Extent.of(listOf(Coordinate(19.0, 9.0), Coordinate(30.0, 15.0)))
         val u = Extent.ofExtents(listOf(Extent(), a, b, Extent()))
         assertThat(u.minLat).isEqualTo(9.0)
         assertThat(u.maxLat).isEqualTo(15.0)

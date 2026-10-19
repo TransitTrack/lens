@@ -3,6 +3,8 @@ package eu.transittrack
 import jakarta.persistence.Column
 import jakarta.persistence.Embeddable
 
+import org.locationtech.jts.geom.Coordinate
+
 @Embeddable
 class Extent {
     // Initialized to NaN to represent "unset" values safely without
@@ -30,18 +32,18 @@ class Extent {
      *
      * @param l
      */
-    fun add(l: Point) {
+    fun add(l: Coordinate) {
         if (minLat.isNaN()) {
-            minLat = l.lat
-            maxLat = l.lat
-            minLon = l.lon
-            maxLon = l.lon
+            minLat = l.y
+            maxLat = l.y
+            minLon = l.x
+            maxLon = l.x
             return
         }
-        if (l.lat < minLat) minLat = l.lat
-        if (l.lat > maxLat) maxLat = l.lat
-        if (l.lon < minLon) minLon = l.lon
-        if (l.lon > maxLon) maxLon = l.lon
+        if (l.y < minLat) minLat = l.y
+        if (l.y > maxLat) maxLat = l.y
+        if (l.x < minLon) minLon = l.x
+        if (l.x > maxLon) maxLon = l.x
     }
 
     fun add(e: Extent) {
@@ -74,19 +76,19 @@ class Extent {
      * @return
      */
     fun isWithinDistance(
-        loc: Point,
+        loc: Coordinate,
         distance: Double,
     ): Boolean {
         if (minLat.isNaN()) return false
 
         val distanceInDegreesLatitude = distance / METERS_PER_DEGREE
-        if (minLat > loc.lat + distanceInDegreesLatitude || maxLat < loc.lat - distanceInDegreesLatitude) {
+        if (minLat > loc.y + distanceInDegreesLatitude || maxLat < loc.y - distanceInDegreesLatitude) {
             return false
         }
 
         // Latitude was OK so check longitude
         val distanceInDegreesLongitude = distance / (METERS_PER_DEGREE * kotlin.math.cos(Math.toRadians((minLat + maxLat) / 2)))
-        return !(minLon > loc.lon + distanceInDegreesLongitude) && !(maxLon < loc.lon - distanceInDegreesLongitude)
+        return !(minLon > loc.x + distanceInDegreesLongitude) && !(maxLon < loc.x - distanceInDegreesLongitude)
     }
 
     /** True while no point or extent has been added (the bounding box is unset). */
@@ -103,7 +105,7 @@ class Extent {
         private const val METERS_PER_DEGREE = 110996.45
 
         /** Bounding box spanning [points]; empty when [points] is empty. */
-        fun of(points: Iterable<Point>): Extent = Extent().apply { points.forEach(::add) }
+        fun of(points: Iterable<Coordinate>): Extent = Extent().apply { points.forEach(::add) }
 
         /** Union of [extents]; empty ones are ignored. */
         fun ofExtents(extents: Iterable<Extent>): Extent = Extent().apply { extents.forEach(::add) }
