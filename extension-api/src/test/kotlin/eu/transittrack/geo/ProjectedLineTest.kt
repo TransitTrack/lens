@@ -58,4 +58,31 @@ class ProjectedLineTest {
         assertThat(degenerate.lengthM).isCloseTo(1112.0, 5.0)
         assertThat(degenerate.project(Coordinate(17.0, 51.0)).deviationM).isCloseTo(0.0, 5.0)
     }
+
+    @Test
+    fun `project on a far vertex and past it stays in geodetic space, not raw planar distance`() {
+        // Representative point is coordinates[size / 2] = the corner (index 1): on the central
+        // meridian. The second leg runs east, away from that meridian, where the Transverse
+        // Mercator projection's scale factor departs measurably from 1 — exactly the case where a
+        // raw (unremapped) planar distanceAlong would disagree with the geodetic cumulative.
+        val corner = Coordinate(17.0, 51.01)
+        val farVertex = Coordinate(17.5, 51.01)
+        val bend = ProjectedLine(listOf(Coordinate(17.0, 51.00), corner, farVertex))
+
+        assertThat(bend.project(farVertex).distanceAlong).isCloseTo(bend.cumulative[2], 1e-3)
+
+        val pastFarEnd = Coordinate(17.6, 51.01)
+        assertThat(bend.project(pastFarEnd).distanceAlong).isCloseTo(bend.lengthM, 1e-3)
+    }
+
+    @Test
+    fun `pointAt clamps negative and overshooting distances to the respective endpoint`() {
+        val start = line.pointAt(-5.0)
+        assertThat(start.y).isCloseTo(51.00, 1e-6)
+        assertThat(start.x).isCloseTo(17.0, 1e-6)
+
+        val end = line.pointAt(line.lengthM + 5.0)
+        assertThat(end.y).isCloseTo(51.01, 1e-6)
+        assertThat(end.x).isCloseTo(17.0, 1e-6)
+    }
 }
