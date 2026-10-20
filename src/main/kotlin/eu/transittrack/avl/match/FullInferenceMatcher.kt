@@ -1,9 +1,9 @@
 package eu.transittrack.avl.match
 
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.schedule.model.TripRef
 
@@ -27,7 +27,7 @@ class FullInferenceMatcher(
         prev: VehicleStateView?,
         ctx: MatchContext,
     ): MatchOutcome {
-        val point = Point(report.lat, report.lon)
+        val point = Coordinate(report.lon, report.lat)
 
         // 1. service date: descriptor startDate wins; else report ts local date (no trip yet).
         val serviceDate = report.descStartDate ?: report.ts.atZone(ctx.zone).toLocalDate()

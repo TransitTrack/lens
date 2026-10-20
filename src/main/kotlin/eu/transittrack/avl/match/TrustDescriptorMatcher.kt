@@ -1,9 +1,9 @@
 package eu.transittrack.avl.match
 
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.schedule.model.TripRef
 
@@ -93,7 +93,7 @@ class TrustDescriptorMatcher(
     private fun resolveTrip(
         report: AvlReportView,
         ctx: MatchContext,
-        point: Point,
+        point: Coordinate,
     ): Pair<TripRef, PatternGeometry>? {
         report.descTripId?.let { id ->
             ctx.tripByGtfsId(id)?.let { return geometryOf(it, ctx) }
@@ -130,7 +130,7 @@ class TrustDescriptorMatcher(
         candidates: List<TripRef>,
         report: AvlReportView,
         ctx: MatchContext,
-        point: Point,
+        point: Coordinate,
     ): Pair<TripRef, PatternGeometry>? {
         val survivors =
             candidates.mapNotNull { t ->

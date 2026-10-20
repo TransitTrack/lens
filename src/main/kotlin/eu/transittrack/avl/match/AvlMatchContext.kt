@@ -3,9 +3,9 @@ package eu.transittrack.avl.match
 import java.time.LocalDate
 import java.time.ZoneId
 
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
 import eu.transittrack.avl.match.cache.CachedAgencyReader
 import eu.transittrack.avl.match.cache.CachedBlockTripReader
 import eu.transittrack.avl.match.cache.CachedPatternGeometryReader
@@ -75,7 +75,7 @@ class AvlMatchContext(
 
     override fun patternExtentWithin(
         tripPatternId: Long,
-        p: Point,
+        p: Coordinate,
         distanceM: Double,
     ): Boolean {
         val pattern = patternReader.byId(revisionId, tripPatternId) ?: return false

@@ -1,16 +1,17 @@
 package eu.transittrack.avl.match
 
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
-import eu.transittrack.Vector
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.geodeticBearingDegrees
+import eu.transittrack.geo.geodeticDistanceM
 
 data class SpatialMatch(
     val stopPathIndex: Int,
     val distanceAlongTripM: Double,
     val deviationM: Double,
-    val snapped: Point,
+    val snapped: Coordinate,
     val heading: Double?,
 )
 
@@ -34,11 +35,11 @@ class SpatialMatcher(
 
     fun match(
         geom: PatternGeometry,
-        report: Point,
+        report: Coordinate,
         minAlongM: Double?,
     ): SpatialMatch? {
         val line = geom.line
-        if (line.points.size < 2) return null
+        if (line.coordinates.size < 2) return null
         val pr = line.project(report)
         if (minAlongM != null && pr.distanceAlong < minAlongM - cfg.backtrackToleranceM) return null
 
@@ -53,7 +54,7 @@ class SpatialMatcher(
             } else {
                 val a = (pr.distanceAlong - 5.0).coerceIn(0.0, line.lengthM)
                 val b = (pr.distanceAlong + 5.0).coerceIn(0.0, line.lengthM)
-                Vector(line.pointAt(a), line.pointAt(b)).heading()
+                geodeticBearingDegrees(line.pointAt(a), line.pointAt(b))
             }
         return SpatialMatch(idx, pr.distanceAlong, pr.deviationM, line.pointAt(pr.distanceAlong), heading)
     }
@@ -66,7 +67,7 @@ class SpatialMatcher(
      */
     private fun nearestAllowableLayover(
         geom: PatternGeometry,
-        report: Point,
+        report: Coordinate,
         minAlongM: Double?,
     ): SpatialMatch? {
         var best: SpatialMatch? = null
@@ -77,12 +78,12 @@ class SpatialMatcher(
             if (minAlongM != null && along < minAlongM - cfg.backtrackToleranceM) continue
 
             val layoverLoc = geom.endOfPath(i)
-            val distanceToLayoverM = report.distance(layoverLoc)
+            val distanceToLayoverM = geodeticDistanceM(report, layoverLoc)
             val allowableM =
                 if (i == 0) {
                     Double.MAX_VALUE
                 } else {
-                    val distanceBtwnStopsM = layoverLoc.distance(geom.endOfPath(i - 1))
+                    val distanceBtwnStopsM = geodeticDistanceM(layoverLoc, geom.endOfPath(i - 1))
                     maxOf(distanceBtwnStopsM * 1.5, cfg.layoverDistanceM)
                 }
             if (distanceToLayoverM < allowableM && distanceToLayoverM < bestDistanceM) {

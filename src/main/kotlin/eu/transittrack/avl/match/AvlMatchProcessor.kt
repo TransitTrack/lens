@@ -4,6 +4,7 @@ import java.time.Duration
 import java.time.Instant
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -22,12 +23,12 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.bearingDegrees
 import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.concurrency.FeedReconciler
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.geodeticBearingDegrees
+import eu.transittrack.geo.geodeticDistanceM
 import eu.transittrack.observability.TransitTrackMetrics
 
 /**
@@ -185,8 +186,8 @@ class AvlMatchProcessor(
                             distanceAlongTripM = outcome.distanceAlongTripM,
                             deviationM = outcome.deviationM,
                             scheduleAdherenceSec = outcome.scheduleAdherenceSec,
-                            snappedLat = outcome.snapped.lat,
-                            snappedLon = outcome.snapped.lon,
+                            snappedLat = outcome.snapped.y,
+                            snappedLon = outcome.snapped.x,
                             heading = outcome.heading,
                             score = outcome.score,
                             createdAt = now,
@@ -213,8 +214,8 @@ class AvlMatchProcessor(
                             stopPathIndex = outcome.stopPathIndex,
                             distanceAlongTripM = outcome.distanceAlongTripM,
                             scheduleAdherenceSec = outcome.scheduleAdherenceSec,
-                            snappedLat = outcome.snapped.lat,
-                            snappedLon = outcome.snapped.lon,
+                            snappedLat = outcome.snapped.y,
+                            snappedLon = outcome.snapped.x,
                             updatedAt = now,
                         ),
                     )
@@ -302,8 +303,8 @@ private fun AvlReportRow.fillMissingKinematics(
     if (prevLat == null || prevLon == null || prevTs == null) return
     val elapsedSec = Duration.between(prevTs, ts).seconds
     if (elapsedSec <= 0) return
-    if (bearing == null) bearing = bearingDegrees(prevLat, prevLon, lat, lon)
-    if (speedMps == null) speedMps = haversineMeters(prevLat, prevLon, lat, lon) / elapsedSec
+    if (bearing == null) bearing = geodeticBearingDegrees(Coordinate(prevLon, prevLat), Coordinate(lon, lat))
+    if (speedMps == null) speedMps = geodeticDistanceM(Coordinate(prevLon, prevLat), Coordinate(lon, lat)) / elapsedSec
 }
 
 private fun AvlReportRow.toView() =

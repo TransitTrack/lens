@@ -25,6 +25,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.TestInstance
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
@@ -39,7 +40,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.Point
 import eu.transittrack.avl.ingest.AvlIngestService
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
@@ -133,7 +133,7 @@ class AvlEndToEndTest(
     }
 
     private fun feedMessageBytes(
-        pt: Point,
+        pt: Coordinate,
         epochSec: Long,
     ): ByteArray =
         FeedMessage
@@ -150,8 +150,8 @@ class AvlEndToEndTest(
                             .setPosition(
                                 Position
                                     .newBuilder()
-                                    .setLatitude(pt.lat.toFloat())
-                                    .setLongitude(pt.lon.toFloat()),
+                                    .setLatitude(pt.y.toFloat())
+                                    .setLongitude(pt.x.toFloat()),
                             ).setTimestamp(epochSec),
                     ),
             ).build()
@@ -166,7 +166,7 @@ class AvlEndToEndTest(
         val len = geom.line.lengthM
         val p25 = geom.line.pointAt(len * 0.25)
         val p60 = geom.line.pointAt(len * 0.60)
-        val far = Point(p25.lat + 0.05, p25.lon + 0.05)
+        val far = Coordinate(p25.x + 0.05, p25.y + 0.05)
 
         val svcTs = { minute: Int ->
             LocalDateTime
