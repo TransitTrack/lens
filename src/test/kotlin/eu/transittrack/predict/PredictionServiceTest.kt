@@ -15,6 +15,7 @@ import assertk.assertions.isTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -26,7 +27,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.Point
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -143,13 +143,13 @@ class PredictionServiceTest(
 
     private fun insertReport(
         vehicleId: String,
-        p: Point,
+        p: Coordinate,
         at: Instant,
     ) {
         reports.save(
             AvlReportRow(
                 feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
-                lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
+                lat = p.y, lon = p.x, bearing = null, speedMps = null, odometerM = null,
                 descTripId = null, descRouteId = null, descDirectionId = null,
                 descStartDate = at.atZone(factory.open(feedRow())!!.zone).toLocalDate(), descStartTimeSec = null,
                 descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,

@@ -116,7 +116,7 @@ class TrustDescriptorMatcherTest(
             .atZone(ctx.zone)
             .toInstant()
 
-        val outcome = matcher.match(report(mid.lat, mid.lon, "T1", ts), prev = null, ctx)
+        val outcome = matcher.match(report(mid.y, mid.x, "T1", ts), prev = null, ctx)
 
         assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
         val m = outcome as MatchOutcome.Matched
@@ -137,7 +137,7 @@ class TrustDescriptorMatcherTest(
             .atZone(ctx.zone)
             .toInstant()
 
-        assertThat(matcher.match(report(mid.lat, mid.lon, "NOPE", ts), null, ctx))
+        assertThat(matcher.match(report(mid.y, mid.x, "NOPE", ts), null, ctx))
             .isEqualTo(MatchOutcome.Failed)
     }
 
@@ -159,7 +159,7 @@ class TrustDescriptorMatcherTest(
         // be pushed past those allowances — not merely off the line near either end — to genuinely fail.
         assertThat(
             matcher.match(
-                report(mid.lat + 0.02, mid.lon - 0.02, "T1", ts, currentStopId = "S3", currentStopSequence = 3),
+                report(mid.y + 0.02, mid.x - 0.02, "T1", ts, currentStopId = "S3", currentStopSequence = 3),
                 null,
                 ctx,
             ),
@@ -181,7 +181,7 @@ class TrustDescriptorMatcherTest(
         val outcome =
             matcher.match(
                 report(
-                    mid.lat, mid.lon, descTripId = null, ts = ts,
+                    mid.y, mid.x, descTripId = null, ts = ts,
                     descRouteId = "RA", descDirectionId = 0, descStartTimeSec = 8 * 3600,
                 ),
                 prev = null,
@@ -206,7 +206,7 @@ class TrustDescriptorMatcherTest(
 
         assertThat(
             matcher.match(
-                report(mid.lat, mid.lon, descTripId = null, ts = ts, descRouteId = "RA", descDirectionId = 0),
+                report(mid.y, mid.x, descTripId = null, ts = ts, descRouteId = "RA", descDirectionId = 0),
                 null,
                 ctx,
             ),
@@ -229,7 +229,7 @@ class TrustDescriptorMatcherTest(
         assertThat(
             matcher.match(
                 report(
-                    mid.lat, mid.lon, descTripId = null, ts = ts,
+                    mid.y, mid.x, descTripId = null, ts = ts,
                     descRouteId = "RA", descDirectionId = 1, descStartTimeSec = 8 * 3600,
                 ),
                 null,
@@ -253,7 +253,7 @@ class TrustDescriptorMatcherTest(
         // Point sits near the first stop, but the descriptor claims the vehicle is at stop 4 (the last).
         assertThat(
             matcher.match(
-                report(early.lat, early.lon, "T1", ts, currentStopSequence = 4, currentStopId = "S4"),
+                report(early.y, early.x, "T1", ts, currentStopSequence = 4, currentStopId = "S4"),
                 null,
                 ctx,
             ),
@@ -274,7 +274,7 @@ class TrustDescriptorMatcherTest(
 
         val outcome =
             matcher.match(
-                report(mid.lat, mid.lon, "T1", ts, currentStopSequence = 2, currentStopId = "S2"),
+                report(mid.y, mid.x, "T1", ts, currentStopSequence = 2, currentStopId = "S2"),
                 null,
                 ctx,
             )

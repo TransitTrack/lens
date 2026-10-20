@@ -17,6 +17,7 @@ import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -29,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.Point
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -162,14 +162,14 @@ class PredictionProcessorTest(
 
     private fun insertReport(
         vehicleId: String,
-        p: Point,
+        p: Coordinate,
         at: Instant,
     ): Long =
         reports
             .save(
                 AvlReportRow(
                     feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
-                    lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
+                    lat = p.y, lon = p.x, bearing = null, speedMps = null, odometerM = null,
                     descTripId = null, descRouteId = null, descDirectionId = null,
                     descStartDate = at.atZone(factory.open(feedRow())!!.zone).toLocalDate(), descStartTimeSec = null,
                     descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
@@ -223,8 +223,8 @@ class PredictionProcessorTest(
         // "1002" sorts before "547" lexicographically ('1' < '5'), even though its report is newer.
         // A claim-batch ordered by vehicle id first would return "1002"'s row here; ordering by ts
         // first must return "547"'s older row instead.
-        val newerReportId = insertReport("1002", Point(0.0, 0.0), ts(9, 0))
-        val olderReportId = insertReport("547", Point(0.0, 0.0), ts(8, 0))
+        val newerReportId = insertReport("1002", Coordinate(0.0, 0.0), ts(9, 0))
+        val olderReportId = insertReport("547", Coordinate(0.0, 0.0), ts(8, 0))
 
         fun insertVehicleMatch(
             vehicleId: String,

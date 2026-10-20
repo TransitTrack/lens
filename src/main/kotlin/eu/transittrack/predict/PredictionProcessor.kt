@@ -4,6 +4,7 @@ import java.time.Duration
 import java.time.Instant
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -149,7 +150,7 @@ private fun VehicleMatch.toMatchOutcome(): MatchOutcome.Matched? {
         distanceAlongTripM = distanceAlongTripM,
         deviationM = deviationM,
         scheduleAdherenceSec = scheduleAdherenceSec,
-        snapped = eu.transittrack.Point(snappedLat, snappedLon),
+        snapped = Coordinate(snappedLon, snappedLat),
         heading = heading,
         score = score,
         revisionId = revisionId,
