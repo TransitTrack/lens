@@ -1,5 +1,6 @@
 package eu.transittrack.schedule.derive
 
+import org.locationtech.jts.geom.Coordinate
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
@@ -7,9 +8,8 @@ import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Extent
-import eu.transittrack.Point
-import eu.transittrack.Polyline
 import eu.transittrack.ScheduleProperties
+import eu.transittrack.geo.ProjectedLine
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.ShapePointRepository
@@ -49,27 +49,27 @@ class TripPatternProcessor(
         writer.deleteForRevision(revisionId) // idempotent pre-clean
         val state = context.open(revisionId)
 
-        val stopCoord: Map<String, Point> =
+        val stopCoord: Map<String, Coordinate> =
             stops
                 .findByRevisionId(revisionId)
                 .mapNotNull {
                     val la = it.stopLat
                     val lo = it.stopLon
-                    if (la != null && lo != null) it.stopId to Point(la, lo) else null
+                    if (la != null && lo != null) it.stopId to Coordinate(lo, la) else null
                 }.toMap()
 
-        val polylineCache = HashMap<String, Polyline?>()
+        val polylineCache = HashMap<String, ProjectedLine?>()
 
-        fun polyline(shapeId: String?): Polyline? {
+        fun polyline(shapeId: String?): ProjectedLine? {
             if (shapeId == null) return null
             return polylineCache.getOrPut(shapeId) {
                 val pts =
                     shapePoints.findByShapeId(revisionId, shapeId).mapNotNull { p ->
                         val la = p.shapePtLat
                         val lo = p.shapePtLon
-                        if (la != null && lo != null) Point(la, lo) else null
+                        if (la != null && lo != null) Coordinate(lo, la) else null
                     }
-                if (pts.size >= 2) Polyline(pts) else null
+                if (pts.size >= 2) ProjectedLine(pts) else null
             }
         }
 

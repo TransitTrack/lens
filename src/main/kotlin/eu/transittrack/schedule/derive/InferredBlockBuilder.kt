@@ -1,8 +1,10 @@
 package eu.transittrack.schedule.derive
 
+import org.locationtech.jts.geom.Coordinate
+
 import eu.transittrack.ScheduleProperties
+import eu.transittrack.geo.geodeticDistanceM
 import eu.transittrack.gtfs.model.RouteTypes
-import eu.transittrack.haversineMeters
 
 /** A timed trip that may be assigned to an inferred vehicle block. */
 data class InferredBlockTripInput(
@@ -213,6 +215,6 @@ private class Linker(
         val fromLon = from.lon ?: return null
         val toLat = to?.lat ?: return null
         val toLon = to.lon ?: return null
-        return haversineMeters(fromLat, fromLon, toLat, toLon)
+        return geodeticDistanceM(Coordinate(fromLon, fromLat), Coordinate(toLon, toLat))
     }
 }

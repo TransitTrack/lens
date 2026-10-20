@@ -10,11 +10,11 @@ import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 
 import eu.transittrack.Extent
-import eu.transittrack.Point
 
 /**
  * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes, trips, stop_times,
@@ -63,8 +63,8 @@ class Stop(
     var waitStop: Boolean? = null,
     var hidden: Boolean? = null,
 ) : RevisionScoped(revisionId) {
-    val point: Point
-        get() = Point(stopLat!!, stopLon!!)
+    val point: Coordinate
+        get() = Coordinate(stopLon!!, stopLat!!)
 }
 
 @Entity

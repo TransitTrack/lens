@@ -6,6 +6,7 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.io.path.createTempDirectory
 
+import org.locationtech.jts.geom.Coordinate
 import org.mobilitydata.gtfsvalidator.table.GtfsEntity
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -15,6 +16,7 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator
 import org.springframework.stereotype.Service
 
 import eu.transittrack.GtfsProperties
+import eu.transittrack.geo.geodeticDistanceM
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -32,7 +34,6 @@ import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
-import eu.transittrack.haversineMeters
 import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.schedule.derive.DerivationService
 
@@ -364,7 +365,7 @@ class IngestionService(
             val aLon = a.shapePtLon ?: return null
             val bLat = b.shapePtLat ?: return null
             val bLon = b.shapePtLon ?: return null
-            meters += haversineMeters(aLat, aLon, bLat, bLon)
+            meters += geodeticDistanceM(Coordinate(aLon, aLat), Coordinate(bLon, bLat))
         }
         return meters
     }
