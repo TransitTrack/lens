@@ -61,9 +61,9 @@ class GtfsFeedService(
         input: FeedInput,
     ): GtfsFeed {
         val feed = repo.findByCode(code) ?: throw FeedNotFoundException(code)
-//        if (feed.source == FeedSource.CONFIG) {
-//            throw FeedProtectedException("feed '$code' is config-managed")
-//        }
+        if (feed.source == FeedSource.CONFIG) {
+            throw FeedProtectedException("feed '$code' is config-managed")
+        }
         feed.name = input.name
         feed.description = input.description
         feed.url = input.url
@@ -77,9 +77,9 @@ class GtfsFeedService(
     @Transactional
     fun delete(code: String): Boolean {
         val feed = repo.findByCode(code) ?: return false
-//        if (feed.source == FeedSource.CONFIG) {
-//            throw FeedProtectedException("feed '$code' is config-managed")
-//        }
+        if (feed.source == FeedSource.CONFIG) {
+            throw FeedProtectedException("feed '$code' is config-managed")
+        }
         repo.delete(feed)
         events.publishEvent(GtfsFeedDeletedEvent(code))
         return true
