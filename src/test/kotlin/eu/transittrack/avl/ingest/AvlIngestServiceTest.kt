@@ -80,6 +80,30 @@ class AvlIngestServiceTest(
             ).build()
             .toByteArray()
 
+    /** Like [message], but each vehicle gets its own lat/lon — used to inject malformed positions. */
+    private fun messageWithPositions(
+        ts: Long,
+        vararg vehicles: Triple<String, Long, Pair<Float, Float>>,
+    ): ByteArray =
+        FeedMessage
+            .newBuilder()
+            .setHeader(FeedHeader.newBuilder().setGtfsRealtimeVersion("2.0").setTimestamp(ts))
+            .addAllEntity(
+                vehicles.mapIndexed { i, (v, vts, latLon) ->
+                    FeedEntity
+                        .newBuilder()
+                        .setId("e$i")
+                        .setVehicle(
+                            VehiclePosition
+                                .newBuilder()
+                                .setVehicle(VehicleDescriptor.newBuilder().setId(v))
+                                .setPosition(Position.newBuilder().setLatitude(latLon.first).setLongitude(latLon.second))
+                                .setTimestamp(vts),
+                        ).build()
+                },
+            ).build()
+            .toByteArray()
+
     private fun feed() =
         feeds.save(
             AvlFeed(
@@ -120,5 +144,32 @@ class AvlIngestServiceTest(
         val reloaded = feeds.findByCode("f")!!
         assertThat(reloaded.lastPollStatus).isEqualTo("OK")
         assertThat(reloaded.lastPollReportCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `reports with NaN or out-of-range lat-lon are dropped at ingestion, not left PENDING`() {
+        val f = feed()
+        bytes =
+            messageWithPositions(
+                fetchedAtEpoch,
+                Triple("nan-lat", fetchedAtEpoch, Float.NaN to 21.22f),
+                Triple("nan-lon", fetchedAtEpoch, 45.75f to Float.NaN),
+                Triple("out-of-range-lat", fetchedAtEpoch, 200.0f to 21.22f),
+                Triple("out-of-range-lon", fetchedAtEpoch, 45.75f to 400.0f),
+                Triple("infinite-lat", fetchedAtEpoch, Float.POSITIVE_INFINITY to 21.22f),
+                Triple("valid", fetchedAtEpoch, 45.75f to 21.22f),
+            )
+
+        // Only the one valid report is accepted; this must not throw despite the malformed ones.
+        assertThat(service.pollOnce(f)).isEqualTo(1)
+        assertThat(reports.count()).isEqualTo(1L)
+        assertThat(reports.findAll().single().vehicleId).isEqualTo("valid")
+
+        val reloaded = feeds.findByCode("f")!!
+        assertThat(reloaded.lastPollStatus).isEqualTo("OK")
+
+        // Polling again must not resurrect or reprocess the dropped reports as PENDING rows.
+        assertThat(service.pollOnce(f)).isEqualTo(0)
+        assertThat(reports.count()).isEqualTo(1L)
     }
 }

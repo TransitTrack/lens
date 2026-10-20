@@ -111,13 +111,15 @@ class TransitTrackMetrics(
         decoded: Int,
         accepted: Int,
         stale: Int = 0,
+        invalid: Int = 0,
     ) = safely("avl_reports") {
         val tags = avlTags(feedCode, format)
         counter("transittrack.avl.reports", tags + Tag.of("result", "decoded")).increment(decoded.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "accepted")).increment(accepted.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "stale")).increment(stale.toDouble())
+        counter("transittrack.avl.reports", tags + Tag.of("result", "invalid")).increment(invalid.toDouble())
         counter("transittrack.avl.reports", tags + Tag.of("result", "duplicate"))
-            .increment((decoded - accepted - stale).coerceAtLeast(0).toDouble())
+            .increment((decoded - accepted - stale - invalid).coerceAtLeast(0).toDouble())
     }
 
     /**

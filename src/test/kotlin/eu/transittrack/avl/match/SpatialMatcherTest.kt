@@ -77,4 +77,25 @@ class SpatialMatcherTest {
     fun `a non-layover stop path gets no distance exemption`() {
         assertThat(matcher.match(geom, Coordinate(0.01, 0.02), minAlongM = null)).isNull()
     }
+
+    @Test
+    fun `a NaN report coordinate is rejected as no match, not thrown or matched at distance 0`() {
+        assertThat(matcher.match(geom, Coordinate(Double.NaN, Double.NaN), minAlongM = null)).isNull()
+        assertThat(matcher.match(geom, Coordinate(0.0, Double.NaN), minAlongM = null)).isNull()
+        assertThat(matcher.match(geom, Coordinate(Double.NaN, 0.01), minAlongM = null)).isNull()
+    }
+
+    @Test
+    fun `an out-of-range report coordinate is rejected as no match, not thrown`() {
+        // |lat| > 90 is exactly what GeodeticCalculator rejects with IllegalArgumentException —
+        // this must come back as "no match", not propagate that exception.
+        assertThat(matcher.match(geom, Coordinate(0.0, 200.0), minAlongM = null)).isNull()
+        assertThat(matcher.match(geom, Coordinate(400.0, 0.01), minAlongM = null)).isNull()
+    }
+
+    @Test
+    fun `an infinite report coordinate is rejected as no match, not thrown`() {
+        assertThat(matcher.match(geom, Coordinate(Double.POSITIVE_INFINITY, 0.01), minAlongM = null)).isNull()
+        assertThat(matcher.match(geom, Coordinate(0.0, Double.NEGATIVE_INFINITY), minAlongM = null)).isNull()
+    }
 }

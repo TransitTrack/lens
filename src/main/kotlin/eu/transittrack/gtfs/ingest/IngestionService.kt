@@ -352,8 +352,8 @@ class IngestionService(
     }
 
     /**
-     * Polyline length in metres (haversine). `0.0` for <2 points; `null` if any point lacks a
-     * coordinate.
+     * Polyline length in metres (geodetic, WGS-84 ellipsoid — see [geodeticDistanceM]). `0.0` for
+     * <2 points; `null` if any point lacks a coordinate.
      */
     private fun polylineLengthMeters(points: List<ShapePoint>): Double? {
         if (points.size < 2) return 0.0

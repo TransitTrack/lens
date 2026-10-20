@@ -1,5 +1,7 @@
 package eu.transittrack.avl.match
 
+import kotlin.math.absoluteValue
+
 import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
@@ -38,12 +40,22 @@ class SpatialMatcher(
         report: Coordinate,
         minAlongM: Double?,
     ): SpatialMatch? {
+        // A malformed report coordinate doesn't uniformly fail the same way further down: NaN never
+        // throws from `line.project` (it silently produces a NaN LineProjection.deviationM that would
+        // otherwise defeat the `> cfg.maxDeviationM` check below, since NaN comparisons are always
+        // false, and match at distance 0), while out-of-range-but-finite values (e.g. |lat| > 90) can
+        // throw a GeoTools `ProjectionException` from that same local Transverse Mercator transform,
+        // and the geodetic helpers used here and in nearestAllowableLayover throw on both. Reject
+        // anything non-finite or out of the physically valid range up front, before any of that.
+        if (!report.x.isFinite() || !report.y.isFinite() || report.y.absoluteValue > 90.0 || report.x.absoluteValue > 180.0) {
+            return null
+        }
         val line = geom.line
         if (line.coordinates.size < 2) return null
         val pr = line.project(report)
         if (minAlongM != null && pr.distanceAlong < minAlongM - cfg.backtrackToleranceM) return null
 
-        if (pr.deviationM > cfg.maxDeviationM) {
+        if (!pr.deviationM.isFinite() || pr.deviationM > cfg.maxDeviationM) {
             return nearestAllowableLayover(geom, report, minAlongM)
         }
 

@@ -124,12 +124,31 @@ class AvlMatchProcessor(
                     // known position when the feed itself doesn't report them. The cursor walks the
                     // batch's own reports (not just `prev`) so a multi-report batch derives each
                     // report's kinematics from its immediate predecessor, not a stale starting point.
-                    report.fillMissingKinematics(cursorLat, cursorLon, cursorTs)
+                    // Captured and advanced unconditionally (before the try below) so one bad
+                    // report's cursor doesn't also poison the next report for the same vehicle.
+                    val (prevCursorLat, prevCursorLon, prevCursorTs) = Triple(cursorLat, cursorLon, cursorTs)
                     cursorLat = report.lat
                     cursorLon = report.lon
                     cursorTs = report.ts
 
-                    val match = matcher.match(report.toView(), prev?.toView(), ctx)
+                    // AvlIngestService validates every report's lat/lon before it can become a
+                    // PENDING row (so this should never throw in practice), but a row persisted
+                    // before that guard existed could still carry NaN/out-of-range coordinates, and
+                    // the geodetic helpers below throw on those (unlike SpatialMatcher, which already
+                    // guards itself above). Rather than letting such a row become a poison pill that
+                    // leaves the whole claimed batch PENDING and re-throws on every tick, treat a
+                    // thrown match as an ordinary unmatched report instead.
+                    val match =
+                        try {
+                            report.fillMissingKinematics(prevCursorLat, prevCursorLon, prevCursorTs)
+                            matcher.match(report.toView(), prev?.toView(), ctx)
+                        } catch (e: Exception) {
+                            log.warn(
+                                "avl match for feed '{}' report id={} vehicle='{}' threw during matching; treating as unmatched",
+                                feed.code, report.id, report.vehicleId, e,
+                            )
+                            MatchOutcome.Failed
+                        }
 
                     stats.accumulate(report, match, prev, ctx)
 
