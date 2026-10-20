@@ -23,6 +23,7 @@ import okio.Buffer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
@@ -36,7 +37,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.Point
 import eu.transittrack.avl.ingest.AvlIngestService
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
@@ -150,7 +150,7 @@ class PredictionEndToEndTest(
     }
 
     private fun feedMessageBytes(
-        pt: Point,
+        pt: Coordinate,
         epochSec: Long,
     ): ByteArray =
         FeedMessage
@@ -167,8 +167,8 @@ class PredictionEndToEndTest(
                             .setPosition(
                                 Position
                                     .newBuilder()
-                                    .setLatitude(pt.lat.toFloat())
-                                    .setLongitude(pt.lon.toFloat()),
+                                    .setLatitude(pt.y.toFloat())
+                                    .setLongitude(pt.x.toFloat()),
                             ).setTimestamp(epochSec),
                     ),
             ).build()

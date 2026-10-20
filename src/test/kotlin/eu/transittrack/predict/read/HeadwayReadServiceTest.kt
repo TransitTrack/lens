@@ -11,6 +11,7 @@ import assertk.assertions.isNotNull
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -22,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.Point
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
@@ -125,13 +125,13 @@ class HeadwayReadServiceTest(
         fun insert(
             vehicleId: String,
             tripId: String,
-            p: Point,
+            p: Coordinate,
             at: Instant,
         ) {
             reports.save(
                 AvlReportRow(
                     feedCode = feed.code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
-                    lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
+                    lat = p.y, lon = p.x, bearing = null, speedMps = null, odometerM = null,
                     descTripId = tripId, descRouteId = "RA", descDirectionId = 0,
                     descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
                     descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,

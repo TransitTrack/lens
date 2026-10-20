@@ -1,12 +1,12 @@
 package eu.transittrack.schedule.derive
 
+import org.locationtech.jts.geom.Coordinate
 import org.slf4j.Logger
 import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Extent
-import eu.transittrack.Point
-import eu.transittrack.Polyline
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.ProjectedLine
+import eu.transittrack.geo.geodeticDistanceM
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
 
@@ -31,7 +31,7 @@ fun hasResolvableCoords(
     tripId: String,
     routeId: String,
     stopIds: List<String>,
-    stopCoord: Map<String, Point>,
+    stopCoord: Map<String, Coordinate>,
     log: Logger,
 ): Boolean {
     val missing = stopIds.firstOrNull { it !in stopCoord } ?: return true
@@ -52,8 +52,8 @@ fun buildPattern(
     headsign: String?,
     rows: List<CleanStopTime>,
     stopIds: List<String>,
-    stopCoord: Map<String, Point>,
-    line: Polyline?,
+    stopCoord: Map<String, Coordinate>,
+    line: ProjectedLine?,
     maxDeviationM: Double,
     json: JsonMapper,
 ): PatternBuild {
@@ -78,7 +78,7 @@ fun buildPattern(
     val hasTimepointColumn = rows.any { it.timepoint != null }
     for (i in stopIds.indices) {
         val r = rows[i]
-        val geom: List<Point>
+        val geom: List<Coordinate>
         val segLen: Double
         when {
             i == 0 -> {
@@ -93,13 +93,7 @@ fun buildPattern(
 
             else -> {
                 geom = ShapeProjection.straightLine(coords[i - 1], coords[i])
-                segLen =
-                    haversineMeters(
-                        coords[i - 1].lat,
-                        coords[i - 1].lon,
-                        coords[i].lat,
-                        coords[i].lon,
-                    )
+                segLen = geodeticDistanceM(coords[i - 1], coords[i])
             }
         }
         val timed =
@@ -117,7 +111,7 @@ fun buildPattern(
                 routeId = routeId,
                 stopSeq = r.stopSequence,
                 lengthM = segLen,
-                pathGeometry = json.writeValueAsString(geom.map { listOf(it.lon, it.lat) }),
+                pathGeometry = json.writeValueAsString(geom.map { listOf(it.x, it.y) }),
                 pickupType = r.pickupType,
                 dropOffType = r.dropOffType,
                 waitStop = timed,

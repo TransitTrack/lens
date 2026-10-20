@@ -1,16 +1,19 @@
 package eu.transittrack.avl.match
 
+import kotlin.math.absoluteValue
+
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
-import eu.transittrack.Vector
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.geodeticBearingDegrees
+import eu.transittrack.geo.geodeticDistanceM
 
 data class SpatialMatch(
     val stopPathIndex: Int,
     val distanceAlongTripM: Double,
     val deviationM: Double,
-    val snapped: Point,
+    val snapped: Coordinate,
     val heading: Double?,
 )
 
@@ -34,15 +37,25 @@ class SpatialMatcher(
 
     fun match(
         geom: PatternGeometry,
-        report: Point,
+        report: Coordinate,
         minAlongM: Double?,
     ): SpatialMatch? {
+        // A malformed report coordinate doesn't uniformly fail the same way further down: NaN never
+        // throws from `line.project` (it silently produces a NaN LineProjection.deviationM that would
+        // otherwise defeat the `> cfg.maxDeviationM` check below, since NaN comparisons are always
+        // false, and match at distance 0), while out-of-range-but-finite values (e.g. |lat| > 90) can
+        // throw a GeoTools `ProjectionException` from that same local Transverse Mercator transform,
+        // and the geodetic helpers used here and in nearestAllowableLayover throw on both. Reject
+        // anything non-finite or out of the physically valid range up front, before any of that.
+        if (!report.x.isFinite() || !report.y.isFinite() || report.y.absoluteValue > 90.0 || report.x.absoluteValue > 180.0) {
+            return null
+        }
         val line = geom.line
-        if (line.points.size < 2) return null
+        if (line.coordinates.size < 2) return null
         val pr = line.project(report)
         if (minAlongM != null && pr.distanceAlong < minAlongM - cfg.backtrackToleranceM) return null
 
-        if (pr.deviationM > cfg.maxDeviationM) {
+        if (!pr.deviationM.isFinite() || pr.deviationM > cfg.maxDeviationM) {
             return nearestAllowableLayover(geom, report, minAlongM)
         }
 
@@ -53,7 +66,7 @@ class SpatialMatcher(
             } else {
                 val a = (pr.distanceAlong - 5.0).coerceIn(0.0, line.lengthM)
                 val b = (pr.distanceAlong + 5.0).coerceIn(0.0, line.lengthM)
-                Vector(line.pointAt(a), line.pointAt(b)).heading()
+                geodeticBearingDegrees(line.pointAt(a), line.pointAt(b))
             }
         return SpatialMatch(idx, pr.distanceAlong, pr.deviationM, line.pointAt(pr.distanceAlong), heading)
     }
@@ -66,7 +79,7 @@ class SpatialMatcher(
      */
     private fun nearestAllowableLayover(
         geom: PatternGeometry,
-        report: Point,
+        report: Coordinate,
         minAlongM: Double?,
     ): SpatialMatch? {
         var best: SpatialMatch? = null
@@ -77,12 +90,12 @@ class SpatialMatcher(
             if (minAlongM != null && along < minAlongM - cfg.backtrackToleranceM) continue
 
             val layoverLoc = geom.endOfPath(i)
-            val distanceToLayoverM = report.distance(layoverLoc)
+            val distanceToLayoverM = geodeticDistanceM(report, layoverLoc)
             val allowableM =
                 if (i == 0) {
                     Double.MAX_VALUE
                 } else {
-                    val distanceBtwnStopsM = layoverLoc.distance(geom.endOfPath(i - 1))
+                    val distanceBtwnStopsM = geodeticDistanceM(layoverLoc, geom.endOfPath(i - 1))
                     maxOf(distanceBtwnStopsM * 1.5, cfg.layoverDistanceM)
                 }
             if (distanceToLayoverM < allowableM && distanceToLayoverM < bestDistanceM) {

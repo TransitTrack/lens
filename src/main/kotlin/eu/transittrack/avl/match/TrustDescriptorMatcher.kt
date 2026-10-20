@@ -1,9 +1,9 @@
 package eu.transittrack.avl.match
 
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.schedule.model.TripRef
 
@@ -93,7 +93,7 @@ class TrustDescriptorMatcher(
     private fun resolveTrip(
         report: AvlReportView,
         ctx: MatchContext,
-        point: Point,
+        point: Coordinate,
     ): Pair<TripRef, PatternGeometry>? {
         report.descTripId?.let { id ->
             ctx.tripByGtfsId(id)?.let { return geometryOf(it, ctx) }
@@ -111,7 +111,7 @@ class TrustDescriptorMatcher(
         // A present start time is authoritative: exactly one trip must carry it, otherwise the
         // descriptor is inconsistent with this revision and we defer to inference.
         report.descStartTimeSec?.let { start ->
-            val exact = candidates.filter { it.startTimeSec != null && it.startTimeSec!! >= start }
+            val exact = candidates.filter { it.startTimeSec != null && it.startTimeSec!! == start }
             return when {
                 exact.size == 1 -> geometryOf(exact.single(), ctx)
                 exact.isEmpty() -> null
@@ -130,7 +130,7 @@ class TrustDescriptorMatcher(
         candidates: List<TripRef>,
         report: AvlReportView,
         ctx: MatchContext,
-        point: Point,
+        point: Coordinate,
     ): Pair<TripRef, PatternGeometry>? {
         val survivors =
             candidates.mapNotNull { t ->

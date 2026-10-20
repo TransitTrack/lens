@@ -19,6 +19,7 @@ description = "transitlens"
 
 repositories {
     mavenCentral()
+    maven { url = uri("https://repo.osgeo.org/repository/release/") }
 }
 
 // A dedicated source set (rather than piggybacking on `main` or `test`) for load benchmarks of

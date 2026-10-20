@@ -3,26 +3,27 @@ package eu.transittrack.schedule.derive
 import kotlin.math.max
 import kotlin.math.min
 
-import eu.transittrack.Point
-import eu.transittrack.Polyline
+import org.locationtech.jts.geom.Coordinate
+
+import eu.transittrack.geo.ProjectedLine
 
 object ShapeProjection {
     fun straightLine(
-        a: Point,
-        b: Point,
-    ): List<Point> = listOf(a, b)
+        a: Coordinate,
+        b: Coordinate,
+    ): List<Coordinate> = listOf(a, b)
 
     fun slice(
-        line: Polyline,
+        line: ProjectedLine,
         fromM: Double,
         toM: Double,
-    ): List<Point> {
+    ): List<Coordinate> {
         val lo = max(0.0, min(fromM, toM))
         val hi = min(line.lengthM, max(fromM, toM))
-        val out = ArrayList<Point>()
+        val out = ArrayList<Coordinate>()
         out.add(line.pointAt(lo))
-        for (i in line.points.indices) {
-            if (line.cumulative[i] > lo && line.cumulative[i] < hi) out.add(line.points[i])
+        for (i in line.coordinates.indices) {
+            if (line.cumulative[i] > lo && line.cumulative[i] < hi) out.add(line.coordinates[i])
         }
         out.add(line.pointAt(hi))
         return out

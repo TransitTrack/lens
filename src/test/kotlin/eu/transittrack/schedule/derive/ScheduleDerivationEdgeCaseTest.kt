@@ -20,6 +20,7 @@ import assertk.assertions.isTrue
 import assertk.assertions.messageContains
 import assertk.assertions.startsWith
 import org.junit.jupiter.api.AfterEach
+import org.locationtech.jts.geom.Coordinate
 import org.mockito.kotlin.mock
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -33,6 +34,7 @@ import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.GtfsProperties
 import eu.transittrack.ScheduleProperties
+import eu.transittrack.geo.geodeticDistanceM
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -58,7 +60,6 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.support.noOpEventPublisher
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
-import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
@@ -293,7 +294,7 @@ class ScheduleDerivationEdgeCaseTest(
         val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
         assertThat(paths).hasSize(2)
         assertThat(paths[0].lengthM).isEqualTo(0.0)
-        val expected = haversineMeters(51.100, 17.000, 51.120, 17.020)
+        val expected = geodeticDistanceM(Coordinate(17.000, 51.100), Coordinate(17.020, 51.120))
         assertThat(paths[1].lengthM).isCloseTo(expected, 1.0)
         // A straight-line fallback geometry is exactly the two stop coordinates.
         assertThat(jsonMapper.readValue(paths[1].pathGeometry!!, List::class.java))
@@ -314,11 +315,11 @@ class ScheduleDerivationEdgeCaseTest(
 
         // OFF is ~700 m from SHP_OUT (> the 100 m default), so both of its segments are
         // straight lines between stop coordinates rather than shape slices.
-        val s1ToOff = haversineMeters(51.100, 17.000, 51.115, 17.000)
+        val s1ToOff = geodeticDistanceM(Coordinate(17.000, 51.100), Coordinate(17.000, 51.115))
         assertThat(paths[1].lengthM).isCloseTo(s1ToOff, 1.0)
         assertThat(jsonMapper.readValue(paths[1].pathGeometry!!, List::class.java))
             .isEqualTo(listOf(listOf(17.000, 51.100), listOf(17.000, 51.115)))
-        val offToS4 = haversineMeters(51.115, 17.000, 51.130, 17.030)
+        val offToS4 = geodeticDistanceM(Coordinate(17.000, 51.115), Coordinate(17.030, 51.130))
         assertThat(paths[2].lengthM).isCloseTo(offToS4, 1.0)
     }
 
@@ -495,8 +496,8 @@ class ScheduleDerivationEdgeCaseTest(
                                 extent =
                                     eu.transittrack.Extent.of(
                                         listOf(
-                                            eu.transittrack.Point(51.0, 17.0),
-                                            eu.transittrack.Point(51.1, 17.1),
+                                            Coordinate(17.0, 51.0),
+                                            Coordinate(17.1, 51.1),
                                         ),
                                     ),
                                 tripCount = 0,

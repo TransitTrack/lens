@@ -22,6 +22,7 @@ import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -34,7 +35,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
-import eu.transittrack.Point
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -141,13 +141,13 @@ class AvlMatchProcessorTest(
 
     private fun insertReport(
         vehicleId: String,
-        p: Point,
+        p: Coordinate,
         at: Instant,
     ) {
         reports.save(
             AvlReportRow(
                 feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
-                lat = p.lat, lon = p.lon, bearing = null, speedMps = null, odometerM = null,
+                lat = p.y, lon = p.x, bearing = null, speedMps = null, odometerM = null,
                 descTripId = null, descRouteId = null, descDirectionId = null,
                 descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
                 descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
@@ -206,7 +206,7 @@ class AvlMatchProcessorTest(
     fun `garbage reports fail every attempt and never match the vehicle`() {
         val (_, geom) = t1Geom()
         val mid = geom.line.pointAt(0.5 * geom.line.lengthM)
-        val garbage = Point(mid.lat + 0.05, mid.lon + 0.05)
+        val garbage = Coordinate(mid.x + 0.05, mid.y + 0.05)
 
         insertReport("bus-2", garbage, ts(8, 10))
         insertReport("bus-2", garbage, ts(8, 12))
@@ -232,7 +232,7 @@ class AvlMatchProcessorTest(
         val (trip, geom) = t1Geom()
         val len = geom.line.lengthM
         val mid = geom.line.pointAt(0.5 * len)
-        val garbage = Point(mid.lat + 0.05, mid.lon + 0.05)
+        val garbage = Coordinate(mid.x + 0.05, mid.y + 0.05)
 
         insertReport("bus-3", geom.line.pointAt(0.3 * len), ts(8, 0))
         processor.processBatch()

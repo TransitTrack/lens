@@ -141,7 +141,7 @@ class FullInferenceMatcherTest(
         val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
         val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
 
-        val outcome = matcher.match(report(mid.lat, mid.lon, ts0805()), prev = null, ctx)
+        val outcome = matcher.match(report(mid.y, mid.x, ts0805()), prev = null, ctx)
 
         assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
         assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(trip.id)
@@ -155,7 +155,7 @@ class FullInferenceMatcherTest(
         val len = geom.line.lengthM
         val p = geom.line.pointAt(0.6 * len)
 
-        val outcome = matcher.match(report(p.lat, p.lon, ts0805()), prevOnTrip(trip.id!!, 0.4 * len), ctx)
+        val outcome = matcher.match(report(p.y, p.x, ts0805()), prevOnTrip(trip.id!!, 0.4 * len), ctx)
 
         assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
         val m = outcome as MatchOutcome.Matched
@@ -170,7 +170,7 @@ class FullInferenceMatcherTest(
         val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
         val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
 
-        assertThat(matcher.match(report(mid.lat + 0.05, mid.lon + 0.05, ts0805()), prev = null, ctx))
+        assertThat(matcher.match(report(mid.y + 0.05, mid.x + 0.05, ts0805()), prev = null, ctx))
             .isEqualTo(MatchOutcome.Failed)
     }
 }

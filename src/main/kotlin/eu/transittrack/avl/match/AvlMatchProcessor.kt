@@ -4,6 +4,7 @@ import java.time.Duration
 import java.time.Instant
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
+import org.locationtech.jts.geom.Coordinate
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -22,12 +23,12 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.bearingDegrees
 import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.concurrency.FeedReconciler
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.geodeticBearingDegrees
+import eu.transittrack.geo.geodeticDistanceM
 import eu.transittrack.observability.TransitTrackMetrics
 
 /**
@@ -123,12 +124,31 @@ class AvlMatchProcessor(
                     // known position when the feed itself doesn't report them. The cursor walks the
                     // batch's own reports (not just `prev`) so a multi-report batch derives each
                     // report's kinematics from its immediate predecessor, not a stale starting point.
-                    report.fillMissingKinematics(cursorLat, cursorLon, cursorTs)
+                    // Captured and advanced unconditionally (before the try below) so one bad
+                    // report's cursor doesn't also poison the next report for the same vehicle.
+                    val (prevCursorLat, prevCursorLon, prevCursorTs) = Triple(cursorLat, cursorLon, cursorTs)
                     cursorLat = report.lat
                     cursorLon = report.lon
                     cursorTs = report.ts
 
-                    val match = matcher.match(report.toView(), prev?.toView(), ctx)
+                    // AvlIngestService validates every report's lat/lon before it can become a
+                    // PENDING row (so this should never throw in practice), but a row persisted
+                    // before that guard existed could still carry NaN/out-of-range coordinates, and
+                    // the geodetic helpers below throw on those (unlike SpatialMatcher, which already
+                    // guards itself above). Rather than letting such a row become a poison pill that
+                    // leaves the whole claimed batch PENDING and re-throws on every tick, treat a
+                    // thrown match as an ordinary unmatched report instead.
+                    val match =
+                        try {
+                            report.fillMissingKinematics(prevCursorLat, prevCursorLon, prevCursorTs)
+                            matcher.match(report.toView(), prev?.toView(), ctx)
+                        } catch (e: Exception) {
+                            log.warn(
+                                "avl match for feed '{}' report id={} vehicle='{}' threw during matching; treating as unmatched",
+                                feed.code, report.id, report.vehicleId, e,
+                            )
+                            MatchOutcome.Failed
+                        }
 
                     stats.accumulate(report, match, prev, ctx)
 
@@ -185,8 +205,8 @@ class AvlMatchProcessor(
                             distanceAlongTripM = outcome.distanceAlongTripM,
                             deviationM = outcome.deviationM,
                             scheduleAdherenceSec = outcome.scheduleAdherenceSec,
-                            snappedLat = outcome.snapped.lat,
-                            snappedLon = outcome.snapped.lon,
+                            snappedLat = outcome.snapped.y,
+                            snappedLon = outcome.snapped.x,
                             heading = outcome.heading,
                             score = outcome.score,
                             createdAt = now,
@@ -213,8 +233,8 @@ class AvlMatchProcessor(
                             stopPathIndex = outcome.stopPathIndex,
                             distanceAlongTripM = outcome.distanceAlongTripM,
                             scheduleAdherenceSec = outcome.scheduleAdherenceSec,
-                            snappedLat = outcome.snapped.lat,
-                            snappedLon = outcome.snapped.lon,
+                            snappedLat = outcome.snapped.y,
+                            snappedLon = outcome.snapped.x,
                             updatedAt = now,
                         ),
                     )
@@ -302,8 +322,8 @@ private fun AvlReportRow.fillMissingKinematics(
     if (prevLat == null || prevLon == null || prevTs == null) return
     val elapsedSec = Duration.between(prevTs, ts).seconds
     if (elapsedSec <= 0) return
-    if (bearing == null) bearing = bearingDegrees(prevLat, prevLon, lat, lon)
-    if (speedMps == null) speedMps = haversineMeters(prevLat, prevLon, lat, lon) / elapsedSec
+    if (bearing == null) bearing = geodeticBearingDegrees(Coordinate(prevLon, prevLat), Coordinate(lon, lat))
+    if (speedMps == null) speedMps = geodeticDistanceM(Coordinate(prevLon, prevLat), Coordinate(lon, lat)) / elapsedSec
 }
 
 private fun AvlReportRow.toView() =

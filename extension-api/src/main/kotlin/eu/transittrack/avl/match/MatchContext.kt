@@ -3,7 +3,8 @@ package eu.transittrack.avl.match
 import java.time.LocalDate
 import java.time.ZoneId
 
-import eu.transittrack.Point
+import org.locationtech.jts.geom.Coordinate
+
 import eu.transittrack.schedule.model.BlockTripRef
 import eu.transittrack.schedule.model.StopPathRef
 import eu.transittrack.schedule.model.TripRef
@@ -46,7 +47,7 @@ interface MatchContext {
 
     fun patternExtentWithin(
         tripPatternId: Long,
-        p: Point,
+        p: Coordinate,
         distanceM: Double,
     ): Boolean
 }

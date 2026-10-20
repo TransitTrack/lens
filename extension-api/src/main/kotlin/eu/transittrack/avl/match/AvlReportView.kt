@@ -3,7 +3,7 @@ package eu.transittrack.avl.match
 import java.time.Instant
 import java.time.LocalDate
 
-import eu.transittrack.Point
+import org.locationtech.jts.geom.Coordinate
 
 /** Lean, JPA-free mirror of `eu.transittrack.avl.model.AvlReportRow`. */
 data class AvlReportView(
@@ -29,5 +29,5 @@ data class AvlReportView(
     val occupancyStatus: Int?,
     val congestionLevel: Int?,
 ) {
-    val point: Point = Point(lat, lon)
+    val point: Coordinate = Coordinate(lon, lat)
 }
