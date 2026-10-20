@@ -45,12 +45,14 @@ class VehiclePrediction(
 interface VehiclePredictionRepository : JpaRepository<VehiclePrediction, Long> {
     @Query(
         "select e from VehiclePrediction e where e.feedCode = :feedCode and e.vehicleId = :vehicleId " +
-            "and e.tripRowId = :tripRowId order by e.stopPathIndex",
+            "and e.tripRowId = :tripRowId and (:algorithm is null or e.algorithm = :algorithm) " +
+            "order by e.stopPathIndex",
     )
     fun findByVehicleTrip(
         @Param("feedCode") feedCode: String,
         @Param("vehicleId") vehicleId: String,
         @Param("tripRowId") tripRowId: Long,
+        @Param("algorithm") algorithm: PredictionAlgorithm? = null,
     ): List<VehiclePrediction>
 
     @Query(

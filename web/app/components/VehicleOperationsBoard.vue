@@ -123,7 +123,7 @@ function selectVehicle(vehicleId: string) {
         :feed-code="feedCode"
         :selected-vehicle-id="selectedVehicleId"
         :selected-route="selectedRoute"
-        selection-action-label="Show route"
+        selection-action-label="Highlight route"
         @select="selectVehicle"
       />
       <div class="pointer-events-none absolute left-4 top-4 rounded-lg border border-default bg-default/90 px-3 py-2 shadow-sm backdrop-blur-sm">

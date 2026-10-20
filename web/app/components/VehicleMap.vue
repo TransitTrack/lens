@@ -488,13 +488,15 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         v-if="activeVehicle"
         :key="activeVehicle.vehicleId"
         :coordinates="[activeVehicle.position.lon, activeVehicle.position.lat]"
-        :close-on-click="false"
+        :close-on-click="true"
+        :close-button="false"
+        :close-on-move="true"
         :offset="14"
         max-width="22rem"
         class-name="vehicle-operation-popup"
         @close="activeVehicleId = null"
       >
-        <div class="flex max-h-[min(40rem,calc(100vh-6rem))] w-[20rem] max-w-[calc(100vw-3rem)] flex-col gap-3 overflow-y-auto p-3 text-sm">
+        <div class="flex max-h-[min(40rem,calc(100vh-6rem))] w-[20rem] max-w-[calc(100vw-3rem)] flex-col gap-3 overflow-y-auto p-1 text-sm">
           <header class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <p class="text-lg font-bold text-highlighted">#{{ activeVehicle.vehicleId }}</p>
@@ -608,9 +610,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
           </div>
 
           <UButton
-            size="xs"
-            color="neutral"
-            variant="soft"
+            color="primary"
             trailing-icon="i-lucide-arrow-right"
             block
             :label="selectionActionLabel"
@@ -629,7 +629,6 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         :stops="networkStops"
         :show-routes="visibleLayers.networkRoutes"
         :show-stops="visibleLayers.networkStops"
-        :interactive="!selectedRoute"
         before="vehicles-icons"
         dim
       />
@@ -703,7 +702,6 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
             visibility: visibleLayers.vehicle ? 'visible' : 'none',
           }"
           @click="onVehicleClick"
-          @mousemove="onVehicleClick"
         />
         <!-- This must be declared after its `before` target. vue-maplibre-gl
              adds child layers in declaration order once the source is ready. -->

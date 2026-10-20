@@ -21,7 +21,8 @@ class PredictionQueryController(
     fun vehiclePredictions(
         @Argument feedCode: String,
         @Argument vehicleId: String,
-    ) = read.vehiclePredictions(feedCode, vehicleId)
+        @Argument algorithm: String?,
+    ) = read.vehiclePredictions(feedCode, vehicleId, algorithm?.let { PredictionAlgorithm.valueOf(it) })
 
     @QueryMapping
     fun predictionAccuracy(

@@ -44,6 +44,16 @@ const columns: TableColumn<AvlLogRow>[] = [
     cell: ({ row }) => hhmmss(row.original.ts),
   },
   {
+    id: 'position',
+    header: 'Position',
+    cell: ({ row }) =>
+      h(
+        'span',
+        { class: 'font-mono text-xs tabular-nums text-muted' },
+        `${row.original.position.lat.toFixed(5)}, ${row.original.position.lon.toFixed(5)}`,
+      ),
+  },
+  {
     id: 'status',
     header: 'Status',
     cell: ({ row }) =>
@@ -54,14 +64,31 @@ const columns: TableColumn<AvlLogRow>[] = [
       ),
   },
   {
+    id: 'route',
+    header: 'Route',
+    cell: ({ row }) => {
+      const trip = row.original.match?.trip
+      if (!trip) return h('span', { class: 'text-dimmed' }, '—')
+      return h('span', { class: 'font-medium text-highlighted' }, trip.route?.routeShortName ?? trip.routeId)
+    },
+  },
+  {
     id: 'trip',
     header: 'Trip',
     cell: ({ row }) => {
       const trip = row.original.match?.trip
-      if (!trip) return h('span', { class: 'text-dimmed' }, row.original.descTripId ?? '—')
-      const short = trip.route?.routeShortName
-      const label = [short, trip.tripHeadsign].filter(Boolean).join(' · ')
-      return h('span', { class: 'truncate' }, label || trip.tripId)
+      if (!trip) {
+        return h('div', { class: 'min-w-0' }, [
+          h('span', { class: 'block text-xs text-dimmed' }, 'Unmatched descriptor'),
+          h('span', { class: 'mt-0.5 block truncate font-mono text-xs text-muted' }, row.original.descTripId ?? '—'),
+        ])
+      }
+      return h('div', { class: 'min-w-0' }, [
+        h('span', { class: 'block truncate font-medium text-highlighted' }, trip.tripId),
+        trip.tripHeadsign
+          ? h('span', { class: 'mt-0.5 block truncate text-xs text-muted' }, trip.tripHeadsign)
+          : null,
+      ])
     },
   },
   {
@@ -99,7 +126,7 @@ const columns: TableColumn<AvlLogRow>[] = [
     v-model:open="open"
     title="AVL log"
     description="Raw AVL reports for this vehicle, newest first, with the match each one produced."
-    :ui="{ content: 'max-w-4xl' }"
+    :ui="{ content: 'sm:w-[min(94vw,88rem)] sm:max-w-none' }"
   >
     <template #body>
       <UAlert

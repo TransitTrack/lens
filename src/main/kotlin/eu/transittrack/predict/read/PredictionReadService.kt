@@ -35,6 +35,7 @@ class PredictionReadService(
     fun vehiclePredictions(
         feedCode: String,
         vehicleId: String,
+        algorithm: PredictionAlgorithm? = null,
     ): List<StopPredictionDto> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val state = vehicleStates.findByFeedCodeAndVehicleId(feed.code, vehicleId) ?: return emptyList()
@@ -42,7 +43,7 @@ class PredictionReadService(
         val revisionId = state.revisionId ?: return emptyList()
         val tripPatternId = state.tripPatternId ?: return emptyList()
 
-        val rows = predictions.findByVehicleTrip(feed.code, vehicleId, tripRowId)
+        val rows = predictions.findByVehicleTrip(feed.code, vehicleId, tripRowId, algorithm)
         val schedule = scheduleTimes.findByTripOrdered(revisionId, tripRowId).associateBy { it.stopPathIndex }
         val stopPathsByIndex = stopPaths.findByTripPatternOrdered(revisionId, tripPatternId).associateBy { it.stopPathIndex }
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()

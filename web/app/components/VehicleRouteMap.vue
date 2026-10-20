@@ -17,8 +17,10 @@ const props = withDefaults(
     follow?: boolean
     /** agency service area — frames the map on load before the route line arrives */
     extent?: LngLatBoundsExtent | null
+    /** lets the parent request a resize after moving the map into an overlay */
+    fullscreen?: boolean
   }>(),
-  {trail: () => [], follow: false, extent: null},
+  {trail: () => [], follow: false, extent: null, fullscreen: false},
 )
 
 const MAP_ID = 'vehicle-route-map'
@@ -75,6 +77,14 @@ function fit() {
 watch([lineKey, () => map.isLoaded], fit, {immediate: true})
 
 watch(
+  () => props.fullscreen,
+  async () => {
+    await nextTick()
+    map.map?.resize()
+  },
+)
+
+watch(
   () => props.vehicle,
   (v) => {
     if (props.follow && v && map.map && map.isLoaded) {
@@ -90,11 +100,12 @@ watch(
       :map-key="MAP_ID"
       :map-style="mapStyle"
       :bounds="initialBounds"
+      :attribution-control="false"
       :fit-bounds-options="{padding: 40, animate: false}"
       :center="[0, 0]"
       :zoom="2"
     >
-      <MglNavigationControl/>
+<!--      <MglNavigationControl/>-->
 
       <MglGeoJsonSource v-if="trail.length > 1" source-id="avl-trail" :data="trailData">
         <MglLineLayer
@@ -164,7 +175,7 @@ watch(
         </template>
       </MglMarker>
     </MglMap>
-
+<!--
     <div class="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-default bg-default/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur">
       <div class="flex items-center gap-2">
         <span class="h-0.75 w-6 rounded-full" :style="{ backgroundColor: props.routeColor }"/>
@@ -185,5 +196,6 @@ watch(
         <span class="text-muted">Live vehicle position</span>
       </div>
     </div>
+-->
   </div>
 </template>

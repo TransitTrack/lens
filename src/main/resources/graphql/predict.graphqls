@@ -1,5 +1,5 @@
 extend type Query {
-    vehiclePredictions(feedCode: String!, vehicleId: String!): [StopPrediction!]!
+    vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: String): [StopPrediction!]!
     predictionAccuracy(feedCode: String!, algorithm: String, sinceDays: Int = 7): [PredictionAccuracySummary!]!
     stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: String): [StopPrediction!]!
     headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: String): Headway!

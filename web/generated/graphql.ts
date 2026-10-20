@@ -938,6 +938,7 @@ export type QueryVehicleArgs = {
 
 
 export type QueryVehiclePredictionsArgs = {
+  algorithm?: InputMaybe<Scalars['String']['input']>;
   feedCode: Scalars['String']['input'];
   vehicleId: Scalars['String']['input'];
 };

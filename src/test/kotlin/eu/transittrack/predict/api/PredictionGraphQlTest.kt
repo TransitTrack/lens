@@ -6,6 +6,7 @@ import java.time.ZoneId
 import kotlin.test.Test
 
 import assertk.assertThat
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThanOrEqualTo
 import assertk.assertions.isNotEmpty
@@ -216,6 +217,39 @@ class PredictionGraphQlTest(
 
         val row = rows.first { (it["stopPathIndex"] as Number).toInt() == prediction.stopPathIndex }
         assertThat(row["scheduledArrival"]).isEqualTo(expected)
+    }
+
+    @Test
+    fun `vehiclePredictions with matching algorithm argument returns rows`() {
+        val rows =
+            tester
+                .document(
+                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1", algorithm:"SCHEDULE_ADHERENCE") {
+                         algorithm
+                       } }""",
+                ).execute()
+                .path("vehiclePredictions")
+                .entityList(Map::class.java)
+                .get()
+
+        assertThat(rows).isNotEmpty()
+        assertThat(rows.first()["algorithm"]).isEqualTo("SCHEDULE_ADHERENCE")
+    }
+
+    @Test
+    fun `vehiclePredictions with non-matching algorithm argument returns no rows`() {
+        val rows =
+            tester
+                .document(
+                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1", algorithm:"KALMAN") {
+                         algorithm
+                       } }""",
+                ).execute()
+                .path("vehiclePredictions")
+                .entityList(Map::class.java)
+                .get()
+
+        assertThat(rows).isEmpty()
     }
 
     @Test

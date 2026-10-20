@@ -10,6 +10,12 @@ export function adherenceBadge(sec: number | null | undefined): AdherenceBadge {
   if (sec > 300) {
     return { label: `${Math.round(sec / 60)}m late`, color: 'error' }
   }
+  if (sec < -300) {
+    return { label: `${Math.round(-sec / 60)}m early`, color: 'error' }
+  }
+  if (sec > 60) {
+    return { label: `${Math.round(sec / 60)}m late`, color: 'warning' }
+  }
   if (sec < -60) {
     return { label: `${Math.round(-sec / 60)}m early`, color: 'warning' }
   }
