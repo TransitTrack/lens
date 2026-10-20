@@ -7,6 +7,8 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
+import assertk.assertions.isNull
+import assertk.assertions.isTrue
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
@@ -35,7 +37,7 @@ class GtfsFeedServiceTest(
     }
 
     @Test
-    fun `update and delete refuse CONFIG feeds`() {
+    fun `update and delete allow mutation of CONFIG feeds`() {
         repo.save(
             GtfsFeed(
                 "c",
@@ -50,7 +52,11 @@ class GtfsFeedServiceTest(
                 java.time.Instant.now(),
             ),
         )
-        assertFailure { service.update("c", input.copy(code = "c")) }.isInstanceOf<FeedProtectedException>()
-        assertFailure { service.delete("c") }.isInstanceOf<FeedProtectedException>()
+
+        val updated = service.update("c", input.copy(code = "c"))
+        assertThat(updated.name).isEqualTo(input.name)
+
+        assertThat(service.delete("c")).isTrue()
+        assertThat(repo.findByCode("c")).isNull()
     }
 }

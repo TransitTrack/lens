@@ -111,7 +111,7 @@ class TrustDescriptorMatcher(
         // A present start time is authoritative: exactly one trip must carry it, otherwise the
         // descriptor is inconsistent with this revision and we defer to inference.
         report.descStartTimeSec?.let { start ->
-            val exact = candidates.filter { it.startTimeSec != null && it.startTimeSec!! >= start }
+            val exact = candidates.filter { it.startTimeSec == start }
             return when {
                 exact.size == 1 -> geometryOf(exact.single(), ctx)
                 exact.isEmpty() -> null
