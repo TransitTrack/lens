@@ -18,6 +18,12 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.concurrency.FeedLockCoordinator
+import eu.transittrack.gtfs.feed.FeedSource
+import eu.transittrack.gtfs.feed.GtfsFeed
+import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.revision.GtfsRevision
+import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(
@@ -30,6 +36,8 @@ import eu.transittrack.support.PostgresPerMethodTest
 class AvlMatchSchedulingTest(
     @Autowired val processor: AvlMatchProcessor,
     @Autowired val feeds: AvlFeedRepository,
+    @Autowired val gtfsFeeds: GtfsFeedRepository,
+    @Autowired val revisions: GtfsRevisionRepository,
     @Autowired @Qualifier("avlFeedLockCoordinator") val sharedCoordinator: FeedLockCoordinator,
     @Autowired val lockProvider: JdbcTemplateLockProvider,
 ) : PostgresPerMethodTest() {
@@ -54,8 +62,25 @@ class AvlMatchSchedulingTest(
             source = AvlFeedSourceKind.CONFIG, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
         )
 
+    /** Gives GTFS feed "g" an active revision, so [AvlMatchProcessor.reconcile] considers an AVL
+     * feed pointed at it ready to match — no need for the full ingestion pipeline here, just the
+     * two rows [eu.transittrack.avl.match.AvlMatchContextFactory.hasActiveRevision] actually
+     * checks. See AvlPollerTest.activateGtfsFeed, which this mirrors. */
+    private fun activateGtfsFeed() {
+        val gtfsFeed =
+            gtfsFeeds.save(
+                GtfsFeed(
+                    code = "g", name = "G", description = null, url = "https://x.test/g.zip",
+                    pollingCron = null, enabled = true, autoActivate = true, source = FeedSource.CONFIG,
+                    createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+                ),
+            )
+        revisions.save(GtfsRevision(feedId = gtfsFeed.id!!, status = GtfsRevisionStatus.ACTIVE, sourceUrl = "u"))
+    }
+
     @Test
     fun `reconcile starts a task for an enabled feed`() {
+        activateGtfsFeed()
         val saved = feeds.save(feed(enabled = true))
         processor.reconcile()
         assertThat(processor.runningFeedIds()).contains(saved.code)
@@ -63,6 +88,7 @@ class AvlMatchSchedulingTest(
 
     @Test
     fun `reconcile cancels the task when a feed is disabled`() {
+        activateGtfsFeed()
         val saved = feeds.save(feed(enabled = true))
         processor.reconcile()
         assertThat(processor.runningFeedIds()).contains(saved.code)
