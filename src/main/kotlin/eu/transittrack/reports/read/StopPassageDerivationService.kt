@@ -34,6 +34,26 @@ import eu.transittrack.schedule.model.TripRef
  * "On time" math itself is not recomputed here: [VehicleMatch.scheduleAdherenceSec] is already
  * computed and persisted per AVL ping during live matching: this service only reuses that stored
  * value for whichever match is picked as the observed passage of a stop.
+ *
+ * Known Phase 1 limitations (not bugs - deliberately out of scope for this task):
+ * - **Cross-midnight trips**: a trip execution is grouped by its *inferred* `serviceDate`
+ *   ([inferServiceDate]), and the final result is filtered to `[startDate, endDate]` by that same
+ *   service date - with no stitching across the midnight boundary and no widening of the
+ *   underlying match-fetch window by trip duration. A stop whose actual ping timestamp falls on
+ *   the "other side" of midnight from its trip's inferred service date can therefore come back as
+ *   unreached (`null`) instead of populated when queried right at a range boundary. That is a
+ *   missing-data outcome, not a corrupted one, and deep overnight-trip handling is a non-goal of
+ *   this phase.
+ * - **Frequency-based trips**: a single `trip_row_id` that runs multiple times in a day (GTFS
+ *   `frequencies.txt`) is not specially handled - grouping by `(tripRowId, serviceDate, vehicleId)`
+ *   happens to separate most such re-runs when different vehicles serve them, but two runs of the
+ *   same frequency-based trip by the *same* vehicle on the same day would still collapse into one
+ *   group. Not addressed in Phase 1.
+ * - **Revision drift**: schedule/stop-path/trip lookups always use the GTFS feed's *currently
+ *   active* revision (via [RevisionResolver]), not necessarily the revision a given historical
+ *   [VehicleMatch] was actually matched under. If the active revision changes within the AVL
+ *   retention window, older matches can silently fail to join (dropped, not corrupted) against a
+ *   schedule/pattern shape that no longer matches what was live when the ping was recorded.
  */
 @Service
 class StopPassageDerivationService(
@@ -113,9 +133,9 @@ class StopPassageDerivationService(
         val stopPathCache = mutableMapOf<Long, List<StopPath>>()
 
         return resolved
-            .groupBy { it.trip.id!! to it.serviceDate }
+            .groupBy { Triple(it.trip.id!!, it.serviceDate, it.match.vehicleId) }
             .flatMap { (key, group) ->
-                val (tripRowId, serviceDate) = key
+                val (tripRowId, serviceDate, _) = key
                 val trip = group.first().trip
                 val tripPatternId = trip.tripPatternId ?: return@flatMap emptyList()
 
@@ -124,9 +144,20 @@ class StopPassageDerivationService(
                 val stopIdByIndex = paths.associate { it.stopPathIndex to it.stopId }
 
                 val sortedMatches = group.map { it.match }.sortedBy { it.ts }
+                // The earliest-by-ts match's stopPathIndex is the first stop this execution's AVL
+                // history actually covers: a scheduled stop *before* that index was never observed
+                // either, even though a `>=` search below would otherwise latch onto this same
+                // earliest match as "the" observed passage for it (e.g. AVL starting late, already
+                // at stopPathIndex 10 - stops 0-9 must stay null, not inherit that one ping).
+                val minObservedStopPathIndex = sortedMatches.first().stopPathIndex
 
                 schedule.map { scheduleTime ->
-                    val observedMatch = sortedMatches.firstOrNull { it.stopPathIndex >= scheduleTime.stopPathIndex }
+                    val observedMatch =
+                        if (scheduleTime.stopPathIndex < minObservedStopPathIndex) {
+                            null
+                        } else {
+                            sortedMatches.firstOrNull { it.stopPathIndex >= scheduleTime.stopPathIndex }
+                        }
                     StopPassage(
                         tripId = trip.tripId,
                         routeId = trip.routeId,
@@ -140,6 +171,11 @@ class StopPassageDerivationService(
                     )
                 }
             }
+            // Groups are keyed by *inferred* serviceDate, which for a cross-midnight trip can fall
+            // just outside the requested range even though its matches were fetched inside the
+            // ts-based AVL window above - filter the final result back down to the requested
+            // calendar-date range so such a group never leaks into an adjacent day's query.
+            .filter { it.serviceDate >= startDate && it.serviceDate <= endDate }
     }
 }
 
