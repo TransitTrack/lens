@@ -27,3 +27,32 @@ data class StopPassage(
     val observedSec: Int?,
     val adherenceSec: Int?,
 )
+
+/**
+ * Route-level schedule adherence aggregate over a date range, computed by
+ * [eu.transittrack.reports.read.AdherenceReadService] from [StopPassage.adherenceSec] samples
+ * (excluding the `null` ones - see [StopPassage]'s KDoc). [sampleCount] is the number of non-null
+ * samples a route had; a route with zero samples produces no summary at all rather than a
+ * divide-by-zero or NaN result.
+ */
+data class RouteAdherenceSummary(
+    val routeId: String,
+    val routeShortName: String?,
+    val sampleCount: Int,
+    val meanAdherenceSec: Double,
+    val onTimePct: Double,
+)
+
+/**
+ * Trip-execution-level schedule adherence aggregate (one [TripAdherenceSummary] per
+ * `(tripId, serviceDate)`), computed the same way as [RouteAdherenceSummary] but grouped more
+ * finely. See [RouteAdherenceSummary]'s KDoc for the sample-exclusion and zero-sample behavior.
+ */
+data class TripAdherenceSummary(
+    val tripId: String,
+    val routeId: String,
+    val serviceDate: LocalDate,
+    val sampleCount: Int,
+    val meanAdherenceSec: Double,
+    val onTimePct: Double,
+)
