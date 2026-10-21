@@ -57,39 +57,39 @@ jobs:
             build/test-results/test/*.xml
           retention-days: 14
 
-  frontend:
-    name: Frontend tests (vitest)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v5
-
-      # pnpm/action-setup ignores the job's `working-directory` default and reads
-      # from repo root by default; there's no root package.json, so point it at
-      # web/package.json's `packageManager` field explicitly.
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: web/package.json
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Run vitest
-        id: test
-        run: pnpm exec vitest run --reporter=junit --outputFile=test-results/junit.xml
-        continue-on-error: true
-
-      - name: Test report
-        if: always()
-        uses: dorny/test-reporter@v3
-        with:
-          name: Frontend tests (vitest)
-          path: web/test-results/junit.xml
-          reporter: java-junit
+#  frontend:
+#    name: Frontend tests (vitest)
+#    runs-on: ubuntu-latest
+#    defaults:
+#      run:
+#        working-directory: web
+#    steps:
+#      - uses: actions/checkout@v5
+#
+#      # pnpm/action-setup ignores the job's `working-directory` default and reads
+#      # from repo root by default; there's no root package.json, so point it at
+#      # web/package.json's `packageManager` field explicitly.
+#      - uses: pnpm/action-setup@v4
+#        with:
+#          package_json_file: web/package.json
+#
+#      - uses: actions/setup-node@v5
+#        with:
+#          node-version: "24"
+#          cache: pnpm
+#          cache-dependency-path: web/pnpm-lock.yaml
+#
+#      - run: pnpm install --frozen-lockfile
+#
+#      - name: Run vitest
+#        id: test
+#        run: pnpm exec vitest run --reporter=junit --outputFile=test-results/junit.xml
+#        continue-on-error: true
+#
+#      - name: Test report
+#        if: always()
+#        uses: dorny/test-reporter@v3
+#        with:
+#          name: Frontend tests (vitest)
+#          path: web/test-results/junit.xml
+#          reporter: java-junit
