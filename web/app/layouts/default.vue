@@ -130,6 +130,12 @@ const REPORTS: NavLeaf[] = [
     description: 'Mean adherence and on-time rate per route over a date range',
     path: '/reports/adherence-routes',
   },
+  {
+    label: 'Schedule Adherence for a Trip',
+    icon: 'i-lucide-git-branch',
+    description: 'Per-stop adherence for one trip across a date range',
+    path: '/reports/adherence-trip',
+  },
 ]
 
 const STATIC: NavLeaf[] = [
