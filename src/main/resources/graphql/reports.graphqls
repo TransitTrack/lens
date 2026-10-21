@@ -1,0 +1,36 @@
+type StopPassage {
+  tripId: String!
+  routeId: String!
+  blockId: String
+  serviceDate: String!
+  stopId: String!
+  stopPathIndex: Int!
+  scheduledSec: Int
+  observedSec: Int
+  adherenceSec: Int
+}
+
+type RouteAdherenceSummary {
+  routeId: String!
+  routeShortName: String
+  sampleCount: Int!
+  meanAdherenceSec: Float!
+  onTimePct: Float!
+}
+
+type TripAdherenceSummary {
+  tripId: String!
+  routeId: String!
+  serviceDate: String!
+  sampleCount: Int!
+  meanAdherenceSec: Float!
+  onTimePct: Float!
+}
+
+extend type Query {
+  routeAdherence(feedCode: String!, routeId: String!, startDate: String!, endDate: String!): [StopPassage!]!
+  allRoutesAdherence(feedCode: String!, startDate: String!, endDate: String!): [RouteAdherenceSummary!]!
+  tripAdherence(feedCode: String!, tripId: String!, startDate: String!, endDate: String!): [StopPassage!]!
+  allTripsAdherence(feedCode: String!, routeId: String, startDate: String!, endDate: String!): [TripAdherenceSummary!]!
+  stopAdherence(feedCode: String!, stopId: String!, startDate: String!, endDate: String!): [StopPassage!]!
+}
