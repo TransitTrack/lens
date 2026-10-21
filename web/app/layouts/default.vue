@@ -118,6 +118,12 @@ const REPORTS: NavLeaf[] = [
     description: 'View historical AVL reports for a vehicle',
     path: '/reports/avl',
   },
+  {
+    label: 'Schedule Adherence for a Route',
+    icon: 'i-lucide-route',
+    description: 'Per-stop adherence for one route over a date range',
+    path: '/reports/adherence-route',
+  },
 ]
 
 const STATIC: NavLeaf[] = [
