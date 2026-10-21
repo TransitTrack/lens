@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { VehicleRow } from '../composables/useVehiclePolling'
-import { adherenceBadge } from '../utils/adherence'
+import { adherenceBadge, formatAdherence } from '../utils/adherence'
 import { useUnits } from '../composables/useUnits'
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 
@@ -54,6 +54,16 @@ function adherenceDotClass(vehicle: VehicleRow) {
     'bg-warning': color === 'warning',
     'bg-success': color === 'success',
     'bg-muted': color === 'neutral',
+  }
+}
+
+function adherenceTextClass(vehicle: VehicleRow) {
+  const color = adherenceBadge(vehicle.scheduleAdherenceSec).color
+  return {
+    'text-error': color === 'error',
+    'text-warning': color === 'warning',
+    'text-success': color === 'success',
+    'text-dimmed': color === 'neutral',
   }
 }
 
@@ -216,9 +226,9 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       </div>
 
       <div class="flex flex-col items-end gap-0.5">
-        <UBadge :color="adherenceBadge(vehicle.scheduleAdherenceSec).color" variant="subtle">
-          {{ adherenceBadge(vehicle.scheduleAdherenceSec).label }}
-        </UBadge>
+        <span class="text-sm font-medium tabular-nums" :class="adherenceTextClass(vehicle)">
+          {{ formatAdherence(vehicle.scheduleAdherenceSec) }}
+        </span>
         <span class="text-sm text-dimmed">{{ units.speed(vehicle.speedMps) }}</span>
       </div>
       <div>

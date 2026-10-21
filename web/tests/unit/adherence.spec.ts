@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adherenceBadge } from '../../app/utils/adherence'
+import { adherenceBadge, formatAdherence } from '../../app/utils/adherence'
 
 describe('adherenceBadge', () => {
   it('null/undefined -> neutral Unscheduled', () => {
@@ -31,5 +31,17 @@ describe('adherenceBadge', () => {
     expect(adherenceBadge(0).color).toBe('success')
     expect(adherenceBadge(-30).color).toBe('success')
     expect(adherenceBadge(200).color).toBe('success')
+  })
+})
+
+describe('formatAdherence', () => {
+  it('renders scheduled offsets with exact minutes and seconds', () => {
+    expect(formatAdherence(125)).toBe('2m 5s late')
+    expect(formatAdherence(-125)).toBe('2m 5s early')
+  })
+
+  it('keeps neutral labels for on-time and unscheduled vehicles', () => {
+    expect(formatAdherence(0)).toBe('On time')
+    expect(formatAdherence(null)).toBe('Unscheduled')
   })
 })
