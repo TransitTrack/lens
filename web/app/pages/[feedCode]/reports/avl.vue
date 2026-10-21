@@ -74,7 +74,21 @@ const canRun = computed(
 
 function runReport() {
   if (!canRun.value || !filters.vehicleId) return
-  submitted.value = { ...filters, vehicleId: filters.vehicleId, page: 1 }
+  const next = { ...filters, vehicleId: filters.vehicleId, page: 1 }
+  const isRepeat =
+    submitted.value?.vehicleId === next.vehicleId &&
+    submitted.value.date === next.date &&
+    submitted.value.startTime === next.startTime &&
+    submitted.value.endTime === next.endTime &&
+    submitted.value.page === next.page
+  submitted.value = next
+  if (isRepeat) {
+    void refetchPage({
+      feedCode: selectedAvlFeedCode.value ?? '',
+      ...next,
+      pageSize: PAGE_SIZE,
+    })
+  }
 }
 
 function setPage(page: number) {
@@ -86,6 +100,7 @@ const {
   result: pageResult,
   loading: pageLoading,
   error: pageError,
+  refetch: refetchPage,
 } = useAvlReportPageQuery(
   () => ({
     feedCode: selectedAvlFeedCode.value ?? '',
@@ -96,7 +111,7 @@ const {
     page: submitted.value?.page ?? 1,
     pageSize: PAGE_SIZE,
   }),
-  () => ({ enabled: !!selectedAvlFeedCode.value && !!submitted.value }),
+  () => ({ enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only' }),
 )
 
 type ReportRow = AvlReportPageQuery['avlReportPage']['items'][number]

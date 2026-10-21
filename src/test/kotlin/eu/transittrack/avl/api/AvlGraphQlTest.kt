@@ -320,4 +320,34 @@ class AvlGraphQlTest(
                 .get()
         assertThat(secondPage.single()["ts"]).isEqualTo("2026-09-07T06:12:00Z")
     }
+
+    @Test
+    fun `AVL report page rejects a nonexistent agency-local time`() {
+        tester
+            .document(
+                """{ avlReportPage(
+                     feedCode:"a", vehicleId:"bus-1", date:"2026-03-29",
+                     startTime:"02:10", endTime:"04:00"
+                   ) { totalCount } }""",
+            ).execute()
+            .errors()
+            .satisfy { errors ->
+                assert(errors.isNotEmpty()) { "expected an error for a nonexistent agency-local time" }
+            }
+    }
+
+    @Test
+    fun `AVL report page rejects an ambiguous agency-local time`() {
+        tester
+            .document(
+                """{ avlReportPage(
+                     feedCode:"a", vehicleId:"bus-1", date:"2026-10-25",
+                     startTime:"02:10", endTime:"03:10"
+                   ) { totalCount } }""",
+            ).execute()
+            .errors()
+            .satisfy { errors ->
+                assert(errors.isNotEmpty()) { "expected an error for an ambiguous agency-local time" }
+            }
+    }
 }

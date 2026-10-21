@@ -124,9 +124,11 @@ class AvlReadService(
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val zone = reportTimeZone(feed)
         val localDate = LocalDate.parse(date)
-        val from = localDate.atTime(LocalTime.parse(startTime)).atZone(zone).toInstant()
-        val until = localDate.atTime(LocalTime.parse(endTime)).atZone(zone).toInstant()
-        require(until.isAfter(from)) { "end time must be after start time" }
+        val localStart = localDate.atTime(LocalTime.parse(startTime))
+        val localEnd = localDate.atTime(LocalTime.parse(endTime))
+        require(localEnd.isAfter(localStart)) { "end time must be after start time" }
+        val from = resolveAgencyLocalTime(localStart, zone, "start time")
+        val until = resolveAgencyLocalTime(localEnd, zone, "end time")
 
         val requestedPage = page.coerceAtLeast(1)
         val requestedPageSize = pageSize.coerceIn(1, 100)
@@ -158,4 +160,20 @@ class AvlReadService(
 
     private fun reportTimeZone(feed: eu.transittrack.avl.model.AvlFeed): ZoneId =
         matchContextFactory.open(feed)?.zone ?: ZoneId.systemDefault()
+
+    private fun resolveAgencyLocalTime(
+        localTime: java.time.LocalDateTime,
+        zone: ZoneId,
+        label: String,
+    ): Instant {
+        val offsets = zone.rules.getValidOffsets(localTime)
+        require(offsets.size == 1) {
+            if (offsets.isEmpty()) {
+                "$label is not a valid agency-local time"
+            } else {
+                "$label is ambiguous in the agency time zone"
+            }
+        }
+        return localTime.atOffset(offsets.single()).toInstant()
+    }
 }
