@@ -142,6 +142,12 @@ const REPORTS: NavLeaf[] = [
     description: 'Mean adherence and on-time rate per trip, optionally filtered by route',
     path: '/reports/adherence-trips',
   },
+  {
+    label: 'Schedule Adherence Report for a Stop',
+    icon: 'i-lucide-map-pin',
+    description: 'Per-visit adherence for one stop across a date range',
+    path: '/reports/adherence-stop',
+  },
 ]
 
 const STATIC: NavLeaf[] = [
