@@ -70,16 +70,20 @@ class VehicleMatchRepositoryTest(
         val until = Instant.parse("2026-09-04T11:00:00Z")
 
         match("feed-1", "v", Instant.parse("2026-09-04T09:00:00Z"), 1L) // before `from`
-        // Sort keys deliberately disagree: "b" has the earlier ts, "a" the later one, so a
-        // ts-only (or vehicleId-only) order would return [b, a] - only the correct compound
-        // `vehicleId, ts` order returns [a, b].
-        val second = match("feed-1", "b", Instant.parse("2026-09-04T10:15:00Z"), 1L)
-        val first = match("feed-1", "a", Instant.parse("2026-09-04T10:30:00Z"), 2L)
+        // Sort keys deliberately disagree at both levels:
+        //  - "b" (10:15) vs "a" (...): a ts-only order would put "b" before any "a" row with a
+        //    later ts, but the correct `vehicleId` primary key must put all "a" rows first.
+        //  - two rows for "a" itself, inserted in reverse-ts order (10:30 saved before 10:10):
+        //    only a real `ts` secondary sort (not insertion/natural order) puts 10:10 before
+        //    10:30 within that vehicle.
+        val b = match("feed-1", "b", Instant.parse("2026-09-04T10:15:00Z"), 1L)
+        val aLate = match("feed-1", "a", Instant.parse("2026-09-04T10:30:00Z"), 2L)
+        val aEarly = match("feed-1", "a", Instant.parse("2026-09-04T10:10:00Z"), 2L)
 
         val result = matches.findByFeedCodeAndTsBetween("feed-1", from, until)
 
-        assertThat(result).hasSize(2)
-        assertThat(result.map { it.id }).isEqualTo(listOf(first.id, second.id))
+        assertThat(result).hasSize(3)
+        assertThat(result.map { it.id }).isEqualTo(listOf(aEarly.id, aLate.id, b.id))
     }
 
     @Test
