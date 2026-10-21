@@ -5,7 +5,6 @@ import ExploreToolbar from '~/components/ExploreToolbar.vue'
 import FeedFeatures from '~/components/FeedFeatures.vue'
 import FeedDatasetHistory from '~/components/FeedDatasetHistory.vue'
 import {useFeeds} from '~/composables/useFeeds'
-import {useFeedExtent} from '~/composables/useFeedExtent'
 import {
   useFeedDetailQuery,
   useAgenciesDetailQuery,
@@ -18,7 +17,7 @@ import {
 import {gtfsDate} from '~/utils/gtfs'
 import {deriveFeatures} from '~/utils/feedFeatures'
 
-const {selectedFeedCode, feedPath} = useFeeds()
+const {selectedFeedCode} = useFeeds()
 const toast = useToast()
 
 const {result: agenciesResult} = useAgenciesDetailQuery(
@@ -30,7 +29,6 @@ const {result: routesResult} = useExploreRoutesQuery(
   () => ({enabled: !!selectedFeedCode.value}),
 )
 const routes = computed(() => routesResult.value?.routes ?? [])
-const {extent} = useFeedExtent(selectedFeedCode)
 
 const agencies = computed(() => {
   const byAgency = new Map<string, number>()

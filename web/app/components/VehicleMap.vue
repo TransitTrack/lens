@@ -31,7 +31,13 @@ const props = withDefaults(
     /** Label for the marker-popup action. */
     selectionActionLabel?: string
   }>(),
-  { selectedRoute: null, selectedVehicleId: null, selectionActionLabel: 'Open details' },
+  {
+    extent: null,
+    feedCode: null,
+    selectedRoute: null,
+    selectedVehicleId: null,
+    selectionActionLabel: 'Open details',
+  },
 )
 const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 

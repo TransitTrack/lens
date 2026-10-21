@@ -10,8 +10,7 @@ const props = defineProps<{
   selectedVehicleId?: string | null
 }>()
 const emit = defineEmits<{
-  (e: 'select', vehicleId: string): void
-  (e: 'openDetails', vehicleId: string): void
+  (e: 'select' | 'openDetails', vehicleId: string): void
 }>()
 
 const units = useUnits()
@@ -121,7 +120,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       </button>
       <span class="hidden sm:block text-left">Trip progress</span>
       <span>Adherence</span>
-      <span></span>
+      <span />
     </div>
 
     <div
