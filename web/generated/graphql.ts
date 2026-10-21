@@ -621,6 +621,8 @@ export type PredictionAccuracySummary = {
 export type Query = {
   __typename?: 'Query';
   agencies: Array<Agency>;
+  allRoutesAdherence: Array<RouteAdherenceSummary>;
+  allTripsAdherence: Array<TripAdherenceSummary>;
   avlFeeds: Array<AvlFeed>;
   avlReports: Array<AvlReport>;
   block?: Maybe<Block>;
@@ -649,14 +651,17 @@ export type Query = {
   revision?: Maybe<Revision>;
   revisions: Array<Revision>;
   route?: Maybe<Route>;
+  routeAdherence: Array<StopPassage>;
   routes: Array<Route>;
   shape?: Maybe<Shape>;
   stop?: Maybe<Stop>;
+  stopAdherence: Array<StopPassage>;
   stopPredictions: Array<StopPrediction>;
   stopTimes: Array<StopTime>;
   stops: Array<Stop>;
   transfers: Array<Transfer>;
   trip?: Maybe<Trip>;
+  tripAdherence: Array<StopPassage>;
   tripPattern?: Maybe<TripPattern>;
   tripPatterns: Array<TripPattern>;
   trips: Array<Trip>;
@@ -670,6 +675,21 @@ export type Query = {
 export type QueryAgenciesArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryAllRoutesAdherenceArgs = {
+  endDate: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  startDate: Scalars['String']['input'];
+};
+
+
+export type QueryAllTripsAdherenceArgs = {
+  endDate: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  routeId?: InputMaybe<Scalars['String']['input']>;
+  startDate: Scalars['String']['input'];
 };
 
 
@@ -846,6 +866,14 @@ export type QueryRouteArgs = {
 };
 
 
+export type QueryRouteAdherenceArgs = {
+  endDate: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  routeId: Scalars['String']['input'];
+  startDate: Scalars['String']['input'];
+};
+
+
 export type QueryRoutesArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
@@ -862,6 +890,14 @@ export type QueryShapeArgs = {
 export type QueryStopArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
+  stopId: Scalars['String']['input'];
+};
+
+
+export type QueryStopAdherenceArgs = {
+  endDate: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  startDate: Scalars['String']['input'];
   stopId: Scalars['String']['input'];
 };
 
@@ -897,6 +933,14 @@ export type QueryTransfersArgs = {
 export type QueryTripArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
+  tripId: Scalars['String']['input'];
+};
+
+
+export type QueryTripAdherenceArgs = {
+  endDate: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  startDate: Scalars['String']['input'];
   tripId: Scalars['String']['input'];
 };
 
@@ -1025,6 +1069,15 @@ export type Route = {
   trips: Array<Trip>;
 };
 
+export type RouteAdherenceSummary = {
+  __typename?: 'RouteAdherenceSummary';
+  meanAdherenceSec: Scalars['Float']['output'];
+  onTimePct: Scalars['Float']['output'];
+  routeId: Scalars['String']['output'];
+  routeShortName?: Maybe<Scalars['String']['output']>;
+  sampleCount: Scalars['Int']['output'];
+};
+
 export type ScheduleComparison = {
   __typename?: 'ScheduleComparison';
   calendarChanges: Array<CalendarChange>;
@@ -1122,6 +1175,19 @@ export type Stop = {
   stopName?: Maybe<Scalars['String']['output']>;
   wheelchairBoarding?: Maybe<Scalars['Int']['output']>;
   zoneId?: Maybe<Scalars['String']['output']>;
+};
+
+export type StopPassage = {
+  __typename?: 'StopPassage';
+  adherenceSec?: Maybe<Scalars['Int']['output']>;
+  blockId?: Maybe<Scalars['String']['output']>;
+  observedSec?: Maybe<Scalars['Int']['output']>;
+  routeId: Scalars['String']['output'];
+  scheduledSec?: Maybe<Scalars['Int']['output']>;
+  serviceDate: Scalars['String']['output'];
+  stopId: Scalars['String']['output'];
+  stopPathIndex: Scalars['Int']['output'];
+  tripId: Scalars['String']['output'];
 };
 
 export type StopPath = {
@@ -1240,6 +1306,16 @@ export type Trip = {
   wheelchairAccessible?: Maybe<Scalars['Int']['output']>;
 };
 
+export type TripAdherenceSummary = {
+  __typename?: 'TripAdherenceSummary';
+  meanAdherenceSec: Scalars['Float']['output'];
+  onTimePct: Scalars['Float']['output'];
+  routeId: Scalars['String']['output'];
+  sampleCount: Scalars['Int']['output'];
+  serviceDate: Scalars['String']['output'];
+  tripId: Scalars['String']['output'];
+};
+
 export type TripChange = {
   __typename?: 'TripChange';
   fieldChanges: Scalars['JSON']['output'];
@@ -1321,6 +1397,55 @@ export type Vehicle = {
   trip?: Maybe<Trip>;
   vehicleId: Scalars['String']['output'];
 };
+
+export type RouteAdherenceQueryVariables = Exact<{
+  feedCode: string;
+  routeId: string;
+  startDate: string;
+  endDate: string;
+}>;
+
+
+export type RouteAdherenceQuery = { routeAdherence: Array<{ tripId: string, serviceDate: string, stopId: string, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null }> };
+
+export type AllRoutesAdherenceQueryVariables = Exact<{
+  feedCode: string;
+  startDate: string;
+  endDate: string;
+}>;
+
+
+export type AllRoutesAdherenceQuery = { allRoutesAdherence: Array<{ routeId: string, routeShortName: string | null, sampleCount: number, meanAdherenceSec: number, onTimePct: number }> };
+
+export type TripAdherenceQueryVariables = Exact<{
+  feedCode: string;
+  tripId: string;
+  startDate: string;
+  endDate: string;
+}>;
+
+
+export type TripAdherenceQuery = { tripAdherence: Array<{ serviceDate: string, stopId: string, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null }> };
+
+export type AllTripsAdherenceQueryVariables = Exact<{
+  feedCode: string;
+  routeId?: string | null | undefined;
+  startDate: string;
+  endDate: string;
+}>;
+
+
+export type AllTripsAdherenceQuery = { allTripsAdherence: Array<{ tripId: string, routeId: string, serviceDate: string, sampleCount: number, meanAdherenceSec: number, onTimePct: number }> };
+
+export type StopAdherenceQueryVariables = Exact<{
+  feedCode: string;
+  stopId: string;
+  startDate: string;
+  endDate: string;
+}>;
+
+
+export type StopAdherenceQuery = { stopAdherence: Array<{ tripId: string, routeId: string, serviceDate: string, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null }> };
 
 export type AgenciesQueryVariables = Exact<{
   feedCode: string;
@@ -1855,6 +1980,220 @@ export const DraftEditResultFFragmentDoc = gql`
   canRedo
 }
     `;
+export const RouteAdherenceDocument = gql`
+    query RouteAdherence($feedCode: String!, $routeId: String!, $startDate: String!, $endDate: String!) {
+  routeAdherence(
+    feedCode: $feedCode
+    routeId: $routeId
+    startDate: $startDate
+    endDate: $endDate
+  ) {
+    tripId
+    serviceDate
+    stopId
+    stopPathIndex
+    scheduledSec
+    observedSec
+    adherenceSec
+  }
+}
+    `;
+
+/**
+ * __useRouteAdherenceQuery__
+ *
+ * To run a query within a Vue component, call `useRouteAdherenceQuery` and pass it any options that fit your needs.
+ * When your component renders, `useRouteAdherenceQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useRouteAdherenceQuery({
+ *   feedCode: // value for 'feedCode'
+ *   routeId: // value for 'routeId'
+ *   startDate: // value for 'startDate'
+ *   endDate: // value for 'endDate'
+ * });
+ */
+export function useRouteAdherenceQuery(variables: RouteAdherenceQueryVariables | VueCompositionApi.Ref<RouteAdherenceQueryVariables> | ReactiveFunction<RouteAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<RouteAdherenceQuery, RouteAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<RouteAdherenceQuery, RouteAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<RouteAdherenceQuery, RouteAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<RouteAdherenceQuery, RouteAdherenceQueryVariables>(RouteAdherenceDocument, variables, options);
+}
+export function useRouteAdherenceLazyQuery(variables?: RouteAdherenceQueryVariables | VueCompositionApi.Ref<RouteAdherenceQueryVariables> | ReactiveFunction<RouteAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<RouteAdherenceQuery, RouteAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<RouteAdherenceQuery, RouteAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<RouteAdherenceQuery, RouteAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<RouteAdherenceQuery, RouteAdherenceQueryVariables>(RouteAdherenceDocument, variables, options);
+}
+export type RouteAdherenceQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<RouteAdherenceQuery, RouteAdherenceQueryVariables>;
+export const AllRoutesAdherenceDocument = gql`
+    query AllRoutesAdherence($feedCode: String!, $startDate: String!, $endDate: String!) {
+  allRoutesAdherence(
+    feedCode: $feedCode
+    startDate: $startDate
+    endDate: $endDate
+  ) {
+    routeId
+    routeShortName
+    sampleCount
+    meanAdherenceSec
+    onTimePct
+  }
+}
+    `;
+
+/**
+ * __useAllRoutesAdherenceQuery__
+ *
+ * To run a query within a Vue component, call `useAllRoutesAdherenceQuery` and pass it any options that fit your needs.
+ * When your component renders, `useAllRoutesAdherenceQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useAllRoutesAdherenceQuery({
+ *   feedCode: // value for 'feedCode'
+ *   startDate: // value for 'startDate'
+ *   endDate: // value for 'endDate'
+ * });
+ */
+export function useAllRoutesAdherenceQuery(variables: AllRoutesAdherenceQueryVariables | VueCompositionApi.Ref<AllRoutesAdherenceQueryVariables> | ReactiveFunction<AllRoutesAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>(AllRoutesAdherenceDocument, variables, options);
+}
+export function useAllRoutesAdherenceLazyQuery(variables?: AllRoutesAdherenceQueryVariables | VueCompositionApi.Ref<AllRoutesAdherenceQueryVariables> | ReactiveFunction<AllRoutesAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>(AllRoutesAdherenceDocument, variables, options);
+}
+export type AllRoutesAdherenceQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AllRoutesAdherenceQuery, AllRoutesAdherenceQueryVariables>;
+export const TripAdherenceDocument = gql`
+    query TripAdherence($feedCode: String!, $tripId: String!, $startDate: String!, $endDate: String!) {
+  tripAdherence(
+    feedCode: $feedCode
+    tripId: $tripId
+    startDate: $startDate
+    endDate: $endDate
+  ) {
+    serviceDate
+    stopId
+    stopPathIndex
+    scheduledSec
+    observedSec
+    adherenceSec
+  }
+}
+    `;
+
+/**
+ * __useTripAdherenceQuery__
+ *
+ * To run a query within a Vue component, call `useTripAdherenceQuery` and pass it any options that fit your needs.
+ * When your component renders, `useTripAdherenceQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useTripAdherenceQuery({
+ *   feedCode: // value for 'feedCode'
+ *   tripId: // value for 'tripId'
+ *   startDate: // value for 'startDate'
+ *   endDate: // value for 'endDate'
+ * });
+ */
+export function useTripAdherenceQuery(variables: TripAdherenceQueryVariables | VueCompositionApi.Ref<TripAdherenceQueryVariables> | ReactiveFunction<TripAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<TripAdherenceQuery, TripAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<TripAdherenceQuery, TripAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<TripAdherenceQuery, TripAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<TripAdherenceQuery, TripAdherenceQueryVariables>(TripAdherenceDocument, variables, options);
+}
+export function useTripAdherenceLazyQuery(variables?: TripAdherenceQueryVariables | VueCompositionApi.Ref<TripAdherenceQueryVariables> | ReactiveFunction<TripAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<TripAdherenceQuery, TripAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<TripAdherenceQuery, TripAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<TripAdherenceQuery, TripAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<TripAdherenceQuery, TripAdherenceQueryVariables>(TripAdherenceDocument, variables, options);
+}
+export type TripAdherenceQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<TripAdherenceQuery, TripAdherenceQueryVariables>;
+export const AllTripsAdherenceDocument = gql`
+    query AllTripsAdherence($feedCode: String!, $routeId: String, $startDate: String!, $endDate: String!) {
+  allTripsAdherence(
+    feedCode: $feedCode
+    routeId: $routeId
+    startDate: $startDate
+    endDate: $endDate
+  ) {
+    tripId
+    routeId
+    serviceDate
+    sampleCount
+    meanAdherenceSec
+    onTimePct
+  }
+}
+    `;
+
+/**
+ * __useAllTripsAdherenceQuery__
+ *
+ * To run a query within a Vue component, call `useAllTripsAdherenceQuery` and pass it any options that fit your needs.
+ * When your component renders, `useAllTripsAdherenceQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useAllTripsAdherenceQuery({
+ *   feedCode: // value for 'feedCode'
+ *   routeId: // value for 'routeId'
+ *   startDate: // value for 'startDate'
+ *   endDate: // value for 'endDate'
+ * });
+ */
+export function useAllTripsAdherenceQuery(variables: AllTripsAdherenceQueryVariables | VueCompositionApi.Ref<AllTripsAdherenceQueryVariables> | ReactiveFunction<AllTripsAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>(AllTripsAdherenceDocument, variables, options);
+}
+export function useAllTripsAdherenceLazyQuery(variables?: AllTripsAdherenceQueryVariables | VueCompositionApi.Ref<AllTripsAdherenceQueryVariables> | ReactiveFunction<AllTripsAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>(AllTripsAdherenceDocument, variables, options);
+}
+export type AllTripsAdherenceQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AllTripsAdherenceQuery, AllTripsAdherenceQueryVariables>;
+export const StopAdherenceDocument = gql`
+    query StopAdherence($feedCode: String!, $stopId: String!, $startDate: String!, $endDate: String!) {
+  stopAdherence(
+    feedCode: $feedCode
+    stopId: $stopId
+    startDate: $startDate
+    endDate: $endDate
+  ) {
+    tripId
+    routeId
+    serviceDate
+    stopPathIndex
+    scheduledSec
+    observedSec
+    adherenceSec
+  }
+}
+    `;
+
+/**
+ * __useStopAdherenceQuery__
+ *
+ * To run a query within a Vue component, call `useStopAdherenceQuery` and pass it any options that fit your needs.
+ * When your component renders, `useStopAdherenceQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useStopAdherenceQuery({
+ *   feedCode: // value for 'feedCode'
+ *   stopId: // value for 'stopId'
+ *   startDate: // value for 'startDate'
+ *   endDate: // value for 'endDate'
+ * });
+ */
+export function useStopAdherenceQuery(variables: StopAdherenceQueryVariables | VueCompositionApi.Ref<StopAdherenceQueryVariables> | ReactiveFunction<StopAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<StopAdherenceQuery, StopAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<StopAdherenceQuery, StopAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<StopAdherenceQuery, StopAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<StopAdherenceQuery, StopAdherenceQueryVariables>(StopAdherenceDocument, variables, options);
+}
+export function useStopAdherenceLazyQuery(variables?: StopAdherenceQueryVariables | VueCompositionApi.Ref<StopAdherenceQueryVariables> | ReactiveFunction<StopAdherenceQueryVariables>, options: VueApolloComposable.UseQueryOptions<StopAdherenceQuery, StopAdherenceQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<StopAdherenceQuery, StopAdherenceQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<StopAdherenceQuery, StopAdherenceQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<StopAdherenceQuery, StopAdherenceQueryVariables>(StopAdherenceDocument, variables, options);
+}
+export type StopAdherenceQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<StopAdherenceQuery, StopAdherenceQueryVariables>;
 export const AgenciesDocument = gql`
     query Agencies($feedCode: String!) {
   agencies(feedCode: $feedCode) {

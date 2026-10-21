@@ -1,0 +1,55 @@
+query RouteAdherence($feedCode: String!, $routeId: String!, $startDate: String!, $endDate: String!) {
+  routeAdherence(feedCode: $feedCode, routeId: $routeId, startDate: $startDate, endDate: $endDate) {
+    tripId
+    serviceDate
+    stopId
+    stopPathIndex
+    scheduledSec
+    observedSec
+    adherenceSec
+  }
+}
+
+query AllRoutesAdherence($feedCode: String!, $startDate: String!, $endDate: String!) {
+  allRoutesAdherence(feedCode: $feedCode, startDate: $startDate, endDate: $endDate) {
+    routeId
+    routeShortName
+    sampleCount
+    meanAdherenceSec
+    onTimePct
+  }
+}
+
+query TripAdherence($feedCode: String!, $tripId: String!, $startDate: String!, $endDate: String!) {
+  tripAdherence(feedCode: $feedCode, tripId: $tripId, startDate: $startDate, endDate: $endDate) {
+    serviceDate
+    stopId
+    stopPathIndex
+    scheduledSec
+    observedSec
+    adherenceSec
+  }
+}
+
+query AllTripsAdherence($feedCode: String!, $routeId: String, $startDate: String!, $endDate: String!) {
+  allTripsAdherence(feedCode: $feedCode, routeId: $routeId, startDate: $startDate, endDate: $endDate) {
+    tripId
+    routeId
+    serviceDate
+    sampleCount
+    meanAdherenceSec
+    onTimePct
+  }
+}
+
+query StopAdherence($feedCode: String!, $stopId: String!, $startDate: String!, $endDate: String!) {
+  stopAdherence(feedCode: $feedCode, stopId: $stopId, startDate: $startDate, endDate: $endDate) {
+    tripId
+    routeId
+    serviceDate
+    stopPathIndex
+    scheduledSec
+    observedSec
+    adherenceSec
+  }
+}
