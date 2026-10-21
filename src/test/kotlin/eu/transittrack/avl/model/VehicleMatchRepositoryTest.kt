@@ -1,6 +1,7 @@
 package eu.transittrack.avl.model
 
 import java.time.Instant
+import kotlin.test.BeforeTest
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -20,7 +21,7 @@ class VehicleMatchRepositoryTest(
 ) : PostgresPerMethodTest() {
     // A plain JDBC insert (not an EntityManager native query) - the latter needs an active
     // transaction, which NOT_SUPPORTED deliberately does not provide.
-    @kotlin.test.BeforeTest
+    @BeforeTest
     fun seedFeeds() {
         jdbcTemplate.update(
             "insert into avl_feed " +
@@ -69,8 +70,11 @@ class VehicleMatchRepositoryTest(
         val until = Instant.parse("2026-09-04T11:00:00Z")
 
         match("feed-1", "v", Instant.parse("2026-09-04T09:00:00Z"), 1L) // before `from`
-        val second = match("feed-1", "v", Instant.parse("2026-09-04T10:30:00Z"), 1L)
-        val first = match("feed-1", "a", Instant.parse("2026-09-04T10:15:00Z"), 2L)
+        // Sort keys deliberately disagree: "b" has the earlier ts, "a" the later one, so a
+        // ts-only (or vehicleId-only) order would return [b, a] - only the correct compound
+        // `vehicleId, ts` order returns [a, b].
+        val second = match("feed-1", "b", Instant.parse("2026-09-04T10:15:00Z"), 1L)
+        val first = match("feed-1", "a", Instant.parse("2026-09-04T10:30:00Z"), 2L)
 
         val result = matches.findByFeedCodeAndTsBetween("feed-1", from, until)
 
