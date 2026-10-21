@@ -248,7 +248,7 @@ class PipelineBenchmarkEnvironment {
                 val trip = trips[i % trips.size]
                 val (lat, lon) = trip.points[i % trip.points.size]
                 AvlReportRow(
-                    feedId = feed.id!!,
+                    feedCode = feed.code!!,
                     vehicleId = "veh-$i",
                     vehicleLabel = null,
                     ts = at,
