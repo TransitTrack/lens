@@ -111,6 +111,15 @@ const REALTIME: NavLeaf[] = [
   },
 ]
 
+const REPORTS: NavLeaf[] = [
+  {
+    label: 'AVL Report',
+    icon: 'i-lucide-clipboard-list',
+    description: 'View historical AVL reports for a vehicle',
+    path: '/reports/avl',
+  },
+]
+
 const STATIC: NavLeaf[] = [
   {
     label: 'Routes',
@@ -188,6 +197,13 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     description: 'Live data from the AVL feed',
     active: REALTIME.some((l) => underPath(feedPath(l.path))),
     children: toItems(REALTIME),
+  },
+  {
+    label: 'Reports',
+    icon: 'i-lucide-chart-no-axes-combined',
+    description: 'Historical operational reports',
+    active: REPORTS.some((l) => underPath(feedPath(l.path))),
+    children: toItems(REPORTS),
   },
   {
     label: 'Static',
