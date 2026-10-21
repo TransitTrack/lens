@@ -42,9 +42,9 @@ const { result: stopsResult, loading: stopsLoading, error: stopsError } = useExp
 
 const stopItems = computed(() =>
   [...(stopsResult.value?.stops ?? [])]
-    .sort((a, b) => a.stopName.localeCompare(b.stopName, undefined, { numeric: true }))
+    .sort((a, b) => (a.stopName ?? a.stopId).localeCompare(b.stopName ?? b.stopId, undefined, { numeric: true }))
     .map((stop) => ({
-      label: `${stop.stopName} (${stop.stopCode ?? stop.stopId})`,
+      label: `${stop.stopName ?? stop.stopId} (${stop.stopCode ?? stop.stopId})`,
       value: stop.stopId,
     })),
 )
