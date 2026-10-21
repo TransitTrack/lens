@@ -1,6 +1,7 @@
 package eu.transittrack.avl.ingest
 
 import java.sql.Timestamp
+import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 import kotlin.test.Test
@@ -62,7 +63,15 @@ class AvlRetentionSchedulerTest(
 
     @Test
     fun `prune removes only rows older than the configured windows`() {
-        val scheduler = AvlRetentionScheduler(jdbc, AvlProperties(), TransitTrackMetrics.forTests())
+        // Explicit windows: the seed data above is aged 30h/100h/20h, which only exercises pruning
+        // with the 24h/72h windows, independent of the production default.
+        val props = AvlProperties(
+            retention = AvlProperties.Retention(
+                reportDuration = Duration.ofHours(24),
+                matchDuration = Duration.ofHours(72),
+            ),
+        )
+        val scheduler = AvlRetentionScheduler(jdbc, props, TransitTrackMetrics.forTests())
 
         val counts = scheduler.prune(now)
 

@@ -98,8 +98,8 @@ transittrack:
   avl:
     enabled: true
     retention:
-      report-hours: 24
-      match-hours: 72
+      report-hours: 336
+      match-hours: 336
       stale-vehicle-hours: 12
       sweep-cron: "0 0 * * * *"
     match:
