@@ -13,6 +13,8 @@ import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
@@ -94,6 +96,11 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
     )
     fun latestTsByVehicle(feedCode: String): List<VehicleTsProjection>
 
+    @Query("select distinct r.vehicleId from AvlReportRow r where r.feedCode = :feedCode order by r.vehicleId")
+    fun findVehicleIds(
+        @Param("feedCode") feedCode: String,
+    ): List<String>
+
     @Query("select t from AvlReportRow t where t.feedCode = :feedCode and t.vehicleId = :vehicleId order by t.ts desc")
     fun findByVehicle(
         @Param("feedCode") feedCode: String,
@@ -111,6 +118,22 @@ interface AvlReportRowRepository : JpaRepository<AvlReportRow, Long> {
         @Param("ts") ts: Instant,
         pageable: org.springframework.data.domain.Pageable,
     ): List<AvlReportRow>
+
+    @Query(
+        value =
+            "select r from AvlReportRow r where r.feedCode = :feedCode and r.vehicleId = :vehicleId " +
+                "and r.ts >= :from and r.ts <= :until order by r.ts asc",
+        countQuery =
+            "select count(r) from AvlReportRow r where r.feedCode = :feedCode and r.vehicleId = :vehicleId " +
+                "and r.ts >= :from and r.ts <= :until",
+    )
+    fun findReportPage(
+        @Param("feedCode") feedCode: String,
+        @Param("vehicleId") vehicleId: String,
+        @Param("from") from: Instant,
+        @Param("until") until: Instant,
+        pageable: Pageable,
+    ): Page<AvlReportRow>
 
     /**
      * Recent reports for a whole batch of vehicles in one query — feeds the movement-trend heading

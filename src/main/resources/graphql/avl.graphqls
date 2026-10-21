@@ -3,6 +3,8 @@ extend type Query {
     vehicles(feedCode: String!, matchedOnly: Boolean = false): [Vehicle!]!
     vehicle(feedCode: String!, vehicleId: String!): Vehicle
     avlReports(feedCode: String!, vehicleId: String!, since: String, limit: Int = 200): [AvlReport!]!
+    avlReportCatalog(feedCode: String!): AvlReportCatalog!
+    avlReportPage(feedCode: String!, vehicleId: String!, date: String!, startTime: String!, endTime: String!, page: Int = 1, pageSize: Int = 100): AvlReportPage!
 }
 
 type AvlFeed {
@@ -44,6 +46,8 @@ type Vehicle {
 type AvlReport {
     vehicleId: String!
     ts: String!
+    processedAt: String!
+    source: String!
     position: LatLon!
     bearing: Float
     speedMps: Float
@@ -52,6 +56,18 @@ type AvlReport {
     descTripId: String
     matchStatus: String!
     match: AvlReportMatch
+}
+
+type AvlReportCatalog {
+    timeZone: String!
+    vehicleIds: [String!]!
+}
+
+type AvlReportPage {
+    items: [AvlReport!]!
+    totalCount: Int!
+    page: Int!
+    pageSize: Int!
 }
 
 type AvlReportMatch {

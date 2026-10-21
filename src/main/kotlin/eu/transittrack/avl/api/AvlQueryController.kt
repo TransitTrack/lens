@@ -36,4 +36,20 @@ class AvlQueryController(
         @Argument since: String?,
         @Argument limit: Int,
     ) = read.avlReports(feedCode, vehicleId, since, limit)
+
+    @QueryMapping
+    fun avlReportCatalog(
+        @Argument feedCode: String,
+    ) = read.avlReportCatalog(feedCode)
+
+    @QueryMapping
+    fun avlReportPage(
+        @Argument feedCode: String,
+        @Argument vehicleId: String,
+        @Argument date: String,
+        @Argument startTime: String,
+        @Argument endTime: String,
+        @Argument page: Int,
+        @Argument pageSize: Int,
+    ) = read.avlReportPage(feedCode, vehicleId, date, startTime, endTime, page, pageSize)
 }

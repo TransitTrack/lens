@@ -61,6 +61,8 @@ interface PendingPredictionMetrics {
 
 @Repository
 interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
+    fun findByAvlReportIdIn(avlReportIds: Collection<Long>): List<VehicleMatch>
+
     @Query("select e from VehicleMatch e where e.feedCode = :feedCode and e.vehicleId = :vehicleId order by e.ts desc")
     fun findByVehicle(
         @Param("feedCode") feedCode: String,
