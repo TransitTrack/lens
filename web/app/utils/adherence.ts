@@ -21,3 +21,14 @@ export function adherenceBadge(sec: number | null | undefined): AdherenceBadge {
   }
   return { label: 'On time', color: 'success' }
 }
+
+export function formatAdherence(sec: number | null | undefined): string {
+  if (sec === null || sec === undefined) return 'Unscheduled'
+
+  const totalSeconds = Math.round(Math.abs(sec))
+  if (totalSeconds === 0) return 'On time'
+
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}m ${seconds}s ${sec > 0 ? 'late' : 'early'}`
+}

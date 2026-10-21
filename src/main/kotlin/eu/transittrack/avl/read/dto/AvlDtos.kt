@@ -102,6 +102,8 @@ data class VehicleDto(
 data class AvlReportDto(
     val vehicleId: String,
     val ts: String,
+    val processedAt: String,
+    val source: String,
     val position: LatLonDto,
     val bearing: Double?,
     val speedMps: Double?,
@@ -115,9 +117,12 @@ data class AvlReportDto(
         fun of(
             r: AvlReportRow,
             match: AvlReportMatchDto?,
+            source: String,
         ) = AvlReportDto(
             vehicleId = r.vehicleId,
             ts = r.ts.toString(),
+            processedAt = r.createdAt.toString(),
+            source = source,
             position = LatLonDto(r.lat, r.lon),
             bearing = r.bearing,
             speedMps = r.speedMps,
@@ -135,6 +140,18 @@ data class AvlReportDto(
         )
     }
 }
+
+data class AvlReportCatalogDto(
+    val timeZone: String,
+    val vehicleIds: List<String>,
+)
+
+data class AvlReportPageDto(
+    val items: List<AvlReportDto>,
+    val totalCount: Int,
+    val page: Int,
+    val pageSize: Int,
+)
 
 data class AvlReportMatchDto(
     val stopPathIndex: Int,

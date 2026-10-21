@@ -255,4 +255,99 @@ class AvlGraphQlTest(
             assertThat((match["trip"] as Map<*, *>)["tripId"]).isEqualTo("T1")
         }
     }
+
+    @Test
+    fun `AVL report catalog includes historical vehicles and page uses an inclusive agency-local range`() {
+        reports.save(
+            AvlReportRow(
+                feedCode = "a", vehicleId = "historic-7", vehicleLabel = null,
+                ts = Instant.parse("2026-09-07T06:11:00Z"), lat = 52.0, lon = 17.0,
+                bearing = null, speedMps = null, odometerM = null,
+                descTripId = "historic-trip", descRouteId = null, descDirectionId = null,
+                descStartDate = LocalDate.of(2026, 9, 7), descStartTimeSec = null,
+                descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
+                currentStatus = null, occupancyStatus = null, congestionLevel = null,
+                matchStatus = MatchStatus.UNMATCHED, matchedAt = null,
+                createdAt = Instant.parse("2026-09-07T06:11:05Z"),
+            ),
+        )
+
+        val catalog =
+            tester
+                .document("""{ avlReportCatalog(feedCode:"a") { timeZone vehicleIds } }""")
+                .execute()
+                .path("avlReportCatalog")
+                .entity(Map::class.java)
+                .get()
+        assertThat(catalog["timeZone"]).isEqualTo("Europe/Warsaw")
+        @Suppress("UNCHECKED_CAST")
+        val vehicleIds = catalog["vehicleIds"] as List<String>
+        assertThat(vehicleIds).contains("bus-1")
+        assertThat(vehicleIds).contains("historic-7")
+
+        val page =
+            tester
+                .document(
+                    """{ avlReportPage(
+                         feedCode:"a", vehicleId:"bus-1", date:"2026-09-07",
+                         startTime:"08:10", endTime:"08:12", page:1, pageSize:1
+                       ) {
+                         totalCount page pageSize
+                         items { ts processedAt source }
+                       } }""",
+                ).execute()
+                .path("avlReportPage")
+                .entity(Map::class.java)
+                .get()
+        assertThat(page["totalCount"]).isEqualTo(2)
+        assertThat(page["page"]).isEqualTo(1)
+        @Suppress("UNCHECKED_CAST")
+        val firstItems = page["items"] as List<Map<String, String>>
+        assertThat(firstItems.single()["ts"]).isEqualTo("2026-09-07T06:10:00Z")
+        assertThat(firstItems.single()["processedAt"]).isEqualTo("2026-09-07T06:10:00Z")
+        assertThat(firstItems.single()["source"]).isEqualTo("GTFS_RT")
+
+        val secondPage =
+            tester
+                .document(
+                    """{ avlReportPage(
+                         feedCode:"a", vehicleId:"bus-1", date:"2026-09-07",
+                         startTime:"08:10", endTime:"08:12", page:2, pageSize:1
+                       ) { items { ts } } }""",
+                ).execute()
+                .path("avlReportPage.items")
+                .entityList(Map::class.java)
+                .get()
+        assertThat(secondPage.single()["ts"]).isEqualTo("2026-09-07T06:12:00Z")
+    }
+
+    @Test
+    fun `AVL report page rejects a nonexistent agency-local time`() {
+        tester
+            .document(
+                """{ avlReportPage(
+                     feedCode:"a", vehicleId:"bus-1", date:"2026-03-29",
+                     startTime:"02:10", endTime:"04:00"
+                   ) { totalCount } }""",
+            ).execute()
+            .errors()
+            .satisfy { errors ->
+                assert(errors.isNotEmpty()) { "expected an error for a nonexistent agency-local time" }
+            }
+    }
+
+    @Test
+    fun `AVL report page rejects an ambiguous agency-local time`() {
+        tester
+            .document(
+                """{ avlReportPage(
+                     feedCode:"a", vehicleId:"bus-1", date:"2026-10-25",
+                     startTime:"02:10", endTime:"03:10"
+                   ) { totalCount } }""",
+            ).execute()
+            .errors()
+            .satisfy { errors ->
+                assert(errors.isNotEmpty()) { "expected an error for an ambiguous agency-local time" }
+            }
+    }
 }

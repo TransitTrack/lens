@@ -70,9 +70,17 @@ export type AvlReport = {
   matchStatus: Scalars['String']['output'];
   occupancyStatus?: Maybe<Scalars['String']['output']>;
   position: LatLon;
+  processedAt: Scalars['String']['output'];
+  source: Scalars['String']['output'];
   speedMps?: Maybe<Scalars['Float']['output']>;
   ts: Scalars['String']['output'];
   vehicleId: Scalars['String']['output'];
+};
+
+export type AvlReportCatalog = {
+  __typename?: 'AvlReportCatalog';
+  timeZone: Scalars['String']['output'];
+  vehicleIds: Array<Scalars['String']['output']>;
 };
 
 export type AvlReportMatch = {
@@ -86,6 +94,14 @@ export type AvlReportMatch = {
   snappedPosition: LatLon;
   stopPathIndex: Scalars['Int']['output'];
   trip?: Maybe<Trip>;
+};
+
+export type AvlReportPage = {
+  __typename?: 'AvlReportPage';
+  items: Array<AvlReport>;
+  page: Scalars['Int']['output'];
+  pageSize: Scalars['Int']['output'];
+  totalCount: Scalars['Int']['output'];
 };
 
 export type Block = {
@@ -624,6 +640,8 @@ export type Query = {
   allRoutesAdherence: Array<RouteAdherenceSummary>;
   allTripsAdherence: Array<TripAdherenceSummary>;
   avlFeeds: Array<AvlFeed>;
+  avlReportCatalog: AvlReportCatalog;
+  avlReportPage: AvlReportPage;
   avlReports: Array<AvlReport>;
   block?: Maybe<Block>;
   blocks: Array<Block>;
@@ -690,6 +708,22 @@ export type QueryAllTripsAdherenceArgs = {
   feedCode: Scalars['String']['input'];
   routeId?: InputMaybe<Scalars['String']['input']>;
   startDate: Scalars['String']['input'];
+};
+
+
+export type QueryAvlReportCatalogArgs = {
+  feedCode: Scalars['String']['input'];
+};
+
+
+export type QueryAvlReportPageArgs = {
+  date: Scalars['String']['input'];
+  endTime: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  page?: InputMaybe<Scalars['Int']['input']>;
+  pageSize?: InputMaybe<Scalars['Int']['input']>;
+  startTime: Scalars['String']['input'];
+  vehicleId: Scalars['String']['input'];
 };
 
 
@@ -1474,6 +1508,26 @@ export type AvlLogQueryVariables = Exact<{
 
 
 export type AvlLogQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, matchStatus: string, descTripId: string | null, position: { lat: number, lon: number }, match: { stopPathIndex: number, distanceAlongTripM: number, deviationM: number, scheduleAdherenceSec: number | null, score: number | null, trip: { tripId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null } | null } | null } | null }> };
+
+export type AvlReportCatalogQueryVariables = Exact<{
+  feedCode: string;
+}>;
+
+
+export type AvlReportCatalogQuery = { avlReportCatalog: { timeZone: string, vehicleIds: Array<string> } };
+
+export type AvlReportPageQueryVariables = Exact<{
+  feedCode: string;
+  vehicleId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  page?: number | null | undefined;
+  pageSize?: number | null | undefined;
+}>;
+
+
+export type AvlReportPageQuery = { avlReportPage: { totalCount: number, page: number, pageSize: number, items: Array<{ vehicleId: string, ts: string, processedAt: string, source: string, speedMps: number | null, descTripId: string | null, position: { lat: number, lon: number }, match: { trip: { tripId: string } | null } | null }> } };
 
 export type AvlTrailQueryVariables = Exact<{
   feedCode: string;
@@ -2362,6 +2416,100 @@ export function useAvlLogLazyQuery(variables?: AvlLogQueryVariables | VueComposi
   return VueApolloComposable.useLazyQuery<AvlLogQuery, AvlLogQueryVariables>(AvlLogDocument, variables, options);
 }
 export type AvlLogQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AvlLogQuery, AvlLogQueryVariables>;
+export const AvlReportCatalogDocument = gql`
+    query AvlReportCatalog($feedCode: String!) {
+  avlReportCatalog(feedCode: $feedCode) {
+    timeZone
+    vehicleIds
+  }
+}
+    `;
+
+/**
+ * __useAvlReportCatalogQuery__
+ *
+ * To run a query within a Vue component, call `useAvlReportCatalogQuery` and pass it any options that fit your needs.
+ * When your component renders, `useAvlReportCatalogQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useAvlReportCatalogQuery({
+ *   feedCode: // value for 'feedCode'
+ * });
+ */
+export function useAvlReportCatalogQuery(variables: AvlReportCatalogQueryVariables | VueCompositionApi.Ref<AvlReportCatalogQueryVariables> | ReactiveFunction<AvlReportCatalogQueryVariables>, options: VueApolloComposable.UseQueryOptions<AvlReportCatalogQuery, AvlReportCatalogQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>(AvlReportCatalogDocument, variables, options);
+}
+export function useAvlReportCatalogLazyQuery(variables?: AvlReportCatalogQueryVariables | VueCompositionApi.Ref<AvlReportCatalogQueryVariables> | ReactiveFunction<AvlReportCatalogQueryVariables>, options: VueApolloComposable.UseQueryOptions<AvlReportCatalogQuery, AvlReportCatalogQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>(AvlReportCatalogDocument, variables, options);
+}
+export type AvlReportCatalogQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AvlReportCatalogQuery, AvlReportCatalogQueryVariables>;
+export const AvlReportPageDocument = gql`
+    query AvlReportPage($feedCode: String!, $vehicleId: String!, $date: String!, $startTime: String!, $endTime: String!, $page: Int, $pageSize: Int) {
+  avlReportPage(
+    feedCode: $feedCode
+    vehicleId: $vehicleId
+    date: $date
+    startTime: $startTime
+    endTime: $endTime
+    page: $page
+    pageSize: $pageSize
+  ) {
+    totalCount
+    page
+    pageSize
+    items {
+      vehicleId
+      ts
+      processedAt
+      source
+      position {
+        lat
+        lon
+      }
+      speedMps
+      descTripId
+      match {
+        trip {
+          tripId
+        }
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useAvlReportPageQuery__
+ *
+ * To run a query within a Vue component, call `useAvlReportPageQuery` and pass it any options that fit your needs.
+ * When your component renders, `useAvlReportPageQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useAvlReportPageQuery({
+ *   feedCode: // value for 'feedCode'
+ *   vehicleId: // value for 'vehicleId'
+ *   date: // value for 'date'
+ *   startTime: // value for 'startTime'
+ *   endTime: // value for 'endTime'
+ *   page: // value for 'page'
+ *   pageSize: // value for 'pageSize'
+ * });
+ */
+export function useAvlReportPageQuery(variables: AvlReportPageQueryVariables | VueCompositionApi.Ref<AvlReportPageQueryVariables> | ReactiveFunction<AvlReportPageQueryVariables>, options: VueApolloComposable.UseQueryOptions<AvlReportPageQuery, AvlReportPageQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AvlReportPageQuery, AvlReportPageQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AvlReportPageQuery, AvlReportPageQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<AvlReportPageQuery, AvlReportPageQueryVariables>(AvlReportPageDocument, variables, options);
+}
+export function useAvlReportPageLazyQuery(variables?: AvlReportPageQueryVariables | VueCompositionApi.Ref<AvlReportPageQueryVariables> | ReactiveFunction<AvlReportPageQueryVariables>, options: VueApolloComposable.UseQueryOptions<AvlReportPageQuery, AvlReportPageQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<AvlReportPageQuery, AvlReportPageQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<AvlReportPageQuery, AvlReportPageQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<AvlReportPageQuery, AvlReportPageQueryVariables>(AvlReportPageDocument, variables, options);
+}
+export type AvlReportPageQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<AvlReportPageQuery, AvlReportPageQueryVariables>;
 export const AvlTrailDocument = gql`
     query AvlTrail($feedCode: String!, $vehicleId: String!, $limit: Int) {
   avlReports(feedCode: $feedCode, vehicleId: $vehicleId, limit: $limit) {

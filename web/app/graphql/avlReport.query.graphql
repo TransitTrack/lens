@@ -1,0 +1,47 @@
+query AvlReportCatalog($feedCode: String!) {
+  avlReportCatalog(feedCode: $feedCode) {
+    timeZone
+    vehicleIds
+  }
+}
+
+query AvlReportPage(
+  $feedCode: String!
+  $vehicleId: String!
+  $date: String!
+  $startTime: String!
+  $endTime: String!
+  $page: Int
+  $pageSize: Int
+) {
+  avlReportPage(
+    feedCode: $feedCode
+    vehicleId: $vehicleId
+    date: $date
+    startTime: $startTime
+    endTime: $endTime
+    page: $page
+    pageSize: $pageSize
+  ) {
+    totalCount
+    page
+    pageSize
+    items {
+      vehicleId
+      ts
+      processedAt
+      source
+      position {
+        lat
+        lon
+      }
+      speedMps
+      descTripId
+      match {
+        trip {
+          tripId
+        }
+      }
+    }
+  }
+}
