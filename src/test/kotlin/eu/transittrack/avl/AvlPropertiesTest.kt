@@ -21,6 +21,13 @@ class AvlPropertiesTest {
         assertThat(p.enabled).isFalse()
         assertThat(p.match.maxDeviationM).isEqualTo(60.0)
         assertThat(p.match.scoreWeights.deviation).isEqualTo(0.4)
-        assertThat(p.retention.reportDuration).isEqualTo(Duration.ofHours(24))
+        assertThat(p.retention.reportDuration).isEqualTo(Duration.ofHours(336))
+    }
+
+    @Test
+    fun `retention defaults are 14 days`() {
+        val retention = AvlProperties.Retention()
+        assertThat(retention.reportDuration).isEqualTo(Duration.ofHours(336))
+        assertThat(retention.matchDuration).isEqualTo(Duration.ofHours(336))
     }
 }

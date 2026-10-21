@@ -25,8 +25,8 @@ data class AvlProperties(
     )
 
     data class Retention(
-        val reportDuration: Duration = Duration.ofHours(24),
-        val matchDuration: Duration = Duration.ofHours(72),
+        val reportDuration: Duration = Duration.ofHours(336),
+        val matchDuration: Duration = Duration.ofHours(336),
         val staleVehicleDuration: Duration = Duration.ofHours(3),
         val sweepCron: String = "0 0 * * * *",
     )
