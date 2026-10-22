@@ -144,12 +144,15 @@ class AdherenceQueryControllerTest(
             )
         }
 
-        // E1 (route RA): reaches both scheduled stops.
-        insertMatch("bus-e1", "E1", "RA", ts(8, 0), 0, 30)
-        insertMatch("bus-e1", "E1", "RA", ts(8, 30), 1, -30)
+        // E1 (route RA): reaches both scheduled stops. A VehicleMatch's reported stopPathIndex
+        // means "already arrived at stop (index - 1)" (see StopPassageDerivationServiceTest's KDoc
+        // for the full semantics), so arrival at scheduled stop 0/1 is represented by stopPathIndex
+        // 1/2, not 0/1.
+        insertMatch("bus-e1", "E1", "RA", ts(8, 0), 1, 30)
+        insertMatch("bus-e1", "E1", "RA", ts(8, 30), 2, -30)
 
         // E2 (route RA): reaches only its first scheduled stop.
-        insertMatch("bus-e2", "E2", "RA", ts(9, 0), 0, 120)
+        insertMatch("bus-e2", "E2", "RA", ts(9, 0), 1, 120)
     }
 
     @AfterAll

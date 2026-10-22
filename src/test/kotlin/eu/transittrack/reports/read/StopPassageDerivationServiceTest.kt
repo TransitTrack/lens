@@ -37,10 +37,21 @@ import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
+import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
+import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
+import eu.transittrack.gtfs.revision.GtfsRevision
+import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.schedule.model.ScheduleTime
+import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.StopPath
+import eu.transittrack.schedule.model.StopPathRepository
+import eu.transittrack.schedule.model.TripPattern
+import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerClassTest
 
 /**
@@ -49,14 +60,28 @@ import eu.transittrack.support.PostgresPerClassTest
  * distinct service date so "one group per (tripRowId, serviceDate) trip execution" - the
  * derivation's grouping key - never accidentally merges two separate test scenarios together.
  *
- * - [completeDate]: bus-1 runs T1 end to end, stopping at all 4 scheduled stops.
- * - [partialDate]: bus-2 runs T1 but only ever reaches stopPathIndex 1, sending several repeated
- *   pings while lingering there before going silent - stopPathIndex 2 and 3 are never reached.
- * - [leadingStopDate]: bus-3's AVL coverage only starts once it's already at stopPathIndex 2 -
- *   stopPathIndex 0 and 1 must come back unreached, not inherit that first match.
+ * **VehicleMatch.stopPathIndex semantics** (see [StopPassageDerivationService]'s KDoc for the full
+ * derivation): a match whose reported `stopPathIndex == j` means the vehicle has *already arrived*
+ * at stop `j - 1` and has *not yet* arrived at stop `j`. So "bus arrived at stop k" is represented
+ * by a match with `stopPathIndex == k + 1`, never `stopPathIndex == k`.
+ *
+ * - [completeDate]: bus-1 runs T1 end to end, stopping at all 4 scheduled stops (so its 4 matches
+ *   carry stopPathIndex 1,2,3,4 - one past each scheduled stop's own index 0,1,2,3).
+ * - [partialDate]: bus-2 runs T1 but only ever reaches scheduled stop 0, sending several repeated
+ *   pings (stopPathIndex 2, i.e. already past stop 1 and lingering) before going silent - scheduled
+ *   stops 2 and 3 are never reached. (Named `reachedStop`/`stopPathIndex == 1` in the test below for
+ *   historical reasons; see that test's inline note.)
+ * - [leadingStopDate]: bus-3's AVL coverage only starts once it's already arrived at scheduled stop
+ *   1 (first match stopPathIndex 3, i.e. already past stop 2's predecessor) - scheduled stop 0 and 1
+ *   must come back unreached (null), not inherit that first match.
  * - [crossDayQueryDate]/[crossDayServiceDate]: bus-4's ping ts falls inside the query window, but
  *   its inferred serviceDate ([crossDayServiceDate]) is the next day - its passages must not leak
  *   into a query for [crossDayQueryDate].
+ * - [offByOneDate]: bus-5 regression test for the off-by-one bug itself - a ping that has merely
+ *   left scheduled stop 0 (stopPathIndex 1, i.e. still approaching stop 1) must NOT be mistaken for
+ *   the arrival at stop 1; only a later ping with stopPathIndex > 1 may be.
+ * - [revisionDriftDate]: a trip matched under a non-active GTFS revision must still resolve its
+ *   schedule/stop-path lookups against that trip's OWN revision, not the feed's current one.
  */
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -74,6 +99,11 @@ class StopPassageDerivationServiceTest(
     @Autowired val feeds: AvlFeedRepository,
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
+    @Autowired val scheduleTimes: ScheduleTimeRepository,
+    @Autowired val stopPaths: StopPathRepository,
+    @Autowired val gtfsFeeds: GtfsFeedRepository,
+    @Autowired val gtfsRevisions: GtfsRevisionRepository,
+    @Autowired val tripPatterns: TripPatternRepository,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -89,6 +119,8 @@ class StopPassageDerivationServiceTest(
     private val leadingStopDate: LocalDate = LocalDate.of(2026, 9, 10)
     private val crossDayQueryDate: LocalDate = LocalDate.of(2026, 9, 11)
     private val crossDayServiceDate: LocalDate = crossDayQueryDate.plusDays(1)
+    private val offByOneDate: LocalDate = LocalDate.of(2026, 9, 12)
+    private val revisionDriftDate: LocalDate = LocalDate.of(2026, 9, 13)
 
     @BeforeAll
     fun setup() {
@@ -122,13 +154,15 @@ class StopPassageDerivationServiceTest(
             vehicleId: String,
             at: Instant,
             descStartDate: LocalDate,
+            descTripId: String = "T1",
+            descRouteId: String = "RA",
         ): Long =
             reports
                 .save(
                     AvlReportRow(
                         feedCode = feed.code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
                         lat = 51.1, lon = 17.0, bearing = null, speedMps = null, odometerM = null,
-                        descTripId = "T1", descRouteId = "RA", descDirectionId = 0,
+                        descTripId = descTripId, descRouteId = descRouteId, descDirectionId = 0,
                         descStartDate = descStartDate, descStartTimeSec = null,
                         descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
                         currentStatus = null, occupancyStatus = null, congestionLevel = null,
@@ -143,13 +177,18 @@ class StopPassageDerivationServiceTest(
             stopPathIndex: Int,
             adherenceSec: Int?,
             descStartDate: LocalDate = serviceDate,
+            tripRowId: Long = t1.id!!,
+            tripPatternId: Long? = t1.tripPatternId,
+            revisionId: Long = ctx.revisionId,
+            descTripId: String = "T1",
+            descRouteId: String = "RA",
         ) {
-            val reportId = avlReport(vehicleId, at, descStartDate)
+            val reportId = avlReport(vehicleId, at, descStartDate, descTripId, descRouteId)
             vehicleMatches.save(
                 VehicleMatch(
                     avlReportId = reportId, feedCode = feed.code, vehicleId = vehicleId, ts = at,
-                    revisionId = ctx.revisionId, tripRowId = t1.id!!, blockPk = null,
-                    tripPatternId = t1.tripPatternId, stopPathIndex = stopPathIndex,
+                    revisionId = revisionId, tripRowId = tripRowId, blockPk = null,
+                    tripPatternId = tripPatternId, stopPathIndex = stopPathIndex,
                     distanceAlongTripM = 0.0, deviationM = 0.0, scheduleAdherenceSec = adherenceSec,
                     snappedLat = 51.1, snappedLon = 17.0, heading = null, score = null,
                     createdAt = at,
@@ -157,36 +196,126 @@ class StopPassageDerivationServiceTest(
             )
         }
 
-        // bus-1 on T1, completeDate: completes the full run, stopping at every one of the 4
-        // scheduled stops (stopPathIndex 0..3).
-        insertMatch("bus-1", completeDate, ts(completeDate, 7, 59), 0, 60)
-        insertMatch("bus-1", completeDate, ts(completeDate, 8, 9), 1, 30)
-        insertMatch("bus-1", completeDate, ts(completeDate, 8, 19), 2, -10)
-        insertMatch("bus-1", completeDate, ts(completeDate, 8, 29), 3, 0)
+        // bus-1 on T1, completeDate: completes the full run, arriving at every one of the 4
+        // scheduled stops (stopPathIndex 0..3) - represented by matches reporting stopPathIndex
+        // 1..4 (one past each scheduled stop's own index, per the "arrived at stop (j-1)"
+        // semantics documented above).
+        insertMatch("bus-1", completeDate, ts(completeDate, 7, 59), 1, 60)
+        insertMatch("bus-1", completeDate, ts(completeDate, 8, 9), 2, 30)
+        insertMatch("bus-1", completeDate, ts(completeDate, 8, 19), 3, -10)
+        insertMatch("bus-1", completeDate, ts(completeDate, 8, 29), 4, 0)
 
-        // bus-2 on T1, partialDate: never gets past stopPathIndex 1 (vehicle dropped off AVL, or
-        // trip abandoned) - it also sends several repeated pings while lingering at index 1,
-        // which must collapse into a single observed passage per scheduled stop, not one per
-        // ping.
-        insertMatch("bus-2", partialDate, ts(partialDate, 7, 59), 0, 15)
-        insertMatch("bus-2", partialDate, ts(partialDate, 8, 8), 1, 5)
-        insertMatch("bus-2", partialDate, ts(partialDate, 8, 9), 1, 6)
-        insertMatch("bus-2", partialDate, ts(partialDate, 8, 10), 1, 7)
-        insertMatch("bus-2", partialDate, ts(partialDate, 8, 11), 1, 8)
+        // bus-2 on T1, partialDate: never gets past scheduled stop 0 (vehicle dropped off AVL, or
+        // trip abandoned) - it sends several repeated pings while lingering just past stop 0
+        // (stopPathIndex 2, i.e. already arrived at scheduled stop 1, approaching stop 2), which
+        // must collapse into a single observed passage per scheduled stop, not one per ping.
+        insertMatch("bus-2", partialDate, ts(partialDate, 7, 59), 1, 15)
+        insertMatch("bus-2", partialDate, ts(partialDate, 8, 8), 2, 5)
+        insertMatch("bus-2", partialDate, ts(partialDate, 8, 9), 2, 6)
+        insertMatch("bus-2", partialDate, ts(partialDate, 8, 10), 2, 7)
+        insertMatch("bus-2", partialDate, ts(partialDate, 8, 11), 2, 8)
 
-        // bus-3 on T1, leadingStopDate: AVL coverage starts only once the vehicle is already at
-        // stopPathIndex 2 (e.g. a late AVL start, or a noisy first ping that jumps ahead) -
-        // stopPathIndex 0 and 1 must stay unreached (null), not inherit this first match's data.
-        insertMatch("bus-3", leadingStopDate, ts(leadingStopDate, 8, 19), 2, -10)
-        insertMatch("bus-3", leadingStopDate, ts(leadingStopDate, 8, 29), 3, 0)
+        // bus-3 on T1, leadingStopDate: AVL coverage starts only once the vehicle has already
+        // arrived at scheduled stop 1 (first match stopPathIndex 3, i.e. already past stop 2's
+        // predecessor) - scheduled stop 0 and 1 must stay unreached (null), not inherit this first
+        // match's data.
+        insertMatch("bus-3", leadingStopDate, ts(leadingStopDate, 8, 19), 3, -10)
+        insertMatch("bus-3", leadingStopDate, ts(leadingStopDate, 8, 29), 4, 0)
 
         // bus-4 on T1: its single ping's ts falls inside `crossDayQueryDate`'s AVL fetch window,
         // but its `descStartDate` (and therefore its *inferred* serviceDate, which takes priority
         // in `inferServiceDate`) is the following day - simulating a trip execution whose
         // service-date grouping lands just outside the requested `[startDate, endDate]` range.
         insertMatch(
-            "bus-4", crossDayServiceDate, ts(crossDayQueryDate, 23, 50), 1, 20,
+            "bus-4", crossDayServiceDate, ts(crossDayQueryDate, 23, 50), 2, 20,
             descStartDate = crossDayServiceDate,
+        )
+
+        // bus-5 on T1, offByOneDate: regression test for the off-by-one stop-passage bug itself.
+        // The first ping (stopPathIndex 1) merely means the vehicle has left scheduled stop 0 and
+        // is *approaching* scheduled stop 1 - it must NOT be picked as the observed arrival for
+        // stop 1 (the old, buggy `>=` selection would have done exactly that). Only the second ping
+        // (stopPathIndex 2, adherenceSec 42) actually represents arrival at stop 1.
+        insertMatch("bus-5", offByOneDate, ts(offByOneDate, 8, 5), 1, 999)
+        insertMatch("bus-5", offByOneDate, ts(offByOneDate, 8, 12), 2, 42)
+
+        // revisionDriftDate: a synthetic trip ("T-OLD") belonging to a non-active GTFS revision
+        // (`oldRevisionId`, distinct from the feed's currently-active `ctx.revisionId`), with its
+        // own ScheduleTime/StopPath rows seeded under that SAME old revision. A VehicleMatch
+        // against this trip's row id must still resolve those schedule/stop-path lookups via the
+        // trip's own revision, not the feed's globally-active one - otherwise they'd silently
+        // return zero rows and every passage would be lost.
+        // A second, non-active `gtfs_revision` row for the same GTFS feed - satisfies the FK
+        // `gtfs_*.revision_id -> gtfs_revision(id)` while remaining distinct from (and SUPERSEDED
+        // relative to) the feed's currently-active revision (`ctx.revisionId`).
+        val gtfsFeed = gtfsFeeds.findByCode("g")!!
+        val oldRevisionId =
+            gtfsRevisions
+                .save(
+                    GtfsRevision(
+                        feedId = gtfsFeed.id!!,
+                        status = GtfsRevisionStatus.SUPERSEDED,
+                        sourceUrl = "http://x/g.zip",
+                        createdAt = Instant.EPOCH,
+                    ),
+                ).id!!
+        val oldPatternId =
+            tripPatterns
+                .save(
+                    TripPattern(
+                        revisionId = oldRevisionId, patternKey = "RX-old", routeId = "RX",
+                        routeShortName = null, directionId = 0, headsign = null, shapeId = null,
+                        stopCount = 2, lengthM = null, tripCount = 1,
+                    ),
+                ).id!!
+        val oldTrip =
+            trips.save(
+                Trip(
+                    revisionId = oldRevisionId, routeId = "RX", serviceId = "WK", tripId = "T-OLD",
+                    tripHeadsign = null, tripShortName = null, directionId = 0, blockId = null,
+                    shapeId = null, wheelchairAccessible = null, bikesAllowed = null,
+                    tripPatternId = oldPatternId,
+                ),
+            )
+        scheduleTimes.save(
+            ScheduleTime(
+                revisionId = oldRevisionId, tripId = oldTrip.id!!, stopPathIndex = 0,
+                arrivalSec = 28800, departureSec = 28800, interpolated = false,
+                schedTravelTimeSec = null, schedDwellTimeSec = null,
+            ),
+        )
+        scheduleTimes.save(
+            ScheduleTime(
+                revisionId = oldRevisionId, tripId = oldTrip.id!!, stopPathIndex = 1,
+                arrivalSec = 29400, departureSec = 29400, interpolated = false,
+                schedTravelTimeSec = null, schedDwellTimeSec = null,
+            ),
+        )
+        stopPaths.save(
+            StopPath(
+                revisionId = oldRevisionId, tripPatternId = oldPatternId, stopPathIndex = 0,
+                stopId = "OLD-S0", routeId = null, stopSeq = 1, lengthM = 0.0, pathGeometry = null,
+                pickupType = null, dropOffType = null, waitStop = false, scheduleAdherenceStop = true,
+                layoverStop = false, breakTimeSec = null,
+            ),
+        )
+        stopPaths.save(
+            StopPath(
+                revisionId = oldRevisionId, tripPatternId = oldPatternId, stopPathIndex = 1,
+                stopId = "OLD-S1", routeId = null, stopSeq = 2, lengthM = 0.0, pathGeometry = null,
+                pickupType = null, dropOffType = null, waitStop = false, scheduleAdherenceStop = true,
+                layoverStop = false, breakTimeSec = null,
+            ),
+        )
+        insertMatch(
+            "bus-old", revisionDriftDate, ts(revisionDriftDate, 7, 59), 1, 50,
+            tripRowId = oldTrip.id!!, tripPatternId = oldPatternId, revisionId = oldRevisionId,
+            descTripId = "T-OLD", descRouteId = "RX",
+        )
+        insertMatch(
+            "bus-old", revisionDriftDate, ts(revisionDriftDate, 8, 9), 2, 20,
+            tripRowId = oldTrip.id!!, tripPatternId = oldPatternId, revisionId = oldRevisionId,
+            descTripId = "T-OLD", descRouteId = "RX",
         )
     }
 
@@ -228,8 +357,9 @@ class StopPassageDerivationServiceTest(
 
         val atIndexOne = passages.filter { it.stopPathIndex == 1 }
         assertThat(atIndexOne).hasSize(1)
-        // Of bus-2's 4 repeated pings at stopPathIndex 1 (08:08/08:09/08:10/08:11, adherenceSec
-        // 5/6/7/8), the first-by-ts one (08:08, adherenceSec 5) must be the one picked.
+        // Of bus-2's 4 repeated pings reporting stopPathIndex 2 (08:08/08:09/08:10/08:11,
+        // adherenceSec 5/6/7/8), the first-by-ts one (08:08, adherenceSec 5) must be the one picked
+        // as the arrival at scheduled stop 1.
         assertThat(atIndexOne.single().adherenceSec).isEqualTo(5)
     }
 
@@ -270,5 +400,44 @@ class StopPassageDerivationServiceTest(
         val passages = derivation.derive("g", crossDayQueryDate, crossDayQueryDate, tripId = "T1")
 
         assertThat(passages).isEmpty()
+    }
+
+    @Test
+    fun `derive does not attribute a still-approaching ping to the stop it has not yet arrived at`() {
+        val passages = derivation.derive("g", offByOneDate, offByOneDate, tripId = "T1")
+
+        // stopPathIndex 0 is correctly attributed bus-5's first ping (stopPathIndex 1, adherence
+        // 999) - the ping that confirms arrival at stop 0.
+        val stop0 = passages.single { it.stopPathIndex == 0 }
+        assertThat(stop0.adherenceSec).isEqualTo(999)
+
+        // stopPathIndex 1 must be attributed the SECOND ping (stopPathIndex 2, adherence 42) - the
+        // one that actually confirms arrival at stop 1 - and NOT the first ping (stopPathIndex 1,
+        // adherence 999), which only shows the vehicle approaching stop 1, not yet there. Under the
+        // old, buggy `>=` selection this would incorrectly have come back as 999.
+        val stop1 = passages.single { it.stopPathIndex == 1 }
+        assertThat(stop1.adherenceSec).isEqualTo(42)
+
+        // Stops 2 and 3 were never reached.
+        val stop2 = passages.single { it.stopPathIndex == 2 }
+        val stop3 = passages.single { it.stopPathIndex == 3 }
+        assertThat(stop2.observedSec).isNull()
+        assertThat(stop3.observedSec).isNull()
+    }
+
+    @Test
+    fun `derive resolves schedule and stop-path lookups against the matched trip's own revision, not the feed's active one`() {
+        val passages = derivation.derive("g", revisionDriftDate, revisionDriftDate)
+
+        val oldTripPassages = passages.filter { it.tripId == "T-OLD" }
+        assertThat(oldTripPassages).hasSize(2)
+
+        val stop0 = oldTripPassages.single { it.stopPathIndex == 0 }
+        assertThat(stop0.stopId).isEqualTo("OLD-S0")
+        assertThat(stop0.adherenceSec).isEqualTo(50)
+
+        val stop1 = oldTripPassages.single { it.stopPathIndex == 1 }
+        assertThat(stop1.stopId).isEqualTo("OLD-S1")
+        assertThat(stop1.adherenceSec).isEqualTo(20)
     }
 }

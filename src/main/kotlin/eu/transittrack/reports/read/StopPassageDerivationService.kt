@@ -49,11 +49,14 @@ import eu.transittrack.schedule.model.TripRef
  *   happens to separate most such re-runs when different vehicles serve them, but two runs of the
  *   same frequency-based trip by the *same* vehicle on the same day would still collapse into one
  *   group. Not addressed in Phase 1.
- * - **Revision drift**: schedule/stop-path/trip lookups always use the GTFS feed's *currently
- *   active* revision (via [RevisionResolver]), not necessarily the revision a given historical
- *   [VehicleMatch] was actually matched under. If the active revision changes within the AVL
- *   retention window, older matches can silently fail to join (dropped, not corrupted) against a
- *   schedule/pattern shape that no longer matches what was live when the ping was recorded.
+ * - **Revision drift (route/trip id resolution only)**: resolving a `routeId`/`tripId` filter to
+ *   trip row ids (via [RevisionResolver]) still always uses the feed's *currently active*
+ *   revision, so a `routeId`/`tripId` that only existed in an older revision (and not the current
+ *   one) won't resolve. This is deliberately out of scope for Phase 1. The per-group
+ *   schedule/stop-path lookups below are NOT subject to this limitation: they use each matched
+ *   trip's own `revisionId`, not the globally-resolved one, specifically so a historical
+ *   [VehicleMatch] from an older revision still joins against the schedule/pattern shape it was
+ *   actually matched under.
  */
 @Service
 class StopPassageDerivationService(
@@ -86,7 +89,7 @@ class StopPassageDerivationService(
                     val trip =
                         trips.findByTripId(revisionId, tripId)
                             ?: throw IllegalArgumentException("no trip '$tripId' in revision $revisionId")
-                    vehicleMatches.findByFeedCodeAndTripRowIdInAndTsBetween(feedCode, setOf(trip.id!!), from, until)
+                    vehicleMatches.findForTripsInWindow(feedCode, setOf(trip.id!!), from, until)
                 }
 
                 routeId != null -> {
@@ -94,7 +97,7 @@ class StopPassageDerivationService(
                     if (routeTrips.isEmpty()) {
                         throw IllegalArgumentException("no route '$routeId' in revision $revisionId")
                     }
-                    vehicleMatches.findByFeedCodeAndTripRowIdInAndTsBetween(
+                    vehicleMatches.findForTripsInWindow(
                         feedCode,
                         routeTrips.map { it.id!! },
                         from,
@@ -103,13 +106,21 @@ class StopPassageDerivationService(
                 }
 
                 else -> {
-                    vehicleMatches.findByFeedCodeAndTsBetween(feedCode, from, until)
+                    vehicleMatches.findInWindow(feedCode, from, until)
                 }
             }
         if (matches.isEmpty()) return emptyList()
 
+        // Chunked to stay well under Postgres's ~65,535 bind-parameter limit: at realistic AVL
+        // polling volume (and the 14-day retention window this feature relies on), an unscoped or
+        // multi-day route-wide query can easily produce well over 65,535 distinct avlReportIds.
         val reportsById =
-            avlReports.findAllById(matches.map { it.avlReportId }.distinct()).associateBy { it.id }
+            matches
+                .map { it.avlReportId }
+                .distinct()
+                .chunked(20_000)
+                .flatMap { avlReports.findAllById(it) }
+                .associateBy { it.id }
 
         val tripCache = mutableMapOf<Long, Trip?>()
 
@@ -139,24 +150,50 @@ class StopPassageDerivationService(
                 val trip = group.first().trip
                 val tripPatternId = trip.tripPatternId ?: return@flatMap emptyList()
 
-                val schedule = scheduleCache.getOrPut(tripRowId) { scheduleTimes.findByTripOrdered(revisionId, tripRowId) }
-                val paths = stopPathCache.getOrPut(tripPatternId) { stopPaths.findByTripPatternOrdered(revisionId, tripPatternId) }
+                // Use this group's own trip's revision for the schedule/stop-path lookups, not the
+                // feed's globally-resolved *current* revision: a historical match within the AVL
+                // retention window may belong to a trip from an older revision (if the active
+                // revision has since changed), and looking it up under the current revision would
+                // silently return zero rows instead of the real schedule/pattern shape it was
+                // actually matched under.
+                val tripRevisionId = trip.revisionId
+                val schedule =
+                    scheduleCache.getOrPut(tripRowId) { scheduleTimes.findByTripOrdered(tripRevisionId, tripRowId) }
+                val paths =
+                    stopPathCache.getOrPut(tripPatternId) {
+                        stopPaths.findByTripPatternOrdered(tripRevisionId, tripPatternId)
+                    }
                 val stopIdByIndex = paths.associate { it.stopPathIndex to it.stopId }
 
                 val sortedMatches = group.map { it.match }.sortedBy { it.ts }
-                // The earliest-by-ts match's stopPathIndex is the first stop this execution's AVL
-                // history actually covers: a scheduled stop *before* that index was never observed
-                // either, even though a `>=` search below would otherwise latch onto this same
-                // earliest match as "the" observed passage for it (e.g. AVL starting late, already
-                // at stopPathIndex 10 - stops 0-9 must stay null, not inherit that one ping).
+                // A VehicleMatch's stopPathIndex is the SpatialMatcher-reported segment the vehicle
+                // was traveling on at ping time, not the stop it had arrived at: because
+                // PatternGeometry.endOfPath(i) = stopPathCumM[i+1], stop k physically sits at
+                // cumulative distance cum[k+1], so a ping that reports stopPathIndex == j means the
+                // vehicle is traveling the segment ending at stop j - i.e. it has *already arrived*
+                // at stop (j-1), and has *not yet* arrived at stop j. The first ping that confirms
+                // arrival at stop k is therefore the first (by ts) match whose reported
+                // stopPathIndex is STRICTLY GREATER than k, not `>=` - using `>=` latches onto the
+                // ping that merely approaches stop k (still en route) as if it were the arrival,
+                // attributing every passage one stop early.
+                //
+                // The earliest-by-ts match's reported stopPathIndex (`m`) tells us the vehicle had
+                // already arrived at stop (m - 1) by the time AVL coverage for this execution began
+                // (per the rule above), with no bound at all on how long before that arrival
+                // actually happened - so stop (m - 1) is the most-recent stop this coverage can
+                // meaningfully attest to (approximated by this very first ping, same convention used
+                // for every other stop passage), while every stop strictly before it (index < m - 1)
+                // has no data point bounding it whatsoever and must stay null rather than inherit
+                // this first match (e.g. AVL starting late, already approaching stopPathIndex 10 -
+                // meaning stop 9 was just reached and stops 0-8 must stay null).
                 val minObservedStopPathIndex = sortedMatches.first().stopPathIndex
 
                 schedule.map { scheduleTime ->
                     val observedMatch =
-                        if (scheduleTime.stopPathIndex < minObservedStopPathIndex) {
+                        if (scheduleTime.stopPathIndex < minObservedStopPathIndex - 1) {
                             null
                         } else {
-                            sortedMatches.firstOrNull { it.stopPathIndex >= scheduleTime.stopPathIndex }
+                            sortedMatches.firstOrNull { it.stopPathIndex > scheduleTime.stopPathIndex }
                         }
                     StopPassage(
                         tripId = trip.tripId,
