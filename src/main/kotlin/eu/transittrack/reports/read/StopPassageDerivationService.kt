@@ -26,6 +26,17 @@ import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripRef
 
 /**
+ * How close (in metres) a match's `distanceAlongTripM` must be to a pattern's total shape length to
+ * count as having reached the pattern's FINAL scheduled stop. `SpatialMatcher.stopPathIndexAt`
+ * clamps its returned index to the last stop-path index, so the terminal stop can never be confirmed
+ * by the strict `stopPathIndex > lastIndex` rule used for every other stop - this distance-based
+ * check is the substitute for that one stop. Sized similarly to [eu.transittrack.avl.AvlProperties]'s
+ * `Match.backtrackToleranceM`/`maxDeviationM` (tens of metres) to absorb ordinary GPS/shape-
+ * projection noise without masking a vehicle that genuinely stopped short of the final stop.
+ */
+private const val TERMINAL_STOP_TOLERANCE_M = 20.0
+
+/**
  * Derives per-stop schedule adherence ("stop passages") from persisted AVL [VehicleMatch] history
  * - on demand, per query, with no new persisted table. For every scheduled stop of every trip
  * execution in the requested window, this reports whether the vehicle arrived on time, early,
@@ -188,10 +199,33 @@ class StopPassageDerivationService(
                 // meaning stop 9 was just reached and stops 0-8 must stay null).
                 val minObservedStopPathIndex = sortedMatches.first().stopPathIndex
 
+                // SpatialMatcher.stopPathIndexAt clamps its result to the pattern's last stop-path
+                // index (paths.size - 1): no AVL match for an n-path pattern can ever report
+                // stopPathIndex == n, so "one past the last stop" can never be observed as an index.
+                // For every OTHER stop the strict `>` rule above is correct (see the comment above),
+                // but applied unchanged to the pattern's FINAL scheduled stop it can never be
+                // satisfied by any real data, making the terminal stop always come back unreached.
+                // Special-case it: accept a match AT the last stop-path index whose distance along
+                // the trip is within TERMINAL_STOP_TOLERANCE_M of the pattern's total shape length -
+                // i.e. the vehicle has essentially reached the end of the route - in addition to (for
+                // robustness, though currently unreachable given the clamp) any match reporting an
+                // index strictly past it.
+                val lastStopPathIndex = paths.maxOfOrNull { it.stopPathIndex }
+                val totalLengthM = paths.sumOf { it.lengthM }
+
                 schedule.map { scheduleTime ->
+                    val isTerminalStop = lastStopPathIndex != null && scheduleTime.stopPathIndex == lastStopPathIndex
                     val observedMatch =
                         if (scheduleTime.stopPathIndex < minObservedStopPathIndex - 1) {
                             null
+                        } else if (isTerminalStop) {
+                            sortedMatches.firstOrNull {
+                                it.stopPathIndex > scheduleTime.stopPathIndex ||
+                                    (
+                                        it.stopPathIndex == scheduleTime.stopPathIndex &&
+                                            totalLengthM - it.distanceAlongTripM <= TERMINAL_STOP_TOLERANCE_M
+                                    )
+                            }
                         } else {
                             sortedMatches.firstOrNull { it.stopPathIndex > scheduleTime.stopPathIndex }
                         }

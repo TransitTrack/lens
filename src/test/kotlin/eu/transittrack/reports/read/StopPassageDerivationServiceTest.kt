@@ -67,10 +67,9 @@ import eu.transittrack.support.PostgresPerClassTest
  *
  * - [completeDate]: bus-1 runs T1 end to end, stopping at all 4 scheduled stops (so its 4 matches
  *   carry stopPathIndex 1,2,3,4 - one past each scheduled stop's own index 0,1,2,3).
- * - [partialDate]: bus-2 runs T1 but only ever reaches scheduled stop 0, sending several repeated
- *   pings (stopPathIndex 2, i.e. already past stop 1 and lingering) before going silent - scheduled
- *   stops 2 and 3 are never reached. (Named `reachedStop`/`stopPathIndex == 1` in the test below for
- *   historical reasons; see that test's inline note.)
+ * - [partialDate]: bus-2 runs T1 but only ever reaches scheduled stop 1, sending several repeated
+ *   pings (stopPathIndex 2, i.e. already past stop 1 and lingering, approaching stop 2) before going
+ *   silent - scheduled stops 2 and 3 are never reached.
  * - [leadingStopDate]: bus-3's AVL coverage only starts once it's already arrived at scheduled stop
  *   1 (first match stopPathIndex 3, i.e. already past stop 2's predecessor) - scheduled stop 0 and 1
  *   must come back unreached (null), not inherit that first match.
@@ -121,6 +120,8 @@ class StopPassageDerivationServiceTest(
     private val crossDayServiceDate: LocalDate = crossDayQueryDate.plusDays(1)
     private val offByOneDate: LocalDate = LocalDate.of(2026, 9, 12)
     private val revisionDriftDate: LocalDate = LocalDate.of(2026, 9, 13)
+    private val terminalDate: LocalDate = LocalDate.of(2026, 9, 14)
+    private val terminalShortDate: LocalDate = LocalDate.of(2026, 9, 15)
 
     @BeforeAll
     fun setup() {
@@ -143,6 +144,11 @@ class StopPassageDerivationServiceTest(
         val feed = feeds.findById(feedId).orElseThrow()
         val ctx = factory.open(feed)!!
         val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        // T1's pattern total shape length - used below to build matches that land at the pattern's
+        // last stop-path index (3) with a `distanceAlongTripM` near the end, the only way
+        // StopPassageDerivationService's terminal-stop special case can confirm the vehicle reached
+        // the final scheduled stop (SpatialMatcher.stopPathIndexAt never returns index 4 == n).
+        val t1TotalLengthM = stopPaths.findByTripPatternOrdered(ctx.revisionId, t1.tripPatternId!!).sumOf { it.lengthM }
 
         fun ts(
             date: LocalDate,
@@ -182,6 +188,7 @@ class StopPassageDerivationServiceTest(
             revisionId: Long = ctx.revisionId,
             descTripId: String = "T1",
             descRouteId: String = "RA",
+            distanceAlongTripM: Double = 0.0,
         ) {
             val reportId = avlReport(vehicleId, at, descStartDate, descTripId, descRouteId)
             vehicleMatches.save(
@@ -189,7 +196,7 @@ class StopPassageDerivationServiceTest(
                     avlReportId = reportId, feedCode = feed.code, vehicleId = vehicleId, ts = at,
                     revisionId = revisionId, tripRowId = tripRowId, blockPk = null,
                     tripPatternId = tripPatternId, stopPathIndex = stopPathIndex,
-                    distanceAlongTripM = 0.0, deviationM = 0.0, scheduleAdherenceSec = adherenceSec,
+                    distanceAlongTripM = distanceAlongTripM, deviationM = 0.0, scheduleAdherenceSec = adherenceSec,
                     snappedLat = 51.1, snappedLon = 17.0, heading = null, score = null,
                     createdAt = at,
                 ),
@@ -197,16 +204,20 @@ class StopPassageDerivationServiceTest(
         }
 
         // bus-1 on T1, completeDate: completes the full run, arriving at every one of the 4
-        // scheduled stops (stopPathIndex 0..3) - represented by matches reporting stopPathIndex
-        // 1..4 (one past each scheduled stop's own index, per the "arrived at stop (j-1)"
-        // semantics documented above).
+        // scheduled stops (stopPathIndex 0..3). Stops 0-2 are represented by matches reporting
+        // stopPathIndex 1..3 (one past each scheduled stop's own index, per the "arrived at stop
+        // (j-1)" semantics documented above). Stop 3 is the pattern's FINAL scheduled stop, so it
+        // can't be represented that way at all - SpatialMatcher.stopPathIndexAt clamps to the
+        // pattern's last stop-path index (3) and can never report 4 - so its arrival is instead
+        // represented by a match AT index 3 whose distanceAlongTripM is at the pattern's total
+        // shape length (see StopPassageDerivationService's terminal-stop special case).
         insertMatch("bus-1", completeDate, ts(completeDate, 7, 59), 1, 60)
         insertMatch("bus-1", completeDate, ts(completeDate, 8, 9), 2, 30)
         insertMatch("bus-1", completeDate, ts(completeDate, 8, 19), 3, -10)
-        insertMatch("bus-1", completeDate, ts(completeDate, 8, 29), 4, 0)
+        insertMatch("bus-1", completeDate, ts(completeDate, 8, 29), 3, 0, distanceAlongTripM = t1TotalLengthM)
 
-        // bus-2 on T1, partialDate: never gets past scheduled stop 0 (vehicle dropped off AVL, or
-        // trip abandoned) - it sends several repeated pings while lingering just past stop 0
+        // bus-2 on T1, partialDate: never gets past scheduled stop 1 (vehicle dropped off AVL, or
+        // trip abandoned) - it sends several repeated pings while lingering just past stop 1
         // (stopPathIndex 2, i.e. already arrived at scheduled stop 1, approaching stop 2), which
         // must collapse into a single observed passage per scheduled stop, not one per ping.
         insertMatch("bus-2", partialDate, ts(partialDate, 7, 59), 1, 15)
@@ -220,7 +231,10 @@ class StopPassageDerivationServiceTest(
         // predecessor) - scheduled stop 0 and 1 must stay unreached (null), not inherit this first
         // match's data.
         insertMatch("bus-3", leadingStopDate, ts(leadingStopDate, 8, 19), 3, -10)
-        insertMatch("bus-3", leadingStopDate, ts(leadingStopDate, 8, 29), 4, 0)
+        insertMatch(
+            "bus-3", leadingStopDate, ts(leadingStopDate, 8, 29), 3, 0,
+            distanceAlongTripM = t1TotalLengthM,
+        )
 
         // bus-4 on T1: its single ping's ts falls inside `crossDayQueryDate`'s AVL fetch window,
         // but its `descStartDate` (and therefore its *inferred* serviceDate, which takes priority
@@ -299,10 +313,16 @@ class StopPassageDerivationServiceTest(
                 layoverStop = false, breakTimeSec = null,
             ),
         )
+        // OLD-S1's lengthM (500.0, unlike OLD-S0's placeholder 0.0) gives this synthetic pattern a
+        // non-trivial total shape length, so the terminal-stop distance check below actually
+        // discriminates between "merely arrived at stop 0, approaching stop 1" and "reached the end
+        // of stop path 1" instead of being trivially satisfied by both (as it would be if every
+        // stop path's lengthM were 0.0).
+        val oldStop1LengthM = 500.0
         stopPaths.save(
             StopPath(
                 revisionId = oldRevisionId, tripPatternId = oldPatternId, stopPathIndex = 1,
-                stopId = "OLD-S1", routeId = null, stopSeq = 2, lengthM = 0.0, pathGeometry = null,
+                stopId = "OLD-S1", routeId = null, stopSeq = 2, lengthM = oldStop1LengthM, pathGeometry = null,
                 pickupType = null, dropOffType = null, waitStop = false, scheduleAdherenceStop = true,
                 layoverStop = false, breakTimeSec = null,
             ),
@@ -312,11 +332,35 @@ class StopPassageDerivationServiceTest(
             tripRowId = oldTrip.id!!, tripPatternId = oldPatternId, revisionId = oldRevisionId,
             descTripId = "T-OLD", descRouteId = "RX",
         )
+        // oldTrip's pattern has only 2 stop paths (indices 0,1), so stop-path index 1 is itself the
+        // pattern's LAST stop-path index - its arrival must be represented at index 1 (not the
+        // impossible index 2), with distanceAlongTripM at the pattern's total length (OLD-S0's
+        // 0.0 + OLD-S1's oldStop1LengthM).
         insertMatch(
-            "bus-old", revisionDriftDate, ts(revisionDriftDate, 8, 9), 2, 20,
+            "bus-old", revisionDriftDate, ts(revisionDriftDate, 8, 9), 1, 20,
             tripRowId = oldTrip.id!!, tripPatternId = oldPatternId, revisionId = oldRevisionId,
             descTripId = "T-OLD", descRouteId = "RX",
+            distanceAlongTripM = oldStop1LengthM,
         )
+
+        // bus-6 on T1, terminalDate: regression test for the terminal-stop special case itself.
+        // Reaches scheduled stops 0-2 normally, then a match AT the last stop-path index (3) but
+        // only a few metres short of the pattern's total shape length (well within
+        // TERMINAL_STOP_TOLERANCE_M) - this must be recognized as having reached the final
+        // scheduled stop (index 3), not come back null.
+        insertMatch("bus-6", terminalDate, ts(terminalDate, 7, 59), 1, 60)
+        insertMatch("bus-6", terminalDate, ts(terminalDate, 8, 9), 2, 30)
+        insertMatch("bus-6", terminalDate, ts(terminalDate, 8, 19), 3, -10)
+        insertMatch(
+            "bus-6", terminalDate, ts(terminalDate, 8, 29), 3, 5,
+            distanceAlongTripM = t1TotalLengthM - 2.0,
+        )
+
+        // bus-7 on T1, terminalShortDate: a match AT the last stop-path index (3) but still far
+        // short of the pattern's total shape length (well outside TERMINAL_STOP_TOLERANCE_M) must
+        // NOT be mistaken for reaching the final scheduled stop - the vehicle has only just entered
+        // the last stop path, not reached its end, so stop 3 must stay unreached (null).
+        insertMatch("bus-7", terminalShortDate, ts(terminalShortDate, 8, 19), 3, -10)
     }
 
     @AfterAll
@@ -439,5 +483,23 @@ class StopPassageDerivationServiceTest(
         val stop1 = oldTripPassages.single { it.stopPathIndex == 1 }
         assertThat(stop1.stopId).isEqualTo("OLD-S1")
         assertThat(stop1.adherenceSec).isEqualTo(20)
+    }
+
+    @Test
+    fun `derive recognizes the pattern's final scheduled stop as reached via a clamped index plus near-end distance`() {
+        val passages = derivation.derive("g", terminalDate, terminalDate, tripId = "T1")
+
+        val lastStop = passages.single { it.stopPathIndex == 3 }
+        assertThat(lastStop.observedSec).isNotNull()
+        assertThat(lastStop.adherenceSec).isEqualTo(5)
+    }
+
+    @Test
+    fun `derive does not treat a match still short of the pattern's end as reaching the final scheduled stop`() {
+        val passages = derivation.derive("g", terminalShortDate, terminalShortDate, tripId = "T1")
+
+        val lastStop = passages.single { it.stopPathIndex == 3 }
+        assertThat(lastStop.observedSec).isNull()
+        assertThat(lastStop.adherenceSec).isNull()
     }
 }

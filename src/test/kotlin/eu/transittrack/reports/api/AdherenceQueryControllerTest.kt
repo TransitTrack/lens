@@ -38,6 +38,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.support.PostgresPerClassTest
 
 /**
@@ -64,6 +65,7 @@ class AdherenceQueryControllerTest(
     @Autowired val feeds: AvlFeedRepository,
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
+    @Autowired val stopPaths: StopPathRepository,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -129,6 +131,7 @@ class AdherenceQueryControllerTest(
             at: Instant,
             stopPathIndex: Int,
             adherenceSec: Int?,
+            distanceAlongTripM: Double = 0.0,
         ) {
             val tripRow = trips.findByTripId(ctx.revisionId, tripId)!!
             val reportId = avlReport(vehicleId, at, tripId, routeId)
@@ -137,19 +140,28 @@ class AdherenceQueryControllerTest(
                     avlReportId = reportId, feedCode = feed.code, vehicleId = vehicleId, ts = at,
                     revisionId = ctx.revisionId, tripRowId = tripRow.id!!, blockPk = null,
                     tripPatternId = tripRow.tripPatternId, stopPathIndex = stopPathIndex,
-                    distanceAlongTripM = 0.0, deviationM = 0.0, scheduleAdherenceSec = adherenceSec,
+                    distanceAlongTripM = distanceAlongTripM, deviationM = 0.0, scheduleAdherenceSec = adherenceSec,
                     snappedLat = 51.1, snappedLon = 17.0, heading = null, score = null,
                     createdAt = at,
                 ),
             )
         }
 
+        // E1's pattern has only 2 scheduled stops (indices 0,1), so index 1 is both E1's SECOND
+        // scheduled stop and the pattern's LAST stop-path index.
+        val e1Trip = trips.findByTripId(ctx.revisionId, "E1")!!
+        val e1TotalLengthM =
+            stopPaths.findByTripPatternOrdered(ctx.revisionId, e1Trip.tripPatternId!!).sumOf { it.lengthM }
+
         // E1 (route RA): reaches both scheduled stops. A VehicleMatch's reported stopPathIndex
         // means "already arrived at stop (index - 1)" (see StopPassageDerivationServiceTest's KDoc
-        // for the full semantics), so arrival at scheduled stop 0/1 is represented by stopPathIndex
-        // 1/2, not 0/1.
+        // for the full semantics), so arrival at scheduled stop 0 is represented by stopPathIndex 1.
+        // Stop 1 is the pattern's FINAL scheduled stop, though, so it can never be represented that
+        // way (SpatialMatcher.stopPathIndexAt clamps to the last stop-path index, 1, and can never
+        // report 2) - instead it's a match AT index 1 whose distanceAlongTripM is at the pattern's
+        // total shape length (see StopPassageDerivationService's terminal-stop special case).
         insertMatch("bus-e1", "E1", "RA", ts(8, 0), 1, 30)
-        insertMatch("bus-e1", "E1", "RA", ts(8, 30), 2, -30)
+        insertMatch("bus-e1", "E1", "RA", ts(8, 30), 1, -30, distanceAlongTripM = e1TotalLengthM)
 
         // E2 (route RA): reaches only its first scheduled stop.
         insertMatch("bus-e2", "E2", "RA", ts(9, 0), 1, 120)
