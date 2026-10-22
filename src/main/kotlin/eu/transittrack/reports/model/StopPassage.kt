@@ -15,6 +15,14 @@ import java.time.LocalDate
  * while [adherenceSec] is [eu.transittrack.avl.model.VehicleMatch.scheduleAdherenceSec] -
  * interpolated at the vehicle's actual along-trip position at ping time, which may sit slightly
  * before or after this exact stop. Do not assume `observedSec - scheduledSec == adherenceSec`.
+ *
+ * **Known Phase 1 limitation - duplicate rows on vehicle swap**: there is no `vehicleId` field here
+ * to disambiguate, and derivation groups matches by `(tripId, serviceDate, vehicleId)` before
+ * producing one [StopPassage] per scheduled stop per group. In a rare vehicle-swap or duplicate
+ * AVL-assignment scenario, the same trip execution's matches can be split across more than one
+ * `vehicleId` for the same `(tripId, serviceDate, stopPathIndex)`, producing more than one
+ * [StopPassage] for that same logical stop in the result. Accepted as a rare edge case, not fixed
+ * in Phase 1.
  */
 data class StopPassage(
     val tripId: String,
