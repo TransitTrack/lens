@@ -65,7 +65,7 @@ class VehicleMatchRepositoryTest(
     }
 
     @Test
-    fun `findByFeedCodeAndTsBetween returns matches in range ordered by vehicle then time`() {
+    fun `findInWindow returns matches in range ordered by vehicle then time`() {
         val from = Instant.parse("2026-09-04T10:00:00Z")
         val until = Instant.parse("2026-09-04T11:00:00Z")
 
@@ -80,14 +80,14 @@ class VehicleMatchRepositoryTest(
         val aLate = match("feed-1", "a", Instant.parse("2026-09-04T10:30:00Z"), 2L)
         val aEarly = match("feed-1", "a", Instant.parse("2026-09-04T10:10:00Z"), 2L)
 
-        val result = matches.findByFeedCodeAndTsBetween("feed-1", from, until)
+        val result = matches.findInWindow("feed-1", from, until)
 
         assertThat(result).hasSize(3)
         assertThat(result.map { it.id }).isEqualTo(listOf(aEarly.id, aLate.id, b.id))
     }
 
     @Test
-    fun `findByFeedCodeAndTripRowIdInAndTsBetween filters by trip row id`() {
+    fun `findForTripsInWindow filters by trip row id`() {
         val from = Instant.parse("2026-09-04T10:00:00Z")
         val until = Instant.parse("2026-09-04T11:00:00Z")
 
@@ -95,7 +95,7 @@ class VehicleMatchRepositoryTest(
         match("feed-1", "a", Instant.parse("2026-09-04T10:10:00Z"), tripRowIdA)
         match("feed-1", "b", Instant.parse("2026-09-04T10:20:00Z"), 2L)
 
-        val result = matches.findByFeedCodeAndTripRowIdInAndTsBetween("feed-1", setOf(tripRowIdA), from, until)
+        val result = matches.findForTripsInWindow("feed-1", setOf(tripRowIdA), from, until)
 
         assertThat(result).hasSize(1)
         assertThat(result.single().tripRowId).isEqualTo(tripRowIdA)

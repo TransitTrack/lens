@@ -129,7 +129,7 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
         "select e from VehicleMatch e where e.feedCode = :feedCode and e.ts >= :from and e.ts < :until " +
             "order by e.vehicleId, e.ts",
     )
-    fun findByFeedCodeAndTsBetween(
+    fun findInWindow(
         @Param("feedCode") feedCode: String,
         @Param("from") from: Instant,
         @Param("until") until: Instant,
@@ -139,7 +139,7 @@ interface VehicleMatchRepository : JpaRepository<VehicleMatch, Long> {
         "select e from VehicleMatch e where e.feedCode = :feedCode and e.tripRowId in :tripRowIds " +
             "and e.ts >= :from and e.ts < :until order by e.vehicleId, e.ts",
     )
-    fun findByFeedCodeAndTripRowIdInAndTsBetween(
+    fun findForTripsInWindow(
         @Param("feedCode") feedCode: String,
         @Param("tripRowIds") tripRowIds: Collection<Long>,
         @Param("from") from: Instant,
