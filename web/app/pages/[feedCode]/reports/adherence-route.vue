@@ -10,7 +10,7 @@ import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { adherenceBadge, formatAdherence } from '~/utils/adherence'
+import { adherenceBadge } from '~/utils/adherence'
 import { isValidAdherenceRange } from '~/utils/adherenceReport'
 import { formatHm } from '~/utils/tripFilters'
 
@@ -106,12 +106,14 @@ const columns: TableColumn<ReportRow>[] = [
     id: 'adherence',
     header: 'Adherence',
     cell: ({ row }) => {
+      // Here, `null` means "this stop was scheduled but never observed in the AVL data" (a
+      // reporting gap), not "not on a scheduled trip" - `adherenceBadge`'s live-tracking
+      // "Unscheduled" label would be misleading next to a real Scheduled-time value.
+      if (row.original.adherenceSec == null) {
+        return h(UBadge, { color: 'neutral', variant: 'subtle' }, { default: () => 'Not observed' })
+      }
       const badge = adherenceBadge(row.original.adherenceSec)
-      return h(
-        UBadge,
-        { color: badge.color, variant: 'soft' },
-        { default: () => `${badge.label} (${formatAdherence(row.original.adherenceSec)})` },
-      )
+      return h(UBadge, { color: badge.color, variant: 'subtle' }, { default: () => badge.label })
     },
   },
 ]
