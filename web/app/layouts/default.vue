@@ -98,6 +98,12 @@ interface NavLeaf {
 
 const REALTIME: NavLeaf[] = [
   {
+    label: 'Overview',
+    icon: 'i-lucide-layout-dashboard',
+    description: 'Fleet overview and live map',
+    path: '/',
+  },
+  {
     label: 'Vehicles',
     icon: 'i-lucide-bus',
     description: 'Live vehicle positions and trip matching',
@@ -207,12 +213,11 @@ function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
 
 const primaryNav = computed<NavigationMenuItem[]>(() => [
   {
-    label: 'Home',
-    icon: 'i-lucide-layout-dashboard',
-    description: 'Fleet overview and live map',
-    to: feedPath(),
-    exact: true,
-    active: route.path === feedPath(),
+    label: 'Live',
+    icon: 'i-lucide-radio',
+    description: 'Live data from the AVL feed',
+    active: REALTIME.some((l) => underPath(feedPath(l.path))),
+    children: toItems(REALTIME),
   },
   {
     label: 'Optimize',
@@ -220,13 +225,6 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     description: 'AVL-informed schedule optimization',
     to: feedPath('/optimize'),
     active: underPath(feedPath('/optimize')),
-  },
-  {
-    label: 'Realtime',
-    icon: 'i-lucide-radio',
-    description: 'Live data from the AVL feed',
-    active: REALTIME.some((l) => underPath(feedPath(l.path))),
-    children: toItems(REALTIME),
   },
   {
     label: 'Reports',
