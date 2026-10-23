@@ -31,10 +31,10 @@ const readinessFeed = computed(() => {
 const feedIsPreparing = computed(
   () =>
     error.value != null ||
-    !readinessFeed?.value?.activeRevision &&
+    (!readinessFeed?.value?.activeRevision &&
       readinessFeed?.value?.revisions.some((revision) =>
         isInProgressRevisionStatus(revision.status),
-      ),
+      )),
 )
 const feedIsLoading = computed(
   () => !!selectedFeedCode.value && loading.value && !readinessFeed.value,
@@ -158,6 +158,12 @@ const REPORTS: NavLeaf[] = [
 
 const STATIC: NavLeaf[] = [
   {
+    label: 'Optimization',
+    icon: 'i-lucide-sparkles',
+    description: 'AVL-informed schedule optimization',
+    path: '/optimize',
+  },
+  {
     label: 'Routes',
     icon: 'i-lucide-route',
     description: 'Browse routes, filter by type and agency',
@@ -220,13 +226,6 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     children: toItems(REALTIME),
   },
   {
-    label: 'Optimize',
-    icon: 'i-lucide-sparkles',
-    description: 'AVL-informed schedule optimization',
-    to: feedPath('/optimize'),
-    active: underPath(feedPath('/optimize')),
-  },
-  {
     label: 'Reports',
     icon: 'i-lucide-chart-no-axes-combined',
     description: 'Historical operational reports',
@@ -234,7 +233,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     children: toItems(REPORTS),
   },
   {
-    label: 'Static',
+    label: 'Network',
     icon: 'i-lucide-database',
     description: 'GTFS schedule data for the feed',
     active: STATIC.some((l) => underPath(feedPath(l.path))),
@@ -266,10 +265,16 @@ const groups = computed(() => [
 
 <template>
   <div>
-    <UHeader mode="drawer" :ui="{ center: 'flex-1 justify-center' }">
+    <UHeader
+      mode="drawer"
+      :ui="{
+        center: 'flex-1 justify-center',
+        root: 'bg-default/75 backdrop-blur-sm h-(--ui-header-height) sticky top-0 z-50',
+      }"
+    >
       <template #left>
         <NuxtLink :to="feedPath()" aria-label="Home">
-          <AppLogo :font-size="16" :icon-only="false" />
+          <AppLogo :font-size="22" />
         </NuxtLink>
       </template>
 
