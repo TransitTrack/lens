@@ -41,7 +41,7 @@ const bars = computed<Bar[]>(() =>
       <UIcon name="i-lucide-target" class="size-4" />
       Prediction accuracy · 7d
     </div>
-    <USkeleton v-if="loading && !rows.length" class="h-[130px] w-full" />
+    <USkeleton v-if="loading && !rows.length" class="h-32.5 w-full" />
     <p v-else-if="!rows.length" class="text-sm text-dimmed">No prediction samples yet.</p>
     <BarChart
       v-else

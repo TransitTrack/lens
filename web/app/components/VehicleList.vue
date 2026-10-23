@@ -42,7 +42,9 @@ watch(
   (vehicleId) => {
     if (!vehicleId) return
     nextTick(() => {
-      rowElements.get(vehicleId)?.scrollIntoView({behavior: 'smooth', block: 'nearest', inline: 'nearest'})
+      rowElements
+        .get(vehicleId)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
     })
   },
 )
@@ -100,18 +102,21 @@ function reportTimestamp(iso: string): string {
     second: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(date)
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
 
   return `${value('day')}.${value('month')}.${value('year')}, ${value('hour')}:${value('minute')}:${value('second')}`
 }
 
 function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
-  return [[
-    {
-      label: 'Open details',
-      onSelect: () => emit('openDetails', vehicle.vehicleId),
-    },
-  ]]
+  return [
+    [
+      {
+        label: 'Open details',
+        onSelect: () => emit('openDetails', vehicle.vehicleId),
+      },
+    ],
+  ]
 }
 </script>
 
@@ -141,7 +146,10 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       role="button"
       tabindex="0"
       class="group flex w-full items-center gap-5 px-3 py-2 text-left transition-colors hover:bg-elevated/70 focus-visible:bg-elevated focus-visible:outline-none"
-      :class="vehicle.vehicleId === selectedVehicleId && 'bg-primary/10 shadow-[inset_3px_0_0_var(--ui-primary)]'"
+      :class="
+        vehicle.vehicleId === selectedVehicleId &&
+        'bg-primary/10 shadow-[inset_3px_0_0_var(--ui-primary)]'
+      "
       @click="emit('select', vehicle.vehicleId)"
       @keydown.enter="emit('select', vehicle.vehicleId)"
       @keydown.space.prevent="emit('select', vehicle.vehicleId)"
@@ -168,12 +176,16 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
                   </dd>
                 </div>
                 <div>
-                  <dt class="inline font-medium text-muted">Last update: </dt>
-                  <dd class="inline font-semibold tabular-nums text-primary">{{ reportTimestamp(vehicle.reportTs) }}</dd>
+                  <dt class="inline font-medium text-muted">Last update:</dt>
+                  <dd class="inline font-semibold tabular-nums text-primary">
+                    {{ reportTimestamp(vehicle.reportTs) }}
+                  </dd>
                 </div>
                 <div>
-                  <dt class="inline font-medium text-muted">Updated: </dt>
-                  <dd class="inline font-semibold text-primary">{{ reportAge(vehicle.reportTs) }}</dd>
+                  <dt class="inline font-medium text-muted">Updated:</dt>
+                  <dd class="inline font-semibold text-primary">
+                    {{ reportAge(vehicle.reportTs) }}
+                  </dd>
                 </div>
               </dl>
             </template>
@@ -181,7 +193,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
         </div>
       </div>
 
-      <div class="min-w-[11rem] flex-1">
+      <div class="min-w-44 flex-1">
         <template v-if="tripProgress(vehicle)">
           <div class="flex items-center justify-between gap-2 text-xs">
             <UBadge

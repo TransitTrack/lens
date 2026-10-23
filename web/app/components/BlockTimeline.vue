@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { secToHm } from '#imports'
 import type { TimelineSegment } from '~/utils/blocks'
 import { ganttRows, layoverLabel, timelineTicks } from '~/utils/blocks'
 
