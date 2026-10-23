@@ -69,7 +69,7 @@ const formattedCalendarDate = computed(() => {
   const date = currentTime.value
   const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date)
   const twoDigits = (value: number) => String(value).padStart(2, '0')
-  return `${weekday}, ${date.getFullYear()}.${twoDigits(date.getMonth() + 1)}.${twoDigits(date.getDate())}`
+  return `${weekday},${twoDigits(date.getDate())}.${twoDigits(date.getMonth() + 1)}.${date.getFullYear()}`
 })
 
 onMounted(() => {
@@ -295,15 +295,14 @@ const groups = computed(() => [
         <time
           v-if="timeMounted"
           :datetime="currentTime.toISOString()"
-          class="hidden items-center gap-2 rounded-md bg-elevated px-3 py-1 shadow-sm lg:flex"
+          class="hidden items-center gap-1 rounded-md bg-elevated px-3 py-0.5 shadow-sm lg:flex tracking-tight"
           aria-label="Current local date and time"
         >
           <span class="text-xl font-bold tracking-tight tabular-nums text-highlighted">
             {{ formattedClock }}
           </span>
-          <span class="border-l border-default pl-2 text-xs font-medium text-muted">
-            {{ formattedCalendarDate }}
-          </span>
+          <span class="text-xs font-medium text-muted">-</span>
+          <span class="text-xs font-medium text-muted">{{ formattedCalendarDate }} </span>
         </time>
         <UButton
           color="neutral"

@@ -93,7 +93,7 @@ function reportTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return 'Unknown'
 
-  const parts = new Intl.DateTimeFormat('en-GB', {
+  const parts = new Intl.DateTimeFormat('de-DE', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -123,7 +123,8 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
 <template>
   <div class="divide-y divide-default">
     <div
-      class="grid grid-cols-[auto_minmax(11rem,1fr)_auto_1rem] items-center gap-5 px-5 py-3 text-sm text-dimmed"
+      v-if="false"
+      class="grid grid-cols-[auto_minmax(11rem,1fr)_auto_1rem] items-center gap-4 px-5 py-3 text-sm text-dimmed"
     >
       <button
         data-testid="vehicle-sort"
@@ -145,7 +146,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       :data-testid="`vehicle-row-${vehicle.vehicleId}`"
       role="button"
       tabindex="0"
-      class="group flex w-full items-center gap-5 px-3 py-2 text-left transition-colors hover:bg-elevated/70 focus-visible:bg-elevated focus-visible:outline-none"
+      class="group flex w-full items-center gap-4 px-4 py-2 text-left transition-colors hover:bg-elevated focus-visible:bg-elevated focus-visible:outline-none"
       :class="
         vehicle.vehicleId === selectedVehicleId &&
         'bg-primary/10 shadow-[inset_3px_0_0_var(--ui-primary)]'
@@ -154,15 +155,15 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       @keydown.enter="emit('select', vehicle.vehicleId)"
       @keydown.space.prevent="emit('select', vehicle.vehicleId)"
     >
-      <div class="flex min-w-20 items-center gap-3">
+      <div class="flex min-w-18 items-center gap-1.5">
         <span
-          class="size-3 shrink-0 rounded-full ring-2 ring-white"
+          class="size-2.5 shrink-0 rounded-full ring-1 ring-white"
           :class="adherenceDotClass(vehicle)"
         />
         <div class="min-w-0">
           <UTooltip :delay-duration="0" :ui="{ content: 'h-auto w-70 items-start p-4 text-sm' }">
             <span
-              class="block cursor-help truncate text-base font-semibold text-highlighted decoration-dotted underline decoration-muted underline-offset-4 transition-colors group-hover:decoration-primary"
+              class="block cursor-help truncate text-sm font-semibold text-highlighted decoration-dotted underline decoration-muted underline-offset-4 transition-colors group-hover:decoration-primary"
               aria-label="Show vehicle update details"
             >
               #{{ vehicle.vehicleId }}
@@ -193,7 +194,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
         </div>
       </div>
 
-      <div class="min-w-44 flex-1">
+      <div class="min-w-42 flex-1">
         <template v-if="tripProgress(vehicle)">
           <div class="flex items-center justify-between gap-2 text-xs">
             <UBadge
@@ -209,12 +210,12 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
             >
               {{ vehicle.trip.route.routeShortName ?? vehicle.trip.routeId }}
             </UBadge>
-            <span class="ml-auto font-semibold tabular-nums text-highlighted">
+            <span class="ml-auto text-xs tabular-nums text-highlighted">
               {{ tripProgress(vehicle)?.percentage }}%
             </span>
           </div>
           <div
-            class="mt-1.5 h-2 overflow-hidden rounded-sm bg-elevated ring-1 ring-inset ring-default"
+            class="mt-1.5 h-2 overflow-hidden rounded-sm bg-elevated dark:bg-gray-700 ring-1 ring-inset ring-default dark:ring-gray-750"
             :aria-label="`${tripProgress(vehicle)?.percentage}% of trip completed`"
             role="progressbar"
             aria-valuemin="0"
@@ -250,7 +251,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
         >
           <UButton
             size="xs"
-            color="primary"
+            color="neutral"
             variant="soft"
             icon="i-lucide-ellipsis-vertical"
             :aria-label="`Actions for vehicle ${vehicle.vehicleId}`"

@@ -30,5 +30,7 @@ export function formatAdherence(sec: number | null | undefined): string {
 
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
-  return `${minutes}m ${seconds}s ${sec > 0 ? 'late' : 'early'}`
+  const mm = String(minutes).padStart(2, '0')
+  const ss = String(seconds).padStart(2, '0')
+  return `${sec > 0 ? '+' : '-'}${mm}:${ss}`
 }

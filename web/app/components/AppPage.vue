@@ -29,18 +29,20 @@ const hasHeader = computed(() => !!slots.actions || !!slots.leading)
         : 'flex min-h-[calc(100vh-var(--ui-header-height))] flex-col'
     "
   >
-    <div v-if="title || hasHeader" class="shrink-0 shadow drop-shadow-md bg-elevated z-10">
-      <UContainer class="flex h-18 items-center justify-between gap-3">
-        <div class="flex min-w-0 items-center gap-2">
+    <div
+      v-if="title || hasHeader"
+      class="shrink-0 bg-linear-to-r from-[var(--ui-bg-elevated)] to-[var(--ui-bg-accented)] shadow-md z-10"
+    >
+      <UContainer class="flex min-h-16 items-center justify-between gap-4 py-2.5">
+        <div class="flex min-w-0 items-center gap-3">
           <slot name="leading" />
           <div class="min-w-0">
-            <h1
-              v-if="title"
-              class="truncate text-lg font-semibold text-highlighted tracking-tighter"
-            >
+            <h1 v-if="title" class="truncate text-lg font-semibold text-highlighted tracking-tight">
               {{ title }}
             </h1>
-            <p v-if="description" class="truncate text-sm text-muted">{{ description }}</p>
+            <p v-if="description" class="truncate text-sm text-muted leading-snug">
+              {{ description }}
+            </p>
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">

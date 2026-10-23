@@ -35,9 +35,9 @@ describe('adherenceBadge', () => {
 })
 
 describe('formatAdherence', () => {
-  it('renders scheduled offsets with exact minutes and seconds', () => {
-    expect(formatAdherence(125)).toBe('2m 5s late')
-    expect(formatAdherence(-125)).toBe('2m 5s early')
+  it('renders scheduled offsets as signed, zero-padded mm:ss', () => {
+    expect(formatAdherence(125)).toBe('+02:05')
+    expect(formatAdherence(-125)).toBe('-02:05')
   })
 
   it('keeps neutral labels for on-time and unscheduled vehicles', () => {

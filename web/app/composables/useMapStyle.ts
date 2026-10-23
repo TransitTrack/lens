@@ -1,6 +1,6 @@
 const STYLES = {
-  dark: 'https://tiles.versatiles.org/assets/styles/shadow/style.json',
-  light: 'https://tiles.versatiles.org/assets/styles/graybeard/style.json',
+  dark: 'https://tiles.versatiles.org/assets/styles/natural-dark/style.json',
+  light: 'https://tiles.versatiles.org/assets/styles/natural/style.json',
 }
 
 /** VersaTiles basemap style URL that tracks the active color mode. */
