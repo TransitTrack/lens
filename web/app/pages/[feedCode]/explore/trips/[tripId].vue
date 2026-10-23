@@ -4,7 +4,7 @@ import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useTripDetailQuery } from '~~/generated/graphql'
-import { hexColor, type LngLat } from '~/utils/gtfs'
+import type { LngLat } from '~/utils/gtfs'
 
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -17,7 +17,6 @@ const { result, loading, error } = useTripDetailQuery(
 )
 
 const trip = computed(() => result.value?.trip ?? null)
-const routeColor = computed(() => hexColor(trip.value?.route?.routeColor, '#3b82f6'))
 
 const stopTimes = computed(() =>
   [...(trip.value?.stopTimes ?? [])].sort((a, b) => a.stopSequence - b.stopSequence),
@@ -86,7 +85,7 @@ const tripStats = computed(() => ({
       />
     </template>
     <template v-if="trip?.route?.routeShortName" #actions>
-      <UBadge :style="{ backgroundColor: routeColor }">
+      <UBadge :style="{ backgroundColor: '#ff0000' }">
         {{ trip.route.routeShortName }}
       </UBadge>
     </template>
@@ -246,7 +245,7 @@ const tripStats = computed(() => ({
           :line="line"
           :stops="stops"
           :vehicle="null"
-          :route-color="routeColor"
+          route-color="#ff0000"
           :extent="extent"
         />
       </div>
