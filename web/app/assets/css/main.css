@@ -4,6 +4,7 @@
 
 @theme static {
   --font-sans: 'Outfit', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
 :root {
@@ -73,7 +74,9 @@
   place-items: center;
   color: var(--map-popup-muted);
   border-radius: 0 0.65rem 0 0.65rem;
-  transition: background-color 150ms ease, color 150ms ease;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
 }
 
 .maplibregl-popup-close-button:hover {
@@ -82,11 +85,19 @@
 }
 
 @keyframes dashboard-rise-in {
-  from { opacity: 0; transform: translateY(0.5rem); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.dashboard-enter { animation: dashboard-rise-in 280ms ease-out both; }
+.dashboard-enter {
+  animation: dashboard-rise-in 280ms ease-out both;
+}
 .dashboard-signal {
   animation: dashboard-rise-in 280ms ease-out both;
   animation-delay: var(--dashboard-signal-delay, 0ms);
@@ -97,8 +108,16 @@
 }
 
 @keyframes dashboard-value-flash {
-  0% { opacity: 0.65; transform: scale(1.06); text-shadow: 0 0 0.65rem currentColor; }
-  100% { opacity: 1; transform: scale(1); text-shadow: none; }
+  0% {
+    opacity: 0.65;
+    transform: scale(1.06);
+    text-shadow: 0 0 0.65rem currentColor;
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    text-shadow: none;
+  }
 }
 
 .dashboard-signal__value {
@@ -107,7 +126,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dashboard-enter, .dashboard-signal, .dashboard-panel, .dashboard-signal__value {
+  .dashboard-enter,
+  .dashboard-signal,
+  .dashboard-panel,
+  .dashboard-signal__value {
     animation: none;
     transition: none;
   }
