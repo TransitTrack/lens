@@ -12,7 +12,7 @@ import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { adherenceBadge } from '~/utils/adherence'
+import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { isValidAdherenceRange } from '~/utils/adherenceReport'
 import { formatHm } from '~/utils/tripFilters'
 
@@ -32,13 +32,28 @@ function today(): string {
 
 const { selectedFeedCode, selectedAvlFeedCode } = useFeeds()
 
+// Deep-linked from the route-level adherence report (a "Trip" cell there
+// links here with the same route, trip and date range already chosen).
+const route = useRoute()
+function queryString(key: string): string | null {
+  const v = route.query[key]
+  return typeof v === 'string' ? v : null
+}
+
 const filters = reactive<ReportFilters>({
-  routeId: null,
-  tripId: null,
-  startDate: today(),
-  endDate: today(),
+  routeId: queryString('routeId'),
+  tripId: queryString('tripId'),
+  startDate: queryString('startDate') ?? today(),
+  endDate: queryString('endDate') ?? today(),
 })
 const submitted = ref<ReportFilters | null>(null)
+
+// The filters panel starts open and collapses once a report has run, so the
+// results get the room back; re-opening is still one click away via the
+// accordion header.
+const FILTERS_ACCORDION_VALUE = 'filters'
+const filtersAccordionItems = [{ label: 'Report filters', value: FILTERS_ACCORDION_VALUE }]
+const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
   result: routesResult,
@@ -62,10 +77,17 @@ const routeItems = computed(() =>
     })),
 )
 
-// clear the trip selection when the route changes
+// Clear the trip selection when the route changes — but a deep link arrives
+// with both already set, so skip the first reset or it'd clobber the tripId
+// before this watcher's even had a chance to read it.
+let skipNextTripReset = !!filters.routeId && !!filters.tripId
 watch(
   () => filters.routeId,
   () => {
+    if (skipNextTripReset) {
+      skipNextTripReset = false
+      return
+    }
     filters.tripId = null
   },
 )
@@ -96,6 +118,22 @@ const canRun = computed(
 function runReport() {
   if (!canRun.value || !filters.tripId) return
   submitted.value = { ...filters }
+  openFilterAccordion.value = undefined
+}
+
+// Auto-run once for a deep link, as soon as the AVL feed resolves and makes
+// `canRun` true, so the report is already showing instead of making the
+// visitor press "Run report" again for a trip they already chose.
+if (filters.tripId) {
+  if (canRun.value) {
+    runReport()
+  } else {
+    const stopAutoRun = watch(canRun, (ok) => {
+      if (!ok) return
+      runReport()
+      stopAutoRun()
+    })
+  }
 }
 
 const {
@@ -124,34 +162,111 @@ const rows = computed<ReportRow[]>(() =>
   }),
 )
 
-const UBadge = resolveComponent('UBadge')
+function adherenceTextClass(sec: number | null): string {
+  switch (adherenceBadge(sec).color) {
+    case 'error':
+      return 'text-error'
+    case 'warning':
+      return 'text-warning'
+    case 'success':
+      return 'text-success'
+    default:
+      return 'text-muted'
+  }
+}
+
+// Passenger count, Change and Bus filling aren't tracked anywhere in this
+// system (no GTFS-RT vehicle occupancy_percentage/passenger-count support),
+// and Departure is likewise unavailable - AVL pings carry one timestamp per
+// ping, not a separate arrival/departure pair. These columns always render
+// this placeholder rather than being silently omitted.
+const NOT_TRACKED = 'n/a'
 
 const columns: TableColumn<ReportRow>[] = [
-  { accessorKey: 'serviceDate', header: 'Service date' },
-  { accessorKey: 'stopId', header: 'Stop' },
   {
-    accessorKey: 'scheduledSec',
-    header: 'Scheduled time',
-    cell: ({ row }) => formatHm(row.original.scheduledSec),
+    id: 'number',
+    header: '#',
+    cell: ({ row }) => row.index + 1,
+  },
+  // Not part of the reference layout, but kept: this report spans a date
+  // *range*, so without it rows from different service dates would be
+  // indistinguishable.
+  { accessorKey: 'serviceDate', header: 'Service date' },
+  {
+    accessorKey: 'vehicleId',
+    header: 'Vehicle',
+    cell: ({ row }) => h('strong', { class: 'font-medium' }, row.original.vehicleId),
+  },
+  {
+    accessorKey: 'stopId',
+    header: 'Stop',
+    cell: ({ row }) =>
+      row.original.stopName
+        ? `${row.original.stopName}, Id: ${row.original.stopId}`
+        : row.original.stopId,
   },
   {
     accessorKey: 'observedSec',
-    header: 'Observed time',
+    header: 'Arrival',
     cell: ({ row }) => formatHm(row.original.observedSec),
   },
   {
-    id: 'adherence',
-    header: 'Adherence',
+    id: 'departure',
+    header: 'Departure',
+    cell: () => NOT_TRACKED,
+  },
+  {
+    accessorKey: 'scheduledSec',
+    header: 'Schedule',
+    cell: ({ row }) => formatHm(row.original.scheduledSec),
+  },
+  {
+    id: 'deviation',
+    header: 'Deviation',
     cell: ({ row }) => {
       // Here, `null` means "this stop was scheduled but never observed in the AVL data" (a
       // reporting gap), not "not on a scheduled trip" - `adherenceBadge`'s live-tracking
       // "Unscheduled" label would be misleading next to a real Scheduled-time value.
-      if (row.original.adherenceSec == null) {
-        return h(UBadge, { color: 'neutral', variant: 'subtle' }, { default: () => 'Not observed' })
+      const sec = row.original.adherenceSec
+      if (sec == null) {
+        return h('span', { class: 'text-muted' }, 'Not observed')
       }
-      const badge = adherenceBadge(row.original.adherenceSec)
-      return h(UBadge, { color: badge.color, variant: 'subtle' }, { default: () => badge.label })
+      return h(
+        'span',
+        {
+          class: [
+            'rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums bg-current/10',
+            adherenceTextClass(sec),
+          ],
+        },
+        signedAdherence(sec),
+      )
     },
+  },
+  {
+    accessorKey: 'direction',
+    header: 'Direction',
+    cell: ({ row }) => row.original.direction ?? '—',
+  },
+  {
+    id: 'passengerCount',
+    header: 'Passenger count',
+    cell: () => NOT_TRACKED,
+  },
+  {
+    id: 'change',
+    header: 'Change',
+    cell: () => NOT_TRACKED,
+  },
+  {
+    id: 'busFilling',
+    header: 'Bus filling',
+    cell: () => NOT_TRACKED,
+  },
+  {
+    accessorKey: 'occupancyStatus',
+    header: 'Occupancy Status',
+    cell: ({ row }) => row.original.occupancyStatus ?? '—',
   },
 ]
 </script>
@@ -168,86 +283,94 @@ const columns: TableColumn<ReportRow>[] = [
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="schedule adherence reports" />
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
-      <section class="rounded border border-default bg-elevated/20 p-4">
-        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 class="font-semibold text-highlighted">Report filters</h2>
-          </div>
-          <span v-if="routesLoading" class="text-sm text-dimmed">Loading routes…</span>
-        </div>
-
-        <UAlert
-          v-if="routesError"
-          color="error"
-          variant="soft"
-          icon="i-lucide-alert-triangle"
-          title="Couldn't load routes"
-          :description="routesError.message"
-        />
-
-        <div
-          v-else
-          class="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_minmax(16rem,1fr)_auto_auto] md:items-end"
+      <div class="rounded border border-default bg-elevated/20 px-4">
+        <UAccordion
+          v-model="openFilterAccordion"
+          type="single"
+          collapsible
+          :items="filtersAccordionItems"
         >
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            Route
-            <USelectMenu
-              v-model="filters.routeId"
-              data-testid="report-route"
-              :items="routeItems"
-              value-key="value"
-              searchable
-              placeholder="Select route"
-              icon="i-lucide-route"
+          <template #trailing>
+            <span v-if="routesLoading" class="text-sm text-dimmed">Loading routes…</span>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="shrink-0 size-5 ms-auto group-data-[state=open]:rotate-180 transition-transform duration-200 ease-out motion-reduce:transition-none"
             />
-          </label>
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            Trip
-            <USelectMenu
-              v-model="filters.tripId"
-              data-testid="report-trip"
-              :items="tripItems"
-              value-key="value"
-              searchable
-              :disabled="!filters.routeId"
-              :loading="tripsLoading"
-              placeholder="Select trip"
-              icon="i-lucide-git-branch"
+          </template>
+          <template #body>
+            <UAlert
+              v-if="routesError"
+              color="error"
+              variant="soft"
+              icon="i-lucide-alert-triangle"
+              title="Couldn't load routes"
+              :description="routesError.message"
             />
-          </label>
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            Start date
-            <UInput v-model="filters.startDate" type="date" data-testid="report-start-date" />
-          </label>
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            End date
-            <UInput v-model="filters.endDate" type="date" data-testid="report-end-date" />
-          </label>
-        </div>
 
-        <div class="mt-4 flex items-center justify-between gap-3">
-          <p
-            v-if="
-              filters.startDate &&
-              filters.endDate &&
-              !isValidAdherenceRange(filters.startDate, filters.endDate)
-            "
-            class="text-sm text-error"
-          >
-            End date must be on or after the start date.
-          </p>
-          <span v-else />
-          <UButton
-            data-testid="report-run"
-            icon="i-lucide-play"
-            :disabled="!canRun"
-            @click="runReport"
-          >
-            Run report
-          </UButton>
-        </div>
-      </section>
+            <div
+              v-else
+              class="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_minmax(16rem,1fr)_auto_auto] md:items-end"
+            >
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                Route
+                <USelectMenu
+                  v-model="filters.routeId"
+                  data-testid="report-route"
+                  :items="routeItems"
+                  value-key="value"
+                  searchable
+                  placeholder="Select route"
+                  icon="i-lucide-route"
+                />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                Trip
+                <USelectMenu
+                  v-model="filters.tripId"
+                  data-testid="report-trip"
+                  :items="tripItems"
+                  value-key="value"
+                  searchable
+                  :disabled="!filters.routeId"
+                  :loading="tripsLoading"
+                  placeholder="Select trip"
+                  icon="i-lucide-git-branch"
+                />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                Start date
+                <UInput v-model="filters.startDate" type="date" data-testid="report-start-date" />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                End date
+                <UInput v-model="filters.endDate" type="date" data-testid="report-end-date" />
+              </label>
+            </div>
 
+            <div class="mt-4 flex items-center justify-between gap-3">
+              <p
+                v-if="
+                  filters.startDate &&
+                  filters.endDate &&
+                  !isValidAdherenceRange(filters.startDate, filters.endDate)
+                "
+                class="text-sm text-error"
+              >
+                End date must be on or after the start date.
+              </p>
+              <div v-else />
+              <UButton
+                data-testid="report-run"
+                icon="i-lucide-play"
+                :disabled="!canRun"
+                @click="runReport"
+              >
+                Run report
+              </UButton>
+            </div>
+          </template>
+        </UAccordion>
+      </div>
       <section v-if="submitted" class="min-h-0 rounded-lg border border-default bg-default">
         <UAlert
           v-if="adherenceError"

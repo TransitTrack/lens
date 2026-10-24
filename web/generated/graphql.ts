@@ -1215,13 +1215,17 @@ export type StopPassage = {
   __typename?: 'StopPassage';
   adherenceSec?: Maybe<Scalars['Int']['output']>;
   blockId?: Maybe<Scalars['String']['output']>;
+  direction?: Maybe<Scalars['Int']['output']>;
   observedSec?: Maybe<Scalars['Int']['output']>;
+  occupancyStatus?: Maybe<Scalars['String']['output']>;
   routeId: Scalars['String']['output'];
   scheduledSec?: Maybe<Scalars['Int']['output']>;
   serviceDate: Scalars['String']['output'];
   stopId: Scalars['String']['output'];
+  stopName?: Maybe<Scalars['String']['output']>;
   stopPathIndex: Scalars['Int']['output'];
   tripId: Scalars['String']['output'];
+  vehicleId: Scalars['String']['output'];
 };
 
 export type StopPath = {
@@ -1459,7 +1463,7 @@ export type TripAdherenceQueryVariables = Exact<{
 }>;
 
 
-export type TripAdherenceQuery = { tripAdherence: Array<{ serviceDate: string, stopId: string, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null }> };
+export type TripAdherenceQuery = { tripAdherence: Array<{ serviceDate: string, stopId: string, stopName: string | null, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null, vehicleId: string, direction: number | null, occupancyStatus: string | null }> };
 
 export type AllTripsAdherenceQueryVariables = Exact<{
   feedCode: string;
@@ -2128,10 +2132,14 @@ export const TripAdherenceDocument = gql`
   ) {
     serviceDate
     stopId
+    stopName
     stopPathIndex
     scheduledSec
     observedSec
     adherenceSec
+    vehicleId
+    direction
+    occupancyStatus
   }
 }
     `;

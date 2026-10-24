@@ -37,6 +37,13 @@ const filters = reactive<ReportFilters>({
 })
 const submitted = ref<(ReportFilters & { page: number }) | null>(null)
 
+// The filters panel starts open and collapses once a report has run, so the
+// results get the room back; re-opening is still one click away via the
+// accordion header.
+const FILTERS_ACCORDION_VALUE = 'filters'
+const filtersAccordionItems = [{ label: 'Report filters', value: FILTERS_ACCORDION_VALUE }]
+const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
+
 const {
   result: catalogResult,
   loading: catalogLoading,
@@ -86,6 +93,7 @@ function runReport() {
     submitted.value.endTime === next.endTime &&
     submitted.value.page === next.page
   submitted.value = next
+  openFilterAccordion.value = undefined
   if (isRepeat) {
     void refetchPage({
       feedCode: selectedAvlFeedCode.value ?? '',
@@ -189,71 +197,84 @@ const columns: TableColumn<ReportRow>[] = [
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="AVL reports" />
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
-      <section class="rounded border border-default bg-elevated/20 p-4">
-        <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 class="font-semibold text-highlighted">Report filters</h2>
+      <div class="rounded border border-default bg-elevated/20 px-4">
+        <UAccordion
+          v-model="openFilterAccordion"
+          type="single"
+          collapsible
+          :items="filtersAccordionItems"
+        >
+          <template #trailing>
             <p v-if="timeZone" class="text-sm text-muted">Agency time: {{ timeZone }}</p>
-          </div>
-          <span v-if="catalogLoading" class="text-sm text-dimmed">Loading vehicle history…</span>
-        </div>
-
-        <UAlert
-          v-if="catalogError"
-          color="error"
-          variant="soft"
-          icon="i-lucide-alert-triangle"
-          title="Couldn't load vehicle history"
-          :description="catalogError.message"
-        />
-
-        <div v-else class="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_auto_auto_auto] md:items-end">
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            Vehicle ID
-            <USelectMenu
-              v-model="filters.vehicleId"
-              data-testid="report-vehicle"
-              :items="vehicleItems"
-              value-key="value"
-              searchable
-              placeholder="Select vehicle"
-              icon="i-lucide-bus"
+            <span v-if="catalogLoading" class="text-sm text-dimmed">Loading vehicle history…</span>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="shrink-0 size-5 ms-auto group-data-[state=open]:rotate-180 transition-transform duration-200 ease-out motion-reduce:transition-none"
             />
-          </label>
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            Date
-            <UInput v-model="filters.date" type="date" data-testid="report-date" />
-          </label>
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            Start time
-            <UInput v-model="filters.startTime" type="time" data-testid="report-start-time" />
-          </label>
-          <label class="grid gap-1 text-sm font-medium text-muted">
-            End time
-            <UInput v-model="filters.endTime" type="time" data-testid="report-end-time" />
-          </label>
-        </div>
+          </template>
+          <template #body>
+            <UAlert
+              v-if="catalogError"
+              color="error"
+              variant="soft"
+              icon="i-lucide-alert-triangle"
+              title="Couldn't load vehicle history"
+              :description="catalogError.message"
+            />
 
-        <div class="mt-4 flex items-center justify-between gap-3">
-          <p
-            v-if="
-              filters.date && !isValidReportRange(filters.date, filters.startTime, filters.endTime)
-            "
-            class="text-sm text-error"
-          >
-            End time must be after start time on the selected date.
-          </p>
-          <span v-else />
-          <UButton
-            data-testid="report-run"
-            icon="i-lucide-play"
-            :disabled="!canRun"
-            @click="runReport"
-          >
-            Run report
-          </UButton>
-        </div>
-      </section>
+            <div
+              v-else
+              class="grid gap-3 md:grid-cols-[minmax(12rem,1fr)_auto_auto_auto] md:items-end"
+            >
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                Vehicle ID
+                <USelectMenu
+                  v-model="filters.vehicleId"
+                  data-testid="report-vehicle"
+                  :items="vehicleItems"
+                  value-key="value"
+                  searchable
+                  placeholder="Select vehicle"
+                  icon="i-lucide-bus"
+                />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                Date
+                <UInput v-model="filters.date" type="date" data-testid="report-date" />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                Start time
+                <UInput v-model="filters.startTime" type="time" data-testid="report-start-time" />
+              </label>
+              <label class="grid gap-1 text-sm font-medium text-muted">
+                End time
+                <UInput v-model="filters.endTime" type="time" data-testid="report-end-time" />
+              </label>
+            </div>
+
+            <div class="mt-4 flex items-center justify-between gap-3">
+              <p
+                v-if="
+                  filters.date &&
+                  !isValidReportRange(filters.date, filters.startTime, filters.endTime)
+                "
+                class="text-sm text-error"
+              >
+                End time must be after start time on the selected date.
+              </p>
+              <div v-else />
+              <UButton
+                data-testid="report-run"
+                icon="i-lucide-play"
+                :disabled="!canRun"
+                @click="runReport"
+              >
+                Run report
+              </UButton>
+            </div>
+          </template>
+        </UAccordion>
+      </div>
 
       <section v-if="submitted" class="min-h-0 rounded-lg border border-default bg-default">
         <UAlert

@@ -34,3 +34,15 @@ export function formatAdherence(sec: number | null | undefined): string {
   const ss = String(seconds).padStart(2, '0')
   return `${sec > 0 ? '+' : '-'}${mm}:${ss}`
 }
+
+/** Always-numeric `+mm:ss`/`-mm:ss`, including at zero - unlike `formatAdherence`, which reads
+ * better as "On time" in a badge/list context, this is for a dense table column where a
+ * consistent, scannable value matters more than a worded special case. */
+export function signedAdherence(sec: number): string {
+  const totalSeconds = Math.round(Math.abs(sec))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  const mm = String(minutes).padStart(2, '0')
+  const ss = String(seconds).padStart(2, '0')
+  return `${sec >= 0 ? '+' : '-'}${mm}:${ss}`
+}

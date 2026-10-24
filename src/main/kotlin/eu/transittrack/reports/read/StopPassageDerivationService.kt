@@ -6,6 +6,7 @@ import java.time.ZoneId
 
 import org.springframework.stereotype.Service
 
+import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.avl.match.TemporalMatcher
@@ -15,6 +16,8 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.gtfs.model.Stop
+import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.read.RevisionResolver
@@ -77,6 +80,7 @@ class StopPassageDerivationService(
     private val trips: TripRepository,
     private val scheduleTimes: ScheduleTimeRepository,
     private val stopPaths: StopPathRepository,
+    private val stops: StopRepository,
     private val revisionResolver: RevisionResolver,
     private val matchContextFactory: AvlMatchContextFactory,
 ) {
@@ -153,11 +157,12 @@ class StopPassageDerivationService(
 
         val scheduleCache = mutableMapOf<Long, List<ScheduleTime>>()
         val stopPathCache = mutableMapOf<Long, List<StopPath>>()
+        val stopNameCache = mutableMapOf<Long, Map<String, String?>>()
 
         return resolved
             .groupBy { Triple(it.trip.id!!, it.serviceDate, it.match.vehicleId) }
             .flatMap { (key, group) ->
-                val (tripRowId, serviceDate, _) = key
+                val (tripRowId, serviceDate, vehicleId) = key
                 val trip = group.first().trip
                 val tripPatternId = trip.tripPatternId ?: return@flatMap emptyList()
 
@@ -175,6 +180,12 @@ class StopPassageDerivationService(
                         stopPaths.findByTripPatternOrdered(tripRevisionId, tripPatternId)
                     }
                 val stopIdByIndex = paths.associate { it.stopPathIndex to it.stopId }
+                val stopNameByStopId =
+                    stopNameCache.getOrPut(tripPatternId) {
+                        stops
+                            .findByStopIds(tripRevisionId, paths.map { it.stopId }.distinct())
+                            .associate { it.stopId to it.stopName }
+                    }
 
                 val sortedMatches = group.map { it.match }.sortedBy { it.ts }
                 // A VehicleMatch's stopPathIndex is the SpatialMatcher-reported segment the vehicle
@@ -229,16 +240,24 @@ class StopPassageDerivationService(
                         } else {
                             sortedMatches.firstOrNull { it.stopPathIndex > scheduleTime.stopPathIndex }
                         }
+                    val stopId = stopIdByIndex[scheduleTime.stopPathIndex] ?: ""
                     StopPassage(
                         tripId = trip.tripId,
                         routeId = trip.routeId,
                         blockId = trip.blockId,
                         serviceDate = serviceDate,
-                        stopId = stopIdByIndex[scheduleTime.stopPathIndex] ?: "",
+                        stopId = stopId,
+                        stopName = stopNameByStopId[stopId],
                         stopPathIndex = scheduleTime.stopPathIndex,
                         scheduledSec = scheduleTime.arrivalSec ?: scheduleTime.departureSec,
                         observedSec = observedMatch?.let { TemporalMatcher().toServiceSeconds(it.ts, zone, serviceDate) },
                         adherenceSec = observedMatch?.scheduleAdherenceSec,
+                        vehicleId = vehicleId,
+                        direction = trip.directionId,
+                        occupancyStatus =
+                            observedMatch?.let { reportsById[it.avlReportId]?.occupancyStatus }?.let {
+                                runCatching { AvlOccupancyStatus.entries[it].name }.getOrNull()
+                            },
                     )
                 }
             }

@@ -858,7 +858,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
       </MglGeoJsonSource>
     </MglMap>
 
-    <VehicleMapLegend class="absolute bottom-28 right-2" />
+    <VehicleMapLegend class="absolute bottom-10 right-2" />
 
     <div class="absolute right-14 top-3 flex items-center gap-2">
       <UPopover>

@@ -24,10 +24,14 @@ query TripAdherence($feedCode: String!, $tripId: String!, $startDate: String!, $
   tripAdherence(feedCode: $feedCode, tripId: $tripId, startDate: $startDate, endDate: $endDate) {
     serviceDate
     stopId
+    stopName
     stopPathIndex
     scheduledSec
     observedSec
     adherenceSec
+    vehicleId
+    direction
+    occupancyStatus
   }
 }
 

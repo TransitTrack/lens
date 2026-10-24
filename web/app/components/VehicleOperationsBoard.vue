@@ -166,26 +166,6 @@ function selectVehicle(vehicleId: string) {
         selection-action-label="Highlight route"
         @select="selectVehicle"
       />
-      <div
-        class="pointer-events-none absolute left-4 top-4 rounded-lg border border-default bg-default/90 px-3 py-2 shadow-sm backdrop-blur-sm lg:left-auto lg:top-auto lg:right-4 lg:bottom-4"
-      >
-        <div class="flex items-center gap-2 text-sm font-semibold text-highlighted">
-          <span class="size-2 rounded-full bg-success" aria-hidden="true" />
-          {{ selectedVehicle ? (selectedVehicle.label ?? selectedVehicle.vehicleId) : 'Fleet map' }}
-        </div>
-        <p class="mt-0.5 text-xs text-muted">
-          <template v-if="selectedVehicleLoading">Loading trip shape and stops…</template>
-          <template v-else-if="selectedRoute?.line.length">Selected trip shape and stops</template>
-          <template v-else-if="selectedVehicle"
-            >No scheduled shape is available for this vehicle.</template
-          >
-          <template v-else>
-            {{ filteredVehicles.length }} live position{{
-              filteredVehicles.length === 1 ? '' : 's'
-            }}
-          </template>
-        </p>
-      </div>
     </div>
   </section>
 </template>

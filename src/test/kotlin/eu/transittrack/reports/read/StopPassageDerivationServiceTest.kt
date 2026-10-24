@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
@@ -162,6 +163,7 @@ class StopPassageDerivationServiceTest(
             descStartDate: LocalDate,
             descTripId: String = "T1",
             descRouteId: String = "RA",
+            occupancyStatus: Int? = null,
         ): Long =
             reports
                 .save(
@@ -171,7 +173,7 @@ class StopPassageDerivationServiceTest(
                         descTripId = descTripId, descRouteId = descRouteId, descDirectionId = 0,
                         descStartDate = descStartDate, descStartTimeSec = null,
                         descScheduleRelationship = null, currentStopSequence = null, currentStopId = null,
-                        currentStatus = null, occupancyStatus = null, congestionLevel = null,
+                        currentStatus = null, occupancyStatus = occupancyStatus, congestionLevel = null,
                         matchStatus = MatchStatus.PENDING, matchedAt = null, createdAt = at,
                     ),
                 ).id!!
@@ -189,8 +191,9 @@ class StopPassageDerivationServiceTest(
             descTripId: String = "T1",
             descRouteId: String = "RA",
             distanceAlongTripM: Double = 0.0,
+            occupancyStatus: Int? = null,
         ) {
-            val reportId = avlReport(vehicleId, at, descStartDate, descTripId, descRouteId)
+            val reportId = avlReport(vehicleId, at, descStartDate, descTripId, descRouteId, occupancyStatus)
             vehicleMatches.save(
                 VehicleMatch(
                     avlReportId = reportId, feedCode = feed.code, vehicleId = vehicleId, ts = at,
@@ -214,7 +217,11 @@ class StopPassageDerivationServiceTest(
         insertMatch("bus-1", completeDate, ts(completeDate, 7, 59), 1, 60)
         insertMatch("bus-1", completeDate, ts(completeDate, 8, 9), 2, 30)
         insertMatch("bus-1", completeDate, ts(completeDate, 8, 19), 3, -10)
-        insertMatch("bus-1", completeDate, ts(completeDate, 8, 29), 3, 0, distanceAlongTripM = t1TotalLengthM)
+        insertMatch(
+            "bus-1", completeDate, ts(completeDate, 8, 29), 3, 0,
+            distanceAlongTripM = t1TotalLengthM,
+            occupancyStatus = AvlOccupancyStatus.FEW_SEATS_AVAILABLE.ordinal,
+        )
 
         // bus-2 on T1, partialDate: never gets past scheduled stop 1 (vehicle dropped off AVL, or
         // trip abandoned) - it sends several repeated pings while lingering just past stop 1
@@ -377,9 +384,21 @@ class StopPassageDerivationServiceTest(
         assertThat(passages).isEqualTo(passages.sortedBy { it.stopPathIndex })
         assertThat(passages.map { it.stopPathIndex }).isEqualTo(listOf(0, 1, 2, 3))
         assertThat(passages.map { it.serviceDate }).isEqualTo(List(4) { completeDate })
+        // schedule-sample's T1 visits S1..S4 ("Stop 1".."Stop 4") at stopPathIndex 0..3.
+        assertThat(passages.map { it.stopName }).isEqualTo(listOf("Stop 1", "Stop 2", "Stop 3", "Stop 4"))
         // bus-1's seeded scheduleAdherenceSec per stopPathIndex 0..3 was 60, 30, -10, 0 - the
         // derived passage must reuse exactly that persisted value, not just be non-null.
         assertThat(passages.map { it.adherenceSec }).isEqualTo(listOf(60, 30, -10, 0))
+        // vehicleId/direction come from the trip execution's group key and T1 itself, so every
+        // passage in the run shares the same value regardless of whether it was reached.
+        assertThat(passages.map { it.vehicleId }).isEqualTo(List(4) { "bus-1" })
+        assertThat(passages.map { it.direction }).isEqualTo(List(4) { 0 })
+        // Only the terminal stop's observed ping carried an occupancyStatus; every other stop's
+        // observed match left it unset.
+        val terminalStop = passages.single { it.stopPathIndex == 3 }
+        assertThat(terminalStop.occupancyStatus).isEqualTo("FEW_SEATS_AVAILABLE")
+        assertThat(passages.filter { it.stopPathIndex != 3 }.map { it.occupancyStatus })
+            .isEqualTo(listOf(null, null, null))
     }
 
     @Test
@@ -389,6 +408,10 @@ class StopPassageDerivationServiceTest(
         val lastStop = passages.single { it.stopPathIndex == 3 }
         assertThat(lastStop.observedSec).isNull()
         assertThat(lastStop.adherenceSec).isNull()
+        // vehicleId is the group's own key, not read off the (missing) observed match, so it's
+        // still populated even for a stop the vehicle never reached.
+        assertThat(lastStop.vehicleId).isEqualTo("bus-2")
+        assertThat(lastStop.occupancyStatus).isNull()
 
         val reachedStop = passages.single { it.stopPathIndex == 1 }
         assertThat(reachedStop.observedSec).isNotNull()

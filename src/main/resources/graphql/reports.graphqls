@@ -4,10 +4,14 @@ type StopPassage {
   blockId: String
   serviceDate: String!
   stopId: String!
+  stopName: String
   stopPathIndex: Int!
   scheduledSec: Int
   observedSec: Int
   adherenceSec: Int
+  vehicleId: String!
+  direction: Int
+  occupancyStatus: String
 }
 
 type RouteAdherenceSummary {

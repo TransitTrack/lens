@@ -200,6 +200,12 @@ interface StopRepository : RevisionScopedRepository<Stop, Long> {
         stopId: String,
     ): Stop?
 
+    @Query("select s from Stop s where s.revisionId = :revisionId and s.stopId in :stopIds")
+    fun findByStopIds(
+        revisionId: Long,
+        stopIds: Collection<String>,
+    ): List<Stop>
+
     @Query(
         "select s from Stop s where s.revisionId = :revisionId and s.parentStation = :parentStation",
     )
