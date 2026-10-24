@@ -1,11 +1,13 @@
 package eu.transittrack.avl.match
 
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.schedule.model.TripRef
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Matcher for feeds whose vehicle descriptors are trusted. The trip is resolved from `descTripId`
@@ -20,9 +22,11 @@ import eu.transittrack.schedule.model.TripRef
 class TrustDescriptorMatcher(
     private val spatial: SpatialMatcher,
     private val temporal: TemporalMatcher,
+    private val metrics: TransitTrackMetrics,
     props: AvlProperties,
 ) : VehicleMatcher {
     private val cfg = props.match
+    private val log = LoggerFactory.getLogger(javaClass)
     override val mode = AvlAssignmentMode.TRUST_DESCRIPTOR
 
     override fun match(
@@ -58,6 +62,18 @@ class TrustDescriptorMatcher(
                     cfg.tripEndAdvanceGraceSec,
                 )
             if (advanced != null) {
+                log.warn(
+                    "avl feed '{}' vehicle '{}': block-advance overrides descriptor trip '{}' with '{}' " +
+                        "(descTripId={}, prevAlongM={}, tripLenM={})",
+                    report.feedCode,
+                    report.vehicleId,
+                    activeTrip.tripId,
+                    advanced.first.tripId,
+                    report.descTripId,
+                    prevAlong,
+                    activeGeom.line.lengthM,
+                )
+                metrics.avlBlockAdvance(report.feedCode)
                 activeTrip = advanced.first
                 activeGeom = advanced.second
                 sm = spatial.match(activeGeom, report.point, null)
@@ -97,6 +113,12 @@ class TrustDescriptorMatcher(
     ): Pair<TripRef, PatternGeometry>? {
         report.descTripId?.let { id ->
             ctx.tripByGtfsId(id)?.let { return geometryOf(it, ctx) }
+            log.warn(
+                "avl feed '{}': descTripId '{}' not found in active revision, falling back to route/time resolution",
+                report.feedCode,
+                id,
+            )
+            metrics.avlDescTripIdFallback(report.feedCode)
         }
 
         val routeId = report.descRouteId ?: return null

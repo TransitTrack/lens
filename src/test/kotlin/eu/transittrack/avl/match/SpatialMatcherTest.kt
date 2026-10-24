@@ -64,13 +64,20 @@ class SpatialMatcherTest {
     }
 
     @Test
-    fun `first stop path layover is always allowed, no matter the distance`() {
-        // Mirrors the reference: the first layover of a trip means deadheading in, so it's always a
-        // valid match regardless of distance.
+    fun `first stop path layover allows deadheading in within layoverDistanceM`() {
+        // layoverStop[0]: first stop path (ends at (0.01, 0.0)) is a layover - deadheading in, with
+        // no previous stop to measure from, so allowable = layoverDistanceM (2000m). This report is
+        // ~1113m east of it - well beyond maxDeviationM (60m) from the shape but within that radius.
         val layoverGeom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(true, false))
-        val m = matcher.match(layoverGeom, Point(0.02, 0.05), minAlongM = null)
+        val m = matcher.match(layoverGeom, Point(0.01, 0.01), minAlongM = null)
         assertThat(m).isNotNull()
         assertThat(m!!.stopPathIndex).isEqualTo(0)
+    }
+
+    @Test
+    fun `first stop path layover rejects deadheading in beyond layoverDistanceM`() {
+        val layoverGeom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(true, false))
+        assertThat(matcher.match(layoverGeom, Point(0.02, 0.05), minAlongM = null)).isNull()
     }
 
     @Test

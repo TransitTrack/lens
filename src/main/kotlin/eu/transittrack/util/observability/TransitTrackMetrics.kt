@@ -143,6 +143,22 @@ class TransitTrackMetrics(
         }
     }
 
+    /**
+     * [feedCode] sent a `descTripId` that doesn't resolve against the active revision, so
+     * `TrustDescriptorMatcher` fell back to route/time resolution instead of trusting it outright. A
+     * sustained rate here means the feed's real-time `trip_id`s are drifting from the static
+     * schedule (stale revision, format mismatch) — not that vehicles are actually unassigned.
+     */
+    fun avlDescTripIdFallback(feedCode: String) = increment("transittrack.avl.match.descriptor.fallback", tags("feed", feedCode), 1)
+
+    /**
+     * `TrustDescriptorMatcher` overrode the descriptor-resolved trip with the next trip in its block
+     * because the vehicle's position no longer projects onto the descriptor's trip and the report
+     * timestamp is past that trip's end + grace. Expected when a feed's `trip_id` lags the vehicle's
+     * real progress; a sustained rate may mean `trip-end-advance-grace-sec` is too small for the feed.
+     */
+    fun avlBlockAdvance(feedCode: String) = increment("transittrack.avl.match.block.advance", tags("feed", feedCode), 1)
+
     fun avlQueue(
         feed: String,
         pending: Long,

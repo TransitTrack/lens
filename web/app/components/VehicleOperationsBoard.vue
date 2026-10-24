@@ -68,7 +68,7 @@ function selectVehicle(vehicleId: string) {
   >
     <aside
       data-testid="operations-vehicle-directory"
-      class="operations-board__directory relative z-10 flex min-h-0 flex-1 flex-col bg-default max-lg:border-b max-lg:border-default lg:absolute lg:top-3 lg:bottom-3 lg:left-[max(0.85rem,calc((100%_-_var(--app-content-max-w))/2_+_0.85rem))] lg:w-[clamp(20rem,27%,28rem)] lg:flex-none lg:rounded-xl lg:border lg:border-default lg:shadow-lg lg:overflow-hidden"
+      class="operations-board__directory relative z-10 flex min-h-0 flex-1 flex-col bg-default max-lg:border-b max-lg:border-default lg:absolute lg:top-3 lg:bottom-3 lg:left-[max(0.85rem,calc((100%-var(--app-content-max-w))/2+0.85rem))] lg:w-[clamp(20rem,27%,28rem)] lg:flex-none lg:rounded-xl lg:border lg:border-default lg:shadow-lg lg:overflow-hidden"
       aria-labelledby="vehicle-directory-heading"
     >
       <header class="shrink-0 border-b border-default bg-elevated/20 px-2 py-2 sm:px-3">
