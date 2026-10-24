@@ -40,8 +40,15 @@ class TemporalMatcher {
                 ((distanceAlongTripM - segFrom) / (segTo - segFrom)).coerceIn(0.0, 1.0)
             }
 
-        val from = (schedule[i].departureSec ?: schedule[i].arrivalSec) ?: return null
-        val to = (schedule[i + 1].arrivalSec ?: schedule[i + 1].departureSec) ?: return null
+        // schedule[k] records the time AT the stop that stop_path k ENDS at (location
+        // stopPathCumM[k+1]), not where it begins - see PatternBuild.kt/SchedTripProcessor.kt. So
+        // segment [stopPathCumM[i], stopPathCumM[i+1]] is bounded by the PREVIOUS stop's departure
+        // (schedule[i-1], located at stopPathCumM[i]) and this segment's own arrival (schedule[i],
+        // located at stopPathCumM[i+1]). There's no schedule[-1]: segment 0 is always the degenerate,
+        // zero-length path ending at the trip's own first stop, so it just uses schedule[0] for both.
+        val fromPoint = if (i == 0) schedule[0] else schedule[i - 1]
+        val from = (fromPoint.departureSec ?: fromPoint.arrivalSec) ?: return null
+        val to = (schedule[i].arrivalSec ?: schedule[i].departureSec) ?: return null
         val scheduledSec = from + frac * (to - from)
 
         val adherence = (actualServiceSec - scheduledSec).toInt()
