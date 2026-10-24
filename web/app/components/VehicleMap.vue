@@ -9,6 +9,7 @@ import { useFeedGeometry } from '../composables/useFeedGeometry'
 import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
 import { haversineM } from '../utils/vehicleTelemetry'
+import { usePollControl } from '../composables/usePollControl'
 import { useAvlTrailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
 export interface SelectedRouteOverlay {
@@ -113,10 +114,12 @@ const activeVehicle = computed(
   () => props.vehicles.find((v) => v.vehicleId === activeVehicleId.value) ?? null,
 )
 
+const { intervalMs } = usePollControl()
+
 const { result: activeVehicleDetailResult, loading: activeVehicleDetailLoading } =
   useVehicleDetailQuery(
     () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '' }),
-    () => ({ enabled: !!props.feedCode && !!activeVehicleId.value }),
+    () => ({ enabled: !!props.feedCode && !!activeVehicleId.value, pollInterval: intervalMs.value }),
   )
 
 const activeVehicleDetail = computed(() => {
@@ -126,7 +129,7 @@ const activeVehicleDetail = computed(() => {
 
 const { result: activeVehicleTrailResult } = useAvlTrailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '', limit: 2 }),
-  () => ({ enabled: !!props.feedCode && !!activeVehicleId.value }),
+  () => ({ enabled: !!props.feedCode && !!activeVehicleId.value, pollInterval: intervalMs.value }),
 )
 
 const estimatedSpeedMps = computed(() => {

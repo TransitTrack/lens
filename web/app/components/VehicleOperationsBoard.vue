@@ -7,6 +7,7 @@ import VehicleMap, { type SelectedRouteOverlay } from '~/components/VehicleMap.v
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
 import { routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
+import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleDetailQuery } from '~~/generated/graphql'
 
 const props = defineProps<{
@@ -34,9 +35,11 @@ const attentionVehicles = computed(
   () => props.vehicles.filter((vehicle) => vehicle.stale || !vehicle.matched).length,
 )
 
+const { intervalMs } = usePollControl()
+
 const { result: selectedVehicleResult, loading: selectedVehicleLoading } = useVehicleDetailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
-  () => ({ enabled: !!props.feedCode && !!selectedVehicleId.value }),
+  () => ({ enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value }),
 )
 
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {

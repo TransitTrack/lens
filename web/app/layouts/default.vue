@@ -20,7 +20,7 @@ const { result, loading, error } = useFeedReadinessQuery(
   () => ({ code: selectedFeedCode.value ?? '' }),
   () => ({
     enabled: !!selectedFeedCode.value,
-    pollInterval: 3_000,
+    pollInterval: 10_000,
   }),
 )
 const readinessFeed = computed(() => {

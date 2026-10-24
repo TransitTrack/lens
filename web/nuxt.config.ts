@@ -6,12 +6,19 @@ export default defineNuxtConfig({
   // browser origin to resolve relative GraphQL URIs against.
   ssr: false,
   modules: ['@nuxt/ui', '@nuxt/eslint', 'nuxt-maplibre', '@vueuse/nuxt'],
+  runtimeConfig: {
+    public: {
+      // Live-dashboard poll interval (ms). Overridable at deploy time via
+      // NUXT_PUBLIC_POLL_INTERVAL_MS - no rebuild needed. See usePollControl.ts.
+      pollIntervalMs: 5000,
+    },
+  },
   css: ['~/assets/css/main.css'],
-  devtools: {enabled: false},
+  devtools: { enabled: true },
   vite: {
     optimizeDeps: {
-      exclude: ['maplibre-gl']
-    }
+      exclude: ['maplibre-gl'],
+    },
   },
   nitro: {
     devProxy: {

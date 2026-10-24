@@ -594,7 +594,7 @@ function adherenceTextClass(sec: number | null): string {
                 </NuxtLink>
                 <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs leading-4 text-muted">
                   <span v-if="r.state === 'current'" class="font-medium text-primary"
-                    >Current stop</span
+                    >Next stop</span
                   >
                   <span v-else-if="r.state === 'passed'">Passed</span>
                   <span v-else>Upcoming</span>
