@@ -11,6 +11,10 @@
   /* Every application surface uses the whole browser canvas. Individual
      components keep their own readable padding rather than a global width cap. */
   --ui-container: 100%;
+  /* Shared cap for non-floating page content and the app header's nav row, so
+     they stay the same width and stay centered together on wide screens.
+     Floating full-bleed pages (maps, etc.) opt out and use the full canvas. */
+  --app-content-max-w: 1490px;
   --map-popup-bg: #fff;
   --map-popup-text: #18181b;
   --map-popup-muted: #52525b;

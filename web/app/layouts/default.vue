@@ -14,7 +14,7 @@ import { useFeedReadinessQuery } from '~~/generated/graphql'
 useFeedAlerts()
 
 const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
-const { isNotificationsSlideoverOpen } = useDashboard()
+const { isNotificationsSlideoverOpen, transparentHeader } = useDashboard()
 
 const { result, loading, error } = useFeedReadinessQuery(
   () => ({ code: selectedFeedCode.value ?? '' }),
@@ -269,7 +269,8 @@ const groups = computed(() => [
       mode="drawer"
       :ui="{
         center: 'flex-1 justify-center',
-        root: 'bg-default/75 backdrop-blur-sm h-(--ui-header-height) sticky top-0 z-50',
+        root: `${transparentHeader ? 'bg-default/10' : 'bg-default/75'} backdrop-blur-sm h-(--ui-header-height) sticky top-0 z-50 transition-colors duration-300`,
+        container: transparentHeader ? 'max-w-[1490px]' : 'max-w-[1490px]',
       }"
     >
       <template #left>

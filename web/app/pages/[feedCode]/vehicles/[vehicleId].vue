@@ -87,7 +87,7 @@ function algorithmLabel(value: string): string {
     .join(' ')
 }
 const algorithmOptions = computed(() =>
-  algorithms.value.map((value) => ({label: algorithmLabel(value), value})),
+  algorithms.value.map((value) => ({ label: algorithmLabel(value), value })),
 )
 watch(
   [algorithms, accuracy],
@@ -133,7 +133,6 @@ const description = computed(() => {
   const v = vehicle.value
   return v ? `#${v.vehicleId ?? v.label}` : `#${vehicleId.value}`
 })
-
 
 // --- details -----------------------------------------------------------------
 const blockProgress = computed(() =>
@@ -244,9 +243,7 @@ function adherenceDelta(sec: number): string {
   if (total === 0) return 'On schedule'
   const minutes = Math.floor(total / 60)
   const seconds = total % 60
-  const duration = minutes
-    ? `${minutes}m${seconds ? ` ${seconds}s` : ''}`
-    : `${seconds}s`
+  const duration = minutes ? `${minutes}m${seconds ? ` ${seconds}s` : ''}` : `${seconds}s`
   return `${duration} ${sec > 0 ? 'late' : 'early'}`
 }
 
@@ -265,7 +262,7 @@ function adherenceTextClass(sec: number | null): string {
 </script>
 
 <template>
-  <AppPage :title="title" :description="description" >
+  <AppPage :title="title" :description="description">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
@@ -319,14 +316,16 @@ function adherenceTextClass(sec: number | null): string {
       :description="error.message"
       class="m-4"
     />
-    <div v-else-if="loading && !vehicle" class="flex min-h-0 flex-1">
-      <div class="flex w-104 shrink-0 flex-col gap-3 border-r border-default p-4">
+    <div v-else-if="loading && !vehicle" class="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div
+        class="flex w-full shrink-0 flex-col gap-3 border-b border-default p-4 lg:w-104 lg:border-b-0 lg:border-r"
+      >
         <USkeleton class="h-5 w-2/3" />
         <USkeleton class="h-6 w-full" />
         <USkeleton class="h-9 w-full" />
         <USkeleton v-for="i in 8" :key="i" class="h-12 w-full" />
       </div>
-      <USkeleton class="min-w-0 flex-1 rounded-none" />
+      <USkeleton class="min-h-56 min-w-0 flex-1 rounded-none" />
     </div>
     <UAlert
       v-else-if="!vehicle"
@@ -338,9 +337,9 @@ function adherenceTextClass(sec: number | null): string {
       class="m-4"
     />
 
-    <div v-else class="flex min-h-0 flex-1">
+    <div v-else class="flex min-h-0 flex-1 flex-col lg:flex-row">
       <aside
-        class="flex w-100 shrink-0 flex-col gap-4 overflow-y-auto p-4"
+        class="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b border-default p-4 lg:w-100 lg:border-b-0 lg:border-r"
       >
         <UAlert
           v-if="descMismatch"
@@ -351,9 +350,11 @@ function adherenceTextClass(sec: number | null): string {
         />
 
         <div
-          :class="mapExpanded
-            ? 'fixed inset-0 z-50 overflow-hidden bg-default'
-            : 'relative h-56 shrink-0 overflow-hidden rounded-lg border border-default'"
+          :class="
+            mapExpanded
+              ? 'fixed inset-0 z-50 overflow-hidden bg-default'
+              : 'relative h-56 shrink-0 overflow-hidden rounded-lg border border-default'
+          "
         >
           <UButton
             class="absolute right-3 top-3 z-10"
@@ -469,15 +470,18 @@ function adherenceTextClass(sec: number | null): string {
             :trail-count="trail.length"
           />
         </section>
-
       </aside>
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         <section class="min-h-0 flex-1 overflow-y-auto bg-default">
           <header class="sticky top-0 z-1 border-b border-default bg-elevated/80 backdrop-blur">
-            <div class="flex flex-col gap-3 border-b border-default px-4 py-3 xl:flex-row xl:items-center xl:justify-between">
+            <div
+              class="flex flex-col gap-3 border-b border-default px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
+            >
               <div class="min-w-0">
                 <div class="flex items-center gap-2 text-highlighted">
-                  <span class="flex size-6 items-center justify-center rounded-md bg-primary/12 text-primary">
+                  <span
+                    class="flex size-6 items-center justify-center rounded-md bg-primary/12 text-primary"
+                  >
                     <UIcon name="i-lucide-map-pinned" class="size-3.5" />
                   </span>
                   <h2 class="text-lg font-semibold tracking-tight">
@@ -497,12 +501,18 @@ function adherenceTextClass(sec: number | null): string {
                 </div>
                 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                   <span>
-                    Vehicle <strong class="font-medium text-highlighted">{{ vehicle.vehicleId }}</strong>
+                    Vehicle
+                    <strong class="font-medium text-highlighted">{{ vehicle.vehicleId }}</strong>
                   </span>
                   <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
                   <span v-if="vehicle.block">
-                    Block <strong class="font-medium text-highlighted">{{ vehicle.block.blockId }}</strong>
-                    <template v-if="blockProgress"> trip {{ blockProgress.index }} of {{ blockProgress.total }}</template>
+                    Block
+                    <strong class="font-medium text-highlighted">{{
+                      vehicle.block.blockId
+                    }}</strong>
+                    <template v-if="blockProgress">
+                      trip {{ blockProgress.index }} of {{ blockProgress.total }}</template
+                    >
                   </span>
                   <span v-else>Block unavailable</span>
                 </div>
@@ -516,7 +526,9 @@ function adherenceTextClass(sec: number | null): string {
                 </div>
               </div>
 
-              <div class="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-end">
+              <div
+                class="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-end"
+              >
                 <label class="min-w-56 flex-1 text-xs font-medium text-muted sm:max-w-64">
                   Prediction model
                   <USelectMenu
@@ -534,13 +546,19 @@ function adherenceTextClass(sec: number | null): string {
                   <span class="w-full font-medium text-muted">Forecast quality · last 7 days</span>
                   <span class="text-dimmed">
                     Mean error
-                    <strong class="font-semibold text-highlighted">±{{ Math.round(selectedAccuracy.meanAbsErrorSec) }}s</strong>
+                    <strong class="font-semibold text-highlighted"
+                      >±{{ Math.round(selectedAccuracy.meanAbsErrorSec) }}s</strong
+                    >
                   </span>
                   <span class="text-dimmed">
                     Bias
-                    <strong class="font-semibold text-highlighted">{{ signedSec(selectedAccuracy.meanErrorSec) }}</strong>
+                    <strong class="font-semibold text-highlighted">{{
+                      signedSec(selectedAccuracy.meanErrorSec)
+                    }}</strong>
                   </span>
-                  <span class="text-dimmed">{{ selectedAccuracy.sampleCount.toLocaleString() }} samples</span>
+                  <span class="text-dimmed"
+                    >{{ selectedAccuracy.sampleCount.toLocaleString() }} samples</span
+                  >
                 </div>
                 <p v-else class="border-l border-default pl-3 text-xs text-dimmed">
                   Forecast performance is unavailable for this trip.
@@ -575,10 +593,14 @@ function adherenceTextClass(sec: number | null): string {
                   {{ r.stopName }}
                 </NuxtLink>
                 <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs leading-4 text-muted">
-                  <span v-if="r.state === 'current'" class="font-medium text-primary">Current stop</span>
+                  <span v-if="r.state === 'current'" class="font-medium text-primary"
+                    >Current stop</span
+                  >
                   <span v-else-if="r.state === 'passed'">Passed</span>
                   <span v-else>Upcoming</span>
-                  <span v-if="r.confidenceSec != null" class="text-dimmed">±{{ r.confidenceSec }}s confidence</span>
+                  <span v-if="r.confidenceSec != null" class="text-dimmed"
+                    >±{{ r.confidenceSec }}s confidence</span
+                  >
                 </div>
               </div>
 
@@ -599,7 +621,10 @@ function adherenceTextClass(sec: number | null): string {
                 >
                   {{ r.eta ? hhmm(r.eta) : '—' }}
                 </time>
-                <span v-if="r.eta && !r.arrived && r.state !== 'passed'" class="block text-xs leading-4 text-muted">
+                <span
+                  v-if="r.eta && !r.arrived && r.state !== 'passed'"
+                  class="block text-xs leading-4 text-muted"
+                >
                   {{ relative(r.eta) }}
                 </span>
               </div>

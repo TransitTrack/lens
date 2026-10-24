@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import type {VehicleRow} from '../composables/useVehiclePolling'
-import {colorForVehicle} from '../utils/vehicleMarker'
-import {adherenceBadge} from '../utils/adherence'
+import type { VehicleRow } from '../composables/useVehiclePolling'
+import { colorForVehicle } from '../utils/vehicleMarker'
+import { adherenceBadge } from '../utils/adherence'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
-import {useMapStyle} from '../composables/useMapStyle'
-import {useFeedGeometry} from '../composables/useFeedGeometry'
-import {extentToBounds} from '../utils/mapBounds'
-import type {LngLatBoundsExtent} from '../composables/useFeedExtent'
-import {haversineM} from '../utils/vehicleTelemetry'
-import {useAvlTrailQuery, useVehicleDetailQuery} from '~~/generated/graphql'
+import { useMapStyle } from '../composables/useMapStyle'
+import { useFeedGeometry } from '../composables/useFeedGeometry'
+import { extentToBounds } from '../utils/mapBounds'
+import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
+import { haversineM } from '../utils/vehicleTelemetry'
+import { useAvlTrailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
 export interface SelectedRouteOverlay {
   vehicleId: string
@@ -43,6 +43,13 @@ const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
 
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
+const colorMode = useColorMode()
+// Halo/outline behind a marker's colored glyph, for contrast against the
+// basemap tiles (which already swap to a dark style with the app's color
+// mode). The dark value is a lighter neutral than `--map-popup-bg` (matches
+// `--map-popup-border` in main.css) so it still reads against dark basemap
+// tiles instead of nearly disappearing into them.
+const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#3f3f46' : '#ffffff'))
 
 // nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
 // back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
@@ -74,12 +81,12 @@ watch(
       networkFeedCode.value = props.feedCode ?? null
     }
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(start, {timeout: 2000})
+      requestIdleCallback(start, { timeout: 2000 })
     } else {
       setTimeout(start, 300)
     }
   },
-  {immediate: true},
+  { immediate: true },
 )
 // Once armed, keep it synced to actual feed switches.
 watch(
@@ -89,7 +96,7 @@ watch(
   },
 )
 
-const {lines: networkLines, stops: networkStops} = useFeedGeometry(networkFeedCode)
+const { lines: networkLines, stops: networkStops } = useFeedGeometry(networkFeedCode)
 
 // Capture the agency extent once — `useFeedExtent` re-emits a fresh object on
 // every Apollo tick and binding it live would snap the view back on each poll.
@@ -106,38 +113,47 @@ const activeVehicle = computed(
   () => props.vehicles.find((v) => v.vehicleId === activeVehicleId.value) ?? null,
 )
 
-const {result: activeVehicleDetailResult, loading: activeVehicleDetailLoading} = useVehicleDetailQuery(
-  () => ({feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? ''}),
-  () => ({enabled: !!props.feedCode && !!activeVehicleId.value}),
-)
+const { result: activeVehicleDetailResult, loading: activeVehicleDetailLoading } =
+  useVehicleDetailQuery(
+    () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '' }),
+    () => ({ enabled: !!props.feedCode && !!activeVehicleId.value }),
+  )
 
 const activeVehicleDetail = computed(() => {
   const vehicle = activeVehicleDetailResult.value?.vehicle
   return vehicle?.vehicleId === activeVehicleId.value ? vehicle : null
 })
 
-const {result: activeVehicleTrailResult} = useAvlTrailQuery(
-  () => ({feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '', limit: 2}),
-  () => ({enabled: !!props.feedCode && !!activeVehicleId.value}),
+const { result: activeVehicleTrailResult } = useAvlTrailQuery(
+  () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '', limit: 2 }),
+  () => ({ enabled: !!props.feedCode && !!activeVehicleId.value }),
 )
 
 const estimatedSpeedMps = computed(() => {
-  if (activeVehicleDetail.value?.speedMps != null || activeVehicle.value?.speedMps != null) return null
+  if (activeVehicleDetail.value?.speedMps != null || activeVehicle.value?.speedMps != null)
+    return null
   // avlReports are newest-first. A position-based estimate is only useful
   // over a short, valid interval; otherwise GPS drift can look like movement.
   const [latest, previous] = activeVehicleTrailResult.value?.avlReports ?? []
-  if (!latest || !previous || latest.vehicleId !== activeVehicleId.value || previous.vehicleId !== activeVehicleId.value) return null
+  if (
+    !latest ||
+    !previous ||
+    latest.vehicleId !== activeVehicleId.value ||
+    previous.vehicleId !== activeVehicleId.value
+  )
+    return null
   const elapsedSec = (Date.parse(latest.ts) - Date.parse(previous.ts)) / 1000
   const distanceM = haversineM(latest.position, previous.position)
-  if (!Number.isFinite(elapsedSec) || elapsedSec < 5 || elapsedSec > 300 || distanceM == null) return null
+  if (!Number.isFinite(elapsedSec) || elapsedSec < 5 || elapsedSec > 300 || distanceM == null)
+    return null
   const speedMps = distanceM / elapsedSec
   return speedMps <= 45 ? speedMps : null
 })
 
 const activeSpeed = computed(() => {
   const reportedMps = activeVehicleDetail.value?.speedMps ?? activeVehicle.value?.speedMps
-  if (reportedMps != null) return {mps: reportedMps, estimated: false}
-  return estimatedSpeedMps.value == null ? null : {mps: estimatedSpeedMps.value, estimated: true}
+  if (reportedMps != null) return { mps: reportedMps, estimated: false }
+  return estimatedSpeedMps.value == null ? null : { mps: estimatedSpeedMps.value, estimated: true }
 })
 
 const activeTripProgress = computed(() => {
@@ -160,8 +176,11 @@ const activeNextStop = computed(() => {
   const stops = vehicle?.pattern?.stopPaths ?? []
   if (stops.length === 0) return null
   const index = vehicle?.stopPathIndex ?? -1
-  return [...stops].sort((a, b) => a.stopPathIndex - b.stopPathIndex)
-    .find((stop) => stop.stopPathIndex >= index)?.stop ?? null
+  return (
+    [...stops]
+      .sort((a, b) => a.stopPathIndex - b.stopPathIndex)
+      .find((stop) => stop.stopPathIndex >= index)?.stop ?? null
+  )
 })
 
 function clockTime(seconds: number | null | undefined): string {
@@ -183,9 +202,16 @@ function updateTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return 'Unknown'
   const parts = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
   }).formatToParts(date)
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
   return `${value('day')}.${value('month')}.${value('year')}, ${value('hour')}:${value('minute')}:${value('second')}`
 }
 
@@ -235,7 +261,7 @@ function fit() {
   // The panel layout can still be settling when the style first loads, leaving
   // the canvas at a stale size; resize before fitting so the zoom is right.
   map.map.resize()
-  map.map.fitBounds(bounds, {padding: 40, maxZoom: 15, duration: firstFit ? 0 : 800})
+  map.map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 800 })
   firstFit = false
 }
 
@@ -254,7 +280,7 @@ watch(
     fit()
     requestAnimationFrame(fit)
   },
-  {immediate: true},
+  { immediate: true },
 )
 
 function badge(v: VehicleRow) {
@@ -287,12 +313,14 @@ const STATE_COLORS: Record<VehicleState, string> = {
 const vehiclesGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
   type: 'FeatureCollection',
   features: props.vehicles
-    .filter((v) => v.position && (!props.selectedVehicleId || v.vehicleId === props.selectedVehicleId))
+    .filter(
+      (v) => v.position && (!props.selectedVehicleId || v.vehicleId === props.selectedVehicleId),
+    )
     .map((v) => {
       const hasBearing = v.bearing != null && Number.isFinite(v.bearing)
       return {
         type: 'Feature',
-        geometry: {type: 'Point', coordinates: [v.position.lon, v.position.lat]},
+        geometry: { type: 'Point', coordinates: [v.position.lon, v.position.lat] },
         properties: {
           vehicleId: v.vehicleId,
           state: stateFor(v),
@@ -312,7 +340,9 @@ const selectedRouteLine = computed<GeoJSON.Feature>(() => ({
 
 const selectedRouteKey = computed(() => {
   const route = props.selectedRoute
-  return route ? `${route.vehicleId}:${route.line.length}:${route.line[0]}:${route.line.at(-1)}` : ''
+  return route
+    ? `${route.vehicleId}:${route.line.length}:${route.line[0]}:${route.line.at(-1)}`
+    : ''
 })
 
 function fitSelectedRoute() {
@@ -334,7 +364,8 @@ watch([selectedRouteKey, () => map.isLoaded], fitSelectedRoute, { immediate: tru
 function placeStopsAboveSelectedRoute() {
   const instance = map.map
   if (!instance || !map.isLoaded) return
-  if (!instance.getLayer('selected-vehicle-stops-circles') || !instance.getLayer('vehicles-icons')) return
+  if (!instance.getLayer('selected-vehicle-stops-circles') || !instance.getLayer('vehicles-icons'))
+    return
   // Placing stops immediately below the vehicle icons keeps them above both
   // selected-route layers without relying on a not-yet-registered `before` target.
   instance.moveLayer('selected-vehicle-stops-circles', 'vehicles-icons')
@@ -374,7 +405,12 @@ watch(
 // Same visual language as VehicleHeadingMarker.vue (`.vhm--halo`, `.vhm__arrow`,
 // `.vhm__dot`), pre-rendered to canvas: an arrow variant for moving vehicles,
 // a dot variant for those without a bearing, and an amber pause variant.
-function drawVehicleIcon(color: string, arrow: boolean, paused = false): ImageData {
+function drawVehicleIcon(
+  color: string,
+  arrow: boolean,
+  paused: boolean,
+  contrastColor: string,
+): ImageData {
   const size = 40
   const canvas = document.createElement('canvas')
   canvas.width = size
@@ -388,7 +424,7 @@ function drawVehicleIcon(color: string, arrow: boolean, paused = false): ImageDa
   // .vhm--halo
   ctx.beginPath()
   ctx.arc(cx, cy, haloR, 0, Math.PI * 2)
-  ctx.fillStyle = '#ffffff'
+  ctx.fillStyle = contrastColor
   ctx.shadowColor = 'rgba(0,0,0,0.35)'
   ctx.shadowBlur = 4
   ctx.shadowOffsetY = 1
@@ -402,10 +438,10 @@ function drawVehicleIcon(color: string, arrow: boolean, paused = false): ImageDa
     ctx.fillStyle = color
     ctx.fill()
     ctx.lineWidth = 2
-    ctx.strokeStyle = '#ffffff'
+    ctx.strokeStyle = contrastColor
     ctx.stroke()
 
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = contrastColor
     ctx.fillRect(cx - 5, cy - 7, 3.5, 14)
     ctx.fillRect(cx + 1.5, cy - 7, 3.5, 14)
   } else if (arrow) {
@@ -425,18 +461,18 @@ function drawVehicleIcon(color: string, arrow: boolean, paused = false): ImageDa
     ctx.fillStyle = color
     ctx.fill()
     ctx.lineWidth = 1.5 / scale
-    ctx.strokeStyle = '#ffffff'
+    ctx.strokeStyle = contrastColor
     ctx.stroke()
     ctx.restore()
   } else {
-    // .vhm__dot: colored circle, 2px white border
+    // .vhm__dot: colored circle, 2px contrast border
     const dotR = haloR * 0.737
     ctx.beginPath()
     ctx.arc(cx, cy, dotR, 0, Math.PI * 2)
     ctx.fillStyle = color
     ctx.fill()
     ctx.lineWidth = 2
-    ctx.strokeStyle = '#ffffff'
+    ctx.strokeStyle = contrastColor
     ctx.stroke()
   }
 
@@ -447,18 +483,23 @@ function iconId(state: VehicleState, arrow: boolean): string {
   return `vehicle-${arrow ? 'arrow' : 'dot'}-${state}`
 }
 
-const vehicleIcons: Record<string, ImageData> = {}
-for (const [state, color] of Object.entries(STATE_COLORS) as [VehicleState, string][]) {
-  const paused = state === 'stopped'
-  vehicleIcons[iconId(state, true)] = drawVehicleIcon(color, true, paused)
-  vehicleIcons[iconId(state, false)] = drawVehicleIcon(color, false, paused)
+function buildVehicleIcons(contrastColor: string): Record<string, ImageData> {
+  const icons: Record<string, ImageData> = {}
+  for (const [state, color] of Object.entries(STATE_COLORS) as [VehicleState, string][]) {
+    const paused = state === 'stopped'
+    icons[iconId(state, true)] = drawVehicleIcon(color, true, paused, contrastColor)
+    icons[iconId(state, false)] = drawVehicleIcon(color, false, paused, contrastColor)
+  }
+  return icons
 }
+
+let vehicleIcons = buildVehicleIcons(markerContrastColor.value)
 
 function registerVehicleIcons() {
   const gl = map.map
   if (!gl) return
   for (const [id, image] of Object.entries(vehicleIcons)) {
-    if (!gl.hasImage(id)) gl.addImage(id, image, {pixelRatio: 2})
+    if (!gl.hasImage(id)) gl.addImage(id, image, { pixelRatio: 2 })
   }
 }
 
@@ -470,8 +511,22 @@ watch(
     // Re-add after a style swap (e.g. light/dark basemap change) drops the sprite.
     map.map?.on('styleimagemissing', registerVehicleIcons)
   },
-  {immediate: true},
+  { immediate: true },
 )
+
+// The basemap style also swaps on color-mode change and usually drops the
+// sprite itself (caught by `styleimagemissing` above), but force-update any
+// icons still registered under the old colors too, in case the style swap
+// hasn't completed yet or doesn't end up dropping them.
+watch(markerContrastColor, (contrastColor) => {
+  vehicleIcons = buildVehicleIcons(contrastColor)
+  const gl = map.map
+  if (!gl) return
+  for (const [id, image] of Object.entries(vehicleIcons)) {
+    if (gl.hasImage(id)) gl.updateImage(id, image)
+    else gl.addImage(id, image, { pixelRatio: 2 })
+  }
+})
 
 function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
   const id = e.features?.[0]?.properties?.vehicleId
@@ -488,7 +543,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
       :bounds="initialBounds"
       :fit-bounds-options="{ padding: 40, animate: true }"
     >
-      <MglNavigationControl/>
+      <MglNavigationControl />
 
       <MglPopup
         v-if="activeVehicle"
@@ -502,28 +557,44 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         class-name="vehicle-operation-popup"
         @close="activeVehicleId = null"
       >
-        <div class="flex max-h-[min(40rem,calc(100vh-6rem))] w-[20rem] max-w-[calc(100vw-3rem)] flex-col gap-3 overflow-y-auto p-1 text-sm">
+        <div
+          class="flex max-h-[min(40rem,calc(100vh-6rem))] w-[20rem] max-w-[calc(100vw-3rem)] flex-col gap-3 overflow-y-auto p-1 text-sm"
+        >
           <header class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <p class="text-lg font-bold text-highlighted">#{{ activeVehicle.vehicleId }}</p>
-              <p v-if="activeVehicleDetail?.trip?.tripHeadsign ?? activeVehicle.trip?.tripHeadsign" class="truncate text-xs text-muted">
+              <p
+                v-if="activeVehicleDetail?.trip?.tripHeadsign ?? activeVehicle.trip?.tripHeadsign"
+                class="truncate text-xs text-muted"
+              >
                 {{ activeVehicleDetail?.trip?.tripHeadsign ?? activeVehicle.trip?.tripHeadsign }}
               </p>
             </div>
             <UBadge
-              v-if="activeVehicleDetail?.trip?.route?.routeShortName ?? activeVehicle.trip?.route?.routeShortName"
+              v-if="
+                activeVehicleDetail?.trip?.route?.routeShortName ??
+                activeVehicle.trip?.route?.routeShortName
+              "
               size="sm"
               :style="{
-                backgroundColor: (activeVehicleDetail?.trip?.route?.routeColor ?? activeVehicle.trip?.route?.routeColor)
-                  ? `#${(activeVehicleDetail?.trip?.route?.routeColor ?? activeVehicle.trip?.route?.routeColor)?.replace('#', '')}`
-                  : undefined,
+                backgroundColor:
+                  (activeVehicleDetail?.trip?.route?.routeColor ??
+                  activeVehicle.trip?.route?.routeColor)
+                    ? `#${(activeVehicleDetail?.trip?.route?.routeColor ?? activeVehicle.trip?.route?.routeColor)?.replace('#', '')}`
+                    : undefined,
               }"
             >
-              {{ activeVehicleDetail?.trip?.route?.routeShortName ?? activeVehicle.trip?.route?.routeShortName }}
+              {{
+                activeVehicleDetail?.trip?.route?.routeShortName ??
+                activeVehicle.trip?.route?.routeShortName
+              }}
             </UBadge>
           </header>
 
-          <div v-if="activeVehicleDetailLoading && !activeVehicleDetail" class="flex items-center gap-2 py-4 text-sm text-muted">
+          <div
+            v-if="activeVehicleDetailLoading && !activeVehicleDetail"
+            class="flex items-center gap-2 py-4 text-sm text-muted"
+          >
             <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
             Loading operational details…
           </div>
@@ -534,39 +605,69 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
                 <div class="flex justify-between gap-3">
                   <dt class="text-muted">Route</dt>
                   <dd class="text-right font-semibold text-highlighted">
-                    {{ activeVehicleDetail.trip?.route?.routeShortName ?? activeVehicleDetail.trip?.routeId ?? 'Unassigned' }}
+                    {{
+                      activeVehicleDetail.trip?.route?.routeShortName ??
+                      activeVehicleDetail.trip?.routeId ??
+                      'Unassigned'
+                    }}
                   </dd>
                 </div>
                 <div v-if="activeVehicleDetail.block" class="flex justify-between gap-3">
                   <dt class="text-muted">Block</dt>
-                  <dd class="text-right font-semibold text-highlighted">{{ activeVehicleDetail.block.blockId }}</dd>
+                  <dd class="text-right font-semibold text-highlighted">
+                    {{ activeVehicleDetail.block.blockId }}
+                  </dd>
                 </div>
-                <div v-if="activeVehicleDetail.block?.startTimeSec != null || activeVehicleDetail.block?.endTimeSec != null" class="flex justify-between gap-3">
+                <div
+                  v-if="
+                    activeVehicleDetail.block?.startTimeSec != null ||
+                    activeVehicleDetail.block?.endTimeSec != null
+                  "
+                  class="flex justify-between gap-3"
+                >
                   <dt class="text-muted">Block window</dt>
                   <dd class="text-right font-semibold tabular-nums text-highlighted">
-                    {{ clockTime(activeVehicleDetail.block?.startTimeSec) }}–{{ clockTime(activeVehicleDetail.block?.endTimeSec) }}
+                    {{ clockTime(activeVehicleDetail.block?.startTimeSec) }}–{{
+                      clockTime(activeVehicleDetail.block?.endTimeSec)
+                    }}
                   </dd>
                 </div>
               </dl>
             </section>
 
             <section v-if="activeVehicleDetail.trip" class="space-y-1.5">
-              <p class="font-semibold text-highlighted">Trip {{ activeVehicleDetail.trip.tripId }}</p>
+              <p class="font-semibold text-highlighted">
+                Trip {{ activeVehicleDetail.trip.tripId }}
+              </p>
               <div class="flex justify-between gap-3 text-muted">
                 <span>Scheduled</span>
                 <span class="font-semibold tabular-nums text-highlighted">
-                  {{ clockTime(activeVehicleDetail.trip.startTimeSec) }}–{{ clockTime(activeVehicleDetail.trip.endTimeSec) }}
+                  {{ clockTime(activeVehicleDetail.trip.startTimeSec) }}–{{
+                    clockTime(activeVehicleDetail.trip.endTimeSec)
+                  }}
                 </span>
               </div>
               <div v-if="activeTripProgress" class="pt-1">
                 <div class="flex justify-between gap-3 text-xs">
-                  <span class="font-semibold text-highlighted">Progress {{ activeTripProgress.percentage }}%</span>
-                  <span class="tabular-nums text-muted">{{ activeTripProgress.travelledKm.toFixed(1) }} / {{ activeTripProgress.totalKm.toFixed(1) }} km</span>
+                  <span class="font-semibold text-highlighted"
+                    >Progress {{ activeTripProgress.percentage }}%</span
+                  >
+                  <span class="tabular-nums text-muted"
+                    >{{ activeTripProgress.travelledKm.toFixed(1) }} /
+                    {{ activeTripProgress.totalKm.toFixed(1) }} km</span
+                  >
                 </div>
-                <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-elevated ring-1 ring-inset ring-default">
-                  <div class="h-full bg-primary" :style="{ width: `${activeTripProgress.percentage}%` }" />
+                <div
+                  class="mt-1.5 h-2 overflow-hidden rounded-full bg-elevated ring-1 ring-inset ring-default"
+                >
+                  <div
+                    class="h-full bg-primary"
+                    :style="{ width: `${activeTripProgress.percentage}%` }"
+                  />
                 </div>
-                <p class="mt-1 text-right text-xs tabular-nums text-muted">{{ activeTripProgress.remainingKm.toFixed(1) }} km remaining</p>
+                <p class="mt-1 text-right text-xs tabular-nums text-muted">
+                  {{ activeTripProgress.remainingKm.toFixed(1) }} km remaining
+                </p>
               </div>
             </section>
 
@@ -574,17 +675,23 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
               <dl class="space-y-1.5">
                 <div class="flex justify-between gap-3">
                   <dt class="text-muted">At</dt>
-                  <dd class="max-w-52 text-right font-semibold text-highlighted">{{ activeVehicleDetail.currentStop?.stopName ?? 'Between stops' }}</dd>
+                  <dd class="max-w-52 text-right font-semibold text-highlighted">
+                    {{ activeVehicleDetail.currentStop?.stopName ?? 'Between stops' }}
+                  </dd>
                 </div>
                 <div v-if="activeNextStop" class="flex justify-between gap-3">
                   <dt class="text-muted">Next stop</dt>
-                  <dd class="max-w-52 text-right font-semibold text-highlighted">{{ activeNextStop.stopName ?? activeNextStop.stopId }}</dd>
+                  <dd class="max-w-52 text-right font-semibold text-highlighted">
+                    {{ activeNextStop.stopName ?? activeNextStop.stopId }}
+                  </dd>
                 </div>
                 <div class="flex justify-between gap-3">
                   <dt class="text-muted">Speed</dt>
                   <dd class="text-right font-semibold tabular-nums text-highlighted">
                     {{ activeSpeed ? `${Math.round(activeSpeed.mps * 3.6)} km/h` : 'Unavailable' }}
-                    <span v-if="activeSpeed?.estimated" class="ml-1 text-xs font-medium text-muted">estimated</span>
+                    <span v-if="activeSpeed?.estimated" class="ml-1 text-xs font-medium text-muted"
+                      >estimated</span
+                    >
                   </dd>
                 </div>
               </dl>
@@ -593,21 +700,29 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
             <section class="space-y-1.5">
               <div class="flex justify-between gap-3">
                 <span class="text-muted">Last update</span>
-                <span class="text-right font-semibold tabular-nums text-highlighted">{{ updateTimestamp(activeVehicleDetail.reportTs) }}</span>
+                <span class="text-right font-semibold tabular-nums text-highlighted">{{
+                  updateTimestamp(activeVehicleDetail.reportTs)
+                }}</span>
               </div>
               <div class="flex justify-between gap-3">
                 <span class="text-muted">Updated</span>
-                <span class="font-semibold text-highlighted">{{ updateAge(activeVehicleDetail.reportTs) }}</span>
+                <span class="font-semibold text-highlighted">{{
+                  updateAge(activeVehicleDetail.reportTs)
+                }}</span>
               </div>
               <div class="flex items-center justify-between gap-3">
                 <span class="text-muted">Schedule</span>
-                <UBadge :color="badge(activeVehicleDetail).color" variant="subtle">{{ badge(activeVehicleDetail).label }}</UBadge>
+                <UBadge :color="badge(activeVehicleDetail).color" variant="subtle">{{
+                  badge(activeVehicleDetail).label
+                }}</UBadge>
               </div>
             </section>
           </template>
 
           <div v-else class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <UBadge :color="badge(activeVehicle).color" variant="subtle">{{ badge(activeVehicle).label }}</UBadge>
+            <UBadge :color="badge(activeVehicle).color" variant="subtle">{{
+              badge(activeVehicle).label
+            }}</UBadge>
             <span class="text-muted">
               {{ activeSpeed ? `${Math.round(activeSpeed.mps * 3.6)} km/h` : 'Speed unavailable' }}
               <template v-if="activeSpeed?.estimated"> (estimated)</template>
@@ -648,7 +763,11 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
           layer-id="selected-vehicle-route-casing"
           before="vehicles-icons"
           :paint="{ 'line-color': '#0f172a', 'line-width': 8, 'line-opacity': 0.4 }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: visibleLayers.selectedTripLine ? 'visible' : 'none' }"
+          :layout="{
+            'line-cap': 'round',
+            'line-join': 'round',
+            visibility: visibleLayers.selectedTripLine ? 'visible' : 'none',
+          }"
         />
         <MglLineLayer
           layer-id="selected-vehicle-route-line"
@@ -658,7 +777,11 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
             'line-width': 4,
             'line-opacity': 0.95,
           }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: visibleLayers.selectedTripLine ? 'visible' : 'none' }"
+          :layout="{
+            'line-cap': 'round',
+            'line-join': 'round',
+            visibility: visibleLayers.selectedTripLine ? 'visible' : 'none',
+          }"
         />
       </MglGeoJsonSource>
 
@@ -676,8 +799,10 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
             'circle-color': [
               'match',
               ['get', 'state'],
-              'passed', '#94a3b8',
-              'current', selectedRoute?.routeColor ?? '#2563eb',
+              'passed',
+              '#94a3b8',
+              'current',
+              selectedRoute?.routeColor ?? '#2563eb',
               '#475569',
             ],
             'circle-stroke-width': ['match', ['get', 'state'], 'current', 3, 2],
@@ -699,7 +824,12 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
               ['case', ['get', 'hasBearing'], iconId('stopped', true), iconId('stopped', false)],
               'matched',
               ['case', ['get', 'hasBearing'], iconId('matched', true), iconId('matched', false)],
-              ['case', ['get', 'hasBearing'], iconId('unmatched', true), iconId('unmatched', false)],
+              [
+                'case',
+                ['get', 'hasBearing'],
+                iconId('unmatched', true),
+                iconId('unmatched', false),
+              ],
             ],
             'icon-rotate': ['get', 'bearing'],
             'icon-rotation-alignment': 'map',
@@ -728,11 +858,11 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
       </MglGeoJsonSource>
     </MglMap>
 
-    <VehicleMapLegend class="absolute bottom-2 left-2"/>
+    <VehicleMapLegend class="absolute bottom-28 right-2" />
 
     <div class="absolute right-14 top-3 flex items-center gap-2">
       <UPopover>
-        <UButton color="neutral" variant="solid" icon="i-lucide-layers-3" label="Layers" />
+        <UButton color="neutral" variant="subtle" icon="i-lucide-layers-3" />
         <template #content>
           <div class="w-52 space-y-2.5 p-3">
             <p class="text-xs font-semibold tracking-wide text-muted uppercase">Map layers</p>
@@ -744,13 +874,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
           </div>
         </template>
       </UPopover>
-      <UButton
-        color="neutral"
-        variant="solid"
-        icon="i-lucide-scan"
-        label="Fit fleet"
-        @click="fit"
-      />
+      <UButton color="neutral" variant="subtle" icon="i-lucide-scan" @click="fit" />
     </div>
   </div>
 </template>

@@ -10,6 +10,8 @@ import { hexColor } from '~/utils/gtfs'
 import { useVehicleDetailQuery } from '~~/generated/graphql'
 
 const props = defineProps<{
+  title?: string
+  description?: string
   vehicles: VehicleRow[]
   loading: boolean
   error: Error | null
@@ -61,15 +63,33 @@ function selectVehicle(vehicleId: string) {
 <template>
   <section
     data-testid="vehicle-operations-board"
-    class="operations-board flex min-h-0 flex-1 flex-col overflow-hidden bg-default lg:flex-row"
+    class="operations-board relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-default lg:flex-row lg:overflow-visible"
     aria-label="Live vehicle operations"
   >
     <aside
       data-testid="operations-vehicle-directory"
-      class="operations-board__directory relative z-10 flex min-h-0 flex-1 flex-col border-b border-default lg:w-[clamp(22rem,29%,30rem)] lg:flex-none lg:border-r lg:border-b-0 lg:shadow-md"
+      class="operations-board__directory relative z-10 flex min-h-0 flex-1 flex-col bg-default max-lg:border-b max-lg:border-default lg:absolute lg:top-3 lg:bottom-3 lg:left-[max(0.85rem,calc((100%_-_var(--app-content-max-w))/2_+_0.85rem))] lg:w-[clamp(20rem,27%,28rem)] lg:flex-none lg:rounded-xl lg:border lg:border-default lg:shadow-lg lg:overflow-hidden"
       aria-labelledby="vehicle-directory-heading"
     >
       <header class="shrink-0 border-b border-default bg-elevated/20 px-2 py-2 sm:px-3">
+        <div v-if="title || description" class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h1
+              v-if="title"
+              id="vehicle-directory-heading"
+              class="truncate text-lg font-semibold text-highlighted tracking-tight"
+            >
+              {{ title }}
+            </h1>
+            <p v-if="description" class="truncate text-sm text-muted leading-snug">
+              {{ description }}
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-2">
+            <slot name="actions" />
+          </div>
+        </div>
+
         <div
           class="mt-3 flex flex-wrap justify-between gap-x-3 gap-y-1.5 text-xs text-muted"
           aria-label="Fleet summary"
@@ -134,7 +154,9 @@ function selectVehicle(vehicleId: string) {
       </div>
     </aside>
 
-    <div class="operations-board__map relative h-56 shrink-0 overflow-hidden lg:h-auto lg:flex-1">
+    <div
+      class="operations-board__map relative h-56 shrink-0 overflow-hidden lg:absolute lg:inset-0 lg:h-full lg:w-full"
+    >
       <VehicleMap
         :vehicles="filteredVehicles"
         :extent="extent"
@@ -145,7 +167,7 @@ function selectVehicle(vehicleId: string) {
         @select="selectVehicle"
       />
       <div
-        class="pointer-events-none absolute left-4 top-4 rounded-lg border border-default bg-default/90 px-3 py-2 shadow-sm backdrop-blur-sm"
+        class="pointer-events-none absolute left-4 top-4 rounded-lg border border-default bg-default/90 px-3 py-2 shadow-sm backdrop-blur-sm lg:left-auto lg:top-auto lg:right-4 lg:bottom-4"
       >
         <div class="flex items-center gap-2 text-sm font-semibold text-highlighted">
           <span class="size-2 rounded-full bg-success" aria-hidden="true" />

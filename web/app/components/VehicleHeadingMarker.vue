@@ -31,6 +31,7 @@ const haloSize = computed(() => props.size + 1)
       :style="{ color, transform: `rotate(${bearing}deg)` }"
     >
       <path
+        class="vhm__arrow-path"
         d="M12 2 L20 21 L12 16 L4 21 Z"
         fill="currentColor"
         stroke="white"
@@ -73,5 +74,22 @@ const haloSize = computed(() => props.size + 1)
   border-radius: 9999px;
   border: 2px solid white;
   box-shadow: 0 1px 1px rgb(0 0 0 / 0.35);
+}
+
+/* Same dark-mode contrast color as the canvas-drawn fleet markers in
+   VehicleMap.vue: a lighter neutral than `--map-popup-bg` (matches
+   `--map-popup-border` in main.css) so the halo still reads against the dark
+   basemap tiles instead of nearly disappearing into them, while following
+   color mode rather than staying fixed white. */
+.dark .vhm--halo {
+  background: rgb(63 63 70 / 0.9);
+}
+
+.dark .vhm__arrow-path {
+  stroke: #3f3f46;
+}
+
+.dark .vhm__dot {
+  border-color: #3f3f46;
 }
 </style>

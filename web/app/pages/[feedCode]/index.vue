@@ -20,24 +20,22 @@ const newestReport = computed(() =>
 </script>
 
 <template>
-  <AppPage
-    full-bleed
-    title="Operations overview"
-    description="Live vehicle positions, trip matching, and service status"
-  >
-    <template #actions>
-      <NavbarActions :updated-at="newestReport" />
-    </template>
-
+  <AppPage full-bleed floating>
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="live vehicle operations" />
     <VehicleOperationsBoard
       v-else
+      title="Operations overview"
+      description="Live vehicle positions, trip matching, and service status"
       :vehicles="vehicles"
       :loading="loading"
       :error="error"
       :feed-code="selectedFeedCode"
       :extent="extent"
       @select-vehicle="(id) => navigateTo(feedPath('/vehicles/' + id))"
-    />
+    >
+      <template #actions>
+        <NavbarActions :updated-at="newestReport" />
+      </template>
+    </VehicleOperationsBoard>
   </AppPage>
 </template>

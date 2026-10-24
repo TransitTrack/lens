@@ -5,6 +5,8 @@ const _useDashboard = () => {
   const router = useRouter()
   const isNotificationsSlideoverOpen = ref(false)
   const isFeedDrawerOpen = ref(false)
+  /** Set by a floating full-bleed page (e.g. a map) so the app header goes near-transparent over it. */
+  const transparentHeader = ref(false)
 
   const feedBase = () => {
     const p = route.params.feedCode
@@ -31,6 +33,7 @@ const _useDashboard = () => {
   return {
     isNotificationsSlideoverOpen,
     isFeedDrawerOpen,
+    transparentHeader,
   }
 }
 

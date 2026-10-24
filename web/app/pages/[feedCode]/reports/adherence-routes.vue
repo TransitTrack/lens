@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type AllRoutesAdherenceQuery,
-  useAllRoutesAdherenceQuery,
-} from '~~/generated/graphql'
+import { type AllRoutesAdherenceQuery, useAllRoutesAdherenceQuery } from '~~/generated/graphql'
 import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
@@ -18,7 +15,8 @@ interface ReportFilters {
 
 function today(): string {
   const parts = new Intl.DateTimeFormat('en-CA').formatToParts(new Date())
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? ''
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
   return `${value('year')}-${value('month')}-${value('day')}`
 }
 
@@ -94,8 +92,8 @@ const columns: TableColumn<ReportRow>[] = [
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="schedule adherence reports" />
 
-    <div v-else class="flex min-h-0 flex-1 flex-col gap-4 p-4">
-      <section class="rounded-lg border border-default bg-elevated/20 p-4">
+    <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
+      <section class="rounded border border-default bg-elevated/20 p-4">
         <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 class="font-semibold text-highlighted">Report filters</h2>
@@ -115,13 +113,22 @@ const columns: TableColumn<ReportRow>[] = [
 
         <div class="mt-4 flex items-center justify-between gap-3">
           <p
-            v-if="filters.startDate && filters.endDate && !isValidAdherenceRange(filters.startDate, filters.endDate)"
+            v-if="
+              filters.startDate &&
+              filters.endDate &&
+              !isValidAdherenceRange(filters.startDate, filters.endDate)
+            "
             class="text-sm text-error"
           >
             End date must be on or after the start date.
           </p>
           <span v-else />
-          <UButton data-testid="report-run" icon="i-lucide-play" :disabled="!canRun" @click="runReport">
+          <UButton
+            data-testid="report-run"
+            icon="i-lucide-play"
+            :disabled="!canRun"
+            @click="runReport"
+          >
             Run report
           </UButton>
         </div>
@@ -140,7 +147,9 @@ const columns: TableColumn<ReportRow>[] = [
         <div v-else-if="adherenceLoading && !rows.length" class="flex flex-col gap-2 p-4">
           <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
         </div>
-        <p v-else-if="!rows.length" class="p-4 text-sm text-muted">No schedule adherence data for this date range.</p>
+        <p v-else-if="!rows.length" class="p-4 text-sm text-muted">
+          No schedule adherence data for this date range.
+        </p>
         <UTable v-else :data="rows" :columns="columns" />
       </section>
     </div>
