@@ -12,7 +12,6 @@ import org.mockito.kotlin.whenever
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
@@ -20,6 +19,7 @@ import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /** A minimal, directly instantiable [OptimizationAnalyzer] test double — cheaper than mocking
  * `Ordered.getOrder()`'s Kotlin-property mapping through mockito-kotlin. */

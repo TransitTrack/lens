@@ -1,4 +1,4 @@
-package eu.transittrack.concurrency
+package eu.transittrack.util.concurrency
 
 import kotlin.test.Test
 
@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 import eu.transittrack.support.FakeLockProvider
+import eu.transittrack.util.concurrency.FeedLockCoordinator
+import eu.transittrack.util.concurrency.FeedLockCoordinatorConfig
 
 class FeedLockCoordinatorConfigTest {
     @Configuration

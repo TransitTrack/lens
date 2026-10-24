@@ -13,8 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Drives [OptimizationRetentionScheduler.prune] directly (like [eu.transittrack.predict.PredictionRetentionSchedulerTest])

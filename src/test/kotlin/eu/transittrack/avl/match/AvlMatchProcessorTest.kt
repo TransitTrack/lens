@@ -43,7 +43,6 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -51,6 +50,7 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.util.concurrency.FeedLockCoordinator
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],

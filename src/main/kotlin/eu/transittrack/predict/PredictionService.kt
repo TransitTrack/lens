@@ -14,7 +14,6 @@ import eu.transittrack.avl.match.MatchOutcome
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.learn.KalmanState
@@ -30,6 +29,7 @@ import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripRef
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /** The vehicle's previous match, as needed for crossing detection — deliberately not a full
  * [eu.transittrack.avl.model.VehicleState], since [PredictionService] is reconstructed from

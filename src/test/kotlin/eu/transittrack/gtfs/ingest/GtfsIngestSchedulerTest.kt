@@ -16,8 +16,8 @@ import eu.transittrack.GtfsProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.FakeLockProvider
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 class GtfsIngestSchedulerTest {
     private val ingestion = mock<IngestionService>()

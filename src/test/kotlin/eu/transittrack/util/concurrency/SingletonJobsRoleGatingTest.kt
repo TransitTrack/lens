@@ -1,4 +1,4 @@
-package eu.transittrack.concurrency
+package eu.transittrack.util.concurrency
 
 import kotlin.test.Test
 
@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.ApplicationContext
 
+import eu.transittrack.Application
 import eu.transittrack.avl.ingest.AvlRetentionScheduler
 import eu.transittrack.avl.match.AvlSilentVehicleSweeper
 import eu.transittrack.avl.observability.AvlMetricsGaugeRefresher
@@ -15,7 +16,7 @@ import eu.transittrack.schedule.optimize.OptimizationRetentionScheduler
 import eu.transittrack.support.PostgresPerMethodTest
 
 @SpringBootTest(
-    classes = [eu.transittrack.Application::class],
+    classes = [Application::class],
     properties = ["spring.profiles.active=role-predictor"],
 )
 class SingletonJobsRoleGatingTest(

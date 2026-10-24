@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Age-based prune of `schedule_optimization_run` rows older than

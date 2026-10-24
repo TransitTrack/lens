@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component
 import org.springframework.web.client.RestClient
 
 import eu.transittrack.HttpClientProperties
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Streaming [FeedDownloader] built on Spring's [RestClient] over the JDK HTTP client.

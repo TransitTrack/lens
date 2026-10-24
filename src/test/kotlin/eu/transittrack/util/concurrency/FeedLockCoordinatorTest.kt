@@ -1,6 +1,7 @@
-package eu.transittrack.concurrency
+package eu.transittrack.util.concurrency
 
 import java.time.Duration
+import java.time.Instant
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -13,9 +14,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
 
+import eu.transittrack.Application
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.util.concurrency.FeedLockCoordinator
 
-@SpringBootTest(classes = [eu.transittrack.Application::class])
+@SpringBootTest(classes = [Application::class])
 class FeedLockCoordinatorTest(
     @Autowired val jdbcTemplate: JdbcTemplate,
 ) : PostgresPerMethodTest() {
@@ -114,7 +117,7 @@ class FeedLockCoordinatorTest(
     private fun lockUntil(name: String) =
         jdbcTemplate.queryForObject(
             "select lock_until from shedlock where name = ?",
-            java.time.Instant::class.java,
+            Instant::class.java,
             name,
         )!!
 }

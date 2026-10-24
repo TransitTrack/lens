@@ -1,4 +1,4 @@
-package eu.transittrack.concurrency
+package eu.transittrack.util.concurrency
 
 import java.time.Duration
 import java.time.Instant
@@ -12,9 +12,10 @@ import net.javacrumbs.shedlock.core.LockProvider
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 
+import eu.transittrack.Application
 import eu.transittrack.support.PostgresPerMethodTest
 
-@SpringBootTest(classes = [eu.transittrack.Application::class])
+@SpringBootTest(classes = [Application::class])
 class SchedulerLockConfigTest(
     @Autowired val lockProvider: LockProvider,
 ) : PostgresPerMethodTest() {

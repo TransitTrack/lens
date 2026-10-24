@@ -33,8 +33,8 @@ import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
 import eu.transittrack.haversineMeters
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.schedule.derive.DerivationService
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 interface IngestionPostProcessor {
     fun postProcess(revisionId: Long): Any

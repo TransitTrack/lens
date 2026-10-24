@@ -42,7 +42,6 @@ import eu.transittrack.avl.model.PredictionStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -55,6 +54,7 @@ import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.util.concurrency.FeedLockCoordinator
 
 /**
  * Covers the core scenario this decoupling plan exists to fix: multiple `vehicle_match` rows for the

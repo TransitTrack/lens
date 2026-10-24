@@ -1,4 +1,4 @@
-package eu.transittrack.feed
+package eu.transittrack
 
 import kotlin.test.Test
 
@@ -11,10 +11,6 @@ import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
-
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
-import eu.transittrack.FeedsProperties
 
 class FeedsPropertiesTest {
     private fun bind(map: Map<String, Any>): FeedsProperties =

@@ -17,8 +17,8 @@ import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 @PostgresSliceTest
 class AvlSilentVehicleSweeperTest(

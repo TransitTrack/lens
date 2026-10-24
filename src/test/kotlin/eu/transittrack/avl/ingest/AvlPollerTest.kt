@@ -19,7 +19,6 @@ import eu.transittrack.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.concurrency.FeedLockCoordinator
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -27,6 +26,7 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.util.concurrency.FeedLockCoordinator
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],

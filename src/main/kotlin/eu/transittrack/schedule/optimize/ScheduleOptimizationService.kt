@@ -19,7 +19,6 @@ import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
@@ -27,6 +26,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunState
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Thrown by [ScheduleOptimizationService.apply] when two selected recommendations, once expanded

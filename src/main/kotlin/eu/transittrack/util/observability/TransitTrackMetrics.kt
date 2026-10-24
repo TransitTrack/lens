@@ -1,10 +1,11 @@
-package eu.transittrack.observability
+package eu.transittrack.util.observability
 
 import java.net.URI
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.math.abs
 
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.DistributionSummary
@@ -270,7 +271,7 @@ class TransitTrackMetrics(
             .tags(tags)
             .baseUnit("seconds")
             .register(registry)
-            .record(kotlin.math.abs(errorSec).toDouble())
+            .record(abs(errorSec).toDouble())
     }
 
     /**

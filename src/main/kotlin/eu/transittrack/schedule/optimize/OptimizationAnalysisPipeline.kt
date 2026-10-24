@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
@@ -14,6 +13,7 @@ import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Steps 2-6 of the analysis pipeline (design section 5): resolves the selected schedule population

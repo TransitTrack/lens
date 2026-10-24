@@ -1,4 +1,4 @@
-package eu.transittrack.concurrency
+package eu.transittrack.util.concurrency
 
 import javax.sql.DataSource
 

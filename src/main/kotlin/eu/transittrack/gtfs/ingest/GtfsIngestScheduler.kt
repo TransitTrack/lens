@@ -17,13 +17,13 @@ import eu.transittrack.GtfsProperties
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Periodic sweep that triggers ingestion for enabled feeds whose per-feed [GtfsFeed.pollingCron]
  * fire time has elapsed since their last ingest. Guarded by `transittrack.gtfs.polling.enabled`;
  * each due feed's ingest call is wrapped in a scoped ShedLock critical section (rather than a
- * continuous [eu.transittrack.concurrency.FeedLockCoordinator] lease, since this sweep is a
+ * continuous [eu.transittrack.util.concurrency.FeedLockCoordinator] lease, since this sweep is a
  * one-shot check-and-trigger, not a persistent per-feed background loop) so two `role-ingester`
  * replicas racing on the same sweep tick never both ingest the same feed.
  */
