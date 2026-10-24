@@ -14,8 +14,8 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
-import eu.transittrack.observability.TransitTrackMetrics
 import eu.transittrack.predict.PredictProperties
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Refreshes database-derived queue gauges outside Prometheus's scrape thread. Lives in `avl` rather

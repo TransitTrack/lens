@@ -15,7 +15,7 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * One poll cycle for one AVL feed: fetch -> decode -> drop reports older than

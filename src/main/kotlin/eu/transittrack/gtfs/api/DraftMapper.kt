@@ -3,6 +3,8 @@ package eu.transittrack.gtfs.api
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.DraftDto
 import eu.transittrack.gtfs.api.dto.DraftEditDto
 import eu.transittrack.gtfs.api.dto.DraftLockDto
@@ -11,6 +13,7 @@ import eu.transittrack.gtfs.draft.DraftLock
 import eu.transittrack.gtfs.revision.GtfsRevision
 
 @Component
+@ConditionalOnRole(Role.API)
 class DraftMapper(
     private val json: JsonMapper,
 ) {

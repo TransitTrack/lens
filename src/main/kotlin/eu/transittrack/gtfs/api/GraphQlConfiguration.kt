@@ -12,6 +12,8 @@ import org.springframework.graphql.execution.DataFetcherExceptionResolverAdapter
 import org.springframework.graphql.execution.ErrorType
 import org.springframework.graphql.execution.RuntimeWiringConfigurer
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.draft.edit.StaleDraftException
 import eu.transittrack.gtfs.feed.FeedConflictException
@@ -30,6 +32,7 @@ import eu.transittrack.schedule.optimize.RecommendationConflictException
  */
 @Configuration
 @ConditionalOnClass
+@ConditionalOnRole(Role.API)
 class GraphQlConfiguration {
     @Bean
     fun jsonScalar(): RuntimeWiringConfigurer =

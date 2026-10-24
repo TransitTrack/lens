@@ -3,6 +3,8 @@ package eu.transittrack.gtfs.api
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.AgencyDto
 import eu.transittrack.gtfs.api.dto.LevelDto
 import eu.transittrack.gtfs.api.dto.RouteDto
@@ -27,6 +29,7 @@ import eu.transittrack.gtfs.model.TripRepository
  * arbitrarily deep against a single revision.
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class GtfsNestedResolvers(
     private val agencies: AgencyRepository,
     private val routes: RouteRepository,

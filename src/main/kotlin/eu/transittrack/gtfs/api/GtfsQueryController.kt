@@ -4,6 +4,8 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.read.GtfsReadService
 import eu.transittrack.gtfs.read.GtfsRecordsService
 
@@ -12,6 +14,7 @@ import eu.transittrack.gtfs.read.GtfsRecordsService
  * [GtfsReadService]; revision resolution and mapping live there.
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class GtfsQueryController(
     private val read: GtfsReadService,
     private val recordsService: GtfsRecordsService,

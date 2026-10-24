@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
-import eu.transittrack.concurrency.FeedLockCoordinator
-import eu.transittrack.concurrency.FeedReconciler
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
+import eu.transittrack.util.concurrency.FeedLockCoordinator
+import eu.transittrack.util.concurrency.FeedReconciler
 
 /**
  * Owns one `scheduleWithFixedDelay` task per enabled `avl_feed` row whose GTFS feed

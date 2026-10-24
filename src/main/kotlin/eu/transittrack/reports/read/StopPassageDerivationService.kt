@@ -16,6 +16,8 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.model.Stop
 import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.Trip
@@ -73,6 +75,7 @@ private const val TERMINAL_STOP_TOLERANCE_M = 20.0
  *   actually matched under.
  */
 @Service
+@ConditionalOnRole(Role.API)
 class StopPassageDerivationService(
     private val avlFeeds: AvlFeedRepository,
     private val vehicleMatches: VehicleMatchRepository,

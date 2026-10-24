@@ -23,12 +23,12 @@ import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.bearingDegrees
-import eu.transittrack.concurrency.FeedLockCoordinator
-import eu.transittrack.concurrency.FeedReconciler
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
 import eu.transittrack.haversineMeters
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.concurrency.FeedLockCoordinator
+import eu.transittrack.util.concurrency.FeedReconciler
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Claims PENDING `avl_report` rows for one feed at a time, dispatches each to the [VehicleMatcher] for

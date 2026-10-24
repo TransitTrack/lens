@@ -5,12 +5,15 @@ import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
 import eu.transittrack.avl.read.AvlReadService
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 
 /**
  * GraphQL query entry points for the AVL read layer. Thin delegation to [AvlReadService].
  * Registers unconditionally (only the poller / processor / retention are feature-gated).
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class AvlQueryController(
     private val read: AvlReadService,
 ) {

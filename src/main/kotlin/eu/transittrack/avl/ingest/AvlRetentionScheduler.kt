@@ -3,7 +3,6 @@ package eu.transittrack.avl.ingest
 import java.sql.Timestamp
 import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Age-based prune of AVL ingestion tables. Deleting `avl_report` rows cascades their `vehicle_match`

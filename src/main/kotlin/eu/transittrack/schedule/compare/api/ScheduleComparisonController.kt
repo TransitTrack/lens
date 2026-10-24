@@ -4,12 +4,15 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.schedule.compare.CalendarChange
 import eu.transittrack.schedule.compare.HeadwaySummary
 import eu.transittrack.schedule.compare.ScheduleComparisonService
 import eu.transittrack.schedule.compare.TripChange
 
 @Controller
+@ConditionalOnRole(Role.API)
 class ScheduleComparisonController(
     private val service: ScheduleComparisonService,
 ) {

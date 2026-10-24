@@ -5,6 +5,8 @@ import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.FeedDto
 import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -12,6 +14,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 
 @Controller
+@ConditionalOnRole(Role.API)
 class GtfsFeedController(
     private val feedService: GtfsFeedService,
     private val revisionService: RevisionService,

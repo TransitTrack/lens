@@ -5,6 +5,8 @@ import org.springframework.stereotype.Controller
 
 import eu.transittrack.avl.read.dto.AvlReportMatchDto
 import eu.transittrack.avl.read.dto.VehicleDto
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.StopDto
 import eu.transittrack.gtfs.api.dto.TripDto
 import eu.transittrack.gtfs.model.StopRepository
@@ -21,6 +23,7 @@ import eu.transittrack.schedule.read.dto.TripPatternDto
  * resolved by the gtfs / schedule resolvers and are not duplicated here.
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class AvlNestedResolvers(
     private val trips: TripRepository,
     private val stops: StopRepository,

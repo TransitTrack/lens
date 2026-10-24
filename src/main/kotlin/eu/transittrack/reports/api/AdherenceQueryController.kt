@@ -4,6 +4,8 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.reports.read.AdherenceReadService
 
 /**
@@ -11,6 +13,7 @@ import eu.transittrack.reports.read.AdherenceReadService
  * [AdherenceReadService] - mirrors [eu.transittrack.avl.api.AvlQueryController].
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class AdherenceQueryController(
     private val read: AdherenceReadService,
 ) {

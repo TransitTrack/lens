@@ -4,9 +4,12 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.schedule.read.ScheduleReadService
 
 @Controller
+@ConditionalOnRole(Role.API)
 class ScheduleQueryController(
     private val read: ScheduleReadService,
 ) {

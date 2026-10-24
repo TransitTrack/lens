@@ -6,6 +6,8 @@ import kotlin.math.abs
 import org.springframework.stereotype.Service
 
 import eu.transittrack.avl.model.AvlFeedRepository
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.reports.model.RouteAdherenceSummary
@@ -27,6 +29,7 @@ import eu.transittrack.reports.model.TripAdherenceSummary
  * samples produces no summary row at all, so summaries never divide by zero.
  */
 @Service
+@ConditionalOnRole(Role.API)
 class AdherenceReadService(
     private val derivation: StopPassageDerivationService,
     private val routes: RouteRepository,

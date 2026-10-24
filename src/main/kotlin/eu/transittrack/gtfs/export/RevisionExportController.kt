@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.revision.RevisionService
 
@@ -29,6 +31,7 @@ import eu.transittrack.gtfs.revision.RevisionService
  * MVC stack is present at runtime but not on this module's compile classpath.
  */
 @RestController
+@ConditionalOnRole(Role.API)
 class RevisionExportController(
     private val serializer: GtfsSerializer,
     private val revisionService: RevisionService,

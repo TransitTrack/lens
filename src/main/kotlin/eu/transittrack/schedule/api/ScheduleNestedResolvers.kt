@@ -4,6 +4,8 @@ import org.springframework.graphql.data.method.annotation.BatchMapping
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.RouteDto
 import eu.transittrack.gtfs.api.dto.StopDto
 import eu.transittrack.gtfs.api.dto.TripDto
@@ -27,6 +29,7 @@ import eu.transittrack.schedule.read.dto.TripPatternDto
  * each resolver scopes its repository lookup by that `revisionId`.
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class ScheduleNestedResolvers(
     private val patterns: TripPatternRepository,
     private val trips: TripRepository,

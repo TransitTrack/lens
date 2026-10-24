@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.HttpClientProperties
 import eu.transittrack.avl.ingest.AvlFetchException
 import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * okhttp-backed [AvlFeedSource]. GET the feed URL with the feed's configured headers, enforce

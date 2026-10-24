@@ -14,7 +14,7 @@ import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.config.ConditionalOnRole
 import eu.transittrack.config.Role
-import eu.transittrack.observability.TransitTrackMetrics
+import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Ages out matched vehicles that have stopped sending reports.

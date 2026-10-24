@@ -3,6 +3,8 @@ package eu.transittrack.gtfs.api
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.FeedDto
 import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.api.dto.ValidationNoticeDto
@@ -19,6 +21,7 @@ import eu.transittrack.gtfs.validate.LoadValidationReport
  * [JsonMapper] bean, which Boot 4 wires with `jackson-module-kotlin`.
  */
 @Component
+@ConditionalOnRole(Role.API)
 class GtfsDtoMapper(
     private val jsonMapper: JsonMapper,
 ) {
