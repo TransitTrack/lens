@@ -541,6 +541,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
       :map-key="MAP_ID"
       :map-style="mapStyle"
       :bounds="initialBounds"
+      :attribution-control="false"
       :fit-bounds-options="{ padding: 40, animate: true }"
     >
       <MglNavigationControl />

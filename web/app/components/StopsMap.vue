@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import {useMapStyle} from '~/composables/useMapStyle'
-import {boundsOf} from '~/utils/vehicleDetail'
-import {extentToBounds} from '~/utils/mapBounds'
-import type {LngLatBoundsExtent} from '~/composables/useFeedExtent'
+import { useMapStyle } from '~/composables/useMapStyle'
+import { boundsOf } from '~/utils/vehicleDetail'
+import { extentToBounds } from '~/utils/mapBounds'
+import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
 
 const props = defineProps<{
   stops: GeoJSON.FeatureCollection
@@ -37,11 +37,7 @@ const allCoords = computed<LngLat[]>(() =>
 
 // A stable signature of *which* stops are shown — changes when the filter/route
 // changes, not when a poll rebuilds the same FeatureCollection.
-const stopsKey = computed(() =>
-  props.stops.features
-    .map((f) => f.properties?.stopId)
-    .join(','),
-)
+const stopsKey = computed(() => props.stops.features.map((f) => f.properties?.stopId).join(','))
 
 // The first fit is instant — the map already opened on the agency extent via
 // `:bounds`. Later fits (the shown stop set actually changed) ease.
@@ -51,14 +47,18 @@ function fitAll() {
   const b = boundsOf(allCoords.value)
   if (!b || !map.map || !map.isLoaded) return
   map.map.resize()
-  map.map.fitBounds(b, {padding: 40, maxZoom: 15, duration: firstFit ? 0 : 600})
+  map.map.fitBounds(b, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 600 })
   firstFit = false
 }
 
-watch([stopsKey, () => map.isLoaded], () => {
-  fitAll()
-  requestAnimationFrame(fitAll)
-}, {immediate: true})
+watch(
+  [stopsKey, () => map.isLoaded],
+  () => {
+    fitAll()
+    requestAnimationFrame(fitAll)
+  },
+  { immediate: true },
+)
 
 watch(
   () => props.focusId,
@@ -66,7 +66,11 @@ watch(
     if (!id || !map.map || !map.isLoaded) return
     const f = props.stops.features.find((x) => x.properties?.stopId === id)
     if (f && f.geometry.type === 'Point') {
-      map.map.easeTo({center: f.geometry.coordinates as [number, number], zoom: 15, duration: 600})
+      map.map.easeTo({
+        center: f.geometry.coordinates as [number, number],
+        zoom: 15,
+        duration: 600,
+      })
     }
   },
 )
@@ -75,7 +79,6 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
   const id = e.features?.[0]?.properties?.stopId
   if (typeof id === 'string') emit('select', id)
 }
-
 </script>
 
 <template>
@@ -85,10 +88,11 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
       :map-style="mapStyle"
       :bounds="initialBounds"
       :fit-bounds-options="{ padding: 40, animate: false }"
+      :attribution-control="false"
       :center="[0, 0]"
       :zoom="2"
     >
-      <MglNavigationControl/>
+      <MglNavigationControl />
       <MglGeoJsonSource source-id="all-stops" :data="props.stops">
         <MglCircleLayer
           v-if="props.focusId"
