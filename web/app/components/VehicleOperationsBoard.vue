@@ -37,7 +37,7 @@ const attentionVehicles = computed(
 
 const { intervalMs } = usePollControl()
 
-const { result: selectedVehicleResult, loading: selectedVehicleLoading } = useVehicleDetailQuery(
+const { result: selectedVehicleResult } = useVehicleDetailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
   () => ({ enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value }),
 )
@@ -53,10 +53,6 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
   }
 })
-
-const selectedVehicle = computed(
-  () => props.vehicles.find((vehicle) => vehicle.vehicleId === selectedVehicleId.value) ?? null,
-)
 
 function selectVehicle(vehicleId: string) {
   selectedVehicleId.value = vehicleId
