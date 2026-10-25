@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.match.MatchContext
 import eu.transittrack.avl.match.PatternGeometry
+import eu.transittrack.avl.match.serviceDayStart
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.learn.FIRST_STOP_RADIUS_M
 import eu.transittrack.predict.learn.stopDistanceM
@@ -81,7 +82,7 @@ fun serviceSecToInstant(
     serviceDate: LocalDate,
     sec: Int,
     zone: ZoneId,
-): Instant = serviceDate.atStartOfDay(zone).plusSeconds(sec.toLong()).toInstant()
+): Instant = serviceDayStart(serviceDate, zone).plusSeconds(sec.toLong())
 
 /**
  * Whether a vehicle holds at this stop until its scheduled departure rather than leaving as soon

@@ -85,6 +85,16 @@ class ScheduleAdherenceAlgorithmTest(
         assertThat(roundTripSec).isEqualTo(28800L)
     }
 
+    @Test
+    fun `serviceSecToInstant keeps wall-clock times on the day DST ends`() {
+        val zone = ZoneId.of("Europe/Bucharest")
+        val dstEnd = LocalDate.of(2026, 10, 25)
+
+        val instant = serviceSecToInstant(dstEnd, 6 * 3600 + 11 * 60, zone)
+
+        assertThat(instant).isEqualTo(dstEnd.atTime(6, 11).atZone(zone).toInstant())
+    }
+
     /** Halfway along T1's stop path 1: the vehicle has left the first stop. */
     private fun midPath1(
         ctx: eu.transittrack.avl.match.AvlMatchContext,

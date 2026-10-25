@@ -59,8 +59,5 @@ class TemporalMatcher {
         ts: Instant,
         zone: ZoneId,
         serviceDate: LocalDate,
-    ): Int {
-        val midnight = serviceDate.atStartOfDay(zone).toInstant()
-        return Duration.between(midnight, ts).seconds.toInt()
-    }
+    ): Int = Duration.between(serviceDayStart(serviceDate, zone), ts).seconds.toInt()
 }

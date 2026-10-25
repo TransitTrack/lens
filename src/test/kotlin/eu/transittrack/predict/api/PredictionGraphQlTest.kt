@@ -2,6 +2,7 @@ package eu.transittrack.predict.api
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import kotlin.test.Test
 
@@ -194,13 +195,15 @@ class PredictionGraphQlTest(
             scheduleTimes
                 .findByTripOrdered(state.revisionId!!, state.tripRowId!!)
                 .first { it.stopPathIndex == prediction.stopPathIndex }
+        // A GTFS time is a wall-clock time in the agency zone - also on a DST transition day.
+        val warsaw = ZoneId.of("Europe/Warsaw")
         val expected =
             prediction
                 .computedAt
-                .atZone(ZoneId.of("Europe/Warsaw"))
+                .atZone(warsaw)
                 .toLocalDate()
-                .atStartOfDay(ZoneId.of("Europe/Warsaw"))
-                .plusSeconds(schedule.arrivalSec!!.toLong())
+                .atTime(LocalTime.ofSecondOfDay(schedule.arrivalSec!!.toLong()))
+                .atZone(warsaw)
                 .toInstant()
                 .toString()
 

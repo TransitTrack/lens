@@ -1,9 +1,27 @@
 package eu.transittrack.avl.match
 
+import java.time.Duration
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 
 import eu.transittrack.schedule.model.TripRef
+
+/**
+ * The instant a service day's GTFS times count from: noon minus 12 hours, per the GTFS reference -
+ * not midnight. The two differ by an hour on the days DST starts or ends; counting from midnight
+ * shifts every time on those days by an hour.
+ */
+fun serviceDayStart(
+    serviceDate: LocalDate,
+    zone: ZoneId,
+): Instant =
+    serviceDate
+        .atTime(LocalTime.NOON)
+        .atZone(zone)
+        .toInstant()
+        .minus(Duration.ofHours(12))
 
 /**
  * `report.descStartDate` wins; else the report ts local date, shifted back a day when the report

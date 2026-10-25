@@ -59,4 +59,15 @@ class TemporalMatcherTest {
             .toInstant()
         assertThat(tm.toServiceSeconds(ts, z, LocalDate.of(2026, 9, 4))).isEqualTo(90000)
     }
+
+    @Test
+    fun `service seconds count from noon minus 12h, so DST days keep their wall-clock times`() {
+        val z = ZoneId.of("Europe/Bucharest")
+        // 2026-10-25: clocks go back at 04:00. A GTFS 06:11 must stay 06:11 on the wall, not 05:11.
+        val autumn = LocalDate.of(2026, 10, 25)
+        assertThat(tm.toServiceSeconds(autumn.atTime(6, 11).atZone(z).toInstant(), z, autumn)).isEqualTo(6 * 3600 + 11 * 60)
+        // 2026-03-29: clocks go forward at 03:00. A GTFS 08:00 is 08:00 on the wall, not 09:00.
+        val spring = LocalDate.of(2026, 3, 29)
+        assertThat(tm.toServiceSeconds(spring.atTime(8, 0).atZone(z).toInstant(), z, spring)).isEqualTo(8 * 3600)
+    }
 }
