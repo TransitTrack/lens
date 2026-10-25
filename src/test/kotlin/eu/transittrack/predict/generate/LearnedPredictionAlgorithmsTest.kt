@@ -23,6 +23,7 @@ import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
+import eu.transittrack.avl.match.cache.CachedLearningKeyReader
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.download.FeedDownloader
@@ -31,6 +32,10 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.PredictProperties
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
+import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.model.KalmanTravelTimeState
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.TravelTimeObservation
@@ -63,6 +68,8 @@ class LearnedPredictionAlgorithmsTest(
     @Autowired val observations: TravelTimeObservationRepository,
     @Autowired val states: KalmanTravelTimeStateRepository,
     @Autowired val seeds: TravelTimesForStopPathRepository,
+    @Autowired val learningKeys: CachedLearningKeyReader,
+    @Autowired val props: PredictProperties,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -95,6 +102,15 @@ class LearnedPredictionAlgorithmsTest(
         )
 
     private val serviceDate: LocalDate = LocalDate.of(2026, 9, 7)
+
+    private fun historical() = HistoricalAverageAlgorithm(observations, seeds, learningKeys, props)
+
+    private fun kalman() = KalmanAlgorithm(states, seeds, learningKeys, props)
+
+    private fun keyOf(
+        ctx: AvlMatchContext,
+        stop: HorizonStop,
+    ) = learningKeys.keyOf(ctx.revisionId, stop.tripPatternId)!!
 
     /** A fixed, easy-to-hand-verify stand-in for "the vehicle's current position timestamp". */
     private fun fixedStartTs(ctx: AvlMatchContext): Instant = serviceDate.atStartOfDay(ctx.zone).toInstant()
@@ -138,7 +154,7 @@ class LearnedPredictionAlgorithmsTest(
         val startTs = fixedStartTs(ctx)
         val expected = expectedSeedArrivals(horizon, ctx, startTs)
 
-        val algorithm = HistoricalAverageAlgorithm(observations, seeds)
+        val algorithm = historical()
         val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
 
         // Stop path 1 is never written to by any other test in this class.
@@ -154,10 +170,14 @@ class LearnedPredictionAlgorithmsTest(
         val startTs = fixedStartTs(ctx)
         val target = horizon.first { it.stopPathIndex == 2 }
 
+        val key = keyOf(ctx, target)
         observations.save(
             TravelTimeObservation(
-                tripPatternId = target.tripPatternId,
+                gtfsFeedCode = key.gtfsFeedCode,
+                patternKey = key.patternKey,
                 stopPathIndex = target.stopPathIndex,
+                dayType = DayType.ALL,
+                timeBand = TimeBand.ALL,
                 sampleCount = 5,
                 meanSec = 999.0,
                 updatedAt = Instant.now(),
@@ -170,7 +190,7 @@ class LearnedPredictionAlgorithmsTest(
         val expectedBefore = expectedSeedArrivals(beforeTarget, ctx, startTs)
         val tsBeforeTarget = if (beforeTarget.isEmpty()) startTs else expectedBefore.getValue(beforeTarget.last().stopPathIndex)
 
-        val algorithm = HistoricalAverageAlgorithm(observations, seeds)
+        val algorithm = historical()
         val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
         val prediction = predictions.first { it.stopPathIndex == 2 }
 
@@ -185,7 +205,7 @@ class LearnedPredictionAlgorithmsTest(
         val startTs = fixedStartTs(ctx)
         val expected = expectedSeedArrivals(horizon, ctx, startTs)
 
-        val algorithm = KalmanAlgorithm(states, seeds)
+        val algorithm = kalman()
         val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
 
         // Stop paths 1 and 2 are never written to by any Kalman-state-seeding test in this class.
@@ -204,10 +224,14 @@ class LearnedPredictionAlgorithmsTest(
         val startTs = fixedStartTs(ctx)
         val target = horizon.first { it.stopPathIndex == 3 }
 
+        val key = keyOf(ctx, target)
         states.save(
             KalmanTravelTimeState(
-                tripPatternId = target.tripPatternId,
+                gtfsFeedCode = key.gtfsFeedCode,
+                patternKey = key.patternKey,
                 stopPathIndex = target.stopPathIndex,
+                dayType = DayType.ALL,
+                timeBand = TimeBand.ALL,
                 estimateSec = 777.0,
                 errorVariance = 64.0,
                 sampleCount = 5,
@@ -220,7 +244,7 @@ class LearnedPredictionAlgorithmsTest(
         val expectedBefore = expectedSeedArrivals(beforeTarget, ctx, startTs)
         val tsBeforeTarget = if (beforeTarget.isEmpty()) startTs else expectedBefore.getValue(beforeTarget.last().stopPathIndex)
 
-        val algorithm = KalmanAlgorithm(states, seeds)
+        val algorithm = kalman()
         val predictions = algorithm.predict(horizon, serviceDate, adherenceSec = 0, startTs, ctx)
         val prediction = predictions.first { it.stopPathIndex == 3 }
 
@@ -244,7 +268,7 @@ class LearnedPredictionAlgorithmsTest(
         // learned observation in this class, so this is the schedule seed.
         val horizon = listOf(HorizonStop(trip.id!!, trip.tripPatternId!!, 1, remainingFraction = 0.25))
 
-        val prediction = HistoricalAverageAlgorithm(observations, seeds).predict(horizon, serviceDate, null, startTs, ctx).single()
+        val prediction = historical().predict(horizon, serviceDate, null, startTs, ctx).single()
 
         assertThat(prediction.predictedArrivalTs).isEqualTo(startTs.plusMillis((travel1 * 0.25 * 1000).toLong()))
     }
@@ -260,10 +284,40 @@ class LearnedPredictionAlgorithmsTest(
 
         // Waiting at the terminus ten minutes early: it doesn't leave before its departure time.
         val predictions =
-            HistoricalAverageAlgorithm(observations, seeds).predict(horizon, serviceDate, null, scheduledDeparture.minusSeconds(600), ctx)
+            historical().predict(horizon, serviceDate, null, scheduledDeparture.minusSeconds(600), ctx)
 
         assertThat(predictions.first { it.stopPathIndex == 0 }.predictedDepartureTs).isEqualTo(scheduledDeparture)
         assertThat(predictions.first { it.stopPathIndex == 1 }.predictedArrivalTs)
             .isEqualTo(scheduledDeparture.plusSeconds(travel1.toLong()))
+    }
+
+    @Test
+    fun `a well-sampled time band wins over the overall value, for the band the stop path is driven in`() {
+        val ctx = factory.open(avlFeed)!!
+        val horizon = t1Horizon(ctx)
+        val startTs = fixedStartTs(ctx) // Monday just after midnight: stop path 3 is driven at night
+        val target = horizon.first { it.stopPathIndex == 3 }
+        val key = keyOf(ctx, target)
+
+        fun observation(
+            bucket: TravelTimeBucket,
+            meanSec: Double,
+            samples: Long,
+        ) = TravelTimeObservation(
+            gtfsFeedCode = key.gtfsFeedCode, patternKey = key.patternKey, stopPathIndex = 3,
+            dayType = bucket.dayType, timeBand = bucket.timeBand, sampleCount = samples, meanSec = meanSec, updatedAt = Instant.now(),
+        )
+        // Stop path 3 carries no other historical observation in this class.
+        observations.saveAll(
+            listOf(
+                observation(TravelTimeBucket.OVERALL, 999.0, samples = 500),
+                observation(TravelTimeBucket(DayType.WEEKDAY, TimeBand.NIGHT), 555.0, samples = props.learn.minBucketSamples.toLong()),
+                observation(TravelTimeBucket(DayType.WEEKDAY, TimeBand.MORNING_PEAK), 111.0, samples = 500),
+            ),
+        )
+        val predictions = historical().predict(horizon, serviceDate, null, startTs, ctx)
+        val arrival2 = predictions.first { it.stopPathIndex == 2 }.predictedArrivalTs!!
+
+        assertThat(predictions.first { it.stopPathIndex == 3 }.predictedArrivalTs).isEqualTo(arrival2.plusSeconds(555L))
     }
 }

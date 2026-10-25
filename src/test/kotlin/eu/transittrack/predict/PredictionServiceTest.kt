@@ -42,11 +42,15 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
+import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(
@@ -78,6 +82,7 @@ class PredictionServiceTest(
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
+    @Autowired val tripPatterns: TripPatternRepository,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -211,8 +216,18 @@ class PredictionServiceTest(
         assertThat(passes[0].observedTravelTimeSec).isNull()
         assertThat(passes[1].observedTravelTimeSec!! > 300.0).isTrue()
 
-        val learned = travelTimeObservations.findAll().filter { it.tripPatternId == patternId }
-        assertThat(learned.map { it.stopPathIndex }).isEqualTo(listOf(2))
+        // One sample - stop path 2, driven from ~08:10 on a Monday - lands in its weekday morning-peak
+        // bucket and in both roll-ups, keyed by the pattern's stable key rather than its row id.
+        val patternKey = tripPatterns.findById(patternId).orElseThrow().patternKey
+        val learned = travelTimeObservations.findAll()
+        assertThat(learned.all { it.gtfsFeedCode == "g" && it.patternKey == patternKey && it.stopPathIndex == 2 }).isTrue()
+        assertThat(learned.map { TravelTimeBucket(it.dayType, it.timeBand) }.toSet()).isEqualTo(
+            setOf(
+                TravelTimeBucket(DayType.WEEKDAY, TimeBand.MORNING_PEAK),
+                TravelTimeBucket(DayType.WEEKDAY, TimeBand.ALL),
+                TravelTimeBucket.OVERALL,
+            ),
+        )
         assertThat(predictionAccuracies.findAll().any { it.tripRowId == trip.id && it.stopPathIndex == 1 }).isTrue()
     }
 

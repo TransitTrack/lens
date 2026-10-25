@@ -13,6 +13,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
@@ -39,11 +41,12 @@ class PredictionEntitiesPersistenceTest(
     fun `travel_time_observation round-trips`() {
         observations.save(
             TravelTimeObservation(
-                tripPatternId = 10L, stopPathIndex = 2, sampleCount = 5L, meanSec = 42.5,
+                gtfsFeedCode = "g", patternKey = "RA|SHP|S1_to_S4|abc", stopPathIndex = 2,
+                dayType = DayType.WEEKDAY, timeBand = TimeBand.MORNING_PEAK, sampleCount = 5L, meanSec = 42.5,
                 updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
             ),
         )
-        val found = observations.findByPatternAndStop(10L, 2)
+        val found = observations.findInBucket("g", "RA|SHP|S1_to_S4|abc", 2, DayType.WEEKDAY, TimeBand.MORNING_PEAK)
         assertThat(found).isNotNull()
         assertThat(found!!.meanSec).isEqualTo(42.5)
     }
@@ -52,11 +55,12 @@ class PredictionEntitiesPersistenceTest(
     fun `kalman_travel_time_state round-trips`() {
         kalmanStates.save(
             KalmanTravelTimeState(
-                tripPatternId = 11L, stopPathIndex = 3, estimateSec = 30.0, errorVariance = 400.0,
+                gtfsFeedCode = "g", patternKey = "RA|SHP|S1_to_S4|abc", stopPathIndex = 3,
+                dayType = DayType.ALL, timeBand = TimeBand.ALL, estimateSec = 30.0, errorVariance = 400.0,
                 sampleCount = 1L, updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
             ),
         )
-        val found = kalmanStates.findByPatternAndStop(11L, 3)
+        val found = kalmanStates.findInBucket("g", "RA|SHP|S1_to_S4|abc", 3, DayType.ALL, TimeBand.ALL)
         assertThat(found).isNotNull()
         assertThat(found!!.estimateSec).isEqualTo(30.0)
     }

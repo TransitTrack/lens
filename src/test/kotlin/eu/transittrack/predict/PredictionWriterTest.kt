@@ -18,6 +18,10 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.LearningKey
+import eu.transittrack.predict.learn.TimeBand
+import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.PredictionAccuracyRepository
@@ -77,42 +81,49 @@ class PredictionWriterTest(
             computedAt = Instant.parse("2026-09-04T10:00:00Z"),
         )
 
+    private val key = LearningKey("g", "RA|SHP|S1_to_S4|abc")
+    private val peak = TravelTimeBucket(DayType.WEEKDAY, TimeBand.MORNING_PEAK)
+
     @Test
-    fun `upsertObservation replaces the single row, latest wins`() {
+    fun `upsertObservation replaces the single row per bucket, latest wins`() {
         writer.inTransaction { session ->
-            writer.upsertObservation(
-                session, tripPatternId = 10L, stopPathIndex = 2, sampleCount = 1L, meanSec = 30.0,
-                at = Instant.parse("2026-09-04T10:00:00Z"),
-            )
+            writer.upsertObservation(session, key, 2, peak, sampleCount = 1L, meanSec = 30.0, at = Instant.parse("2026-09-04T10:00:00Z"))
         }
         writer.inTransaction { session ->
-            writer.upsertObservation(
-                session, tripPatternId = 10L, stopPathIndex = 2, sampleCount = 2L, meanSec = 45.0,
-                at = Instant.parse("2026-09-04T10:05:00Z"),
-            )
+            writer.upsertObservation(session, key, 2, peak, sampleCount = 2L, meanSec = 45.0, at = Instant.parse("2026-09-04T10:05:00Z"))
         }
-        val all = observations.findAll()
-        assertThat(all.size).isEqualTo(1)
-        assertThat(observations.findByPatternAndStop(10L, 2)!!.meanSec).isEqualTo(45.0)
+        assertThat(observations.findAll().size).isEqualTo(1)
+        assertThat(observations.findInBucket("g", key.patternKey, 2, DayType.WEEKDAY, TimeBand.MORNING_PEAK)!!.meanSec).isEqualTo(45.0)
     }
 
     @Test
-    fun `upsertKalmanState replaces the single row, latest wins`() {
+    fun `upsertObservation keeps buckets of the same stop path apart`() {
+        writer.inTransaction { session ->
+            writer.upsertObservation(session, key, 2, peak, sampleCount = 1L, meanSec = 90.0, at = Instant.parse("2026-09-04T08:00:00Z"))
+            writer.upsertObservation(
+                session, key, 2, TravelTimeBucket.OVERALL, sampleCount = 1L, meanSec = 60.0, at = Instant.parse("2026-09-04T08:00:00Z"),
+            )
+        }
+        assertThat(observations.findByPattern("g", key.patternKey).associate { it.timeBand to it.meanSec })
+            .isEqualTo(mapOf(TimeBand.MORNING_PEAK to 90.0, TimeBand.ALL to 60.0))
+    }
+
+    @Test
+    fun `upsertKalmanState replaces the single row per bucket, latest wins`() {
         writer.inTransaction { session ->
             writer.upsertKalmanState(
-                session, tripPatternId = 10L, stopPathIndex = 2, estimateSec = 30.0, errorVariance = 5.0,
-                sampleCount = 1L, at = Instant.parse("2026-09-04T10:00:00Z"),
+                session, key, 2, peak,
+                estimateSec = 30.0, errorVariance = 5.0, sampleCount = 1L, at = Instant.parse("2026-09-04T10:00:00Z"),
             )
         }
         writer.inTransaction { session ->
             writer.upsertKalmanState(
-                session, tripPatternId = 10L, stopPathIndex = 2, estimateSec = 40.0, errorVariance = 3.0,
-                sampleCount = 2L, at = Instant.parse("2026-09-04T10:05:00Z"),
+                session, key, 2, peak,
+                estimateSec = 40.0, errorVariance = 3.0, sampleCount = 2L, at = Instant.parse("2026-09-04T10:05:00Z"),
             )
         }
-        val all = kalmanStates.findAll()
-        assertThat(all.size).isEqualTo(1)
-        assertThat(kalmanStates.findByPatternAndStop(10L, 2)!!.estimateSec).isEqualTo(40.0)
+        assertThat(kalmanStates.findAll().size).isEqualTo(1)
+        assertThat(kalmanStates.findInBucket("g", key.patternKey, 2, DayType.WEEKDAY, TimeBand.MORNING_PEAK)!!.estimateSec).isEqualTo(40.0)
     }
 
     @Test

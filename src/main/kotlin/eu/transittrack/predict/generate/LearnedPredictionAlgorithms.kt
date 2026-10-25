@@ -8,7 +8,11 @@ import kotlin.math.sqrt
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.match.MatchContext
+import eu.transittrack.avl.match.cache.CachedLearningKeyReader
+import eu.transittrack.predict.PredictProperties
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.learn.TravelTimeBucket
+import eu.transittrack.predict.learn.pickLearned
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPath
@@ -38,10 +42,12 @@ private fun dwellBeforeSec(
 internal data class LearnedStopToStop(
     val sec: Double,
     val varianceSec2: Double?,
+    val sampleCount: Long,
 )
 
 /**
- * Walks the horizon accumulating stop-to-stop times (learned, else the schedule seed) from
+ * Walks the horizon accumulating stop-to-stop times (learned for the day type and time band each
+ * stop path is driven in, falling back to coarser roll-ups, else the schedule seed) from
  * [startTs]. Only the uncovered share of the vehicle's current stop path is counted. At a trip's
  * first stop the vehicle isn't predicted to leave before its scheduled departure, which also
  * carries it across into the next block trip. Confidence, when any learned
@@ -53,10 +59,11 @@ internal fun walkHorizon(
     startTs: Instant,
     ctx: MatchContext,
     seedRepository: TravelTimesForStopPathRepository,
-    learnedFor: (tripPatternId: Long) -> Map<Int, LearnedStopToStop>,
+    minBucketSamples: Int,
+    learnedFor: (tripPatternId: Long) -> Map<Int, Map<TravelTimeBucket, LearnedStopToStop>>,
 ): List<GeneratedPrediction> {
     val seedsByPattern = HashMap<Long, Map<Int, TravelTimesForStopPath>>()
-    val learnedByPattern = HashMap<Long, Map<Int, LearnedStopToStop>>()
+    val learnedByPattern = HashMap<Long, Map<Int, Map<TravelTimeBucket, LearnedStopToStop>>>()
 
     // The last predicted pass: arrival at the previous stop, or the departure from it when it held.
     var passTs = startTs
@@ -77,7 +84,10 @@ internal fun walkHorizon(
                 // standing at) the first stop.
                 passTs
             } else {
-                val learnedHere = learned[i]
+                // Looked up by when the vehicle leaves the previous stop - a trip running into the
+                // morning peak picks up peak times for its later stop paths.
+                val bucket = TravelTimeBucket.at(serviceDate, ctx.zone, passTs)
+                val learnedHere = learned[i]?.let { pickLearned(it, bucket, minBucketSamples) { l -> l.sampleCount } }
                 val stopToStop = learnedHere?.sec ?: seedStopToStopSec(seeds, i) ?: break
                 // Once the vehicle has left the previous stop, its dwell there is behind it.
                 val ahead = if (leftPassedStop) stopToStop - dwellBeforeSec(seeds, i) else stopToStop
@@ -128,6 +138,8 @@ internal fun walkHorizon(
 class HistoricalAverageAlgorithm(
     private val observations: TravelTimeObservationRepository,
     private val seeds: TravelTimesForStopPathRepository,
+    private val learningKeys: CachedLearningKeyReader,
+    private val props: PredictProperties,
 ) : PredictionStrategy {
     override val algorithm = PredictionAlgorithm.HISTORICAL_AVERAGE
 
@@ -138,8 +150,14 @@ class HistoricalAverageAlgorithm(
         startTs: Instant,
         ctx: MatchContext,
     ): List<GeneratedPrediction> =
-        walkHorizon(horizon, serviceDate, startTs, ctx, seeds) { patternId ->
-            observations.findByPattern(patternId).associate { it.stopPathIndex to LearnedStopToStop(it.meanSec, null) }
+        walkHorizon(horizon, serviceDate, startTs, ctx, seeds, props.learn.minBucketSamples) { patternId ->
+            val key = learningKeys.keyOf(ctx.revisionId, patternId) ?: return@walkHorizon emptyMap()
+            observations
+                .findByPattern(key.gtfsFeedCode, key.patternKey)
+                .groupBy { it.stopPathIndex }
+                .mapValues { (_, rows) ->
+                    rows.associate { TravelTimeBucket(it.dayType, it.timeBand) to LearnedStopToStop(it.meanSec, null, it.sampleCount) }
+                }
         }
 }
 
@@ -151,6 +169,8 @@ class HistoricalAverageAlgorithm(
 class KalmanAlgorithm(
     private val states: KalmanTravelTimeStateRepository,
     private val seeds: TravelTimesForStopPathRepository,
+    private val learningKeys: CachedLearningKeyReader,
+    private val props: PredictProperties,
 ) : PredictionStrategy {
     override val algorithm = PredictionAlgorithm.KALMAN
 
@@ -161,7 +181,15 @@ class KalmanAlgorithm(
         startTs: Instant,
         ctx: MatchContext,
     ): List<GeneratedPrediction> =
-        walkHorizon(horizon, serviceDate, startTs, ctx, seeds) { patternId ->
-            states.findByPattern(patternId).associate { it.stopPathIndex to LearnedStopToStop(it.estimateSec, it.errorVariance) }
+        walkHorizon(horizon, serviceDate, startTs, ctx, seeds, props.learn.minBucketSamples) { patternId ->
+            val key = learningKeys.keyOf(ctx.revisionId, patternId) ?: return@walkHorizon emptyMap()
+            states
+                .findByPattern(key.gtfsFeedCode, key.patternKey)
+                .groupBy { it.stopPathIndex }
+                .mapValues { (_, rows) ->
+                    rows.associate {
+                        TravelTimeBucket(it.dayType, it.timeBand) to LearnedStopToStop(it.estimateSec, it.errorVariance, it.sampleCount)
+                    }
+                }
         }
 }

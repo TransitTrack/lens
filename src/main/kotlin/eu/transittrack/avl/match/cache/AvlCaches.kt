@@ -14,6 +14,7 @@ object AvlCaches {
     const val SERVICE_IDS = "avlServiceIds"
     const val PATTERN_GEOMETRY = "avlPatternGeometry"
     const val AGENCY_TIMEZONE = "avlAgencyTimezone"
+    const val LEARNING_KEY = "avlLearningKey"
 
     val NAMES: List<String> =
         listOf(
@@ -29,5 +30,6 @@ object AvlCaches {
             SERVICE_IDS,
             PATTERN_GEOMETRY,
             AGENCY_TIMEZONE,
+            LEARNING_KEY,
         )
 }

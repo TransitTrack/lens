@@ -1,0 +1,77 @@
+databaseChangeLog:
+  # Learned travel times move off trip_pattern_id - a row id that's new in every GTFS revision, so
+  # each import silently reset all learning - onto the pattern's stable (gtfs feed code, pattern_key),
+  # and split into day-type/time-band buckets so rush-hour and night samples stop averaging together.
+  - changeSet:
+      id: 0017-learning-buckets-travel_time_observation
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: travel_time_observation
+            columns:
+              - column: { name: gtfs_feed_code, type: VARCHAR(64) }
+              - column: { name: pattern_key, type: VARCHAR(255) }
+              - column: { name: day_type, type: SMALLINT }
+              - column: { name: time_band, type: SMALLINT }
+        # Existing values were learned across all hours and days: they become the overall roll-up
+        # (DayType.ALL = 3, TimeBand.ALL = 5 - the enums' last ordinals).
+        - sql:
+            sql: >
+              update travel_time_observation t set gtfs_feed_code = f.code, pattern_key = p.pattern_key, day_type = 3, time_band = 5
+              from trip_patterns p join gtfs_revision r on r.id = p.revision_id join gtfs_feed f on f.id = r.feed_id
+              where p.id = t.trip_pattern_id
+        - sql:
+            sql: delete from travel_time_observation where pattern_key is null
+        # One pattern in several stored revisions maps several rows onto one key: keep the best-sampled.
+        - sql:
+            sql: >
+              delete from travel_time_observation t using travel_time_observation u
+              where t.gtfs_feed_code = u.gtfs_feed_code and t.pattern_key = u.pattern_key
+                and t.stop_path_index = u.stop_path_index and (t.sample_count, t.id) < (u.sample_count, u.id)
+        - addNotNullConstraint: { tableName: travel_time_observation, columnName: gtfs_feed_code, columnDataType: VARCHAR(64) }
+        - addNotNullConstraint: { tableName: travel_time_observation, columnName: pattern_key, columnDataType: VARCHAR(255) }
+        - addNotNullConstraint: { tableName: travel_time_observation, columnName: day_type, columnDataType: SMALLINT }
+        - addNotNullConstraint: { tableName: travel_time_observation, columnName: time_band, columnDataType: SMALLINT }
+        - dropUniqueConstraint: { tableName: travel_time_observation, constraintName: uq_travel_time_obs_pattern_idx }
+        - dropColumn: { tableName: travel_time_observation, columnName: trip_pattern_id }
+        - addUniqueConstraint:
+            tableName: travel_time_observation
+            columnNames: gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band
+            constraintName: uq_travel_time_obs_bucket
+
+  - changeSet:
+      id: 0017-learning-buckets-kalman_travel_time_state
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: kalman_travel_time_state
+            columns:
+              - column: { name: gtfs_feed_code, type: VARCHAR(64) }
+              - column: { name: pattern_key, type: VARCHAR(255) }
+              - column: { name: day_type, type: SMALLINT }
+              - column: { name: time_band, type: SMALLINT }
+        # Existing values were learned across all hours and days: they become the overall roll-up
+        # (DayType.ALL = 3, TimeBand.ALL = 5 - the enums' last ordinals).
+        - sql:
+            sql: >
+              update kalman_travel_time_state t set gtfs_feed_code = f.code, pattern_key = p.pattern_key, day_type = 3, time_band = 5
+              from trip_patterns p join gtfs_revision r on r.id = p.revision_id join gtfs_feed f on f.id = r.feed_id
+              where p.id = t.trip_pattern_id
+        - sql:
+            sql: delete from kalman_travel_time_state where pattern_key is null
+        # One pattern in several stored revisions maps several rows onto one key: keep the best-sampled.
+        - sql:
+            sql: >
+              delete from kalman_travel_time_state t using kalman_travel_time_state u
+              where t.gtfs_feed_code = u.gtfs_feed_code and t.pattern_key = u.pattern_key
+                and t.stop_path_index = u.stop_path_index and (t.sample_count, t.id) < (u.sample_count, u.id)
+        - addNotNullConstraint: { tableName: kalman_travel_time_state, columnName: gtfs_feed_code, columnDataType: VARCHAR(64) }
+        - addNotNullConstraint: { tableName: kalman_travel_time_state, columnName: pattern_key, columnDataType: VARCHAR(255) }
+        - addNotNullConstraint: { tableName: kalman_travel_time_state, columnName: day_type, columnDataType: SMALLINT }
+        - addNotNullConstraint: { tableName: kalman_travel_time_state, columnName: time_band, columnDataType: SMALLINT }
+        - dropUniqueConstraint: { tableName: kalman_travel_time_state, constraintName: uq_kalman_state_pattern_idx }
+        - dropColumn: { tableName: kalman_travel_time_state, columnName: trip_pattern_id }
+        - addUniqueConstraint:
+            tableName: kalman_travel_time_state
+            columnNames: gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band
+            constraintName: uq_kalman_state_bucket

@@ -2,6 +2,7 @@ package eu.transittrack.predict
 
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import kotlin.math.abs
 
 import org.hibernate.StatelessSession
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.avl.match.MatchOutcome
+import eu.transittrack.avl.match.cache.CachedLearningKeyReader
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
@@ -18,7 +20,9 @@ import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.generate.seedStopToStopSec
 import eu.transittrack.predict.learn.KalmanState
+import eu.transittrack.predict.learn.LearningKey
 import eu.transittrack.predict.learn.RunningAverageState
+import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.learn.detectStopPasses
 import eu.transittrack.predict.learn.updateKalman
 import eu.transittrack.predict.learn.updateRunningAverage
@@ -58,6 +62,7 @@ class PredictionService(
     private val predictions: VehiclePredictionRepository,
     private val crossings: AvlStopCrossingRepository,
     private val travelTimesForStopPath: TravelTimesForStopPathRepository,
+    private val learningKeys: CachedLearningKeyReader,
     private val writer: PredictionWriter,
     strategyList: List<PredictionStrategy>,
     private val props: PredictProperties,
@@ -87,7 +92,7 @@ class PredictionService(
         // dominant cost of the whole prediction pipeline.
         writer.inTransaction { session ->
             if (prev != null && prev.tripRowId == outcome.tripRowId) {
-                processStopPasses(session, feed, report, prev, outcome, trip, ctx, now)
+                processStopPasses(session, feed, report, prev, outcome, trip, serviceDate, ctx, now)
             }
             if (!generatePredictions) return@inTransaction
 
@@ -162,10 +167,12 @@ class PredictionService(
         prev: PrevVehicleMatch,
         outcome: MatchOutcome.Matched,
         trip: TripRef,
+        serviceDate: LocalDate,
         ctx: AvlMatchContext,
         now: Instant,
     ) {
         val geom = ctx.patternGeometry(outcome.tripPatternId) ?: return
+        val learningKey = learningKeys.keyOf(ctx.revisionId, outcome.tripPatternId)
         val passes =
             detectStopPasses(
                 prev.distanceAlongTripM,
@@ -200,8 +207,11 @@ class PredictionService(
                 previousPassAt
                     ?.let { Duration.between(it, pass.passedAt).toMillis() / 1000.0 }
                     ?.takeIf { it > 0.0 && it <= maxPlausibleSec }
-            if (sampleSec != null) {
-                learn(session, outcome.tripPatternId, k, sampleSec, seedStopToStopSec(seeds, k) ?: sampleSec, now)
+            if (sampleSec != null && previousPassAt != null && learningKey != null) {
+                // Bucketed by when the vehicle left the previous stop, the same moment predictions
+                // look a stop path's time up by.
+                val bucket = TravelTimeBucket.at(serviceDate, ctx.zone, previousPassAt)
+                learn(session, learningKey, k, bucket, sampleSec, seedStopToStopSec(seeds, k) ?: sampleSec, now)
                 metrics.predictionLearningSamples(feed.code, 1)
             }
 
@@ -229,43 +239,48 @@ class PredictionService(
         metrics.predictionCrossings(feed.code, recorded)
     }
 
+    /** Updates both learners for [bucket] and its coarser roll-ups (its day type, and overall). */
     private fun learn(
         session: StatelessSession,
-        tripPatternId: Long,
+        key: LearningKey,
         stopPathIndex: Int,
+        bucket: TravelTimeBucket,
         sample: Double,
         seed: Double,
         now: Instant,
     ) {
-        val prevObs = observations.findByPatternAndStop(tripPatternId, stopPathIndex)
-        val newObs =
-            updateRunningAverage(
-                prevObs?.let { RunningAverageState(it.sampleCount, it.meanSec) },
-                seed,
-                sample,
-                props.learn.historyWindow,
-            )
-        writer.upsertObservation(session, tripPatternId, stopPathIndex, newObs.sampleCount, newObs.meanSec, now)
+        for (b in bucket.withRollups()) {
+            val prevObs = observations.findInBucket(key.gtfsFeedCode, key.patternKey, stopPathIndex, b.dayType, b.timeBand)
+            val newObs =
+                updateRunningAverage(
+                    prevObs?.let { RunningAverageState(it.sampleCount, it.meanSec) },
+                    seed,
+                    sample,
+                    props.learn.historyWindow,
+                )
+            writer.upsertObservation(session, key, stopPathIndex, b, newObs.sampleCount, newObs.meanSec, now)
 
-        val prevKalman = kalmanStates.findByPatternAndStop(tripPatternId, stopPathIndex)
-        val newKalman =
-            updateKalman(
-                prevKalman?.let { KalmanState(it.estimateSec, it.errorVariance, it.sampleCount) },
-                seed,
-                props.learn.kalmanInitialVarianceSec2,
-                props.learn.kalmanMeasurementNoiseSec2,
-                props.learn.kalmanProcessNoiseSec2,
-                sample,
+            val prevKalman = kalmanStates.findInBucket(key.gtfsFeedCode, key.patternKey, stopPathIndex, b.dayType, b.timeBand)
+            val newKalman =
+                updateKalman(
+                    prevKalman?.let { KalmanState(it.estimateSec, it.errorVariance, it.sampleCount) },
+                    seed,
+                    props.learn.kalmanInitialVarianceSec2,
+                    props.learn.kalmanMeasurementNoiseSec2,
+                    props.learn.kalmanProcessNoiseSec2,
+                    sample,
+                )
+            writer.upsertKalmanState(
+                session,
+                key,
+                stopPathIndex,
+                b,
+                newKalman.estimateSec,
+                newKalman.errorVariance,
+                newKalman.sampleCount,
+                now,
             )
-        writer.upsertKalmanState(
-            session,
-            tripPatternId,
-            stopPathIndex,
-            newKalman.estimateSec,
-            newKalman.errorVariance,
-            newKalman.sampleCount,
-            now,
-        )
+        }
     }
 
     /** [departure] is set for the first stop, whose "pass" is the vehicle leaving it. */

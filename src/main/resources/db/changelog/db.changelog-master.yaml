@@ -15,3 +15,4 @@ databaseChangeLog:
   - include: { file: db/changelog/0014-prediction-algorithms.yaml }
   - include: { file: db/changelog/0015-feed-code-keys.yaml }
   - include: { file: db/changelog/0016-stop-pass-learning.yaml }
+  - include: { file: db/changelog/0017-learning-buckets.yaml }

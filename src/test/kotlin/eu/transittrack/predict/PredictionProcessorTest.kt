@@ -214,7 +214,7 @@ class PredictionProcessorTest(
         assertThat(observedCrossings.map { it.stopPathIndex }).isEqualTo(listOf(1, 2))
         assertThat(observedCrossings[0].observedTravelTimeSec).isNull()
         assertThat(observedCrossings[1].observedTravelTimeSec).isNotNull()
-        assertThat(travelTimeObservations.findAll().any { it.tripPatternId == patternId && it.stopPathIndex == 2 }).isTrue()
+        assertThat(travelTimeObservations.findAll().any { it.stopPathIndex == 2 }).isTrue()
 
         // Only the newest match of the backlog is worth predicting from: nothing behind it is left open.
         val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!)

@@ -7,6 +7,8 @@ import org.hibernate.SessionFactory
 import org.hibernate.StatelessSession
 import org.springframework.stereotype.Component
 
+import eu.transittrack.predict.learn.LearningKey
+import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.PredictionAccuracy
 
@@ -28,7 +30,8 @@ data class VehiclePredictionUpsert(
 
 /**
  * Persistence for the prediction pipeline. `travel_time_observation` and `kalman_travel_time_state`
- * are native `INSERT ... ON CONFLICT` upserts keyed on `(trip_pattern_id, stop_path_index)`;
+ * are native `INSERT ... ON CONFLICT` upserts keyed on
+ * `(gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band)`;
  * `vehicle_prediction` is a native upsert keyed on
  * `(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm)`. All three `id` columns are
  * Postgres IDENTITY, so they are left out of the inserts entirely. `prediction_accuracy` is a plain
@@ -53,16 +56,20 @@ class PredictionWriter(
 
     fun upsertObservation(
         session: StatelessSession,
-        tripPatternId: Long,
+        key: LearningKey,
         stopPathIndex: Int,
+        bucket: TravelTimeBucket,
         sampleCount: Long,
         meanSec: Double,
         at: Instant,
     ) {
         session
             .createNativeMutationQuery(UPSERT_OBSERVATION_SQL)
-            .setParameter("trip_pattern_id", tripPatternId)
+            .setParameter("gtfs_feed_code", key.gtfsFeedCode)
+            .setParameter("pattern_key", key.patternKey)
             .setParameter("stop_path_index", stopPathIndex)
+            .setParameter("day_type", bucket.dayType.ordinal)
+            .setParameter("time_band", bucket.timeBand.ordinal)
             .setParameter("sample_count", sampleCount)
             .setParameter("mean_sec", meanSec)
             .setParameter("updated_at", at)
@@ -71,8 +78,9 @@ class PredictionWriter(
 
     fun upsertKalmanState(
         session: StatelessSession,
-        tripPatternId: Long,
+        key: LearningKey,
         stopPathIndex: Int,
+        bucket: TravelTimeBucket,
         estimateSec: Double,
         errorVariance: Double,
         sampleCount: Long,
@@ -80,8 +88,11 @@ class PredictionWriter(
     ) {
         session
             .createNativeMutationQuery(UPSERT_KALMAN_STATE_SQL)
-            .setParameter("trip_pattern_id", tripPatternId)
+            .setParameter("gtfs_feed_code", key.gtfsFeedCode)
+            .setParameter("pattern_key", key.patternKey)
             .setParameter("stop_path_index", stopPathIndex)
+            .setParameter("day_type", bucket.dayType.ordinal)
+            .setParameter("time_band", bucket.timeBand.ordinal)
             .setParameter("estimate_sec", estimateSec)
             .setParameter("error_variance", errorVariance)
             .setParameter("sample_count", sampleCount)
@@ -152,11 +163,11 @@ class PredictionWriter(
     private companion object {
         const val UPSERT_OBSERVATION_SQL = """
             insert into travel_time_observation (
-                trip_pattern_id, stop_path_index, sample_count, mean_sec, updated_at
+                gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band, sample_count, mean_sec, updated_at
             ) values (
-                :trip_pattern_id, :stop_path_index, :sample_count, :mean_sec, :updated_at
+                :gtfs_feed_code, :pattern_key, :stop_path_index, :day_type, :time_band, :sample_count, :mean_sec, :updated_at
             )
-            on conflict (trip_pattern_id, stop_path_index) do update set
+            on conflict (gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band) do update set
                 sample_count = excluded.sample_count,
                 mean_sec = excluded.mean_sec,
                 updated_at = excluded.updated_at
@@ -164,11 +175,13 @@ class PredictionWriter(
 
         const val UPSERT_KALMAN_STATE_SQL = """
             insert into kalman_travel_time_state (
-                trip_pattern_id, stop_path_index, estimate_sec, error_variance, sample_count, updated_at
+                gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band,
+                estimate_sec, error_variance, sample_count, updated_at
             ) values (
-                :trip_pattern_id, :stop_path_index, :estimate_sec, :error_variance, :sample_count, :updated_at
+                :gtfs_feed_code, :pattern_key, :stop_path_index, :day_type, :time_band,
+                :estimate_sec, :error_variance, :sample_count, :updated_at
             )
-            on conflict (trip_pattern_id, stop_path_index) do update set
+            on conflict (gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band) do update set
                 estimate_sec = excluded.estimate_sec,
                 error_variance = excluded.error_variance,
                 sample_count = excluded.sample_count,

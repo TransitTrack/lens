@@ -45,31 +45,24 @@ class PredictionRetentionSchedulerTest(
                 "values (1, 'f1', 'F1', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', '[\"SCHEDULE_ADHERENCE\"]', now(), now())",
         )
 
-        // travel_time_observation: one surviving (real pattern), one orphan (no matching trip_patterns row)
-        jdbc.update(
-            "insert into travel_time_observation (trip_pattern_id, stop_path_index, sample_count, mean_sec, updated_at) " +
-                "values (100, 0, 1, 30.0, ?)",
-            Timestamp.from(now),
-        )
-        jdbc.update(
-            "insert into travel_time_observation (trip_pattern_id, stop_path_index, sample_count, mean_sec, updated_at) " +
-                "values (999999, 0, 1, 30.0, ?)",
-            Timestamp.from(now),
-        )
-
-        // kalman_travel_time_state: one surviving, one orphan
-        jdbc.update(
-            "insert into kalman_travel_time_state " +
-                "(trip_pattern_id, stop_path_index, estimate_sec, error_variance, sample_count, updated_at) " +
-                "values (100, 0, 30.0, 5.0, 1, ?)",
-            Timestamp.from(now),
-        )
-        jdbc.update(
-            "insert into kalman_travel_time_state " +
-                "(trip_pattern_id, stop_path_index, estimate_sec, error_variance, sample_count, updated_at) " +
-                "values (999999, 0, 30.0, 5.0, 1, ?)",
-            Timestamp.from(now),
-        )
+        // Learned rows are keyed by (gtfs feed code, pattern_key): one surviving (the pattern still
+        // exists in a stored revision of feed g), one whose key no revision has any more, and one
+        // with the right key but under another feed - both orphans.
+        for ((feedCode, patternKey) in listOf("g" to "k", "g" to "gone", "other" to "k")) {
+            jdbc.update(
+                "insert into travel_time_observation " +
+                    "(gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band, sample_count, mean_sec, updated_at) " +
+                    "values (?, ?, 0, 3, 5, 1, 30.0, ?)",
+                feedCode, patternKey, Timestamp.from(now),
+            )
+            jdbc.update(
+                "insert into kalman_travel_time_state " +
+                    "(gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band, " +
+                    "estimate_sec, error_variance, sample_count, updated_at) " +
+                    "values (?, ?, 0, 3, 5, 30.0, 5.0, 1, ?)",
+                feedCode, patternKey, Timestamp.from(now),
+            )
+        }
 
         // vehicle_prediction: one old (deleted), one young (kept)
         jdbc.update(
@@ -125,16 +118,16 @@ class PredictionRetentionSchedulerTest(
 
         assertThat(counts).isEqualTo(
             PredictionRetentionScheduler.PruneCounts(
-                predictions = 1, accuracy = 1, crossings = 1, orphanObservations = 1, orphanKalman = 1,
+                predictions = 1, accuracy = 1, crossings = 1, orphanObservations = 2, orphanKalman = 2,
             ),
         )
 
         assertThat(
-            jdbc.queryForList("select trip_pattern_id from travel_time_observation", Long::class.java),
-        ).containsExactly(100L)
+            jdbc.queryForList("select gtfs_feed_code || '/' || pattern_key from travel_time_observation", String::class.java),
+        ).containsExactly("g/k")
         assertThat(
-            jdbc.queryForList("select trip_pattern_id from kalman_travel_time_state", Long::class.java),
-        ).containsExactly(100L)
+            jdbc.queryForList("select gtfs_feed_code || '/' || pattern_key from kalman_travel_time_state", String::class.java),
+        ).containsExactly("g/k")
         assertThat(
             jdbc.queryForList("select vehicle_id from vehicle_prediction", String::class.java),
         ).containsExactly("v2")

@@ -17,8 +17,9 @@ import eu.transittrack.config.Role
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
- * Age-based prune of prediction tables, plus a sweep of learner-table rows left orphaned when their
- * `trip_pattern_id` no longer exists in `trip_patterns` (e.g. after a GTFS revision swap).
+ * Age-based prune of prediction tables, plus a sweep of learner-table rows left orphaned once no
+ * revision still stored for their GTFS feed has a pattern with their `pattern_key` (the route,
+ * shape or stop list changed). A revision swap that keeps a pattern keeps its learning.
  */
 @Component
 @ConditionalOnProperty("transittrack.predict.enabled", havingValue = "true")
@@ -75,12 +76,13 @@ class PredictionRetentionScheduler(
             "delete from avl_stop_crossing where observed_at < ?",
             Timestamp.from(now.minus(cfg.rawCrossingDays, ChronoUnit.DAYS)),
         )
-        val orphanObservations = jdbc.update(
-            "delete from travel_time_observation where trip_pattern_id not in (select id from trip_patterns)",
-        )
-        val orphanKalman = jdbc.update(
-            "delete from kalman_travel_time_state where trip_pattern_id not in (select id from trip_patterns)",
-        )
+        val orphanObservations = jdbc.update(orphanSweepSql("travel_time_observation"))
+        val orphanKalman = jdbc.update(orphanSweepSql("kalman_travel_time_state"))
         return PruneCounts(predictions, accuracy, crossings, orphanObservations, orphanKalman)
     }
 }
+
+private fun orphanSweepSql(table: String) =
+    "delete from $table t where not exists (" +
+        "select 1 from trip_patterns p join gtfs_revision r on r.id = p.revision_id join gtfs_feed f on f.id = r.feed_id " +
+        "where f.code = t.gtfs_feed_code and p.pattern_key = t.pattern_key)"

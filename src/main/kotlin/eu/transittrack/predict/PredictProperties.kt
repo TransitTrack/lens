@@ -23,6 +23,8 @@ data class PredictProperties(
         val kalmanProcessNoiseSec2: Double = 25.0,
         /** Past this many samples the historical average weighs each new sample as 1/window. */
         val historyWindow: Int = 50,
+        /** A time band (or a whole day type) is trusted over its coarser roll-up from this many samples. */
+        val minBucketSamples: Int = 10,
     )
 
     data class Retention(
