@@ -339,7 +339,7 @@ function adherenceTextClass(sec: number | null): string {
 
     <div v-else class="flex min-h-0 flex-1 flex-col lg:flex-row">
       <aside
-        class="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b border-default p-4 lg:w-100 lg:border-b-0 lg:border-r"
+        class="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b border-default p-4 lg:w-100 lg:border-b-0"
       >
         <UAlert
           v-if="descMismatch"
@@ -471,7 +471,7 @@ function adherenceTextClass(sec: number | null): string {
           />
         </section>
       </aside>
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div class="flex min-h-0 min-w-0 flex-1 flex-col mt-4">
         <section class="min-h-0 flex-1 overflow-y-auto bg-default">
           <header class="sticky top-0 z-1 border-b border-default bg-elevated/80 backdrop-blur">
             <div
