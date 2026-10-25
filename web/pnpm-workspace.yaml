@@ -13,3 +13,5 @@ minimumReleaseAgeExclude:
   - '@vitest/spy@4.1.12'
   - '@vitest/utils@4.1.12'
   - vitest@4.1.12
+  - '@graphql-codegen/typescript-operations@6.2.0'
+  - '@graphql-codegen/visitor-plugin-common@7.5.0'
