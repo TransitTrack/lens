@@ -2,6 +2,8 @@ package eu.transittrack.reports.model
 
 import java.time.LocalDate
 
+import eu.transittrack.avl.ingest.AvlOccupancyStatus
+
 /**
  * One scheduled stop of one trip execution, as derived on-demand from AVL match history by
  * [eu.transittrack.reports.read.StopPassageDerivationService]. Not a JPA entity - purely an
@@ -44,7 +46,7 @@ data class StopPassage(
     val adherenceSec: Int?,
     val vehicleId: String,
     val direction: Int?,
-    val occupancyStatus: String?,
+    val occupancyStatus: AvlOccupancyStatus?,
 )
 
 /**

@@ -1,5 +1,8 @@
 package eu.transittrack.gtfs.api.dto
 
+import eu.transittrack.gtfs.feed.FeedSource
+import eu.transittrack.gtfs.validate.Severity
+
 /** GraphQL projection of `eu.transittrack.gtfs.feed.GtfsFeed`. */
 data class FeedDto(
     val code: String,
@@ -8,7 +11,7 @@ data class FeedDto(
     val url: String,
     val pollingCron: String?,
     val enabled: Boolean,
-    val source: String,
+    val source: FeedSource,
     /** Not exposed in the schema; carried so the `GtfsFeed` field resolvers can load revisions. */
     val feedId: Long?,
 )
@@ -39,7 +42,7 @@ data class ValidationSummaryDto(
 
 data class ValidationNoticeDto(
     val rule: String,
-    val severity: String,
+    val severity: Severity,
     val count: Long,
     val sample: String,
 )

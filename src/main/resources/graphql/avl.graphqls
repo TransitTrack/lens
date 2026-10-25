@@ -1,68 +1,157 @@
 extend type Query {
+    "Every configured AVL (vehicle-position) feed, with its decode/match configuration and last poll outcome."
     avlFeeds: [AvlFeed!]!
+    "Vehicles currently reporting on this feed, from each vehicle's latest known state rather than raw history. Set matchedOnly to only return vehicles currently matched to a trip."
     vehicles(feedCode: String!, matchedOnly: Boolean = false): [Vehicle!]!
+    "A single vehicle's latest known state, or null if the feed or vehicle is unknown."
     vehicle(feedCode: String!, vehicleId: String!): Vehicle
+    "Raw AVL report history for one vehicle, newest first. since is an ISO-8601 instant; omit it to return the most recent reports up to limit."
     avlReports(feedCode: String!, vehicleId: String!, since: String, limit: Int = 200): [AvlReport!]!
+    "The feed's configured time zone and every distinct vehicle ID it has ever reported, for populating report-browsing filters."
     avlReportCatalog(feedCode: String!): AvlReportCatalog!
+    "A page of raw AVL reports for one vehicle within a local time-of-day window (startTime/endTime) on a given date."
     avlReportPage(feedCode: String!, vehicleId: String!, date: String!, startTime: String!, endTime: String!, page: Int = 1, pageSize: Int = 100): AvlReportPage!
 }
 
+"The real-time feed protocol an AVL feed is polled and decoded as."
+enum AvlFormat {
+    "GTFS-Realtime VehiclePositions, decoded from the standard protobuf feed."
+    GTFS_RT
+    "A JSON-based vehicle-position feed format from a specific vendor integration."
+    STPT
+}
+
+"How a feed's vehicle-to-trip matching is performed, in increasing order of reliance on inference over the raw feed's own trip descriptors."
+enum AvlAssignmentMode {
+    "Trust the feed's own vehicle descriptors (trip/route/direction/start time) to resolve the trip, falling back to spatial disambiguation only when the descriptor still leaves several trips in play."
+    TRUST_DESCRIPTOR
+    "Try descriptor-based matching first and fall back to full spatial/temporal inference whenever it fails to produce a match."
+    DESCRIPTOR_THEN_INFER
+    "Ignore the feed's descriptors entirely; match purely by projecting the vehicle's position against every trip active at that time and picking the best-scoring candidate."
+    FULL_INFERENCE
+}
+
+"GTFS-Realtime VehiclePosition occupancy_status."
+enum AvlOccupancyStatus {
+    EMPTY
+    MANY_SEATS_AVAILABLE
+    FEW_SEATS_AVAILABLE
+    STANDING_ROOM_ONLY
+    CRUSHED_STANDING_ROOM_ONLY
+    FULL
+    NOT_ACCEPTING_PASSENGERS
+    NO_DATA_AVAILABLE
+    NOT_BOARDABLE
+}
+
+"GTFS-Realtime VehiclePosition current_status, describing the vehicle's relationship to currentStopSequence."
+enum VehicleStopStatus {
+    "The vehicle is just about to arrive at the stop."
+    INCOMING_AT
+    "The vehicle is stopped at the stop."
+    STOPPED_AT
+    "The vehicle has departed and is in transit to the next stop."
+    IN_TRANSIT_TO
+}
+
+"Outcome of attempting to match one AVL report to a scheduled trip."
+enum MatchStatus {
+    "Not yet processed by the matcher."
+    PENDING
+    "Successfully matched to a trip; see AvlReport.match for the resulting position."
+    MATCHED
+    "Processed, but no trip could be matched (e.g. vehicle off-route or outside any active trip's window)."
+    UNMATCHED
+    "Not matched because the report was superseded or otherwise excluded before matching ran."
+    SKIPPED
+}
+
+"A configured AVL (vehicle-position) feed: where it's polled from, how its reports are decoded, and how vehicles on it are matched to trips."
 type AvlFeed {
+    "Unique identifier for this AVL feed, independent of the GTFS feed it matches against."
     code: String!
     name: String!
+    "The gtfs.graphqls Feed.code whose active revision this AVL feed's vehicles are matched against."
     gtfsFeedCode: String!
-    format: String!
+    format: AvlFormat!
+    "How often this feed is polled, in seconds."
     pollIntervalSec: Int!
-    assignmentMode: String!
-    predictionAlgorithms: [String!]!
+    assignmentMode: AvlAssignmentMode!
+    "Prediction algorithms run for vehicles on this feed; the first is used as the default when a query doesn't specify one."
+    predictionAlgorithms: [PredictionAlgorithm!]!
     enabled: Boolean!
+    "ISO-8601 instant of the most recent poll attempt, or null if this feed has never been polled."
     lastPollAt: String
+    "Outcome of the most recent poll attempt (e.g. success or an error description)."
     lastPollStatus: String
+    "Number of AVL reports ingested on the most recent poll."
     lastPollReportCount: Int
 }
 
 type LatLon { lat: Float!, lon: Float! }
 
+"A vehicle's latest known position and match state on an AVL feed, updated on every poll."
 type Vehicle {
     vehicleId: String!
+    "Operator-facing label for the vehicle, if the feed provides one; often distinct from vehicleId."
     label: String
+    "ISO-8601 instant this position was reported by the vehicle."
     reportTs: String!
+    "Raw reported position."
     position: LatLon!
+    "Position snapped onto the matched trip's shape, or null while unmatched."
     snappedPosition: LatLon
+    "Compass heading in degrees, if reported."
     bearing: Float
     speedMps: Float
-    occupancyStatus: String
+    occupancyStatus: AvlOccupancyStatus
+    "True once this vehicle has been matched to a trip."
     matched: Boolean!
+    "True if this vehicle's last report is older than the feed considers live; the position shown may no longer reflect where the vehicle actually is."
     stale: Boolean!
+    "Seconds behind (positive) or ahead of (negative) schedule at the matched position, or null while unmatched."
     scheduleAdherenceSec: Int
+    "Index into the matched trip pattern's stopPaths the vehicle is currently progressing through, or null while unmatched."
     stopPathIndex: Int
+    "Distance in meters the vehicle has traveled along its matched trip's shape, or null while unmatched."
     distanceAlongTripM: Float
+    "The trip this vehicle is matched to, or null while unmatched."
     trip: Trip
     block: Block
     pattern: TripPattern
+    "The stop this vehicle is currently approaching or at, or null while unmatched."
     currentStop: Stop
 }
 
+"One raw AVL (vehicle-position) report as received from the feed, plus the outcome of matching it to a trip."
 type AvlReport {
     vehicleId: String!
+    "ISO-8601 instant the vehicle itself reported this position."
     ts: String!
+    "ISO-8601 instant this report was ingested by transittrack."
     processedAt: String!
-    source: String!
+    "The AVL feed protocol this report was decoded from."
+    source: AvlFormat!
     position: LatLon!
     bearing: Float
     speedMps: Float
-    currentStatus: String
-    occupancyStatus: String
+    currentStatus: VehicleStopStatus
+    occupancyStatus: AvlOccupancyStatus
+    "The trip ID the feed itself reported for this vehicle (its raw descriptor), before any transittrack matching - null if the feed didn't supply one."
     descTripId: String
-    matchStatus: String!
+    matchStatus: MatchStatus!
+    "The resolved trip match, present only when matchStatus is MATCHED."
     match: AvlReportMatch
 }
 
 type AvlReportCatalog {
+    "IANA time zone the feed's agency operates in, used to interpret avlReportPage's date/startTime/endTime."
     timeZone: String!
+    "Every distinct vehicle ID this feed has ever reported."
     vehicleIds: [String!]!
 }
 
+"A page of AvlReport rows for one vehicle within a requested time window."
 type AvlReportPage {
     items: [AvlReport!]!
     totalCount: Int!
@@ -70,13 +159,21 @@ type AvlReportPage {
     pageSize: Int!
 }
 
+"The resolved trip match for an AvlReport whose matchStatus is MATCHED."
 type AvlReportMatch {
+    "Index into the matched trip pattern's stopPaths this report's position falls within."
     stopPathIndex: Int!
+    "Distance in meters along the matched trip's shape."
     distanceAlongTripM: Float!
+    "Perpendicular distance in meters between the raw reported position and the matched shape."
     deviationM: Float!
+    "Seconds behind (positive) or ahead of (negative) schedule at this position."
     scheduleAdherenceSec: Int
+    "Heading in degrees inferred from the match, independent of any bearing the feed itself reported."
     heading: Float
+    "Match confidence score; higher is a stronger match. Not comparable across matcher implementations."
     score: Float
+    "The raw position snapped onto the matched trip's shape."
     snappedPosition: LatLon!
     trip: Trip
     block: Block

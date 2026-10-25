@@ -1,12 +1,16 @@
 package eu.transittrack.gtfs.api.dto
 
+import eu.transittrack.gtfs.draft.DraftJob
+import eu.transittrack.gtfs.draft.DraftKind
+import eu.transittrack.gtfs.revision.GtfsRevisionStatus
+
 data class DraftDto(
     val id: String,
     val feedCode: String,
     val label: String?,
     val baseRevisionId: String?,
-    val status: String,
-    val kind: String,
+    val status: GtfsRevisionStatus,
+    val kind: DraftKind,
     val version: Long,
     val derivationStale: Boolean,
     val lastValidation: Any?,
@@ -18,8 +22,8 @@ data class DraftDto(
 
 data class DraftJobDto(
     val id: String,
-    val state: String,
-    val phase: String,
+    val state: DraftJob.State,
+    val phase: DraftJob.Phase,
     val error: String?,
 )
 

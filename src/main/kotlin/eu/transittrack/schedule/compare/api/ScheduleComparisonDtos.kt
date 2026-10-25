@@ -1,5 +1,10 @@
 package eu.transittrack.schedule.compare.api
 
+import eu.transittrack.schedule.compare.CalendarChangeKind
+import eu.transittrack.schedule.compare.ExceptionChangeKind
+import eu.transittrack.schedule.compare.StopChangeKind
+import eu.transittrack.schedule.compare.TripChangeKind
+
 data class ScheduleComparisonDto(
     val fromRevisionId: String,
     val toRevisionId: String,
@@ -13,7 +18,7 @@ data class ScheduleComparisonDto(
 
 data class TripChangeDto(
     val tripId: String,
-    val kind: String,
+    val kind: TripChangeKind,
     val fieldChanges: Map<String, Map<String, String?>>,
     val stopChanges: List<StopTimeChangeDto>,
     val runTimeDeltaSec: Int?,
@@ -21,7 +26,7 @@ data class TripChangeDto(
 
 data class StopTimeChangeDto(
     val stopSequence: Int,
-    val kind: String,
+    val kind: StopChangeKind,
     val stopId: String?,
     val arrivalDeltaSec: Int?,
     val departureDeltaSec: Int?,
@@ -29,14 +34,14 @@ data class StopTimeChangeDto(
 
 data class CalendarChangeDto(
     val serviceId: String,
-    val kind: String,
+    val kind: CalendarChangeKind,
     val fieldChanges: Map<String, Map<String, String?>>,
     val exceptionChanges: List<CalendarExceptionChangeDto>,
 )
 
 data class CalendarExceptionChangeDto(
     val date: String,
-    val kind: String,
+    val kind: ExceptionChangeKind,
     val fromType: Int?,
     val toType: Int?,
 )

@@ -237,7 +237,7 @@ class PredictionEndToEndTest(
         val accuracy =
             tester
                 .document(
-                    """{ predictionAccuracy(feedCode:"mbta-vp", algorithm:"SCHEDULE_ADHERENCE") {
+                    """{ predictionAccuracy(feedCode:"mbta-vp", algorithm:SCHEDULE_ADHERENCE) {
                          algorithm sampleCount
                        } }""",
                 ).execute()

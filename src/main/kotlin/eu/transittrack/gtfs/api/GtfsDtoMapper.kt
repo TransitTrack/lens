@@ -33,7 +33,7 @@ class GtfsDtoMapper(
             url = feed.url,
             pollingCron = feed.pollingCron,
             enabled = feed.enabled,
-            source = feed.source.name,
+            source = feed.source,
             feedId = feed.id,
         )
 
@@ -51,7 +51,7 @@ class GtfsDtoMapper(
                         report.issues.map {
                             ValidationNoticeDto(
                                 rule = it.rule,
-                                severity = it.severity.name,
+                                severity = it.severity,
                                 count = it.count,
                                 sample = it.sample,
                             )

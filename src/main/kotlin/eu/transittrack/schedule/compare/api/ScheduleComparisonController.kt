@@ -43,11 +43,11 @@ class ScheduleComparisonController(
     private fun toDto(c: TripChange) =
         TripChangeDto(
             tripId = c.tripId,
-            kind = c.kind.name,
+            kind = c.kind,
             fieldChanges = c.fieldChanges.mapValues { (_, v) -> mapOf("from" to v.first, "to" to v.second) },
             stopChanges =
                 c.stopChanges.map { s ->
-                    StopTimeChangeDto(s.stopSequence, s.kind.name, s.stopId, s.arrivalDeltaSec, s.departureDeltaSec)
+                    StopTimeChangeDto(s.stopSequence, s.kind, s.stopId, s.arrivalDeltaSec, s.departureDeltaSec)
                 },
             runTimeDeltaSec = c.runTimeDeltaSec,
         )
@@ -55,11 +55,11 @@ class ScheduleComparisonController(
     private fun toDto(c: CalendarChange) =
         CalendarChangeDto(
             serviceId = c.serviceId,
-            kind = c.kind.name,
+            kind = c.kind,
             fieldChanges = c.fieldChanges.mapValues { (_, v) -> mapOf("from" to v.first, "to" to v.second) },
             exceptionChanges =
                 c.exceptionChanges.map { e ->
-                    CalendarExceptionChangeDto(e.date.toString(), e.kind.name, e.fromType, e.toType)
+                    CalendarExceptionChangeDto(e.date.toString(), e.kind, e.fromType, e.toType)
                 },
         )
 

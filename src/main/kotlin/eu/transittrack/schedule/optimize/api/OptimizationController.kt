@@ -53,12 +53,12 @@ class OptimizationController(
     @QueryMapping
     fun optimizationRecommendations(
         @Argument runId: String,
-        @Argument status: String?,
+        @Argument status: OptimizationRecommendationStatus?,
         @Argument offset: Int,
         @Argument limit: Int,
     ): List<OptimizationRecommendationDto> =
         service
-            .listRecommendations(runId.toLong(), status?.let(OptimizationRecommendationStatus::valueOf), offset, limit)
+            .listRecommendations(runId.toLong(), status, offset, limit)
             .map(::toDto)
 
     @MutationMapping
@@ -108,7 +108,7 @@ class OptimizationController(
         OptimizationRunDto(
             id = run.id.toString(),
             revisionId = run.revisionId.toString(),
-            state = run.state.name,
+            state = run.state,
             error = run.error,
             createdAt = run.createdAt.toString(),
             completedAt = run.completedAt?.toString(),
@@ -117,8 +117,8 @@ class OptimizationController(
     private fun toDto(row: OptimizationRecommendationRow): OptimizationRecommendationDto =
         OptimizationRecommendationDto(
             id = row.id.toString(),
-            kind = row.kind.name,
-            status = row.status.name,
+            kind = row.kind,
+            status = row.status,
             sampleCount = row.sampleCount,
             deltaSec = row.deltaSec,
             currentValue = jsonValue(row.currentValue),

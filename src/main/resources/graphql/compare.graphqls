@@ -1,4 +1,5 @@
 extend type Query {
+    "Diffs one revision's derived schedule against another's: trip and calendar changes, plus headway deltas. Scope with routeId/directionId/serviceId; tripChanges is paginated via offset/limit while tripChangeCount reports the unpaginated total."
     compareRevisions(
         fromRevisionId: ID!
         toRevisionId: ID!
@@ -10,55 +11,107 @@ extend type Query {
     ): ScheduleComparison!
 }
 
+"The result of diffing two GTFS revisions' derived schedules."
 type ScheduleComparison {
     fromRevisionId: ID!
     toRevisionId: ID!
+    "True if fromRevisionId's derived schedule data is stale (needs a rebuild) at the time of comparison."
     fromDerivationStale: Boolean!
     toDerivationStale: Boolean!
+    "Total number of trip changes found, independent of tripChanges' offset/limit pagination."
     tripChangeCount: Int!
+    "A page of the trip-level changes, per the query's offset/limit."
     tripChanges: [TripChange!]!
     calendarChanges: [CalendarChange!]!
+    "Per-route/direction/service headway comparison between the two revisions."
     headwaySummaries: [HeadwaySummary!]!
 }
 
+"How a trip or calendar differs between the two compared revisions."
+enum TripChangeKind {
+    "Present in toRevisionId but not fromRevisionId."
+    ADDED
+    "Present in fromRevisionId but not toRevisionId."
+    REMOVED
+    "Present in both, with at least one changed field."
+    MODIFIED
+}
+
+"How one scheduled stop of a trip differs between the two compared revisions."
+enum StopChangeKind {
+    STOP_ADDED
+    STOP_REMOVED
+    STOP_TIME_CHANGED
+}
+
+"How a calendar differs between the two compared revisions."
+enum CalendarChangeKind {
+    ADDED
+    REMOVED
+    MODIFIED
+}
+
+"How a calendar date exception differs between the two compared revisions."
+enum ExceptionChangeKind {
+    EXCEPTION_ADDED
+    EXCEPTION_REMOVED
+    EXCEPTION_CHANGED
+}
+
+"One trip's change between the two compared revisions."
 type TripChange {
     tripId: String!
-    kind: String!
+    kind: TripChangeKind!
+    "Changed top-level trip fields, keyed by field name to {from, to} old/new value pairs."
     fieldChanges: JSON!
+    "Per-stop changes within this trip."
     stopChanges: [StopTimeChange!]!
+    "Change in the trip's total scheduled run time in seconds (toRevisionId minus fromRevisionId), or null for an added/removed trip."
     runTimeDeltaSec: Int
 }
 
+"One scheduled stop's change within a changed trip."
 type StopTimeChange {
     stopSequence: Int!
-    kind: String!
+    kind: StopChangeKind!
+    "The stop involved, or null for a STOP_TIME_CHANGED entry that didn't change which stop is at this sequence."
     stopId: String
+    "Change in scheduled arrival time in seconds, or null if not applicable."
     arrivalDeltaSec: Int
     departureDeltaSec: Int
 }
 
+"One calendar's change between the two compared revisions."
 type CalendarChange {
     serviceId: String!
-    kind: String!
+    kind: CalendarChangeKind!
+    "Changed top-level calendar fields (day-of-week flags, startDate, endDate), keyed by field name to {from, to} old/new value pairs."
     fieldChanges: JSON!
+    "Calendar date exceptions added, removed, or changed for this service."
     exceptionChanges: [CalendarExceptionChange!]!
 }
 
+"One calendar date exception's change within a changed calendar."
 type CalendarExceptionChange {
     date: String!
-    kind: String!
+    kind: ExceptionChangeKind!
+    "The exception_type (1=added, 2=removed) before this change, or null if it didn't previously exist."
     fromType: Int
+    "The exception_type after this change, or null if it was removed."
     toType: Int
 }
 
+"Scheduled headway comparison for one route/direction/service between the two compared revisions."
 type HeadwaySummary {
     routeId: String!
     directionId: Int
     serviceId: String!
     fromTripCount: Int!
     toTripCount: Int!
+    "Mean gap between consecutive trips in fromRevisionId, in seconds."
     fromMeanGapSec: Int
     toMeanGapSec: Int
+    "Largest gap between consecutive trips in fromRevisionId, in seconds."
     fromMaxGapSec: Int
     toMaxGapSec: Int
 }

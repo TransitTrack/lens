@@ -1,45 +1,99 @@
+"Request to analyze observed AVL data against a feed's current schedule for a window of trips, looking for timing adjustments."
 input OptimizationRunInput {
     feedCode: String!
+    "Restrict analysis to this service; omit to cover every service."
     serviceId: String
     routeId: String
     directionId: Int
+    "Restrict to trips starting at or after this time, in seconds since midnight."
     windowFromSec: Int
     windowToSec: Int
     "ISO-8601 instant"
     observedFrom: String!
     "ISO-8601 instant"
     observedTo: String!
+    "Minimum number of observed samples required before a recommendation is produced for a given stop/trip."
     minimumSamples: Int!
 }
 
+"Lifecycle state of an asynchronous optimization run."
+enum OptimizationRunState {
+    "Submitted, not yet started."
+    QUEUED
+    "Analyzing observed AVL data against the schedule."
+    RUNNING
+    "Finished; see optimizationRecommendations for its findings."
+    SUCCEEDED
+    "Failed; see OptimizationRun.error."
+    FAILED
+}
+
+"The kind of schedule adjustment an optimization recommendation proposes."
+enum OptimizationRecommendationKind {
+    "Adjusts a scheduled stop's arrival/departure time."
+    STOP_TIME
+    "Shifts a trip's start time."
+    TRIP_SHIFT
+}
+
+"Review/application state of an optimization recommendation."
+enum OptimizationRecommendationStatus {
+    "Not yet reviewed."
+    PENDING
+    "Chosen by a reviewer for application, but not yet applied."
+    SELECTED
+    "Applied to a draft via applyOptimizationRecommendations."
+    APPLIED
+    "Reviewed and rejected."
+    DISMISSED
+    "No longer applicable (e.g. its underlying trip was removed from the schedule since the run completed)."
+    UNAVAILABLE
+}
+
+"One asynchronous schedule-optimization analysis, frozen to the feed's active revision at submission time."
 type OptimizationRun {
     id: ID!
+    "The revision this run's recommendations apply against."
     revisionId: ID!
-    state: String!
+    state: OptimizationRunState!
+    "Failure detail when state is FAILED, or null otherwise."
     error: String
     createdAt: String!
+    "ISO-8601 instant the run finished (successfully or not), or null while still QUEUED/RUNNING."
     completedAt: String
 }
 
+"One proposed schedule adjustment produced by an optimization run, backed by observed AVL evidence."
 type OptimizationRecommendation {
     id: ID!
-    kind: String!
-    status: String!
+    kind: OptimizationRecommendationKind!
+    status: OptimizationRecommendationStatus!
+    "Number of observed samples this recommendation is based on."
     sampleCount: Int!
+    "Proposed change in seconds, signed by kind (e.g. a stop-time or trip-start adjustment)."
     deltaSec: Int!
+    "The current schedule value(s) this recommendation would change."
     currentValue: JSON!
+    "The proposed replacement value(s)."
     proposedValue: JSON!
+    "Supporting observed-data detail behind this recommendation."
     evidence: JSON!
+    "Human-readable explanation of why this recommendation was made."
     reason: String!
 }
 
 extend type Query {
+    "Optimization runs for a feed, newest first."
     optimizationRuns(feedCode: String!, limit: Int = 50, offset: Int = 0): [OptimizationRun!]!
+    "A single run by ID, or null if unknown."
     optimizationRun(id: ID!): OptimizationRun
-    optimizationRecommendations(runId: ID!, status: String, offset: Int = 0, limit: Int = 100): [OptimizationRecommendation!]!
+    "A run's recommendations. Pass status to filter."
+    optimizationRecommendations(runId: ID!, status: OptimizationRecommendationStatus, offset: Int = 0, limit: Int = 100): [OptimizationRecommendation!]!
 }
 
 extend type Mutation {
+    "Submits a new optimization run for asynchronous processing."
     startOptimizationRun(input: OptimizationRunInput!): OptimizationRun!
+    "Applies the given recommendations from a completed run to a new draft forked from the run's revision, marking them APPLIED."
     applyOptimizationRecommendations(runId: ID!, recommendationIds: [ID!]!, label: String, editor: String!): Draft!
 }

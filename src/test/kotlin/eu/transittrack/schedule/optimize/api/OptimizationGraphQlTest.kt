@@ -177,7 +177,7 @@ class OptimizationGraphQlTest(
             .thenReturn(listOf(recommendation()))
         tester
             .document(
-                """{ optimizationRecommendations(runId: "1", status: "PENDING", offset: 10, limit: 25) { id kind status deltaSec } }""",
+                """{ optimizationRecommendations(runId: "1", status: PENDING, offset: 10, limit: 25) { id kind status deltaSec } }""",
             ).execute()
             .path("optimizationRecommendations[0].id")
             .entity(String::class.java)

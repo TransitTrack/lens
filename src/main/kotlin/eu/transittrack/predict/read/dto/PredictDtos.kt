@@ -1,5 +1,7 @@
 package eu.transittrack.predict.read.dto
 
+import eu.transittrack.predict.PredictionAlgorithm
+
 data class StopPredictionDto(
     val stopPathIndex: Int,
     val scheduledArrival: String?,
@@ -8,7 +10,7 @@ data class StopPredictionDto(
     val actualDeparture: String?,
     val predictedArrival: String?,
     val predictedDeparture: String?,
-    val algorithm: String?,
+    val algorithm: PredictionAlgorithm?,
     val confidenceSec: Int?,
     // resolver-only, not exposed as schema fields:
     val revisionId: Long,
@@ -17,7 +19,7 @@ data class StopPredictionDto(
 )
 
 data class PredictionAccuracySummaryDto(
-    val algorithm: String,
+    val algorithm: PredictionAlgorithm,
     val sampleCount: Int,
     val meanErrorSec: Double,
     val meanAbsErrorSec: Double,

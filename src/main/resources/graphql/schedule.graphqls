@@ -1,79 +1,126 @@
 extend type Query {
+    "Derived trip patterns (distinct stop sequences) in the feed's active (or given) revision. Pass routeId to scope to one route."
     tripPatterns(feedCode: String!, routeId: String, revisionId: ID): [TripPattern!]!
+    "A single trip pattern by its key, or null if unknown."
     tripPattern(feedCode: String!, patternKey: String!, revisionId: ID): TripPattern
+    "Derived vehicle blocks (sequences of trips run by one vehicle) in the feed's active (or given) revision."
     blocks(feedCode: String!, revisionId: ID): [Block!]!
     block(feedCode: String!, blockId: String!, serviceId: String!, revisionId: ID): Block
+    "Every block that operates on a given calendar date."
     blocksOnDate(feedCode: String!, date: String!, revisionId: ID): [Block!]!
+    "Every trip that operates on a given calendar date. Pass routeId to scope to one route."
     tripsOnDate(feedCode: String!, date: String!, routeId: String, revisionId: ID): [Trip!]!
 }
 
+"A distinct sequence of stops shared by one or more trips of a route, derived from the GTFS stop_times. Vehicles are matched against patterns rather than individual trips."
 type TripPattern {
+    "Stable identifier for this pattern within its revision."
     patternKey: String!
     routeId: String!
     directionId: Int
+    "Representative headsign shared by this pattern's trips, if consistent."
     headsign: String
     shapeId: String
+    "Number of scheduled stops in this pattern."
     stopCount: Int!
+    "Total pattern length in meters, from its shape."
     lengthM: Float
+    "Number of trips that follow this pattern."
     tripCount: Int!
+    "Geographic bounding box of this pattern's shape."
     extent: Extent
     route: Route
+    "This pattern's scheduled stops, in order."
     stopPaths: [StopPath!]!
+    "Every trip that follows this pattern."
     trips: [Trip!]!
 }
 
+"One scheduled stop within a trip pattern, with derived timing and geometry metadata shared by every trip that follows the pattern."
 type StopPath {
+    "Index of this stop within the pattern's stop sequence; used throughout the API (Vehicle, AvlReport, predictions) to refer to a position along a trip."
     stopPathIndex: Int!
     stopId: String!
+    "The original GTFS stop_sequence this stop path was derived from."
     stopSeq: Int!
+    "Distance in meters along the pattern's shape from the start of the trip to this stop."
     lengthM: Float!
+    "This stop path's segment of the pattern's shape geometry."
     pathGeometry: JSON
+    "GTFS pickup_type for this stop across the pattern's trips, if consistent."
     pickupType: Int
     dropOffType: Int
+    "True if this is a scheduled waiting point (e.g. a layover) rather than a normal pass-through stop."
     waitStop: Boolean!
+    "True if schedule adherence is meaningfully measured at this stop (e.g. a timepoint)."
     scheduleAdherenceStop: Boolean!
+    "True if trips pause here for a scheduled break (e.g. a terminal layover) rather than just a brief dwell."
     layoverStop: Boolean!
+    "Scheduled break duration at this stop, in seconds, when layoverStop is true."
     breakTimeSec: Int
+    "Typical observed or scheduled travel time from the previous stop, in seconds."
     typicalTravelTimeSec: Int
+    "Typical observed or scheduled dwell time at this stop, in seconds."
     typicalDwellTimeSec: Int
     stop: Stop
 }
 
+"Scheduled timing for one stop of one specific trip, as derived from its stop_times."
 type ScheduleTime {
     stopPathIndex: Int!
+    "Scheduled arrival in seconds since midnight of the trip's service day, or null if not scheduled at this stop."
     arrivalSec: Int
     departureSec: Int
+    "True if this time was interpolated (the trip's own stop_times didn't specify it directly) rather than taken as-is from GTFS."
     interpolated: Boolean!
+    "Scheduled travel time from the previous stop, in seconds."
     schedTravelTimeSec: Int
     schedDwellTimeSec: Int
 }
 
+"A vehicle block: the ordered sequence of trips one vehicle is scheduled to run on a given service day, derived from shared GTFS block_id."
 type Block {
+    "Internal row ID, distinct from blockId (which may repeat across services)."
     id: ID!
     blockId: String!
     serviceId: String!
+    "Scheduled start of the block's first trip, in seconds since midnight."
     startTimeSec: Int!
+    "Scheduled end of the block's last trip, in seconds since midnight."
     endTimeSec: Int!
     tripCount: Int!
+    "Every route served by a trip in this block."
     routeIds: [String!]!
+    "The block's trips, in no particular guaranteed order; use blockTrips for the scheduled sequence."
     trips: [Trip!]!
+    "The block's trips in scheduled order, with inter-trip layover/deadhead detail."
     blockTrips: [BlockTrip!]!
 }
 
+"One trip's position within its block's scheduled sequence."
 type BlockTrip {
+    "Position of this trip within the block, starting at 0."
     listIndex: Int!
+    "Scheduled layover in seconds between this trip ending and the next one starting, or null for the block's last trip."
     layoverAfterSec: Int
+    "True if the vehicle must deadhead (travel out of service) to reach the next trip's start, or null if not determined."
     deadheadAfter: Boolean
     trip: Trip!
 }
 
-extend type Route { tripPatterns: [TripPattern!]! }
+extend type Route { "Derived trip patterns for this route." tripPatterns: [TripPattern!]! }
 extend type Trip {
+    "Scheduled start of this trip, in seconds since midnight of its service day."
     startTimeSec: Int
     endTimeSec: Int
+    "True if this trip is generated from a GTFS frequencies.txt entry rather than fixed stop_times."
     frequencyBased: Boolean
+    "True if this trip has no derivable schedule (e.g. frequency-based with no fixed times)."
     noSchedule: Boolean
+    "The derived trip pattern this trip follows."
     pattern: TripPattern
+    "The vehicle block this trip belongs to."
     block: Block
+    "This trip's scheduled stop timings, in stop sequence order."
     scheduleTimes: [ScheduleTime!]!
 }

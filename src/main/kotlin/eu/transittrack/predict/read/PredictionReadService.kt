@@ -64,7 +64,7 @@ class PredictionReadService(
                 actualDeparture = r.actualDepartureTs?.toString(),
                 predictedArrival = r.predictedArrivalTs?.toString(),
                 predictedDeparture = r.predictedDepartureTs?.toString(),
-                algorithm = r.algorithm.name,
+                algorithm = r.algorithm,
                 confidenceSec = r.confidenceSec,
                 revisionId = revisionId,
                 gtfsFeedCode = feed.gtfsFeedCode,
@@ -104,7 +104,7 @@ class PredictionReadService(
                         actualDeparture = null,
                         predictedArrival = r.predictedArrivalTs?.toString(),
                         predictedDeparture = r.predictedDepartureTs?.toString(),
-                        algorithm = r.algorithm.name,
+                        algorithm = r.algorithm,
                         confidenceSec = r.confidenceSec,
                         revisionId = revisionId,
                         gtfsFeedCode = feed.gtfsFeedCode,
@@ -167,7 +167,7 @@ class PredictionReadService(
             val rows = accuracy.findRecentByFeedAndAlgorithm(feed.code, alg, since)
             if (rows.isEmpty()) return@mapNotNull null
             PredictionAccuracySummaryDto(
-                algorithm = alg.name,
+                algorithm = alg,
                 sampleCount = rows.size,
                 meanErrorSec = rows.map { it.errorSec }.average(),
                 meanAbsErrorSec = rows.map { it.absErrorSec }.average(),

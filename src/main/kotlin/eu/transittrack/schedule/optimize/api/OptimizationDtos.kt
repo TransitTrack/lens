@@ -1,5 +1,9 @@
 package eu.transittrack.schedule.optimize.api
 
+import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
+import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
+import eu.transittrack.schedule.optimize.model.OptimizationRunState
+
 /** GraphQL `OptimizationRunInput`. `observedFrom`/`observedTo` are ISO-8601 strings, parsed at the controller boundary. */
 data class OptimizationRunInput(
     val feedCode: String,
@@ -17,7 +21,7 @@ data class OptimizationRunInput(
 data class OptimizationRunDto(
     val id: String,
     val revisionId: String,
-    val state: String,
+    val state: OptimizationRunState,
     val error: String?,
     val createdAt: String,
     val completedAt: String?,
@@ -30,8 +34,8 @@ data class OptimizationRunDto(
  */
 data class OptimizationRecommendationDto(
     val id: String,
-    val kind: String,
-    val status: String,
+    val kind: OptimizationRecommendationKind,
+    val status: OptimizationRecommendationStatus,
     val sampleCount: Int,
     val deltaSec: Int,
     val currentValue: Any,

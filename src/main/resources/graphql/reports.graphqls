@@ -1,27 +1,40 @@
+"One scheduled stop of one trip execution, as derived on-demand from AVL match history. observedSec/adherenceSec are null when the trip never reached this stop (by stopPathIndex) in the queried window."
 type StopPassage {
   tripId: String!
   routeId: String!
   blockId: String
+  "The calendar service date this trip execution is inferred to belong to, which for a late-night trip may be the day before the AVL activity was observed."
   serviceDate: String!
   stopId: String!
   stopName: String
+  "Index into the trip's stop sequence."
   stopPathIndex: Int!
+  "Scheduled arrival (or departure, if no arrival is scheduled) in seconds since midnight of serviceDate."
   scheduledSec: Int
+  "When the vehicle was actually observed at this stop, in seconds since midnight of serviceDate, or null if never reached."
   observedSec: Int
+  "Seconds behind (positive) or ahead of (negative) schedule when observed, or null if never reached. Not guaranteed to equal observedSec minus scheduledSec; see the interpolation note on the underlying match."
   adherenceSec: Int
+  "The vehicle that served this trip execution; shared by every passage in the group even when observedSec is null."
   vehicleId: String!
+  "The trip's GTFS directionId, constant across every passage of this trip execution."
   direction: Int
-  occupancyStatus: String
+  "Occupancy reported by the AVL ping that produced this passage's observedSec, or null if observedSec is null or the feed didn't report occupancy."
+  occupancyStatus: AvlOccupancyStatus
 }
 
+"Aggregate schedule adherence for one route over a date range, from non-null StopPassage.adherenceSec samples."
 type RouteAdherenceSummary {
   routeId: String!
   routeShortName: String
+  "Number of non-null adherence samples; a route with zero samples produces no summary at all."
   sampleCount: Int!
   meanAdherenceSec: Float!
+  "Fraction of samples within the on-time window, from 0 to 1."
   onTimePct: Float!
 }
 
+"Aggregate schedule adherence for one trip execution (tripId + serviceDate) over a date range."
 type TripAdherenceSummary {
   tripId: String!
   routeId: String!
@@ -32,9 +45,14 @@ type TripAdherenceSummary {
 }
 
 extend type Query {
+  "Per-stop adherence detail for one route over a date range."
   routeAdherence(feedCode: String!, routeId: String!, startDate: String!, endDate: String!): [StopPassage!]!
+  "Per-route adherence aggregates over a date range."
   allRoutesAdherence(feedCode: String!, startDate: String!, endDate: String!): [RouteAdherenceSummary!]!
+  "Per-stop adherence detail for one trip over a date range (one trip execution per service date it ran)."
   tripAdherence(feedCode: String!, tripId: String!, startDate: String!, endDate: String!): [StopPassage!]!
+  "Per-trip-execution adherence aggregates over a date range. Pass routeId to scope to one route."
   allTripsAdherence(feedCode: String!, routeId: String, startDate: String!, endDate: String!): [TripAdherenceSummary!]!
+  "Per-stop adherence detail for one stop over a date range, across every trip serving it."
   stopAdherence(feedCode: String!, stopId: String!, startDate: String!, endDate: String!): [StopPassage!]!
 }

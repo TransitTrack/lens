@@ -15,7 +15,9 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  /** Arbitrary JSON value, used where the shape varies (e.g. validation row counts, optimization evidence). */
   JSON: { input: any; output: any; }
+  /** 64-bit integer, used for optimistic-concurrency version numbers and other values that can exceed Int's range. */
   Long: { input: number; output: number; }
 };
 
@@ -29,10 +31,13 @@ export type AddTripInput = {
   routeId: Scalars['String']['input'];
   serviceId: Scalars['String']['input'];
   shapeId?: InputMaybe<Scalars['String']['input']>;
+  /** The new trip's scheduled stops, in order. */
   stops: Array<NewStopTimeInput>;
+  /** Explicit trip ID, or omit to have one generated. */
   tripId?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** GTFS agency.txt: a transit operator. */
 export type Agency = {
   __typename?: 'Agency';
   agencyEmail?: Maybe<Scalars['String']['output']>;
@@ -46,56 +51,109 @@ export type Agency = {
   extent?: Maybe<Extent>;
 };
 
+/** How a feed's vehicle-to-trip matching is performed, in increasing order of reliance on inference over the raw feed's own trip descriptors. */
+export type AvlAssignmentMode =
+  /** Try descriptor-based matching first and fall back to full spatial/temporal inference whenever it fails to produce a match. */
+  | 'DESCRIPTOR_THEN_INFER'
+  /** Ignore the feed's descriptors entirely; match purely by projecting the vehicle's position against every trip active at that time and picking the best-scoring candidate. */
+  | 'FULL_INFERENCE'
+  /** Trust the feed's own vehicle descriptors (trip/route/direction/start time) to resolve the trip, falling back to spatial disambiguation only when the descriptor still leaves several trips in play. */
+  | 'TRUST_DESCRIPTOR';
+
+/** A configured AVL (vehicle-position) feed: where it's polled from, how its reports are decoded, and how vehicles on it are matched to trips. */
 export type AvlFeed = {
   __typename?: 'AvlFeed';
-  assignmentMode: Scalars['String']['output'];
+  assignmentMode: AvlAssignmentMode;
+  /** Unique identifier for this AVL feed, independent of the GTFS feed it matches against. */
   code: Scalars['String']['output'];
   enabled: Scalars['Boolean']['output'];
-  format: Scalars['String']['output'];
+  format: AvlFormat;
+  /** The gtfs.graphqls Feed.code whose active revision this AVL feed's vehicles are matched against. */
   gtfsFeedCode: Scalars['String']['output'];
+  /** ISO-8601 instant of the most recent poll attempt, or null if this feed has never been polled. */
   lastPollAt?: Maybe<Scalars['String']['output']>;
+  /** Number of AVL reports ingested on the most recent poll. */
   lastPollReportCount?: Maybe<Scalars['Int']['output']>;
+  /** Outcome of the most recent poll attempt (e.g. success or an error description). */
   lastPollStatus?: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
+  /** How often this feed is polled, in seconds. */
   pollIntervalSec: Scalars['Int']['output'];
-  predictionAlgorithms: Array<Scalars['String']['output']>;
+  /** Prediction algorithms run for vehicles on this feed; the first is used as the default when a query doesn't specify one. */
+  predictionAlgorithms: Array<PredictionAlgorithm>;
 };
 
+/** The real-time feed protocol an AVL feed is polled and decoded as. */
+export type AvlFormat =
+  /** GTFS-Realtime VehiclePositions, decoded from the standard protobuf feed. */
+  | 'GTFS_RT'
+  /** A JSON-based vehicle-position feed format from a specific vendor integration. */
+  | 'STPT';
+
+/** GTFS-Realtime VehiclePosition occupancy_status. */
+export type AvlOccupancyStatus =
+  | 'CRUSHED_STANDING_ROOM_ONLY'
+  | 'EMPTY'
+  | 'FEW_SEATS_AVAILABLE'
+  | 'FULL'
+  | 'MANY_SEATS_AVAILABLE'
+  | 'NOT_ACCEPTING_PASSENGERS'
+  | 'NOT_BOARDABLE'
+  | 'NO_DATA_AVAILABLE'
+  | 'STANDING_ROOM_ONLY';
+
+/** One raw AVL (vehicle-position) report as received from the feed, plus the outcome of matching it to a trip. */
 export type AvlReport = {
   __typename?: 'AvlReport';
   bearing?: Maybe<Scalars['Float']['output']>;
-  currentStatus?: Maybe<Scalars['String']['output']>;
+  currentStatus?: Maybe<VehicleStopStatus>;
+  /** The trip ID the feed itself reported for this vehicle (its raw descriptor), before any transittrack matching - null if the feed didn't supply one. */
   descTripId?: Maybe<Scalars['String']['output']>;
+  /** The resolved trip match, present only when matchStatus is MATCHED. */
   match?: Maybe<AvlReportMatch>;
-  matchStatus: Scalars['String']['output'];
-  occupancyStatus?: Maybe<Scalars['String']['output']>;
+  matchStatus: MatchStatus;
+  occupancyStatus?: Maybe<AvlOccupancyStatus>;
   position: LatLon;
+  /** ISO-8601 instant this report was ingested by transittrack. */
   processedAt: Scalars['String']['output'];
-  source: Scalars['String']['output'];
+  /** The AVL feed protocol this report was decoded from. */
+  source: AvlFormat;
   speedMps?: Maybe<Scalars['Float']['output']>;
+  /** ISO-8601 instant the vehicle itself reported this position. */
   ts: Scalars['String']['output'];
   vehicleId: Scalars['String']['output'];
 };
 
 export type AvlReportCatalog = {
   __typename?: 'AvlReportCatalog';
+  /** IANA time zone the feed's agency operates in, used to interpret avlReportPage's date/startTime/endTime. */
   timeZone: Scalars['String']['output'];
+  /** Every distinct vehicle ID this feed has ever reported. */
   vehicleIds: Array<Scalars['String']['output']>;
 };
 
+/** The resolved trip match for an AvlReport whose matchStatus is MATCHED. */
 export type AvlReportMatch = {
   __typename?: 'AvlReportMatch';
   block?: Maybe<Block>;
+  /** Perpendicular distance in meters between the raw reported position and the matched shape. */
   deviationM: Scalars['Float']['output'];
+  /** Distance in meters along the matched trip's shape. */
   distanceAlongTripM: Scalars['Float']['output'];
+  /** Heading in degrees inferred from the match, independent of any bearing the feed itself reported. */
   heading?: Maybe<Scalars['Float']['output']>;
+  /** Seconds behind (positive) or ahead of (negative) schedule at this position. */
   scheduleAdherenceSec?: Maybe<Scalars['Int']['output']>;
+  /** Match confidence score; higher is a stronger match. Not comparable across matcher implementations. */
   score?: Maybe<Scalars['Float']['output']>;
+  /** The raw position snapped onto the matched trip's shape. */
   snappedPosition: LatLon;
+  /** Index into the matched trip pattern's stopPaths this report's position falls within. */
   stopPathIndex: Scalars['Int']['output'];
   trip?: Maybe<Trip>;
 };
 
+/** A page of AvlReport rows for one vehicle within a requested time window. */
 export type AvlReportPage = {
   __typename?: 'AvlReportPage';
   items: Array<AvlReport>;
@@ -104,39 +162,56 @@ export type AvlReportPage = {
   totalCount: Scalars['Int']['output'];
 };
 
+/** A vehicle block: the ordered sequence of trips one vehicle is scheduled to run on a given service day, derived from shared GTFS block_id. */
 export type Block = {
   __typename?: 'Block';
   blockId: Scalars['String']['output'];
+  /** The block's trips in scheduled order, with inter-trip layover/deadhead detail. */
   blockTrips: Array<BlockTrip>;
+  /** Scheduled end of the block's last trip, in seconds since midnight. */
   endTimeSec: Scalars['Int']['output'];
+  /** Internal row ID, distinct from blockId (which may repeat across services). */
   id: Scalars['ID']['output'];
+  /** Every route served by a trip in this block. */
   routeIds: Array<Scalars['String']['output']>;
   serviceId: Scalars['String']['output'];
+  /** Scheduled start of the block's first trip, in seconds since midnight. */
   startTimeSec: Scalars['Int']['output'];
   tripCount: Scalars['Int']['output'];
+  /** The block's trips, in no particular guaranteed order; use blockTrips for the scheduled sequence. */
   trips: Array<Trip>;
 };
 
+/** One trip's position within its block's scheduled sequence. */
 export type BlockTrip = {
   __typename?: 'BlockTrip';
+  /** True if the vehicle must deadhead (travel out of service) to reach the next trip's start, or null if not determined. */
   deadheadAfter?: Maybe<Scalars['Boolean']['output']>;
+  /** Scheduled layover in seconds between this trip ending and the next one starting, or null for the block's last trip. */
   layoverAfterSec?: Maybe<Scalars['Int']['output']>;
+  /** Position of this trip within the block, starting at 0. */
   listIndex: Scalars['Int']['output'];
   trip: Trip;
 };
 
 export type BulkShiftTripsInput = {
+  /** Signed offset in seconds applied to every matching trip's stop times. */
   deltaSec: Scalars['Int']['input'];
   draftId: Scalars['ID']['input'];
   editor: Scalars['String']['input'];
   expectedVersion: Scalars['Long']['input'];
+  /** Restrict to trips of this derived trip pattern. */
   patternKey?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict to trips on this route; omit to match across routes. */
   routeId?: InputMaybe<Scalars['String']['input']>;
   serviceId?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict to trips starting at or after this time, in seconds since midnight. */
   windowFromSec?: InputMaybe<Scalars['Int']['input']>;
+  /** Restrict to trips starting at or before this time, in seconds since midnight. */
   windowToSec?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** GTFS calendar.txt: a named service pattern's days of the week and validity range. */
 export type Calendar = {
   __typename?: 'Calendar';
   endDate?: Maybe<Scalars['String']['output']>;
@@ -151,14 +226,24 @@ export type Calendar = {
   wednesday?: Maybe<Scalars['Boolean']['output']>;
 };
 
+/** One calendar's change between the two compared revisions. */
 export type CalendarChange = {
   __typename?: 'CalendarChange';
+  /** Calendar date exceptions added, removed, or changed for this service. */
   exceptionChanges: Array<CalendarExceptionChange>;
+  /** Changed top-level calendar fields (day-of-week flags, startDate, endDate), keyed by field name to {from, to} old/new value pairs. */
   fieldChanges: Scalars['JSON']['output'];
-  kind: Scalars['String']['output'];
+  kind: CalendarChangeKind;
   serviceId: Scalars['String']['output'];
 };
 
+/** How a calendar differs between the two compared revisions. */
+export type CalendarChangeKind =
+  | 'ADDED'
+  | 'MODIFIED'
+  | 'REMOVED';
+
+/** GTFS calendar_dates.txt: a single-day exception to a service's calendar. exceptionType: 1=service added, 2=service removed. */
 export type CalendarDate = {
   __typename?: 'CalendarDate';
   date: Scalars['String']['output'];
@@ -166,11 +251,14 @@ export type CalendarDate = {
   serviceId: Scalars['String']['output'];
 };
 
+/** One calendar date exception's change within a changed calendar. */
 export type CalendarExceptionChange = {
   __typename?: 'CalendarExceptionChange';
   date: Scalars['String']['output'];
+  /** The exception_type (1=added, 2=removed) before this change, or null if it didn't previously exist. */
   fromType?: Maybe<Scalars['Int']['output']>;
-  kind: Scalars['String']['output'];
+  kind: ExceptionChangeKind;
+  /** The exception_type after this change, or null if it was removed. */
   toType?: Maybe<Scalars['Int']['output']>;
 };
 
@@ -181,48 +269,67 @@ export type DeleteTripInput = {
   tripId: Scalars['String']['input'];
 };
 
+/** A revision being edited: a fork of a base revision, plus its edit lock and validation state. */
 export type Draft = {
   __typename?: 'Draft';
+  /** The revision this draft was forked from, or null if it predates fork tracking. */
   baseRevisionId?: Maybe<Scalars['ID']['output']>;
   createdAt: Scalars['String']['output'];
+  /** The editor who created this draft, or null if unknown. */
   createdBy?: Maybe<Scalars['String']['output']>;
+  /** True if the draft has been edited since its last rebuildDraft, so its derived schedule data (and validation) may not reflect the latest edits. */
   derivationStale: Scalars['Boolean']['output'];
   feedCode: Scalars['String']['output'];
   id: Scalars['ID']['output'];
-  kind: Scalars['String']['output'];
+  kind: DraftKind;
+  /** Operator-facing name for this draft, or null if unset. */
   label?: Maybe<Scalars['String']['output']>;
+  /** Validation results from the draft's last rebuildDraft, or null if it hasn't been rebuilt. */
   lastValidation?: Maybe<Scalars['JSON']['output']>;
+  /** The current edit lock, or null if no editor currently holds it. */
   lock?: Maybe<DraftLock>;
+  /** Row counts per GTFS table, as of the draft's data. */
   rowCounts?: Maybe<Scalars['JSON']['output']>;
-  status: Scalars['String']['output'];
+  status: RevisionStatus;
+  /** Optimistic-concurrency version, incremented by every edit mutation and required (as expectedVersion) by mutations and undo/redo to detect concurrent edits. */
   version: Scalars['Long']['output'];
 };
 
+/** One entry in a draft's edit history. */
 export type DraftEdit = {
   __typename?: 'DraftEdit';
   appliedAt: Scalars['String']['output'];
+  /** Upper-snake-case code identifying the kind of edit (e.g. UPDATE_STOP_TIME, SHIFT_TRIP, ADD_TRIP). */
   op: Scalars['String']['output'];
+  /** Sequence number within the draft's edit history, increasing with each new edit. */
   seq: Scalars['Int']['output'];
+  /** Human-readable summary of what this edit changed. */
   summary: Scalars['String']['output'];
+  /** True if this edit has since been reverted via undoDraftEdit. */
   undone: Scalars['Boolean']['output'];
 };
 
+/** The result of an edit mutation: the draft's new state, the edit record it produced, and whether undo/redo are now available. */
 export type DraftEditResult = {
   __typename?: 'DraftEditResult';
   canRedo: Scalars['Boolean']['output'];
   canUndo: Scalars['Boolean']['output'];
   draft: Draft;
+  /** The edit this mutation recorded, or null for a mutation that doesn't produce an undoable edit. */
   edit?: Maybe<DraftEdit>;
 };
 
+/** A draft's trips and stops laid out as an editable grid, scoped to one route/direction/service. */
 export type DraftGrid = {
   __typename?: 'DraftGrid';
+  /** The scheduled stops shared by every trip in the grid, in stop_sequence order. */
   stops: Array<DraftGridStop>;
   trips: Array<DraftGridTrip>;
 };
 
 export type DraftGridCell = {
   __typename?: 'DraftGridCell';
+  /** Scheduled arrival in seconds since midnight, or null if this trip doesn't serve this stop. */
   arrivalSec?: Maybe<Scalars['Int']['output']>;
   departureSec?: Maybe<Scalars['Int']['output']>;
   stopSequence: Scalars['Int']['output'];
@@ -233,31 +340,61 @@ export type DraftGridStop = {
   stopId?: Maybe<Scalars['String']['output']>;
   stopName?: Maybe<Scalars['String']['output']>;
   stopSequence: Scalars['Int']['output'];
+  /** GTFS timepoint for this stop (0=approximate, 1=exact), or null if not scheduled. */
   timepoint?: Maybe<Scalars['Int']['output']>;
 };
 
+/** One trip's row in a draft grid, with one cell per stop in the shared stops list. */
 export type DraftGridTrip = {
   __typename?: 'DraftGridTrip';
   blockId?: Maybe<Scalars['String']['output']>;
+  /** Cells aligned to the grid's stops list, by stopSequence. */
   cells: Array<DraftGridCell>;
   directionId?: Maybe<Scalars['Int']['output']>;
+  /** Seconds since midnight of the trip's first scheduled departure, for sorting rows. */
   firstDepartureSec?: Maybe<Scalars['Int']['output']>;
   headsign?: Maybe<Scalars['String']['output']>;
   serviceId?: Maybe<Scalars['String']['output']>;
   tripId: Scalars['String']['output'];
 };
 
+/** Status of an asynchronous rebuildDraft job, pollable via the draftJob query. */
 export type DraftJob = {
   __typename?: 'DraftJob';
+  /** Failure detail when state is FAILED, or null otherwise. */
   error?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
-  phase: Scalars['String']['output'];
-  state: Scalars['String']['output'];
+  phase: DraftJobPhase;
+  state: DraftJobState;
 };
 
+/** Which step of a rebuildDraft job is currently executing (or finished at). */
+export type DraftJobPhase =
+  /** Re-deriving schedule data (trip patterns, blocks, travel times, etc.) from the edited tables. */
+  | 'DERIVING'
+  | 'DONE'
+  /** Re-running GTFS validation against the re-derived data. */
+  | 'VALIDATING';
+
+/** Status of an asynchronous rebuildDraft job. */
+export type DraftJobState =
+  /** Failed; see DraftJob.error. */
+  | 'FAILED'
+  | 'RUNNING'
+  | 'SUCCEEDED';
+
+/** Whether a revision is a normal feed ingest or a user-created draft. */
+export type DraftKind =
+  /** Created via forkDraft (or by an optimization's applyOptimizationRecommendations) and editable through the draft mutations. */
+  | 'DRAFT'
+  /** Produced by ingestFeed; not directly editable. */
+  | 'IMPORT';
+
+/** The exclusive edit lock currently held on a draft. */
 export type DraftLock = {
   __typename?: 'DraftLock';
   editor: Scalars['String']['output'];
+  /** ISO-8601 instant the lock expires unless renewed via renewDraftEditor. */
   expiresAt: Scalars['String']['output'];
 };
 
@@ -265,11 +402,20 @@ export type DuplicateTripInput = {
   draftId: Scalars['ID']['input'];
   editor: Scalars['String']['input'];
   expectedVersion: Scalars['Long']['input'];
+  /** Explicit trip ID for the copy, or omit to have one generated. */
   newTripId?: InputMaybe<Scalars['String']['input']>;
+  /** Signed offset in seconds applied to every stop time of the copy, relative to sourceTripId. */
   offsetSec: Scalars['Int']['input'];
   sourceTripId: Scalars['String']['input'];
 };
 
+/** How a calendar date exception differs between the two compared revisions. */
+export type ExceptionChangeKind =
+  | 'EXCEPTION_ADDED'
+  | 'EXCEPTION_CHANGED'
+  | 'EXCEPTION_REMOVED';
+
+/** Geographic bounding box, in decimal degrees. */
 export type Extent = {
   __typename?: 'Extent';
   maxLat: Scalars['Float']['output'];
@@ -278,19 +424,26 @@ export type Extent = {
   minLon: Scalars['Float']['output'];
 };
 
+/** A configured GTFS static feed: where its data comes from, and its ingest history. */
 export type Feed = {
   __typename?: 'Feed';
+  /** The feed's current live revision, or null if none has ever been activated. */
   activeRevision?: Maybe<Revision>;
+  /** Unique identifier for this feed, referenced by AvlFeed.gtfsFeedCode and throughout the GTFS query API. */
   code: Scalars['String']['output'];
   description?: Maybe<Scalars['String']['output']>;
   enabled: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
+  /** Cron expression controlling how often this feed is automatically re-ingested, or null if it's only ingested on demand. */
   pollingCron?: Maybe<Scalars['String']['output']>;
+  /** Every revision ever created for this feed, newest first. */
   revisions: Array<Revision>;
-  source: Scalars['String']['output'];
+  source: FeedSource;
+  /** URL the feed's GTFS zip is downloaded from on ingest. */
   url: Scalars['String']['output'];
 };
 
+/** GTFS feed_info.txt: feed-level publisher metadata. */
 export type FeedInfo = {
   __typename?: 'FeedInfo';
   defaultLang?: Maybe<Scalars['String']['output']>;
@@ -304,13 +457,20 @@ export type FeedInfo = {
   feedVersion?: Maybe<Scalars['String']['output']>;
 };
 
+/** How a GTFS feed is managed: hand-configured versus created through the registerFeed API. */
+export type FeedSource =
+  | 'API'
+  | 'CONFIG';
+
 export type ForkDraftInput = {
+  /** Revision to fork from, or omit to fork the feed's current active revision. */
   baseRevisionId?: InputMaybe<Scalars['ID']['input']>;
   editor: Scalars['String']['input'];
   feedCode: Scalars['String']['input'];
   label?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** GTFS frequencies.txt: a headway-based (rather than fixed-time) scheduling window for a trip. exactTimes: 0=frequency-based (approximate), 1=schedule-based (exact). */
 export type Frequency = {
   __typename?: 'Frequency';
   endTime?: Maybe<Scalars['String']['output']>;
@@ -320,20 +480,27 @@ export type Frequency = {
   tripId: Scalars['String']['output'];
 };
 
+/** Current gap between consecutive vehicles serving a route/direction at a stop, compared to what the schedule calls for. */
 export type Headway = {
   __typename?: 'Headway';
   directionId?: Maybe<Scalars['Int']['output']>;
+  /** Observed gaps in seconds between the vehicles currently predicted at this stop, in arrival order. */
   gapsSec: Array<Scalars['Int']['output']>;
   routeId: Scalars['String']['output'];
+  /** The schedule's own headway at this stop/time, in seconds, for comparison. */
   scheduledHeadwaySec?: Maybe<Scalars['Int']['output']>;
   stopId: Scalars['String']['output'];
+  /** Seconds until the next vehicle is predicted to reach this stop, or null if none is currently predicted. */
   waitSec?: Maybe<Scalars['Int']['output']>;
 };
 
+/** Scheduled headway comparison for one route/direction/service between the two compared revisions. */
 export type HeadwaySummary = {
   __typename?: 'HeadwaySummary';
   directionId?: Maybe<Scalars['Int']['output']>;
+  /** Largest gap between consecutive trips in fromRevisionId, in seconds. */
   fromMaxGapSec?: Maybe<Scalars['Int']['output']>;
+  /** Mean gap between consecutive trips in fromRevisionId, in seconds. */
   fromMeanGapSec?: Maybe<Scalars['Int']['output']>;
   fromTripCount: Scalars['Int']['output'];
   routeId: Scalars['String']['output'];
@@ -344,6 +511,7 @@ export type HeadwaySummary = {
 };
 
 export type InsertTripStopInput = {
+  /** The existing stopSequence the new stop is inserted after. */
   afterStopSequence: Scalars['Int']['input'];
   arrivalSec?: InputMaybe<Scalars['Int']['input']>;
   departureSec?: InputMaybe<Scalars['Int']['input']>;
@@ -360,6 +528,7 @@ export type LatLon = {
   lon: Scalars['Float']['output'];
 };
 
+/** GTFS levels.txt: one floor/level of a station, for indoor wayfinding. */
 export type Level = {
   __typename?: 'Level';
   levelId: Scalars['String']['output'];
@@ -367,37 +536,77 @@ export type Level = {
   levelName?: Maybe<Scalars['String']['output']>;
 };
 
+/** Outcome of attempting to match one AVL report to a scheduled trip. */
+export type MatchStatus =
+  /** Successfully matched to a trip; see AvlReport.match for the resulting position. */
+  | 'MATCHED'
+  /** Not yet processed by the matcher. */
+  | 'PENDING'
+  /** Not matched because the report was superseded or otherwise excluded before matching ran. */
+  | 'SKIPPED'
+  /** Processed, but no trip could be matched (e.g. vehicle off-route or outside any active trip's window). */
+  | 'UNMATCHED';
+
 export type Mutation = {
   __typename?: 'Mutation';
+  /** Promotes a draft to be the feed's active revision. Fails if the draft has unresolved validation errors unless force is true. */
   activateDraft: Revision;
+  /** Promotes a READY revision to ACTIVE, superseding the feed's previously active revision. */
   activateRevision: Revision;
+  /** Adds a new trip to the draft. */
   addTrip: DraftEditResult;
+  /** Applies the given recommendations from a completed run to a new draft forked from the run's revision, marking them APPLIED. */
   applyOptimizationRecommendations: Draft;
+  /** Shifts every trip matching the given route/pattern/service and time window by a fixed offset, in one edit. */
   bulkShiftTrips: DraftEditResult;
+  /** Acquires the draft's exclusive edit lock for editor. Fails if another editor holds it, unless takeOver is true. */
   claimDraftEditor: DraftLock;
+  /** Deletes a feed and all its revisions. Returns false if code is unknown. */
   deleteFeed: Scalars['Boolean']['output'];
+  /** Permanently deletes a revision and its derived data. Fails on the feed's currently ACTIVE revision. */
   deleteRevision: Scalars['Boolean']['output'];
   deleteTrip: DraftEditResult;
+  /** Permanently deletes a draft and its edit history. Returns false if id is unknown. editor must hold the draft's edit lock. */
   discardDraft: Scalars['Boolean']['output'];
+  /** Copies an existing trip under a new trip ID, with every stop time shifted by offsetSec. */
   duplicateTrip: DraftEditResult;
+  /** Creates a new draft forked from a revision (the feed's active one if baseRevisionId is omitted). */
   forkDraft: Draft;
+  /** Downloads, validates, and processes the feed's current GTFS zip into a new revision; activates it automatically if the feed has autoActivate set and validation passes. */
   ingestFeed: Revision;
+  /** Inserts a new scheduled stop into a trip immediately after afterStopSequence, renumbering later stops. */
   insertTripStop: DraftEditResult;
+  /** Asynchronously re-derives a draft's schedule data and re-validates it. Returns a DraftJob to poll via draftJob. */
   rebuildDraft: DraftJob;
+  /** Re-applies the most recently undone edit. */
   redoDraftEdit: DraftEditResult;
+  /** Registers a new GTFS feed to ingest. Fails if code is already taken. */
   registerFeed: Feed;
+  /** Releases editor's lock on the draft. Returns false if editor does not hold it. */
   releaseDraftEditor: Scalars['Boolean']['output'];
+  /** Removes one scheduled stop from a trip, renumbering later stops. */
   removeTripStop: DraftEditResult;
+  /** Extends the expiry of editor's existing lock on the draft. */
   renewDraftEditor: DraftLock;
+  /** Reorders a trip's scheduled stops to match stopIdOrder. */
   reorderTripStops: DraftEditResult;
+  /** Discards all edits since the draft was forked, resetting it back to its base revision's data. */
   revertDraftToFork: Draft;
+  /** Replaces a service's weekly calendar pattern and validity range. */
   setCalendar: DraftEditResult;
+  /** Adds, changes, or removes a single-day calendar exception for a service. */
   setCalendarException: DraftEditResult;
+  /** Sets how long a trip dwells at a stop by adjusting its departure relative to its arrival. */
   setStopDwell: DraftEditResult;
+  /** Shifts every stop time of a trip by a fixed offset. */
   shiftTrip: DraftEditResult;
+  /** Submits a new optimization run for asynchronous processing. */
   startOptimizationRun: OptimizationRun;
+  /** Reverts the draft's most recent not-yet-undone edit. Fails with a version conflict if expectedVersion is stale. */
   undoDraftEdit: DraftEditResult;
+  /** Updates a feed's configuration. Fails if code is unknown. */
   updateFeed: Feed;
+  /** Changes one scheduled stop time on a trip. Fails with a version conflict if expectedVersion no longer matches the draft's current version (see DraftDto.version / StaleDraftException). */
   updateStopTime: DraftEditResult;
 };
 
@@ -567,49 +776,101 @@ export type MutationUpdateStopTimeArgs = {
   input: UpdateStopTimeInput;
 };
 
+/** One scheduled stop for a new trip created via addTrip, in stop_sequence order. */
 export type NewStopTimeInput = {
   arrivalSec: Scalars['Int']['input'];
   departureSec: Scalars['Int']['input'];
   stopId: Scalars['String']['input'];
 };
 
+/** One proposed schedule adjustment produced by an optimization run, backed by observed AVL evidence. */
 export type OptimizationRecommendation = {
   __typename?: 'OptimizationRecommendation';
+  /** The current schedule value(s) this recommendation would change. */
   currentValue: Scalars['JSON']['output'];
+  /** Proposed change in seconds, signed by kind (e.g. a stop-time or trip-start adjustment). */
   deltaSec: Scalars['Int']['output'];
+  /** Supporting observed-data detail behind this recommendation. */
   evidence: Scalars['JSON']['output'];
   id: Scalars['ID']['output'];
-  kind: Scalars['String']['output'];
+  kind: OptimizationRecommendationKind;
+  /** The proposed replacement value(s). */
   proposedValue: Scalars['JSON']['output'];
+  /** Human-readable explanation of why this recommendation was made. */
   reason: Scalars['String']['output'];
+  /** Number of observed samples this recommendation is based on. */
   sampleCount: Scalars['Int']['output'];
-  status: Scalars['String']['output'];
+  status: OptimizationRecommendationStatus;
 };
 
+/** The kind of schedule adjustment an optimization recommendation proposes. */
+export type OptimizationRecommendationKind =
+  /** Adjusts a scheduled stop's arrival/departure time. */
+  | 'STOP_TIME'
+  /** Shifts a trip's start time. */
+  | 'TRIP_SHIFT';
+
+/** Review/application state of an optimization recommendation. */
+export type OptimizationRecommendationStatus =
+  /** Applied to a draft via applyOptimizationRecommendations. */
+  | 'APPLIED'
+  /** Reviewed and rejected. */
+  | 'DISMISSED'
+  /** Not yet reviewed. */
+  | 'PENDING'
+  /** Chosen by a reviewer for application, but not yet applied. */
+  | 'SELECTED'
+  /** No longer applicable (e.g. its underlying trip was removed from the schedule since the run completed). */
+  | 'UNAVAILABLE';
+
+/** One asynchronous schedule-optimization analysis, frozen to the feed's active revision at submission time. */
 export type OptimizationRun = {
   __typename?: 'OptimizationRun';
+  /** ISO-8601 instant the run finished (successfully or not), or null while still QUEUED/RUNNING. */
   completedAt?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
+  /** Failure detail when state is FAILED, or null otherwise. */
   error?: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  /** The revision this run's recommendations apply against. */
   revisionId: Scalars['ID']['output'];
-  state: Scalars['String']['output'];
+  state: OptimizationRunState;
 };
 
+/** Request to analyze observed AVL data against a feed's current schedule for a window of trips, looking for timing adjustments. */
 export type OptimizationRunInput = {
   directionId?: InputMaybe<Scalars['Int']['input']>;
   feedCode: Scalars['String']['input'];
+  /** Minimum number of observed samples required before a recommendation is produced for a given stop/trip. */
   minimumSamples: Scalars['Int']['input'];
   /** ISO-8601 instant */
   observedFrom: Scalars['String']['input'];
   /** ISO-8601 instant */
   observedTo: Scalars['String']['input'];
   routeId?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict analysis to this service; omit to cover every service. */
   serviceId?: InputMaybe<Scalars['String']['input']>;
+  /** Restrict to trips starting at or after this time, in seconds since midnight. */
   windowFromSec?: InputMaybe<Scalars['Int']['input']>;
   windowToSec?: InputMaybe<Scalars['Int']['input']>;
 };
 
+/** Lifecycle state of an asynchronous optimization run. */
+export type OptimizationRunState =
+  /** Failed; see OptimizationRun.error. */
+  | 'FAILED'
+  /** Submitted, not yet started. */
+  | 'QUEUED'
+  /** Analyzing observed AVL data against the schedule. */
+  | 'RUNNING'
+  /** Finished; see optimizationRecommendations for its findings. */
+  | 'SUCCEEDED';
+
+/**
+ * GTFS pathways.txt: a connection (corridor, stairs, escalator, elevator, etc.) between two
+ * stops/stations/entrances for indoor wayfinding. pathwayMode: 1=walkway, 2=stairs, 3=moving
+ * sidewalk, 4=escalator, 5=elevator, 6=fare gate, 7=exit gate. isBidirectional: 0=unidirectional, 1=bidirectional.
+ */
 export type Pathway = {
   __typename?: 'Pathway';
   fromStopId?: Maybe<Scalars['String']['output']>;
@@ -626,66 +887,123 @@ export type Pathway = {
   traversalTime?: Maybe<Scalars['Int']['output']>;
 };
 
+/** Aggregate prediction error for one algorithm over a recent time window. */
 export type PredictionAccuracySummary = {
   __typename?: 'PredictionAccuracySummary';
-  algorithm: Scalars['String']['output'];
+  algorithm: PredictionAlgorithm;
+  /** Mean absolute error in seconds. */
   meanAbsErrorSec: Scalars['Float']['output'];
+  /** Mean signed error in seconds (predicted minus actual); positive means predictions ran late. */
   meanErrorSec: Scalars['Float']['output'];
+  /** Number of resolved (predicted-then-actual) samples this summary is computed from. */
   sampleCount: Scalars['Int']['output'];
 };
 
+/** A method for predicting a vehicle's arrival/departure time at an upcoming stop. */
+export type PredictionAlgorithm =
+  /** Predicts using a historical average of observed travel/dwell times for this stop and context. */
+  | 'HISTORICAL_AVERAGE'
+  /** Predicts using a Kalman filter over observed travel times. */
+  | 'KALMAN'
+  /** Projects the vehicle's current schedule adherence forward along the rest of its trip. */
+  | 'SCHEDULE_ADHERENCE';
+
 export type Query = {
   __typename?: 'Query';
+  /** Transit agencies defined in the feed's active (or given) revision. */
   agencies: Array<Agency>;
+  /** Per-route adherence aggregates over a date range. */
   allRoutesAdherence: Array<RouteAdherenceSummary>;
+  /** Per-trip-execution adherence aggregates over a date range. Pass routeId to scope to one route. */
   allTripsAdherence: Array<TripAdherenceSummary>;
+  /** Every configured AVL (vehicle-position) feed, with its decode/match configuration and last poll outcome. */
   avlFeeds: Array<AvlFeed>;
+  /** The feed's configured time zone and every distinct vehicle ID it has ever reported, for populating report-browsing filters. */
   avlReportCatalog: AvlReportCatalog;
+  /** A page of raw AVL reports for one vehicle within a local time-of-day window (startTime/endTime) on a given date. */
   avlReportPage: AvlReportPage;
+  /** Raw AVL report history for one vehicle, newest first. since is an ISO-8601 instant; omit it to return the most recent reports up to limit. */
   avlReports: Array<AvlReport>;
   block?: Maybe<Block>;
+  /** Derived vehicle blocks (sequences of trips run by one vehicle) in the feed's active (or given) revision. */
   blocks: Array<Block>;
+  /** Every block that operates on a given calendar date. */
   blocksOnDate: Array<Block>;
+  /** Calendar date exceptions (added/removed single-day service), optionally filtered to one serviceId. */
   calendarDates: Array<CalendarDate>;
+  /** Service calendars (weekly patterns) in the feed's active (or given) revision. */
   calendars: Array<Calendar>;
+  /** Diffs one revision's derived schedule against another's: trip and calendar changes, plus headway deltas. Scope with routeId/directionId/serviceId; tripChanges is paginated via offset/limit while tripChangeCount reports the unpaginated total. */
   compareRevisions: ScheduleComparison;
+  /** A single draft by ID, or null if unknown. */
   draft?: Maybe<Draft>;
+  /** A draft's edit history, newest first, including undone edits. */
   draftEdits: Array<DraftEdit>;
+  /** A draft's editable trip/stop-time grid for one route/direction/service, for the schedule editor UI. */
   draftGrid: DraftGrid;
+  /** Status of an async rebuildDraft job, or null if jobId is unknown (e.g. it has aged out of the in-memory job registry). */
   draftJob?: Maybe<DraftJob>;
+  /** Drafts (revisions with kind DRAFT), newest first. Pass feedCode to scope to one feed. */
   drafts: Array<Draft>;
+  /** A single feed by its code, or null if unknown. */
   feed?: Maybe<Feed>;
+  /** Feed-level publisher/validity metadata, or null if the feed's GTFS didn't include a feed_info.txt. */
   feedInfo?: Maybe<FeedInfo>;
+  /** Every configured GTFS static feed. */
   feeds: Array<Feed>;
+  /** Frequency-based scheduling entries, optionally filtered to one trip. */
   frequencies: Array<Frequency>;
+  /** Current headway (gap between consecutive vehicles) at a stop for one route/direction. */
   headway: Headway;
   levels: Array<Level>;
+  /** A run's recommendations. Pass status to filter. */
   optimizationRecommendations: Array<OptimizationRecommendation>;
+  /** A single run by ID, or null if unknown. */
   optimizationRun?: Maybe<OptimizationRun>;
+  /** Optimization runs for a feed, newest first. */
   optimizationRuns: Array<OptimizationRun>;
   pathways: Array<Pathway>;
+  /** Recent prediction-error statistics per algorithm, over the last sinceDays days. Pass algorithm to restrict to one. */
   predictionAccuracy: Array<PredictionAccuracySummary>;
+  /** Raw rows from one of the less commonly queried GTFS tables (fares v2, flex, translations, attributions), returned as untyped JSON since their shapes vary by GTFS extension. */
   records: Array<Scalars['JSON']['output']>;
+  /** A single revision by its ID, or null if unknown. */
   revision?: Maybe<Revision>;
+  /** A feed's revisions (ingest attempts and drafts), newest first. Pass status to filter. */
   revisions: Array<Revision>;
+  /** A single route by ID, or null if unknown in that revision. */
   route?: Maybe<Route>;
+  /** Per-stop adherence detail for one route over a date range. */
   routeAdherence: Array<StopPassage>;
+  /** Routes defined in the feed's active (or given) revision. */
   routes: Array<Route>;
+  /** A trip shape's metadata and geometry by ID, or null if unknown. */
   shape?: Maybe<Shape>;
   stop?: Maybe<Stop>;
+  /** Per-stop adherence detail for one stop over a date range, across every trip serving it. */
   stopAdherence: Array<StopPassage>;
+  /** Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm. */
   stopPredictions: Array<StopPrediction>;
+  /** Every scheduled stop of one trip, in stop_sequence order. */
   stopTimes: Array<StopTime>;
   stops: Array<Stop>;
   transfers: Array<Transfer>;
   trip?: Maybe<Trip>;
+  /** Per-stop adherence detail for one trip over a date range (one trip execution per service date it ran). */
   tripAdherence: Array<StopPassage>;
+  /** A single trip pattern by its key, or null if unknown. */
   tripPattern?: Maybe<TripPattern>;
+  /** Derived trip patterns (distinct stop sequences) in the feed's active (or given) revision. Pass routeId to scope to one route. */
   tripPatterns: Array<TripPattern>;
+  /** Trips in the feed's active (or given) revision. Filter by routeId and/or serviceId. */
   trips: Array<Trip>;
+  /** Every trip that operates on a given calendar date. Pass routeId to scope to one route. */
   tripsOnDate: Array<Trip>;
+  /** A single vehicle's latest known state, or null if the feed or vehicle is unknown. */
   vehicle?: Maybe<Vehicle>;
+  /** Open (not-yet-arrived) stop predictions for one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm; otherwise all algorithms configured for the feed are returned. */
   vehiclePredictions: Array<StopPrediction>;
+  /** Vehicles currently reporting on this feed, from each vehicle's latest known state rather than raw history. Set matchedOnly to only return vehicles currently matched to a trip. */
   vehicles: Array<Vehicle>;
 };
 
@@ -828,7 +1146,7 @@ export type QueryFrequenciesArgs = {
 
 
 export type QueryHeadwayArgs = {
-  algorithm?: InputMaybe<Scalars['String']['input']>;
+  algorithm?: InputMaybe<PredictionAlgorithm>;
   directionId?: InputMaybe<Scalars['Int']['input']>;
   feedCode: Scalars['String']['input'];
   routeId: Scalars['String']['input'];
@@ -846,7 +1164,7 @@ export type QueryOptimizationRecommendationsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   runId: Scalars['ID']['input'];
-  status?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<OptimizationRecommendationStatus>;
 };
 
 
@@ -869,7 +1187,7 @@ export type QueryPathwaysArgs = {
 
 
 export type QueryPredictionAccuracyArgs = {
-  algorithm?: InputMaybe<Scalars['String']['input']>;
+  algorithm?: InputMaybe<PredictionAlgorithm>;
   feedCode: Scalars['String']['input'];
   sinceDays?: InputMaybe<Scalars['Int']['input']>;
 };
@@ -937,7 +1255,7 @@ export type QueryStopAdherenceArgs = {
 
 
 export type QueryStopPredictionsArgs = {
-  algorithm?: InputMaybe<Scalars['String']['input']>;
+  algorithm?: InputMaybe<PredictionAlgorithm>;
   directionId?: InputMaybe<Scalars['Int']['input']>;
   feedCode: Scalars['String']['input'];
   routeId?: InputMaybe<Scalars['String']['input']>;
@@ -1016,7 +1334,7 @@ export type QueryVehicleArgs = {
 
 
 export type QueryVehiclePredictionsArgs = {
-  algorithm?: InputMaybe<Scalars['String']['input']>;
+  algorithm?: InputMaybe<PredictionAlgorithm>;
   feedCode: Scalars['String']['input'];
   vehicleId: Scalars['String']['input'];
 };
@@ -1028,6 +1346,7 @@ export type QueryVehiclesArgs = {
 };
 
 export type RegisterFeedInput = {
+  /** If true, ingestFeed automatically activates a successfully validated revision instead of leaving it READY. */
   autoActivate?: InputMaybe<Scalars['Boolean']['input']>;
   code: Scalars['String']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
@@ -1049,41 +1368,70 @@ export type ReorderTripStopsInput = {
   draftId: Scalars['ID']['input'];
   editor: Scalars['String']['input'];
   expectedVersion: Scalars['Long']['input'];
+  /** Every stop ID of the trip, in the desired new order. */
   stopIdOrder: Array<Scalars['String']['input']>;
   tripId: Scalars['String']['input'];
 };
 
+/** One ingest attempt (or draft) of a feed's GTFS data, with its validation and processing outcome. */
 export type Revision = {
   __typename?: 'Revision';
+  /** ISO-8601 instant this revision became ACTIVE, or null if it never was. */
   activatedAt?: Maybe<Scalars['String']['output']>;
+  /** Size of the downloaded GTFS zip in bytes. */
   byteSize?: Maybe<Scalars['Int']['output']>;
+  /** SHA-256 of the downloaded GTFS zip, used to detect byte-identical re-ingests (see RevisionStatus.UNCHANGED). */
   contentSha256?: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
+  /** Failure detail when status is FAILED, or null otherwise. */
   errorMessage?: Maybe<Scalars['String']['output']>;
   feedCode: Scalars['String']['output'];
+  /** Latest service date covered by this revision's calendars. */
   feedEndDate?: Maybe<Scalars['String']['output']>;
+  /** Earliest service date covered by this revision's calendars, per feed_info/calendar. */
   feedStartDate?: Maybe<Scalars['String']['output']>;
+  /** Names of the GTFS files present in this revision's zip. */
   filesPresent: Array<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  /** Number of rows loaded per GTFS table. */
   rowCounts?: Maybe<Scalars['JSON']['output']>;
   status: RevisionStatus;
+  /** ISO-8601 instant this revision was superseded by a later activation, or null if it hasn't been. */
   supersededAt?: Maybe<Scalars['String']['output']>;
+  /** Validation results from the most recent GTFS validator run against this revision, or null if it hasn't been validated. */
   validationSummary?: Maybe<ValidationSummary>;
 };
 
+/** Lifecycle state of a GTFS revision, from download through activation (or a draft's own edit/rebuild cycle). */
 export type RevisionStatus =
+  /** The feed's current, live revision. */
   | 'ACTIVE'
+  /** Computing derived schedule data (trip patterns, blocks, travel times, etc.) from the parsed tables. */
   | 'DERIVING'
+  /** Downloading the GTFS zip from the feed's URL. */
   | 'DOWNLOADING'
+  /** A draft: forked from a revision for editing, not the result of an automatic ingest. */
   | 'DRAFT'
+  /** Processing failed at some stage; see errorMessage. */
   | 'FAILED'
+  /** Loading validated GTFS files into the database. */
   | 'PARSING'
+  /** Queued, not yet started. */
   | 'PENDING'
+  /** Fully processed and eligible for activation, but not yet the feed's active revision. */
   | 'READY'
+  /** Was previously ACTIVE; replaced by a later activation. */
   | 'SUPERSEDED'
+  /** The downloaded content was byte-identical to the feed's current active revision, so no new revision was created. */
   | 'UNCHANGED'
+  /** Running the GTFS validator against the downloaded zip. */
   | 'VALIDATING';
 
+/**
+ * GTFS routes.txt: a named, user-facing service (e.g. a bus line). routeType follows the GTFS
+ * extended route_type vocabulary (0=tram, 1=subway, 2=rail, 3=bus, 4=ferry, 5=cable tram, 6=aerial
+ * lift, 7=funicular, 11=trolleybus, 12=monorail).
+ */
 export type Route = {
   __typename?: 'Route';
   agency?: Maybe<Agency>;
@@ -1099,37 +1447,51 @@ export type Route = {
   routeTextColor?: Maybe<Scalars['String']['output']>;
   routeType?: Maybe<Scalars['Int']['output']>;
   routeUrl?: Maybe<Scalars['String']['output']>;
+  /** Derived trip patterns for this route. */
   tripPatterns: Array<TripPattern>;
+  /** Every trip that runs on this route. */
   trips: Array<Trip>;
 };
 
+/** Aggregate schedule adherence for one route over a date range, from non-null StopPassage.adherenceSec samples. */
 export type RouteAdherenceSummary = {
   __typename?: 'RouteAdherenceSummary';
   meanAdherenceSec: Scalars['Float']['output'];
+  /** Fraction of samples within the on-time window, from 0 to 1. */
   onTimePct: Scalars['Float']['output'];
   routeId: Scalars['String']['output'];
   routeShortName?: Maybe<Scalars['String']['output']>;
+  /** Number of non-null adherence samples; a route with zero samples produces no summary at all. */
   sampleCount: Scalars['Int']['output'];
 };
 
+/** The result of diffing two GTFS revisions' derived schedules. */
 export type ScheduleComparison = {
   __typename?: 'ScheduleComparison';
   calendarChanges: Array<CalendarChange>;
+  /** True if fromRevisionId's derived schedule data is stale (needs a rebuild) at the time of comparison. */
   fromDerivationStale: Scalars['Boolean']['output'];
   fromRevisionId: Scalars['ID']['output'];
+  /** Per-route/direction/service headway comparison between the two revisions. */
   headwaySummaries: Array<HeadwaySummary>;
   toDerivationStale: Scalars['Boolean']['output'];
   toRevisionId: Scalars['ID']['output'];
+  /** Total number of trip changes found, independent of tripChanges' offset/limit pagination. */
   tripChangeCount: Scalars['Int']['output'];
+  /** A page of the trip-level changes, per the query's offset/limit. */
   tripChanges: Array<TripChange>;
 };
 
+/** Scheduled timing for one stop of one specific trip, as derived from its stop_times. */
 export type ScheduleTime = {
   __typename?: 'ScheduleTime';
+  /** Scheduled arrival in seconds since midnight of the trip's service day, or null if not scheduled at this stop. */
   arrivalSec?: Maybe<Scalars['Int']['output']>;
   departureSec?: Maybe<Scalars['Int']['output']>;
+  /** True if this time was interpolated (the trip's own stop_times didn't specify it directly) rather than taken as-is from GTFS. */
   interpolated: Scalars['Boolean']['output'];
   schedDwellTimeSec?: Maybe<Scalars['Int']['output']>;
+  /** Scheduled travel time from the previous stop, in seconds. */
   schedTravelTimeSec?: Maybe<Scalars['Int']['output']>;
   stopPathIndex: Scalars['Int']['output'];
 };
@@ -1162,6 +1524,7 @@ export type SetCalendarInput = {
 
 export type SetStopDwellInput = {
   draftId: Scalars['ID']['input'];
+  /** Desired dwell time at this stop, in seconds. */
   dwellSec: Scalars['Int']['input'];
   editor: Scalars['String']['input'];
   expectedVersion: Scalars['Long']['input'];
@@ -1169,6 +1532,13 @@ export type SetStopDwellInput = {
   tripId: Scalars['String']['input'];
 };
 
+/** Severity of a GTFS validation finding. INFO issues are reported but never block activation or count toward errorCount/warningCount. */
+export type Severity =
+  | 'ERROR'
+  | 'INFO'
+  | 'WARNING';
+
+/** GTFS shapes.txt: a trip's physical path, summarized from its points. */
 export type Shape = {
   __typename?: 'Shape';
   lengthM?: Maybe<Scalars['Float']['output']>;
@@ -1177,6 +1547,7 @@ export type Shape = {
   shapeId: Scalars['String']['output'];
 };
 
+/** One point along a trip shape's geometry. */
 export type ShapePoint = {
   __typename?: 'ShapePoint';
   distTraveled?: Maybe<Scalars['Float']['output']>;
@@ -1186,6 +1557,7 @@ export type ShapePoint = {
 };
 
 export type ShiftTripInput = {
+  /** Signed offset in seconds applied to every scheduled stop time on the trip. */
   deltaSec: Scalars['Int']['input'];
   draftId: Scalars['ID']['input'];
   editor: Scalars['String']['input'];
@@ -1193,8 +1565,14 @@ export type ShiftTripInput = {
   tripId: Scalars['String']['input'];
 };
 
+/**
+ * GTFS stops.txt: a physical location vehicles stop at, or a station/entrance grouping such
+ * locations. locationType: 0=stop/platform, 1=station, 2=entrance/exit, 3=generic node, 4=boarding
+ * area. wheelchairBoarding: 0=unknown, 1=accessible, 2=not accessible.
+ */
 export type Stop = {
   __typename?: 'Stop';
+  /** Stops whose parentStation is this stop. */
   childStops: Array<Stop>;
   level?: Maybe<Level>;
   levelId?: Maybe<Scalars['String']['output']>;
@@ -1211,55 +1589,96 @@ export type Stop = {
   zoneId?: Maybe<Scalars['String']['output']>;
 };
 
+/** How one scheduled stop of a trip differs between the two compared revisions. */
+export type StopChangeKind =
+  | 'STOP_ADDED'
+  | 'STOP_REMOVED'
+  | 'STOP_TIME_CHANGED';
+
+/** One scheduled stop of one trip execution, as derived on-demand from AVL match history. observedSec/adherenceSec are null when the trip never reached this stop (by stopPathIndex) in the queried window. */
 export type StopPassage = {
   __typename?: 'StopPassage';
+  /** Seconds behind (positive) or ahead of (negative) schedule when observed, or null if never reached. Not guaranteed to equal observedSec minus scheduledSec; see the interpolation note on the underlying match. */
   adherenceSec?: Maybe<Scalars['Int']['output']>;
   blockId?: Maybe<Scalars['String']['output']>;
+  /** The trip's GTFS directionId, constant across every passage of this trip execution. */
   direction?: Maybe<Scalars['Int']['output']>;
+  /** When the vehicle was actually observed at this stop, in seconds since midnight of serviceDate, or null if never reached. */
   observedSec?: Maybe<Scalars['Int']['output']>;
-  occupancyStatus?: Maybe<Scalars['String']['output']>;
+  /** Occupancy reported by the AVL ping that produced this passage's observedSec, or null if observedSec is null or the feed didn't report occupancy. */
+  occupancyStatus?: Maybe<AvlOccupancyStatus>;
   routeId: Scalars['String']['output'];
+  /** Scheduled arrival (or departure, if no arrival is scheduled) in seconds since midnight of serviceDate. */
   scheduledSec?: Maybe<Scalars['Int']['output']>;
+  /** The calendar service date this trip execution is inferred to belong to, which for a late-night trip may be the day before the AVL activity was observed. */
   serviceDate: Scalars['String']['output'];
   stopId: Scalars['String']['output'];
   stopName?: Maybe<Scalars['String']['output']>;
+  /** Index into the trip's stop sequence. */
   stopPathIndex: Scalars['Int']['output'];
   tripId: Scalars['String']['output'];
+  /** The vehicle that served this trip execution; shared by every passage in the group even when observedSec is null. */
   vehicleId: Scalars['String']['output'];
 };
 
+/** One scheduled stop within a trip pattern, with derived timing and geometry metadata shared by every trip that follows the pattern. */
 export type StopPath = {
   __typename?: 'StopPath';
+  /** Scheduled break duration at this stop, in seconds, when layoverStop is true. */
   breakTimeSec?: Maybe<Scalars['Int']['output']>;
   dropOffType?: Maybe<Scalars['Int']['output']>;
+  /** True if trips pause here for a scheduled break (e.g. a terminal layover) rather than just a brief dwell. */
   layoverStop: Scalars['Boolean']['output'];
+  /** Distance in meters along the pattern's shape from the start of the trip to this stop. */
   lengthM: Scalars['Float']['output'];
+  /** This stop path's segment of the pattern's shape geometry. */
   pathGeometry?: Maybe<Scalars['JSON']['output']>;
+  /** GTFS pickup_type for this stop across the pattern's trips, if consistent. */
   pickupType?: Maybe<Scalars['Int']['output']>;
+  /** True if schedule adherence is meaningfully measured at this stop (e.g. a timepoint). */
   scheduleAdherenceStop: Scalars['Boolean']['output'];
   stop?: Maybe<Stop>;
   stopId: Scalars['String']['output'];
+  /** Index of this stop within the pattern's stop sequence; used throughout the API (Vehicle, AvlReport, predictions) to refer to a position along a trip. */
   stopPathIndex: Scalars['Int']['output'];
+  /** The original GTFS stop_sequence this stop path was derived from. */
   stopSeq: Scalars['Int']['output'];
+  /** Typical observed or scheduled dwell time at this stop, in seconds. */
   typicalDwellTimeSec?: Maybe<Scalars['Int']['output']>;
+  /** Typical observed or scheduled travel time from the previous stop, in seconds. */
   typicalTravelTimeSec?: Maybe<Scalars['Int']['output']>;
+  /** True if this is a scheduled waiting point (e.g. a layover) rather than a normal pass-through stop. */
   waitStop: Scalars['Boolean']['output'];
 };
 
+/** A predicted (and, once reached, actual) arrival/departure at one scheduled stop of a vehicle's current trip. */
 export type StopPrediction = {
   __typename?: 'StopPrediction';
+  /** ISO-8601 instant the vehicle actually arrived, present once the stop has been reached. */
   actualArrival?: Maybe<Scalars['String']['output']>;
   actualDeparture?: Maybe<Scalars['String']['output']>;
-  algorithm?: Maybe<Scalars['String']['output']>;
+  /** The algorithm that produced this prediction, or null for a stop already reached (no prediction was needed). */
+  algorithm?: Maybe<PredictionAlgorithm>;
+  /** How far in the future this prediction reaches, in seconds; larger values are typically less reliable. */
   confidenceSec?: Maybe<Scalars['Int']['output']>;
+  /** ISO-8601 instant of the predicted arrival; null once actualArrival is set. */
   predictedArrival?: Maybe<Scalars['String']['output']>;
   predictedDeparture?: Maybe<Scalars['String']['output']>;
+  /** ISO-8601 instant of the scheduled arrival, or null if the trip has no scheduled arrival at this stop. */
   scheduledArrival?: Maybe<Scalars['String']['output']>;
   scheduledDeparture?: Maybe<Scalars['String']['output']>;
   stop?: Maybe<Stop>;
+  /** Index into the trip pattern's stopPaths this prediction is for. */
   stopPathIndex: Scalars['Int']['output'];
 };
 
+/**
+ * GTFS stop_times.txt: one scheduled stop of one trip. arrivalTime/departureTime are the feed's
+ * original HH:MM:SS strings (which may exceed 24:00:00 for a post-midnight trip); the *Seconds
+ * fields are the same values normalized to seconds since midnight of the service day, for
+ * arithmetic. pickupType/dropOffType: 0=regular, 1=none, 2=phone agency, 3=coordinate with driver.
+ * timepoint: 0=approximate, 1=exact (default).
+ */
 export type StopTime = {
   __typename?: 'StopTime';
   arrivalTime?: Maybe<Scalars['String']['output']>;
@@ -1277,15 +1696,19 @@ export type StopTime = {
   tripId: Scalars['String']['output'];
 };
 
+/** One scheduled stop's change within a changed trip. */
 export type StopTimeChange = {
   __typename?: 'StopTimeChange';
+  /** Change in scheduled arrival time in seconds, or null if not applicable. */
   arrivalDeltaSec?: Maybe<Scalars['Int']['output']>;
   departureDeltaSec?: Maybe<Scalars['Int']['output']>;
-  kind: Scalars['String']['output'];
+  kind: StopChangeKind;
+  /** The stop involved, or null for a STOP_TIME_CHANGED entry that didn't change which stop is at this sequence. */
   stopId?: Maybe<Scalars['String']['output']>;
   stopSequence: Scalars['Int']['output'];
 };
 
+/** GTFS table names supported by the records query, covering the GTFS-Fares v2, GTFS-Flex, translations and attributions extensions. */
 export type Table =
   | 'AREAS'
   | 'ATTRIBUTIONS'
@@ -1307,6 +1730,7 @@ export type Table =
   | 'TIMEFRAMES'
   | 'TRANSLATIONS';
 
+/** GTFS transfers.txt: a rule describing how a transfer between two stops/routes/trips should be treated. transferType: 0=recommended, 1=timed, 2=requires minimum time, 3=not possible. */
 export type Transfer = {
   __typename?: 'Transfer';
   fromRouteId?: Maybe<Scalars['String']['output']>;
@@ -1319,23 +1743,35 @@ export type Transfer = {
   transferType?: Maybe<Scalars['Int']['output']>;
 };
 
+/**
+ * GTFS trips.txt: one scheduled run of a route. directionId is GTFS's binary direction (0/1,
+ * feed-defined meaning, typically outbound/inbound). wheelchairAccessible/bikesAllowed: 0=unknown,
+ * 1=yes, 2=no. tripPatternId links to this trip's derived TripPattern, if one was computed.
+ */
 export type Trip = {
   __typename?: 'Trip';
   bikesAllowed?: Maybe<Scalars['Int']['output']>;
+  /** The vehicle block this trip belongs to. */
   block?: Maybe<Block>;
   blockId?: Maybe<Scalars['String']['output']>;
   directionId?: Maybe<Scalars['Int']['output']>;
   endTimeSec?: Maybe<Scalars['Int']['output']>;
+  /** True if this trip is generated from a GTFS frequencies.txt entry rather than fixed stop_times. */
   frequencyBased?: Maybe<Scalars['Boolean']['output']>;
+  /** True if this trip has no derivable schedule (e.g. frequency-based with no fixed times). */
   noSchedule?: Maybe<Scalars['Boolean']['output']>;
+  /** The derived trip pattern this trip follows. */
   pattern?: Maybe<TripPattern>;
   route?: Maybe<Route>;
   routeId: Scalars['String']['output'];
+  /** This trip's scheduled stop timings, in stop sequence order. */
   scheduleTimes: Array<ScheduleTime>;
   serviceId: Scalars['String']['output'];
   shape?: Maybe<Shape>;
   shapeId?: Maybe<Scalars['String']['output']>;
+  /** Scheduled start of this trip, in seconds since midnight of its service day. */
   startTimeSec?: Maybe<Scalars['Int']['output']>;
+  /** This trip's scheduled stops, in stop_sequence order. */
   stopTimes: Array<StopTime>;
   tripHeadsign?: Maybe<Scalars['String']['output']>;
   tripId: Scalars['String']['output'];
@@ -1344,6 +1780,7 @@ export type Trip = {
   wheelchairAccessible?: Maybe<Scalars['Int']['output']>;
 };
 
+/** Aggregate schedule adherence for one trip execution (tripId + serviceDate) over a date range. */
 export type TripAdherenceSummary = {
   __typename?: 'TripAdherenceSummary';
   meanAdherenceSec: Scalars['Float']['output'];
@@ -1354,28 +1791,50 @@ export type TripAdherenceSummary = {
   tripId: Scalars['String']['output'];
 };
 
+/** One trip's change between the two compared revisions. */
 export type TripChange = {
   __typename?: 'TripChange';
+  /** Changed top-level trip fields, keyed by field name to {from, to} old/new value pairs. */
   fieldChanges: Scalars['JSON']['output'];
-  kind: Scalars['String']['output'];
+  kind: TripChangeKind;
+  /** Change in the trip's total scheduled run time in seconds (toRevisionId minus fromRevisionId), or null for an added/removed trip. */
   runTimeDeltaSec?: Maybe<Scalars['Int']['output']>;
+  /** Per-stop changes within this trip. */
   stopChanges: Array<StopTimeChange>;
   tripId: Scalars['String']['output'];
 };
 
+/** How a trip or calendar differs between the two compared revisions. */
+export type TripChangeKind =
+  /** Present in toRevisionId but not fromRevisionId. */
+  | 'ADDED'
+  /** Present in both, with at least one changed field. */
+  | 'MODIFIED'
+  /** Present in fromRevisionId but not toRevisionId. */
+  | 'REMOVED';
+
+/** A distinct sequence of stops shared by one or more trips of a route, derived from the GTFS stop_times. Vehicles are matched against patterns rather than individual trips. */
 export type TripPattern = {
   __typename?: 'TripPattern';
   directionId?: Maybe<Scalars['Int']['output']>;
+  /** Geographic bounding box of this pattern's shape. */
   extent?: Maybe<Extent>;
+  /** Representative headsign shared by this pattern's trips, if consistent. */
   headsign?: Maybe<Scalars['String']['output']>;
+  /** Total pattern length in meters, from its shape. */
   lengthM?: Maybe<Scalars['Float']['output']>;
+  /** Stable identifier for this pattern within its revision. */
   patternKey: Scalars['String']['output'];
   route?: Maybe<Route>;
   routeId: Scalars['String']['output'];
   shapeId?: Maybe<Scalars['String']['output']>;
+  /** Number of scheduled stops in this pattern. */
   stopCount: Scalars['Int']['output'];
+  /** This pattern's scheduled stops, in order. */
   stopPaths: Array<StopPath>;
+  /** Number of trips that follow this pattern. */
   tripCount: Scalars['Int']['output'];
+  /** Every trip that follows this pattern. */
   trips: Array<Trip>;
 };
 
@@ -1395,46 +1854,75 @@ export type UpdateStopTimeInput = {
   departureSec?: InputMaybe<Scalars['Int']['input']>;
   draftId: Scalars['ID']['input'];
   editor: Scalars['String']['input'];
+  /** The draft's version this edit is based on; used to detect concurrent edits from another editor. */
   expectedVersion: Scalars['Long']['input'];
   stopSequence: Scalars['Int']['input'];
   tripId: Scalars['String']['input'];
 };
 
+/** One distinct validation rule violation found in a revision, with a sample affected row. */
 export type ValidationNotice = {
   __typename?: 'ValidationNotice';
+  /** Number of rows this rule fired on. */
   count: Scalars['Int']['output'];
+  /** The validator rule that fired (e.g. a MobilityData GTFS validator notice code). */
   rule: Scalars['String']['output'];
+  /** One example of an affected row, for diagnosing the issue. */
   sample: Scalars['String']['output'];
-  severity: Scalars['String']['output'];
+  severity: Severity;
 };
 
+/** Aggregate GTFS validation results for one revision. */
 export type ValidationSummary = {
   __typename?: 'ValidationSummary';
   errorCount: Scalars['Int']['output'];
+  /** Individual validation findings, one per distinct rule/severity combination that fired, with how many rows it affected. */
   notices: Array<ValidationNotice>;
   warningCount: Scalars['Int']['output'];
 };
 
+/** A vehicle's latest known position and match state on an AVL feed, updated on every poll. */
 export type Vehicle = {
   __typename?: 'Vehicle';
+  /** Compass heading in degrees, if reported. */
   bearing?: Maybe<Scalars['Float']['output']>;
   block?: Maybe<Block>;
+  /** The stop this vehicle is currently approaching or at, or null while unmatched. */
   currentStop?: Maybe<Stop>;
+  /** Distance in meters the vehicle has traveled along its matched trip's shape, or null while unmatched. */
   distanceAlongTripM?: Maybe<Scalars['Float']['output']>;
+  /** Operator-facing label for the vehicle, if the feed provides one; often distinct from vehicleId. */
   label?: Maybe<Scalars['String']['output']>;
+  /** True once this vehicle has been matched to a trip. */
   matched: Scalars['Boolean']['output'];
-  occupancyStatus?: Maybe<Scalars['String']['output']>;
+  occupancyStatus?: Maybe<AvlOccupancyStatus>;
   pattern?: Maybe<TripPattern>;
+  /** Raw reported position. */
   position: LatLon;
+  /** ISO-8601 instant this position was reported by the vehicle. */
   reportTs: Scalars['String']['output'];
+  /** Seconds behind (positive) or ahead of (negative) schedule at the matched position, or null while unmatched. */
   scheduleAdherenceSec?: Maybe<Scalars['Int']['output']>;
+  /** Position snapped onto the matched trip's shape, or null while unmatched. */
   snappedPosition?: Maybe<LatLon>;
   speedMps?: Maybe<Scalars['Float']['output']>;
+  /** True if this vehicle's last report is older than the feed considers live; the position shown may no longer reflect where the vehicle actually is. */
   stale: Scalars['Boolean']['output'];
+  /** Index into the matched trip pattern's stopPaths the vehicle is currently progressing through, or null while unmatched. */
   stopPathIndex?: Maybe<Scalars['Int']['output']>;
+  /** The trip this vehicle is matched to, or null while unmatched. */
   trip?: Maybe<Trip>;
   vehicleId: Scalars['String']['output'];
 };
+
+/** GTFS-Realtime VehiclePosition current_status, describing the vehicle's relationship to currentStopSequence. */
+export type VehicleStopStatus =
+  /** The vehicle is just about to arrive at the stop. */
+  | 'INCOMING_AT'
+  /** The vehicle has departed and is in transit to the next stop. */
+  | 'IN_TRANSIT_TO'
+  /** The vehicle is stopped at the stop. */
+  | 'STOPPED_AT';
 
 export type RouteAdherenceQueryVariables = Exact<{
   feedCode: string;
@@ -1463,7 +1951,7 @@ export type TripAdherenceQueryVariables = Exact<{
 }>;
 
 
-export type TripAdherenceQuery = { tripAdherence: Array<{ serviceDate: string, stopId: string, stopName: string | null, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null, vehicleId: string, direction: number | null, occupancyStatus: string | null }> };
+export type TripAdherenceQuery = { tripAdherence: Array<{ serviceDate: string, stopId: string, stopName: string | null, stopPathIndex: number, scheduledSec: number | null, observedSec: number | null, adherenceSec: number | null, vehicleId: string, direction: number | null, occupancyStatus: AvlOccupancyStatus | null }> };
 
 export type AllTripsAdherenceQueryVariables = Exact<{
   feedCode: string;
@@ -1502,7 +1990,7 @@ export type AgenciesDetailQuery = { agencies: Array<{ agencyId: string | null, a
 export type AvlFeedsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, format: string, predictionAlgorithms: Array<string>, enabled: boolean, pollIntervalSec: number, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
+export type AvlFeedsQuery = { avlFeeds: Array<{ code: string, name: string, gtfsFeedCode: string, format: AvlFormat, predictionAlgorithms: Array<PredictionAlgorithm>, enabled: boolean, pollIntervalSec: number, lastPollAt: string | null, lastPollStatus: string | null, lastPollReportCount: number | null }> };
 
 export type AvlLogQueryVariables = Exact<{
   feedCode: string;
@@ -1511,7 +1999,7 @@ export type AvlLogQueryVariables = Exact<{
 }>;
 
 
-export type AvlLogQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, matchStatus: string, descTripId: string | null, position: { lat: number, lon: number }, match: { stopPathIndex: number, distanceAlongTripM: number, deviationM: number, scheduleAdherenceSec: number | null, score: number | null, trip: { tripId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null } | null } | null } | null }> };
+export type AvlLogQuery = { avlReports: Array<{ ts: string, speedMps: number | null, bearing: number | null, matchStatus: MatchStatus, descTripId: string | null, position: { lat: number, lon: number }, match: { stopPathIndex: number, distanceAlongTripM: number, deviationM: number, scheduleAdherenceSec: number | null, score: number | null, trip: { tripId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null } | null } | null } | null }> };
 
 export type AvlReportCatalogQueryVariables = Exact<{
   feedCode: string;
@@ -1531,7 +2019,7 @@ export type AvlReportPageQueryVariables = Exact<{
 }>;
 
 
-export type AvlReportPageQuery = { avlReportPage: { totalCount: number, page: number, pageSize: number, items: Array<{ vehicleId: string, ts: string, processedAt: string, source: string, speedMps: number | null, descTripId: string | null, position: { lat: number, lon: number }, match: { trip: { tripId: string } | null } | null }> } };
+export type AvlReportPageQuery = { avlReportPage: { totalCount: number, page: number, pageSize: number, items: Array<{ vehicleId: string, ts: string, processedAt: string, source: AvlFormat, speedMps: number | null, descTripId: string | null, position: { lat: number, lon: number }, match: { trip: { tripId: string } | null } | null }> } };
 
 export type AvlTrailQueryVariables = Exact<{
   feedCode: string;
@@ -1540,7 +2028,7 @@ export type AvlTrailQueryVariables = Exact<{
 }>;
 
 
-export type AvlTrailQuery = { avlReports: Array<{ vehicleId: string, ts: string, speedMps: number | null, bearing: number | null, currentStatus: string | null, occupancyStatus: string | null, descTripId: string | null, position: { lat: number, lon: number } }> };
+export type AvlTrailQuery = { avlReports: Array<{ vehicleId: string, ts: string, speedMps: number | null, bearing: number | null, currentStatus: VehicleStopStatus | null, occupancyStatus: AvlOccupancyStatus | null, descTripId: string | null, position: { lat: number, lon: number } }> };
 
 export type BlockDetailQueryVariables = Exact<{
   feedCode: string;
@@ -1569,7 +2057,7 @@ export type CompareRevisionsQueryVariables = Exact<{
 }>;
 
 
-export type CompareRevisionsQuery = { compareRevisions: { fromRevisionId: string, toRevisionId: string, fromDerivationStale: boolean, toDerivationStale: boolean, tripChangeCount: number, tripChanges: Array<{ tripId: string, kind: string, fieldChanges: any, runTimeDeltaSec: number | null, stopChanges: Array<{ stopSequence: number, kind: string, stopId: string | null, arrivalDeltaSec: number | null, departureDeltaSec: number | null }> }>, calendarChanges: Array<{ serviceId: string, kind: string, fieldChanges: any, exceptionChanges: Array<{ date: string, kind: string, fromType: number | null, toType: number | null }> }>, headwaySummaries: Array<{ routeId: string, directionId: number | null, serviceId: string, fromTripCount: number, toTripCount: number, fromMeanGapSec: number | null, toMeanGapSec: number | null, fromMaxGapSec: number | null, toMaxGapSec: number | null }> } };
+export type CompareRevisionsQuery = { compareRevisions: { fromRevisionId: string, toRevisionId: string, fromDerivationStale: boolean, toDerivationStale: boolean, tripChangeCount: number, tripChanges: Array<{ tripId: string, kind: TripChangeKind, fieldChanges: any, runTimeDeltaSec: number | null, stopChanges: Array<{ stopSequence: number, kind: StopChangeKind, stopId: string | null, arrivalDeltaSec: number | null, departureDeltaSec: number | null }> }>, calendarChanges: Array<{ serviceId: string, kind: CalendarChangeKind, fieldChanges: any, exceptionChanges: Array<{ date: string, kind: ExceptionChangeKind, fromType: number | null, toType: number | null }> }>, headwaySummaries: Array<{ routeId: string, directionId: number | null, serviceId: string, fromTripCount: number, toTripCount: number, fromMeanGapSec: number | null, toMeanGapSec: number | null, fromMaxGapSec: number | null, toMaxGapSec: number | null }> } };
 
 export type DraftEditResultFFragment = { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null };
 
@@ -1708,7 +2196,7 @@ export type RebuildDraftMutationVariables = Exact<{
 }>;
 
 
-export type RebuildDraftMutation = { rebuildDraft: { id: string, state: string, phase: string, error: string | null } };
+export type RebuildDraftMutation = { rebuildDraft: { id: string, state: DraftJobState, phase: DraftJobPhase, error: string | null } };
 
 export type ClaimDraftEditorMutationVariables = Exact<{
   id: string | number;
@@ -1758,14 +2246,14 @@ export type DraftsQueryVariables = Exact<{
 }>;
 
 
-export type DraftsQuery = { drafts: Array<{ id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: string, kind: string, version: number, derivationStale: boolean, lastValidation: any, createdBy: string | null, createdAt: string, rowCounts: any, lock: { editor: string, expiresAt: string } | null }> };
+export type DraftsQuery = { drafts: Array<{ id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: RevisionStatus, kind: DraftKind, version: number, derivationStale: boolean, lastValidation: any, createdBy: string | null, createdAt: string, rowCounts: any, lock: { editor: string, expiresAt: string } | null }> };
 
 export type DraftDetailQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type DraftDetailQuery = { draft: { id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: string, kind: string, version: number, derivationStale: boolean, lastValidation: any, createdBy: string | null, createdAt: string, rowCounts: any, lock: { editor: string, expiresAt: string } | null } | null };
+export type DraftDetailQuery = { draft: { id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: RevisionStatus, kind: DraftKind, version: number, derivationStale: boolean, lastValidation: any, createdBy: string | null, createdAt: string, rowCounts: any, lock: { editor: string, expiresAt: string } | null } | null };
 
 export type DraftEditsQueryVariables = Exact<{
   id: string | number;
@@ -1780,7 +2268,7 @@ export type DraftJobQueryVariables = Exact<{
 }>;
 
 
-export type DraftJobQuery = { draftJob: { id: string, state: string, phase: string, error: string | null } | null };
+export type DraftJobQuery = { draftJob: { id: string, state: DraftJobState, phase: DraftJobPhase, error: string | null } | null };
 
 export type ExploreCalendarQueryVariables = Exact<{
   feedCode: string;
@@ -1815,7 +2303,7 @@ export type FeedDetailQueryVariables = Exact<{
 }>;
 
 
-export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: string, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: string, count: number, sample: string }> } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: string, count: number, sample: string }> } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
+export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: FeedSource, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: Severity, count: number, sample: string }> } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: Severity, count: number, sample: string }> } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
 
 export type FeedGeometryQueryVariables = Exact<{
   feedCode: string;
@@ -1863,14 +2351,14 @@ export type FeedReadinessQuery = { feed: { code: string, name: string, activeRev
 export type FeedsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type FeedsQuery = { feeds: Array<{ code: string, name: string, description: string | null, enabled: boolean, source: string, activeRevision: { id: string, status: RevisionStatus, feedStartDate: string | null, feedEndDate: string | null } | null }> };
+export type FeedsQuery = { feeds: Array<{ code: string, name: string, description: string | null, enabled: boolean, source: FeedSource, activeRevision: { id: string, status: RevisionStatus, feedStartDate: string | null, feedEndDate: string | null } | null }> };
 
 export type HeadwayInfoQueryVariables = Exact<{
   feedCode: string;
   stopId: string;
   routeId: string;
   directionId?: number | null | undefined;
-  algorithm?: string | null | undefined;
+  algorithm?: PredictionAlgorithm | null | undefined;
 }>;
 
 
@@ -1889,7 +2377,7 @@ export type StartOptimizationRunMutationVariables = Exact<{
 }>;
 
 
-export type StartOptimizationRunMutation = { startOptimizationRun: { id: string, revisionId: string, state: string, error: string | null, createdAt: string, completedAt: string | null } };
+export type StartOptimizationRunMutation = { startOptimizationRun: { id: string, revisionId: string, state: OptimizationRunState, error: string | null, createdAt: string, completedAt: string | null } };
 
 export type ApplyOptimizationRecommendationsMutationVariables = Exact<{
   runId: string | number;
@@ -1899,7 +2387,7 @@ export type ApplyOptimizationRecommendationsMutationVariables = Exact<{
 }>;
 
 
-export type ApplyOptimizationRecommendationsMutation = { applyOptimizationRecommendations: { id: string, feedCode: string, label: string | null, status: string, kind: string } };
+export type ApplyOptimizationRecommendationsMutation = { applyOptimizationRecommendations: { id: string, feedCode: string, label: string | null, status: RevisionStatus, kind: DraftKind } };
 
 export type OptimizationRunsQueryVariables = Exact<{
   feedCode: string;
@@ -1908,24 +2396,24 @@ export type OptimizationRunsQueryVariables = Exact<{
 }>;
 
 
-export type OptimizationRunsQuery = { optimizationRuns: Array<{ id: string, revisionId: string, state: string, error: string | null, createdAt: string, completedAt: string | null }> };
+export type OptimizationRunsQuery = { optimizationRuns: Array<{ id: string, revisionId: string, state: OptimizationRunState, error: string | null, createdAt: string, completedAt: string | null }> };
 
 export type OptimizationRunQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type OptimizationRunQuery = { optimizationRun: { id: string, revisionId: string, state: string, error: string | null, createdAt: string, completedAt: string | null } | null };
+export type OptimizationRunQuery = { optimizationRun: { id: string, revisionId: string, state: OptimizationRunState, error: string | null, createdAt: string, completedAt: string | null } | null };
 
 export type OptimizationRecommendationsQueryVariables = Exact<{
   runId: string | number;
-  status?: string | null | undefined;
+  status?: OptimizationRecommendationStatus | null | undefined;
   offset?: number | null | undefined;
   limit?: number | null | undefined;
 }>;
 
 
-export type OptimizationRecommendationsQuery = { optimizationRecommendations: Array<{ id: string, kind: string, status: string, sampleCount: number, deltaSec: number, currentValue: any, proposedValue: any, evidence: any, reason: string }> };
+export type OptimizationRecommendationsQuery = { optimizationRecommendations: Array<{ id: string, kind: OptimizationRecommendationKind, status: OptimizationRecommendationStatus, sampleCount: number, deltaSec: number, currentValue: any, proposedValue: any, evidence: any, reason: string }> };
 
 export type PredictionAccuracyQueryVariables = Exact<{
   feedCode: string;
@@ -1933,7 +2421,7 @@ export type PredictionAccuracyQueryVariables = Exact<{
 }>;
 
 
-export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
 
 export type RevisionsQueryVariables = Exact<{
   feedCode: string;
@@ -1970,11 +2458,11 @@ export type StopBoardQueryVariables = Exact<{
   stopId: string;
   routeId?: string | null | undefined;
   directionId?: number | null | undefined;
-  algorithm?: string | null | undefined;
+  algorithm?: PredictionAlgorithm | null | undefined;
 }>;
 
 
-export type StopBoardQuery = { stopPredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: string | null, confidenceSec: number | null }> };
+export type StopBoardQuery = { stopPredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null }> };
 
 export type StopsQueryVariables = Exact<{
   feedCode: string;
@@ -2005,7 +2493,7 @@ export type VehicleDetailQueryVariables = Exact<{
 }>;
 
 
-export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: string | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: string | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: string, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
 
 export type VehiclesQueryVariables = Exact<{
   feedCode: string;
@@ -4149,7 +4637,7 @@ export function useFeedsLazyQuery(options: VueApolloComposable.UseQueryOptions<F
 }
 export type FeedsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<FeedsQuery, FeedsQueryVariables>;
 export const HeadwayInfoDocument = gql`
-    query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int, $algorithm: String) {
+    query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int, $algorithm: PredictionAlgorithm) {
   headway(
     feedCode: $feedCode
     stopId: $stopId
@@ -4380,7 +4868,7 @@ export function useOptimizationRunLazyQuery(variables?: OptimizationRunQueryVari
 }
 export type OptimizationRunQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<OptimizationRunQuery, OptimizationRunQueryVariables>;
 export const OptimizationRecommendationsDocument = gql`
-    query OptimizationRecommendations($runId: ID!, $status: String, $offset: Int, $limit: Int) {
+    query OptimizationRecommendations($runId: ID!, $status: OptimizationRecommendationStatus, $offset: Int, $limit: Int) {
   optimizationRecommendations(
     runId: $runId
     status: $status
@@ -4633,7 +5121,7 @@ export function useStopDetailLazyQuery(variables?: StopDetailQueryVariables | Vu
 }
 export type StopDetailQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<StopDetailQuery, StopDetailQueryVariables>;
 export const StopBoardDocument = gql`
-    query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int, $algorithm: String) {
+    query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int, $algorithm: PredictionAlgorithm) {
   stopPredictions(
     feedCode: $feedCode
     stopId: $stopId

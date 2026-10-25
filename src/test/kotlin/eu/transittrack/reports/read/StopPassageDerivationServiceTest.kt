@@ -396,7 +396,7 @@ class StopPassageDerivationServiceTest(
         // Only the terminal stop's observed ping carried an occupancyStatus; every other stop's
         // observed match left it unset.
         val terminalStop = passages.single { it.stopPathIndex == 3 }
-        assertThat(terminalStop.occupancyStatus).isEqualTo("FEW_SEATS_AVAILABLE")
+        assertThat(terminalStop.occupancyStatus).isEqualTo(AvlOccupancyStatus.FEW_SEATS_AVAILABLE)
         assertThat(passages.filter { it.stopPathIndex != 3 }.map { it.occupancyStatus })
             .isEqualTo(listOf(null, null, null))
     }

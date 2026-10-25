@@ -227,7 +227,7 @@ class PredictionGraphQlTest(
         val rows =
             tester
                 .document(
-                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1", algorithm:"SCHEDULE_ADHERENCE") {
+                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1", algorithm:SCHEDULE_ADHERENCE) {
                          algorithm
                        } }""",
                 ).execute()
@@ -244,7 +244,7 @@ class PredictionGraphQlTest(
         val rows =
             tester
                 .document(
-                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1", algorithm:"KALMAN") {
+                    """{ vehiclePredictions(feedCode:"a", vehicleId:"bus-1", algorithm:KALMAN) {
                          algorithm
                        } }""",
                 ).execute()

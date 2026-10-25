@@ -1,4 +1,4 @@
-query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int, $algorithm: String) {
+query HeadwayInfo($feedCode: String!, $stopId: String!, $routeId: String!, $directionId: Int, $algorithm: PredictionAlgorithm) {
   headway(feedCode: $feedCode, stopId: $stopId, routeId: $routeId, directionId: $directionId, algorithm: $algorithm) {
     stopId
     routeId

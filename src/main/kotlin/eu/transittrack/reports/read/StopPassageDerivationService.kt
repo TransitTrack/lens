@@ -259,7 +259,7 @@ class StopPassageDerivationService(
                         direction = trip.directionId,
                         occupancyStatus =
                             observedMatch?.let { reportsById[it.avlReportId]?.occupancyStatus }?.let {
-                                runCatching { AvlOccupancyStatus.entries[it].name }.getOrNull()
+                                runCatching { AvlOccupancyStatus.entries[it] }.getOrNull()
                             },
                     )
                 }

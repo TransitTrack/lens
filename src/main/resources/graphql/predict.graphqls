@@ -1,35 +1,64 @@
 extend type Query {
-    vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: String): [StopPrediction!]!
-    predictionAccuracy(feedCode: String!, algorithm: String, sinceDays: Int = 7): [PredictionAccuracySummary!]!
-    stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: String): [StopPrediction!]!
-    headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: String): Headway!
+    "Open (not-yet-arrived) stop predictions for one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm; otherwise all algorithms configured for the feed are returned."
+    vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): [StopPrediction!]!
+    "Recent prediction-error statistics per algorithm, over the last sinceDays days. Pass algorithm to restrict to one."
+    predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7): [PredictionAccuracySummary!]!
+    "Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm."
+    stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: PredictionAlgorithm): [StopPrediction!]!
+    "Current headway (gap between consecutive vehicles) at a stop for one route/direction."
+    headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: PredictionAlgorithm): Headway!
 }
 
+"A method for predicting a vehicle's arrival/departure time at an upcoming stop."
+enum PredictionAlgorithm {
+    "Projects the vehicle's current schedule adherence forward along the rest of its trip."
+    SCHEDULE_ADHERENCE
+    "Predicts using a historical average of observed travel/dwell times for this stop and context."
+    HISTORICAL_AVERAGE
+    "Predicts using a Kalman filter over observed travel times."
+    KALMAN
+}
+
+"A predicted (and, once reached, actual) arrival/departure at one scheduled stop of a vehicle's current trip."
 type StopPrediction {
+    "Index into the trip pattern's stopPaths this prediction is for."
     stopPathIndex: Int!
     stop: Stop
+    "ISO-8601 instant of the scheduled arrival, or null if the trip has no scheduled arrival at this stop."
     scheduledArrival: String
     scheduledDeparture: String
+    "ISO-8601 instant the vehicle actually arrived, present once the stop has been reached."
     actualArrival: String
     actualDeparture: String
+    "ISO-8601 instant of the predicted arrival; null once actualArrival is set."
     predictedArrival: String
     predictedDeparture: String
-    algorithm: String
+    "The algorithm that produced this prediction, or null for a stop already reached (no prediction was needed)."
+    algorithm: PredictionAlgorithm
+    "How far in the future this prediction reaches, in seconds; larger values are typically less reliable."
     confidenceSec: Int
 }
 
+"Aggregate prediction error for one algorithm over a recent time window."
 type PredictionAccuracySummary {
-    algorithm: String!
+    algorithm: PredictionAlgorithm!
+    "Number of resolved (predicted-then-actual) samples this summary is computed from."
     sampleCount: Int!
+    "Mean signed error in seconds (predicted minus actual); positive means predictions ran late."
     meanErrorSec: Float!
+    "Mean absolute error in seconds."
     meanAbsErrorSec: Float!
 }
 
+"Current gap between consecutive vehicles serving a route/direction at a stop, compared to what the schedule calls for."
 type Headway {
     stopId: String!
     routeId: String!
     directionId: Int
+    "Seconds until the next vehicle is predicted to reach this stop, or null if none is currently predicted."
     waitSec: Int
+    "Observed gaps in seconds between the vehicles currently predicted at this stop, in arrival order."
     gapsSec: [Int!]!
+    "The schedule's own headway at this stop/time, in seconds, for comparison."
     scheduledHeadwaySec: Int
 }

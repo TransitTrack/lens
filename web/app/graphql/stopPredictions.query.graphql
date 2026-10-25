@@ -1,4 +1,4 @@
-query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int, $algorithm: String) {
+query StopBoard($feedCode: String!, $stopId: String!, $routeId: String, $directionId: Int, $algorithm: PredictionAlgorithm) {
   stopPredictions(
     feedCode: $feedCode
     stopId: $stopId

@@ -1,11 +1,15 @@
 package eu.transittrack.avl.read.dto
 
+import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.AvlFormat
 import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.ingest.VehicleStopStatus
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
+import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
+import eu.transittrack.predict.PredictionAlgorithm
 
 data class LatLonDto(
     val lat: Double,
@@ -16,10 +20,10 @@ data class AvlFeedDto(
     val code: String,
     val name: String,
     val gtfsFeedCode: String,
-    val format: String,
+    val format: AvlFormat,
     val pollIntervalSec: Int,
-    val assignmentMode: String,
-    val predictionAlgorithms: List<String>,
+    val assignmentMode: AvlAssignmentMode,
+    val predictionAlgorithms: List<PredictionAlgorithm>,
     val enabled: Boolean,
     val lastPollAt: String?,
     val lastPollStatus: String?,
@@ -31,10 +35,10 @@ data class AvlFeedDto(
                 f.code,
                 f.name,
                 f.gtfsFeedCode,
-                f.format.name,
+                f.format,
                 f.pollIntervalSec,
-                f.assignmentMode.name,
-                f.predictionAlgorithms.map { it.name },
+                f.assignmentMode,
+                f.predictionAlgorithms,
                 f.enabled,
                 f.lastPollAt?.toString(),
                 f.lastPollStatus,
@@ -51,7 +55,7 @@ data class VehicleDto(
     val snappedPosition: LatLonDto?,
     val bearing: Double?,
     val speedMps: Double?,
-    val occupancyStatus: String?,
+    val occupancyStatus: AvlOccupancyStatus?,
     val matched: Boolean,
     val stale: Boolean,
     val scheduleAdherenceSec: Int?,
@@ -83,7 +87,7 @@ data class VehicleDto(
             speedMps = s.speedMps,
             occupancyStatus =
                 s.occupancyStatus?.let {
-                    runCatching { AvlOccupancyStatus.entries[it].name }.getOrNull()
+                    runCatching { AvlOccupancyStatus.entries[it] }.getOrNull()
                 },
             matched = s.matched,
             stale = s.stale,
@@ -103,21 +107,21 @@ data class AvlReportDto(
     val vehicleId: String,
     val ts: String,
     val processedAt: String,
-    val source: String,
+    val source: AvlFormat,
     val position: LatLonDto,
     val bearing: Double?,
     val speedMps: Double?,
-    val currentStatus: String?,
-    val occupancyStatus: String?,
+    val currentStatus: VehicleStopStatus?,
+    val occupancyStatus: AvlOccupancyStatus?,
     val descTripId: String?,
-    val matchStatus: String,
+    val matchStatus: MatchStatus,
     val match: AvlReportMatchDto?,
 ) {
     companion object {
         fun of(
             r: AvlReportRow,
             match: AvlReportMatchDto?,
-            source: String,
+            source: AvlFormat,
         ) = AvlReportDto(
             vehicleId = r.vehicleId,
             ts = r.ts.toString(),
@@ -128,14 +132,14 @@ data class AvlReportDto(
             speedMps = r.speedMps,
             currentStatus =
                 r.currentStatus?.let {
-                    runCatching { VehicleStopStatus.entries[it].name }.getOrNull()
+                    runCatching { VehicleStopStatus.entries[it] }.getOrNull()
                 },
             occupancyStatus =
                 r.occupancyStatus?.let {
-                    runCatching { AvlOccupancyStatus.entries[it].name }.getOrNull()
+                    runCatching { AvlOccupancyStatus.entries[it] }.getOrNull()
                 },
             descTripId = r.descTripId,
-            matchStatus = r.matchStatus.name,
+            matchStatus = r.matchStatus,
             match = match,
         )
     }

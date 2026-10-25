@@ -30,7 +30,7 @@ class DraftController(
     private val feedService: GtfsFeedService,
     private val jobs: DraftJobService,
 ) {
-    private fun jobDto(j: DraftJob) = DraftJobDto(j.id, j.state.name, j.phase.name, j.error)
+    private fun jobDto(j: DraftJob) = DraftJobDto(j.id, j.state, j.phase, j.error)
 
     private fun feedCodeOf(rev: GtfsRevision): String = feedService.codeOf(rev.feedId) ?: ""
 

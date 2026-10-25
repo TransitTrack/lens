@@ -1,14 +1,22 @@
+"64-bit integer, used for optimistic-concurrency version numbers and other values that can exceed Int's range."
 scalar Long
 
 extend type Query {
+    "Drafts (revisions with kind DRAFT), newest first. Pass feedCode to scope to one feed."
     drafts(feedCode: String): [Draft!]!
+    "A single draft by ID, or null if unknown."
     draft(id: ID!): Draft
+    "A draft's edit history, newest first, including undone edits."
     draftEdits(id: ID!, limit: Int = 200): [DraftEdit!]!
+    "Status of an async rebuildDraft job, or null if jobId is unknown (e.g. it has aged out of the in-memory job registry)."
     draftJob(jobId: ID!): DraftJob
+    "A draft's editable trip/stop-time grid for one route/direction/service, for the schedule editor UI."
     draftGrid(draftId: ID!, routeId: String!, directionId: Int, serviceId: String): DraftGrid!
 }
 
+"A draft's trips and stops laid out as an editable grid, scoped to one route/direction/service."
 type DraftGrid {
+    "The scheduled stops shared by every trip in the grid, in stop_sequence order."
     stops: [DraftGridStop!]!
     trips: [DraftGridTrip!]!
 }
@@ -17,55 +25,82 @@ type DraftGridStop {
     stopSequence: Int!
     stopId: String
     stopName: String
+    "GTFS timepoint for this stop (0=approximate, 1=exact), or null if not scheduled."
     timepoint: Int
 }
 
+"One trip's row in a draft grid, with one cell per stop in the shared stops list."
 type DraftGridTrip {
     tripId: String!
+    "Seconds since midnight of the trip's first scheduled departure, for sorting rows."
     firstDepartureSec: Int
     headsign: String
     blockId: String
     directionId: Int
     serviceId: String
+    "Cells aligned to the grid's stops list, by stopSequence."
     cells: [DraftGridCell!]!
 }
 
 type DraftGridCell {
     stopSequence: Int!
+    "Scheduled arrival in seconds since midnight, or null if this trip doesn't serve this stop."
     arrivalSec: Int
     departureSec: Int
 }
 
 extend type Mutation {
+    "Asynchronously re-derives a draft's schedule data and re-validates it. Returns a DraftJob to poll via draftJob."
     rebuildDraft(id: ID!): DraftJob!
+    "Creates a new draft forked from a revision (the feed's active one if baseRevisionId is omitted)."
     forkDraft(input: ForkDraftInput!): Draft!
+    "Permanently deletes a draft and its edit history. Returns false if id is unknown. editor must hold the draft's edit lock."
     discardDraft(id: ID!, editor: String!): Boolean!
+    "Discards all edits since the draft was forked, resetting it back to its base revision's data."
     revertDraftToFork(id: ID!, editor: String!): Draft!
+    "Promotes a draft to be the feed's active revision. Fails if the draft has unresolved validation errors unless force is true."
     activateDraft(id: ID!, editor: String!, force: Boolean = false): Revision!
 
+    "Acquires the draft's exclusive edit lock for editor. Fails if another editor holds it, unless takeOver is true."
     claimDraftEditor(id: ID!, editor: String!, takeOver: Boolean = false): DraftLock!
+    "Extends the expiry of editor's existing lock on the draft."
     renewDraftEditor(id: ID!, editor: String!): DraftLock!
+    "Releases editor's lock on the draft. Returns false if editor does not hold it."
     releaseDraftEditor(id: ID!, editor: String!): Boolean!
 
+    "Changes one scheduled stop time on a trip. Fails with a version conflict if expectedVersion no longer matches the draft's current version (see DraftDto.version / StaleDraftException)."
     updateStopTime(input: UpdateStopTimeInput!): DraftEditResult!
+    "Shifts every stop time of a trip by a fixed offset."
     shiftTrip(input: ShiftTripInput!): DraftEditResult!
+    "Sets how long a trip dwells at a stop by adjusting its departure relative to its arrival."
     setStopDwell(input: SetStopDwellInput!): DraftEditResult!
+    "Adds a new trip to the draft."
     addTrip(input: AddTripInput!): DraftEditResult!
+    "Copies an existing trip under a new trip ID, with every stop time shifted by offsetSec."
     duplicateTrip(input: DuplicateTripInput!): DraftEditResult!
     deleteTrip(input: DeleteTripInput!): DraftEditResult!
+    "Shifts every trip matching the given route/pattern/service and time window by a fixed offset, in one edit."
     bulkShiftTrips(input: BulkShiftTripsInput!): DraftEditResult!
+    "Inserts a new scheduled stop into a trip immediately after afterStopSequence, renumbering later stops."
     insertTripStop(input: InsertTripStopInput!): DraftEditResult!
+    "Removes one scheduled stop from a trip, renumbering later stops."
     removeTripStop(input: RemoveTripStopInput!): DraftEditResult!
+    "Reorders a trip's scheduled stops to match stopIdOrder."
     reorderTripStops(input: ReorderTripStopsInput!): DraftEditResult!
+    "Replaces a service's weekly calendar pattern and validity range."
     setCalendar(input: SetCalendarInput!): DraftEditResult!
+    "Adds, changes, or removes a single-day calendar exception for a service."
     setCalendarException(input: SetCalendarExceptionInput!): DraftEditResult!
+    "Reverts the draft's most recent not-yet-undone edit. Fails with a version conflict if expectedVersion is stale."
     undoDraftEdit(id: ID!, editor: String!, expectedVersion: Long!): DraftEditResult!
+    "Re-applies the most recently undone edit."
     redoDraftEdit(id: ID!, editor: String!, expectedVersion: Long!): DraftEditResult!
 }
 
 input UpdateStopTimeInput {
     draftId: ID!
     editor: String!
+    "The draft's version this edit is based on; used to detect concurrent edits from another editor."
     expectedVersion: Long!
     tripId: String!
     stopSequence: Int!
@@ -80,6 +115,7 @@ input ShiftTripInput {
     editor: String!
     expectedVersion: Long!
     tripId: String!
+    "Signed offset in seconds applied to every scheduled stop time on the trip."
     deltaSec: Int!
 }
 
@@ -89,9 +125,11 @@ input SetStopDwellInput {
     expectedVersion: Long!
     tripId: String!
     stopSequence: Int!
+    "Desired dwell time at this stop, in seconds."
     dwellSec: Int!
 }
 
+"One scheduled stop for a new trip created via addTrip, in stop_sequence order."
 input NewStopTimeInput {
     stopId: String!
     arrivalSec: Int!
@@ -104,11 +142,13 @@ input AddTripInput {
     expectedVersion: Long!
     routeId: String!
     serviceId: String!
+    "Explicit trip ID, or omit to have one generated."
     tripId: String
     headsign: String
     directionId: Int
     shapeId: String
     blockId: String
+    "The new trip's scheduled stops, in order."
     stops: [NewStopTimeInput!]!
 }
 
@@ -117,7 +157,9 @@ input DuplicateTripInput {
     editor: String!
     expectedVersion: Long!
     sourceTripId: String!
+    "Explicit trip ID for the copy, or omit to have one generated."
     newTripId: String
+    "Signed offset in seconds applied to every stop time of the copy, relative to sourceTripId."
     offsetSec: Int!
 }
 
@@ -132,11 +174,16 @@ input BulkShiftTripsInput {
     draftId: ID!
     editor: String!
     expectedVersion: Long!
+    "Restrict to trips on this route; omit to match across routes."
     routeId: String
+    "Restrict to trips of this derived trip pattern."
     patternKey: String
     serviceId: String
+    "Restrict to trips starting at or after this time, in seconds since midnight."
     windowFromSec: Int
+    "Restrict to trips starting at or before this time, in seconds since midnight."
     windowToSec: Int
+    "Signed offset in seconds applied to every matching trip's stop times."
     deltaSec: Int!
 }
 
@@ -145,6 +192,7 @@ input InsertTripStopInput {
     editor: String!
     expectedVersion: Long!
     tripId: String!
+    "The existing stopSequence the new stop is inserted after."
     afterStopSequence: Int!
     stopId: String!
     arrivalSec: Int
@@ -164,6 +212,7 @@ input ReorderTripStopsInput {
     editor: String!
     expectedVersion: Long!
     tripId: String!
+    "Every stop ID of the trip, in the desired new order."
     stopIdOrder: [String!]!
 }
 
@@ -193,45 +242,90 @@ input SetCalendarExceptionInput {
     exceptionType: Int
 }
 
+"Whether a revision is a normal feed ingest or a user-created draft."
+enum DraftKind {
+    "Produced by ingestFeed; not directly editable."
+    IMPORT
+    "Created via forkDraft (or by an optimization's applyOptimizationRecommendations) and editable through the draft mutations."
+    DRAFT
+}
+
+"Status of an asynchronous rebuildDraft job."
+enum DraftJobState {
+    RUNNING
+    SUCCEEDED
+    "Failed; see DraftJob.error."
+    FAILED
+}
+
+"Which step of a rebuildDraft job is currently executing (or finished at)."
+enum DraftJobPhase {
+    "Re-deriving schedule data (trip patterns, blocks, travel times, etc.) from the edited tables."
+    DERIVING
+    "Re-running GTFS validation against the re-derived data."
+    VALIDATING
+    DONE
+}
+
+"A revision being edited: a fork of a base revision, plus its edit lock and validation state."
 type Draft {
     id: ID!
     feedCode: String!
+    "Operator-facing name for this draft, or null if unset."
     label: String
+    "The revision this draft was forked from, or null if it predates fork tracking."
     baseRevisionId: ID
-    status: String!
-    kind: String!
+    status: RevisionStatus!
+    kind: DraftKind!
+    "Optimistic-concurrency version, incremented by every edit mutation and required (as expectedVersion) by mutations and undo/redo to detect concurrent edits."
     version: Long!
+    "True if the draft has been edited since its last rebuildDraft, so its derived schedule data (and validation) may not reflect the latest edits."
     derivationStale: Boolean!
+    "Validation results from the draft's last rebuildDraft, or null if it hasn't been rebuilt."
     lastValidation: JSON
+    "The current edit lock, or null if no editor currently holds it."
     lock: DraftLock
+    "The editor who created this draft, or null if unknown."
     createdBy: String
     createdAt: String!
+    "Row counts per GTFS table, as of the draft's data."
     rowCounts: JSON
 }
 
+"Status of an asynchronous rebuildDraft job, pollable via the draftJob query."
 type DraftJob {
     id: ID!
-    state: String!
-    phase: String!
+    state: DraftJobState!
+    phase: DraftJobPhase!
+    "Failure detail when state is FAILED, or null otherwise."
     error: String
 }
 
+"The exclusive edit lock currently held on a draft."
 type DraftLock {
     editor: String!
+    "ISO-8601 instant the lock expires unless renewed via renewDraftEditor."
     expiresAt: String!
 }
 
+"One entry in a draft's edit history."
 type DraftEdit {
+    "Sequence number within the draft's edit history, increasing with each new edit."
     seq: Int!
+    "Upper-snake-case code identifying the kind of edit (e.g. UPDATE_STOP_TIME, SHIFT_TRIP, ADD_TRIP)."
     op: String!
+    "Human-readable summary of what this edit changed."
     summary: String!
     appliedAt: String!
+    "True if this edit has since been reverted via undoDraftEdit."
     undone: Boolean!
 }
 
 # Consumed by later plans (edit mutations, undo/redo). Declared now so the type is stable.
+"The result of an edit mutation: the draft's new state, the edit record it produced, and whether undo/redo are now available."
 type DraftEditResult {
     draft: Draft!
+    "The edit this mutation recorded, or null for a mutation that doesn't produce an undoable edit."
     edit: DraftEdit
     canUndo: Boolean!
     canRedo: Boolean!
@@ -239,6 +333,7 @@ type DraftEditResult {
 
 input ForkDraftInput {
     feedCode: String!
+    "Revision to fork from, or omit to fork the feed's current active revision."
     baseRevisionId: ID
     label: String
     editor: String!

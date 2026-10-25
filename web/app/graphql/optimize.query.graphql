@@ -8,7 +8,7 @@ query OptimizationRun($id: ID!) {
     id revisionId state error createdAt completedAt
   }
 }
-query OptimizationRecommendations($runId: ID!, $status: String, $offset: Int, $limit: Int) {
+query OptimizationRecommendations($runId: ID!, $status: OptimizationRecommendationStatus, $offset: Int, $limit: Int) {
   optimizationRecommendations(runId: $runId, status: $status, offset: $offset, limit: $limit) {
     id kind status sampleCount deltaSec currentValue proposedValue evidence reason
   }

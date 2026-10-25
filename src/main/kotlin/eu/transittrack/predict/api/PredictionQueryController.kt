@@ -24,15 +24,15 @@ class PredictionQueryController(
     fun vehiclePredictions(
         @Argument feedCode: String,
         @Argument vehicleId: String,
-        @Argument algorithm: String?,
-    ) = read.vehiclePredictions(feedCode, vehicleId, algorithm?.let { PredictionAlgorithm.valueOf(it) })
+        @Argument algorithm: PredictionAlgorithm?,
+    ) = read.vehiclePredictions(feedCode, vehicleId, algorithm)
 
     @QueryMapping
     fun predictionAccuracy(
         @Argument feedCode: String,
-        @Argument algorithm: String?,
+        @Argument algorithm: PredictionAlgorithm?,
         @Argument sinceDays: Int,
-    ) = read.predictionAccuracy(feedCode, algorithm?.let { PredictionAlgorithm.valueOf(it) }, sinceDays)
+    ) = read.predictionAccuracy(feedCode, algorithm, sinceDays)
 
     @QueryMapping
     fun stopPredictions(
@@ -40,8 +40,8 @@ class PredictionQueryController(
         @Argument stopId: String,
         @Argument routeId: String?,
         @Argument directionId: Int?,
-        @Argument algorithm: String?,
-    ) = read.stopPredictions(feedCode, stopId, routeId, directionId, algorithm?.let { PredictionAlgorithm.valueOf(it) })
+        @Argument algorithm: PredictionAlgorithm?,
+    ) = read.stopPredictions(feedCode, stopId, routeId, directionId, algorithm)
 
     @QueryMapping
     fun headway(
@@ -49,6 +49,6 @@ class PredictionQueryController(
         @Argument stopId: String,
         @Argument routeId: String,
         @Argument directionId: Int?,
-        @Argument algorithm: String?,
-    ) = headwayRead.headway(feedCode, stopId, routeId, directionId, algorithm?.let { PredictionAlgorithm.valueOf(it) })
+        @Argument algorithm: PredictionAlgorithm?,
+    ) = headwayRead.headway(feedCode, stopId, routeId, directionId, algorithm)
 }

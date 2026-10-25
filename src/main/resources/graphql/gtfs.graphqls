@@ -1,74 +1,133 @@
+"Arbitrary JSON value, used where the shape varies (e.g. validation row counts, optimization evidence)."
 scalar JSON
 
 type Query {
+    "Every configured GTFS static feed."
     feeds: [Feed!]!
+    "A single feed by its code, or null if unknown."
     feed(code: String!): Feed
+    "A feed's revisions (ingest attempts and drafts), newest first. Pass status to filter."
     revisions(feedCode: String!, status: RevisionStatus): [Revision!]!
+    "A single revision by its ID, or null if unknown."
     revision(id: ID!): Revision
 }
 
 type Mutation {
+    "Registers a new GTFS feed to ingest. Fails if code is already taken."
     registerFeed(input: RegisterFeedInput!): Feed!
+    "Updates a feed's configuration. Fails if code is unknown."
     updateFeed(code: String!, input: UpdateFeedInput!): Feed!
+    "Deletes a feed and all its revisions. Returns false if code is unknown."
     deleteFeed(code: String!): Boolean!
+    "Downloads, validates, and processes the feed's current GTFS zip into a new revision; activates it automatically if the feed has autoActivate set and validation passes."
     ingestFeed(feedCode: String!): Revision!
+    "Promotes a READY revision to ACTIVE, superseding the feed's previously active revision."
     activateRevision(revisionId: ID!): Revision!
+    "Permanently deletes a revision and its derived data. Fails on the feed's currently ACTIVE revision."
     deleteRevision(revisionId: ID!): Boolean!
 }
 
+"Lifecycle state of a GTFS revision, from download through activation (or a draft's own edit/rebuild cycle)."
 enum RevisionStatus {
+    "Queued, not yet started."
     PENDING
+    "Downloading the GTFS zip from the feed's URL."
     DOWNLOADING
+    "Running the GTFS validator against the downloaded zip."
     VALIDATING
+    "Loading validated GTFS files into the database."
     PARSING
+    "Computing derived schedule data (trip patterns, blocks, travel times, etc.) from the parsed tables."
     DERIVING
+    "Fully processed and eligible for activation, but not yet the feed's active revision."
     READY
+    "The feed's current, live revision."
     ACTIVE
+    "Was previously ACTIVE; replaced by a later activation."
     SUPERSEDED
+    "Processing failed at some stage; see errorMessage."
     FAILED
+    "The downloaded content was byte-identical to the feed's current active revision, so no new revision was created."
     UNCHANGED
+    "A draft: forked from a revision for editing, not the result of an automatic ingest."
     DRAFT
 }
 
+"How a GTFS feed is managed: hand-configured versus created through the registerFeed API."
+enum FeedSource {
+    CONFIG
+    API
+}
+
+"A configured GTFS static feed: where its data comes from, and its ingest history."
 type Feed {
+    "Unique identifier for this feed, referenced by AvlFeed.gtfsFeedCode and throughout the GTFS query API."
     code: String!
     name: String!
     description: String
+    "URL the feed's GTFS zip is downloaded from on ingest."
     url: String!
+    "Cron expression controlling how often this feed is automatically re-ingested, or null if it's only ingested on demand."
     pollingCron: String
     enabled: Boolean!
-    source: String!
+    source: FeedSource!
+    "The feed's current live revision, or null if none has ever been activated."
     activeRevision: Revision
+    "Every revision ever created for this feed, newest first."
     revisions: [Revision!]!
 }
 
+"One ingest attempt (or draft) of a feed's GTFS data, with its validation and processing outcome."
 type Revision {
     id: ID!
     feedCode: String!
     status: RevisionStatus!
     createdAt: String!
+    "ISO-8601 instant this revision became ACTIVE, or null if it never was."
     activatedAt: String
+    "ISO-8601 instant this revision was superseded by a later activation, or null if it hasn't been."
     supersededAt: String
+    "SHA-256 of the downloaded GTFS zip, used to detect byte-identical re-ingests (see RevisionStatus.UNCHANGED)."
     contentSha256: String
+    "Size of the downloaded GTFS zip in bytes."
     byteSize: Int
+    "Names of the GTFS files present in this revision's zip."
     filesPresent: [String!]!
+    "Number of rows loaded per GTFS table."
     rowCounts: JSON
+    "Earliest service date covered by this revision's calendars, per feed_info/calendar."
     feedStartDate: String
+    "Latest service date covered by this revision's calendars."
     feedEndDate: String
+    "Validation results from the most recent GTFS validator run against this revision, or null if it hasn't been validated."
     validationSummary: ValidationSummary
+    "Failure detail when status is FAILED, or null otherwise."
     errorMessage: String
 }
 
+"Aggregate GTFS validation results for one revision."
 type ValidationSummary {
     errorCount: Int!
     warningCount: Int!
+    "Individual validation findings, one per distinct rule/severity combination that fired, with how many rows it affected."
     notices: [ValidationNotice!]!
 }
 
+"Severity of a GTFS validation finding. INFO issues are reported but never block activation or count toward errorCount/warningCount."
+enum Severity {
+    ERROR
+    WARNING
+    INFO
+}
+
+"One distinct validation rule violation found in a revision, with a sample affected row."
 type ValidationNotice {
+    "The validator rule that fired (e.g. a MobilityData GTFS validator notice code)."
     rule: String!
-    severity: String!
+    severity: Severity!
+    "Number of rows this rule fired on."
     count: Int!
+    "One example of an affected row, for diagnosing the issue."
     sample: String!
 }
 
@@ -79,6 +138,7 @@ input RegisterFeedInput {
     url: String!
     pollingCron: String
     enabled: Boolean
+    "If true, ingestFeed automatically activates a successfully validated revision instead of leaving it READY."
     autoActivate: Boolean
 }
 
@@ -92,49 +152,112 @@ input UpdateFeedInput {
 }
 
 extend type Query {
+    "Transit agencies defined in the feed's active (or given) revision."
     agencies(feedCode: String!, revisionId: ID): [Agency!]!
+    "Routes defined in the feed's active (or given) revision."
     routes(feedCode: String!, revisionId: ID): [Route!]!
+    "A single route by ID, or null if unknown in that revision."
     route(feedCode: String!, routeId: String!, revisionId: ID): Route
     stops(feedCode: String!, revisionId: ID): [Stop!]!
     stop(feedCode: String!, stopId: String!, revisionId: ID): Stop
+    "Trips in the feed's active (or given) revision. Filter by routeId and/or serviceId."
     trips(feedCode: String!, routeId: String, serviceId: String, revisionId: ID): [Trip!]!
     trip(feedCode: String!, tripId: String!, revisionId: ID): Trip
+    "Every scheduled stop of one trip, in stop_sequence order."
     stopTimes(feedCode: String!, tripId: String!, revisionId: ID): [StopTime!]!
+    "Service calendars (weekly patterns) in the feed's active (or given) revision."
     calendars(feedCode: String!, revisionId: ID): [Calendar!]!
+    "Calendar date exceptions (added/removed single-day service), optionally filtered to one serviceId."
     calendarDates(feedCode: String!, serviceId: String, revisionId: ID): [CalendarDate!]!
+    "A trip shape's metadata and geometry by ID, or null if unknown."
     shape(feedCode: String!, shapeId: String!, revisionId: ID): Shape
+    "Frequency-based scheduling entries, optionally filtered to one trip."
     frequencies(feedCode: String!, tripId: String, revisionId: ID): [Frequency!]!
     transfers(feedCode: String!, revisionId: ID): [Transfer!]!
+    "Feed-level publisher/validity metadata, or null if the feed's GTFS didn't include a feed_info.txt."
     feedInfo(feedCode: String!, revisionId: ID): FeedInfo
     pathways(feedCode: String!, revisionId: ID): [Pathway!]!
     levels(feedCode: String!, revisionId: ID): [Level!]!
 }
 
+"Geographic bounding box, in decimal degrees."
 type Extent { minLat: Float!, minLon: Float!, maxLat: Float!, maxLon: Float! }
+
+"GTFS agency.txt: a transit operator."
 type Agency { agencyId: String, agencyName: String, agencyUrl: String, agencyTimezone: String, agencyLang: String, agencyPhone: String, agencyFareUrl: String, agencyEmail: String, extent: Extent }
+
+"""
+GTFS routes.txt: a named, user-facing service (e.g. a bus line). routeType follows the GTFS
+extended route_type vocabulary (0=tram, 1=subway, 2=rail, 3=bus, 4=ferry, 5=cable tram, 6=aerial
+lift, 7=funicular, 11=trolleybus, 12=monorail).
+"""
 type Route { routeId: String!, agencyId: String, routeShortName: String, routeLongName: String, routeDesc: String, routeType: Int, routeUrl: String, routeColor: String, routeTextColor: String, routeSortOrder: Int, networkId: String, extent: Extent }
+
+"""
+GTFS stops.txt: a physical location vehicles stop at, or a station/entrance grouping such
+locations. locationType: 0=stop/platform, 1=station, 2=entrance/exit, 3=generic node, 4=boarding
+area. wheelchairBoarding: 0=unknown, 1=accessible, 2=not accessible.
+"""
 type Stop { stopId: String!, stopCode: String, stopName: String, stopDesc: String, stopLat: Float, stopLon: Float, zoneId: String, locationType: Int, parentStation: String, wheelchairBoarding: Int, levelId: String, platformCode: String }
+
+"""
+GTFS trips.txt: one scheduled run of a route. directionId is GTFS's binary direction (0/1,
+feed-defined meaning, typically outbound/inbound). wheelchairAccessible/bikesAllowed: 0=unknown,
+1=yes, 2=no. tripPatternId links to this trip's derived TripPattern, if one was computed.
+"""
 type Trip { tripId: String!, routeId: String!, serviceId: String!, tripHeadsign: String, tripShortName: String, directionId: Int, blockId: String, shapeId: String, wheelchairAccessible: Int, bikesAllowed: Int, tripPatternId: ID }
+
+"""
+GTFS stop_times.txt: one scheduled stop of one trip. arrivalTime/departureTime are the feed's
+original HH:MM:SS strings (which may exceed 24:00:00 for a post-midnight trip); the *Seconds
+fields are the same values normalized to seconds since midnight of the service day, for
+arithmetic. pickupType/dropOffType: 0=regular, 1=none, 2=phone agency, 3=coordinate with driver.
+timepoint: 0=approximate, 1=exact (default).
+"""
 type StopTime { tripId: String!, stopSequence: Int!, stopId: String, arrivalTime: String, arrivalTimeSeconds: Int, departureTime: String, departureTimeSeconds: Int, stopHeadsign: String, pickupType: Int, dropOffType: Int, shapeDistTraveled: Float, timepoint: Int }
+
+"GTFS calendar.txt: a named service pattern's days of the week and validity range."
 type Calendar { serviceId: String!, monday: Boolean, tuesday: Boolean, wednesday: Boolean, thursday: Boolean, friday: Boolean, saturday: Boolean, sunday: Boolean, startDate: String, endDate: String }
+
+"GTFS calendar_dates.txt: a single-day exception to a service's calendar. exceptionType: 1=service added, 2=service removed."
 type CalendarDate { serviceId: String!, date: String!, exceptionType: Int }
+
+"One point along a trip shape's geometry."
 type ShapePoint { lat: Float, lon: Float, sequence: Int!, distTraveled: Float }
+
+"GTFS shapes.txt: a trip's physical path, summarized from its points."
 type Shape { shapeId: String!, pointCount: Int!, lengthM: Float, points: [ShapePoint!]! }
+
+"GTFS frequencies.txt: a headway-based (rather than fixed-time) scheduling window for a trip. exactTimes: 0=frequency-based (approximate), 1=schedule-based (exact)."
 type Frequency { tripId: String!, startTime: String!, endTime: String, headwaySecs: Int, exactTimes: Int }
+
+"GTFS transfers.txt: a rule describing how a transfer between two stops/routes/trips should be treated. transferType: 0=recommended, 1=timed, 2=requires minimum time, 3=not possible."
 type Transfer { fromStopId: String, toStopId: String, fromRouteId: String, toRouteId: String, fromTripId: String, toTripId: String, transferType: Int, minTransferTime: Int }
+
+"GTFS feed_info.txt: feed-level publisher metadata."
 type FeedInfo { feedPublisherName: String, feedPublisherUrl: String, feedLang: String, defaultLang: String, feedStartDate: String, feedEndDate: String, feedVersion: String, feedContactEmail: String, feedContactUrl: String }
+
+"""
+GTFS pathways.txt: a connection (corridor, stairs, escalator, elevator, etc.) between two
+stops/stations/entrances for indoor wayfinding. pathwayMode: 1=walkway, 2=stairs, 3=moving
+sidewalk, 4=escalator, 5=elevator, 6=fare gate, 7=exit gate. isBidirectional: 0=unidirectional, 1=bidirectional.
+"""
 type Pathway { pathwayId: String!, fromStopId: String, toStopId: String, pathwayMode: Int, isBidirectional: Int, length: Float, traversalTime: Int, stairCount: Int, maxSlope: Float, minWidth: Float, signpostedAs: String, reversedSignpostedAs: String }
+
+"GTFS levels.txt: one floor/level of a station, for indoor wayfinding."
 type Level { levelId: String!, levelIndex: Float, levelName: String }
 
-extend type Route { agency: Agency, trips: [Trip!]! }
-extend type Trip { route: Route, stopTimes: [StopTime!]!, shape: Shape }
+extend type Route { agency: Agency, "Every trip that runs on this route." trips: [Trip!]! }
+extend type Trip { route: Route, "This trip's scheduled stops, in stop_sequence order." stopTimes: [StopTime!]!, shape: Shape }
 extend type StopTime { stop: Stop }
-extend type Stop { childStops: [Stop!]!, level: Level }
+extend type Stop { "Stops whose parentStation is this stop." childStops: [Stop!]!, level: Level }
 
 extend type Query {
+    "Raw rows from one of the less commonly queried GTFS tables (fares v2, flex, translations, attributions), returned as untyped JSON since their shapes vary by GTFS extension."
     records(feedCode: String!, table: Table!, revisionId: ID): [JSON!]!
 }
 
+"GTFS table names supported by the records query, covering the GTFS-Fares v2, GTFS-Flex, translations and attributions extensions."
 enum Table {
     FARE_ATTRIBUTES FARE_RULES TIMEFRAMES RIDER_CATEGORIES FARE_MEDIA FARE_PRODUCTS
     FARE_LEG_RULES FARE_LEG_JOIN_RULES FARE_TRANSFER_RULES AREAS STOP_AREAS NETWORKS

@@ -99,7 +99,7 @@ class AvlReadService(
             AvlReportDto.of(
                 r,
                 matchesByReportId[r.id]?.let { AvlReportMatchDto.of(it, feed.gtfsFeedCode) },
-                feed.format.name,
+                feed.format,
             )
         }
     }
@@ -149,7 +149,7 @@ class AvlReadService(
                 AvlReportDto.of(
                     row,
                     matchesByReportId[row.id]?.let { AvlReportMatchDto.of(it, feed.gtfsFeedCode) },
-                    feed.format.name,
+                    feed.format,
                 )
             },
             totalCount = rows.totalElements.toInt(),
