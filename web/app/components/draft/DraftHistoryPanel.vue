@@ -7,6 +7,7 @@ import {
 } from '~~/generated/graphql'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
 import { useDraftEdit } from '~/composables/useDraftEdit'
+import { formatClock } from '~/utils/clock'
 
 const props = defineProps<{
   draftId: string
@@ -102,8 +103,7 @@ async function undoToHere(targetSeq: number) {
 }
 
 function fmt(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleTimeString()
+  return formatClock(iso, { seconds: true })
 }
 </script>
 

@@ -146,7 +146,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       :data-testid="`vehicle-row-${vehicle.vehicleId}`"
       role="button"
       tabindex="0"
-      class="group flex w-full items-center gap-4 px-4 py-2 text-left transition-colors hover:bg-elevated focus-visible:bg-elevated focus-visible:outline-none"
+      class="group flex cursor-pointer w-full items-center gap-4 px-4 py-2 text-left transition-colors hover:bg-elevated focus-visible:bg-elevated focus-visible:outline-none"
       :class="
         vehicle.vehicleId === selectedVehicleId &&
         'bg-primary/10 shadow-[inset_3px_0_0_var(--ui-primary)]'

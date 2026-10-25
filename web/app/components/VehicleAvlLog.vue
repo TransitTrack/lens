@@ -5,6 +5,7 @@ import { useAvlLogQuery } from '../../generated/graphql'
 import { usePollControl } from '../composables/usePollControl'
 import { useUnits } from '../composables/useUnits'
 import { adherenceBadge } from '../utils/adherence'
+import { formatClock } from '../utils/clock'
 
 const props = defineProps<{
   feedCode: string
@@ -32,9 +33,7 @@ const STATUS_COLOR: Record<string, 'success' | 'error' | 'neutral' | 'warning'> 
 }
 
 function hhmmss(iso: string): string {
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(
-    new Date(iso),
-  )
+  return formatClock(iso, { seconds: true })
 }
 
 const columns: TableColumn<AvlLogRow>[] = [

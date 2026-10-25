@@ -9,6 +9,7 @@ import {
 } from '~~/generated/graphql'
 import {useFeeds} from '~/composables/useFeeds'
 import {usePollControl} from '~/composables/usePollControl'
+import {formatClock} from '~/utils/clock'
 import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
@@ -145,12 +146,7 @@ const boardColumns: TableColumn<BoardRow>[] = [
 ]
 
 function formatTs(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date(iso))
+  return formatClock(iso, { seconds: true })
 }
 
 /**

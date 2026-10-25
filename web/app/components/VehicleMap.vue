@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { VehicleRow } from '../composables/useVehiclePolling'
-import { colorForVehicle } from '../utils/vehicleMarker'
 import { adherenceBadge } from '../utils/adherence'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
@@ -50,7 +49,7 @@ const colorMode = useColorMode()
 // mode). The dark value is a lighter neutral than `--map-popup-bg` (matches
 // `--map-popup-border` in main.css) so it still reads against dark basemap
 // tiles instead of nearly disappearing into them.
-const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#3f3f46' : '#ffffff'))
+const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#000000' : '#ffffff'))
 
 // nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
 // back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
@@ -119,7 +118,10 @@ const { intervalMs } = usePollControl()
 const { result: activeVehicleDetailResult, loading: activeVehicleDetailLoading } =
   useVehicleDetailQuery(
     () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '' }),
-    () => ({ enabled: !!props.feedCode && !!activeVehicleId.value, pollInterval: intervalMs.value }),
+    () => ({
+      enabled: !!props.feedCode && !!activeVehicleId.value,
+      pollInterval: intervalMs.value,
+    }),
   )
 
 const activeVehicleDetail = computed(() => {
@@ -298,19 +300,26 @@ function badge(v: VehicleRow) {
 type VehicleState = 'stale' | 'stopped' | 'matched' | 'unmatched'
 
 const STOPPED_SPEED_MPS = 0.5
+const STOPPED_DISTANCE_M = 25
 
 function stateFor(v: VehicleRow): VehicleState {
   if (v.stale) return 'stale'
-  if (v.speedMps != null && v.speedMps <= STOPPED_SPEED_MPS) return 'stopped'
+  if (
+    v.speedMps != null &&
+    v.speedMps <= STOPPED_SPEED_MPS &&
+    v.distanceAlongTripM != null &&
+    v.distanceAlongTripM < STOPPED_DISTANCE_M
+  )
+    return 'stopped'
   if (v.matched) return 'matched'
   return 'unmatched'
 }
 
 const STATE_COLORS: Record<VehicleState, string> = {
-  stale: colorForVehicle(false, true),
-  stopped: '#f59e0b',
-  matched: colorForVehicle(true, false),
-  unmatched: colorForVehicle(false, false),
+  stale: '#f59e0b',
+  stopped: '#f50b0b',
+  matched: '#22c55e',
+  unmatched: '#9ca3af',
 }
 
 const vehiclesGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
@@ -414,7 +423,7 @@ function drawVehicleIcon(
   paused: boolean,
   contrastColor: string,
 ): ImageData {
-  const size = 40
+  const size = 42
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
@@ -470,11 +479,12 @@ function drawVehicleIcon(
   } else {
     // .vhm__dot: colored circle, 2px contrast border
     const dotR = haloR * 0.737
+    const scale = ((haloR * 2) / 24) * 0.78
     ctx.beginPath()
     ctx.arc(cx, cy, dotR, 0, Math.PI * 2)
     ctx.fillStyle = color
     ctx.fill()
-    ctx.lineWidth = 2
+    ctx.lineWidth = 1.5 / scale
     ctx.strokeStyle = contrastColor
     ctx.stroke()
   }

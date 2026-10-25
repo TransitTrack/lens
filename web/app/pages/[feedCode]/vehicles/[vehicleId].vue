@@ -16,7 +16,8 @@ import {
   useAvlTrailQuery,
   useAgenciesDetailQuery,
 } from '~~/generated/graphql'
-import { adherenceBadge } from '~/utils/adherence'
+import { adherenceBadge, signedAdherence } from '~/utils/adherence'
+import { formatClock } from '~/utils/clock'
 import {
   haversineM,
   avgIntervalSec,
@@ -216,12 +217,7 @@ const facts = computed<Fact[]>(() => {
 })
 
 function hhmm(iso: string | null): string {
-  if (!iso) return '—'
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: agencyTimezone.value,
-  }).format(new Date(iso))
+  return formatClock(iso, { timeZone: agencyTimezone.value, seconds: true })
 }
 
 function relative(iso: string | null): string {
@@ -236,15 +232,6 @@ function signedSec(sec: number | null): string {
   if (sec === null) return '—'
   const s = Math.round(sec)
   return `${s >= 0 ? '+' : '−'}${Math.abs(s)}s`
-}
-
-function adherenceDelta(sec: number): string {
-  const total = Math.abs(Math.round(sec))
-  if (total === 0) return 'On schedule'
-  const minutes = Math.floor(total / 60)
-  const seconds = total % 60
-  const duration = minutes ? `${minutes}m${seconds ? ` ${seconds}s` : ''}` : `${seconds}s`
-  return `${duration} ${sec > 0 ? 'late' : 'early'}`
 }
 
 function adherenceTextClass(sec: number | null): string {
@@ -635,7 +622,7 @@ function adherenceTextClass(sec: number | null): string {
                     class="mt-0.5 text-sm font-semibold leading-4 tabular-nums"
                     :class="adherenceTextClass(r.deltaVsScheduleSec)"
                   >
-                    {{ adherenceDelta(r.deltaVsScheduleSec) }}
+                    {{ signedAdherence(r.deltaVsScheduleSec) }}
                   </div>
                   <div v-if="!r.arrived" class="text-xs leading-4 text-muted">
                     {{ r.arrived ? 'actual vs schedule' : 'no computation yet' }}
@@ -646,7 +633,7 @@ function adherenceTextClass(sec: number | null): string {
                   v-if="r.errorVsPredictionSec != null"
                   class="block text-xs leading-4 text-red-500"
                 >
-                  vs prediction {{ signedSec(r.errorVsPredictionSec) }}
+                  vs prediction {{ signedAdherence(r.errorVsPredictionSec) }}
                 </span>
               </div>
             </li>

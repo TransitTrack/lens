@@ -14,6 +14,7 @@ import {
 import {useFeeds} from '~/composables/useFeeds'
 import {useDraftEditor} from '~/composables/useDraftEditor'
 import {useDraftEdit} from '~/composables/useDraftEdit'
+import {formatClock} from '~/utils/clock'
 import AppPage from '~/components/AppPage.vue'
 import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
 import DraftGrid from '~/components/draft/DraftGrid.vue'
@@ -78,8 +79,7 @@ function parseValidation(raw: unknown): ValidationSummary | null {
 const lastValidation = computed(() => parseValidation(draft.value?.lastValidation))
 
 function formatTime(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleTimeString()
+  return formatClock(iso, { seconds: true })
 }
 
 // --- route / service pickers -------------------------------------------
