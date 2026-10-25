@@ -29,6 +29,10 @@ import eu.transittrack.schedule.optimize.RecommendationConflictException
  *   surface a message instead of a generic `INTERNAL_ERROR`.
  *
  * Imported explicitly by the GraphQL slice tests.
+ *
+ * [GraphQlAutoConfigurationRoleExclusion] excludes Spring GraphQL's own autoconfiguration
+ * entirely for non-API roles, so this bean being role-gated too just keeps it consistent with the
+ * rest of the GraphQL surface rather than leaving orphaned beans behind.
  */
 @Configuration
 @ConditionalOnClass

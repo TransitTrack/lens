@@ -25,8 +25,19 @@ class RoleCondition : Condition {
     ): Boolean {
         val attributes = metadata.getAnnotationAttributes(ConditionalOnRole::class.java.name) ?: return false
         val required = attributes["role"] as Role
-        val activeProfiles = context.environment.activeProfiles.toSet()
-        val anyRoleProfileActive = activeProfiles.any { it.startsWith("role-") }
-        return !anyRoleProfileActive || activeProfiles.contains(required.profile)
+        return isRoleActive(required, context.environment.activeProfiles.toSet())
     }
+}
+
+/**
+ * Monolith-by-default role check shared by [RoleCondition] and anything else (e.g.
+ * `GraphQlAutoConfigurationRoleExclusion`) that needs to decide whether a role's beans/features
+ * should be active without going through a Spring `@Conditional`.
+ */
+fun isRoleActive(
+    role: Role,
+    activeProfiles: Set<String>,
+): Boolean {
+    val anyRoleProfileActive = activeProfiles.any { it.startsWith("role-") }
+    return !anyRoleProfileActive || activeProfiles.contains(role.profile)
 }
