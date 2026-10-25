@@ -99,15 +99,17 @@ class LearnedPredictionAlgorithmsTest(
     /** A fixed, easy-to-hand-verify stand-in for "the vehicle's current position timestamp". */
     private fun fixedStartTs(ctx: AvlMatchContext): Instant = serviceDate.atStartOfDay(ctx.zone).toInstant()
 
+    /** T1's stops 1..3, the vehicle just leaving stop 0 (whole stop path 1 still ahead). */
     private fun t1Horizon(ctx: AvlMatchContext): List<HorizonStop> {
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!
-        return buildHorizon(trip.id!!, trip.tripPatternId!!, fromStopPathIndex = 1, ctx).filter { it.tripRowId == trip.id }
+        return (1..3).map { HorizonStop(trip.id!!, trip.tripPatternId!!, it) }
     }
 
     /**
      * Recomputes, straight from the seed repository, the same accumulation the schedule-seed
      * fallback performs: starting from [startTs], walk forward adding each stop's seeded travel +
-     * dwell time. Used to independently verify the schedule-seed fallback path.
+     * dwell time. Used to independently verify the schedule-seed fallback path. (Equivalent to
+     * summing seed stop-to-stop times - travel plus the previous stop's dwell - arrival to arrival.)
      */
     private fun expectedSeedArrivals(
         horizon: List<HorizonStop>,
@@ -224,5 +226,44 @@ class LearnedPredictionAlgorithmsTest(
 
         assertThat(prediction.predictedArrivalTs).isEqualTo(tsBeforeTarget.plusSeconds(777L))
         assertThat(prediction.confidenceSec).isEqualTo(sqrt(64.0).roundToInt())
+    }
+
+    private fun seedTravelSec(
+        ctx: AvlMatchContext,
+        tripPatternId: Long,
+        stopPathIndex: Int,
+    ): Int = seeds.findByTripPatternOrdered(ctx.revisionId, tripPatternId).first { it.stopPathIndex == stopPathIndex }.travelTimeSec!!
+
+    @Test
+    fun `only the uncovered share of the vehicle's current stop path is counted`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val startTs = fixedStartTs(ctx)
+        val travel1 = seedTravelSec(ctx, trip.tripPatternId!!, 1)
+        // Three quarters of stop path 1 already behind the vehicle. Stop path 1 carries no
+        // learned observation in this class, so this is the schedule seed.
+        val horizon = listOf(HorizonStop(trip.id!!, trip.tripPatternId!!, 1, remainingFraction = 0.25))
+
+        val prediction = HistoricalAverageAlgorithm(observations, seeds).predict(horizon, serviceDate, null, startTs, ctx).single()
+
+        assertThat(prediction.predictedArrivalTs).isEqualTo(startTs.plusMillis((travel1 * 0.25 * 1000).toLong()))
+    }
+
+    @Test
+    fun `a vehicle standing at its first stop is held until the scheduled departure`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val scheduledDeparture =
+            serviceSecToInstant(serviceDate, ctx.scheduleOf(trip.id!!).first { it.stopPathIndex == 0 }.departureSec!!, ctx.zone)
+        val travel1 = seedTravelSec(ctx, trip.tripPatternId!!, 1)
+        val horizon = (0..1).map { HorizonStop(trip.id!!, trip.tripPatternId!!, it) }
+
+        // Waiting at the terminus ten minutes early: it doesn't leave before its departure time.
+        val predictions =
+            HistoricalAverageAlgorithm(observations, seeds).predict(horizon, serviceDate, null, scheduledDeparture.minusSeconds(600), ctx)
+
+        assertThat(predictions.first { it.stopPathIndex == 0 }.predictedDepartureTs).isEqualTo(scheduledDeparture)
+        assertThat(predictions.first { it.stopPathIndex == 1 }.predictedArrivalTs)
+            .isEqualTo(scheduledDeparture.plusSeconds(travel1.toLong()))
     }
 }

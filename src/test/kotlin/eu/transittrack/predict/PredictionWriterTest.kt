@@ -126,6 +126,37 @@ class PredictionWriterTest(
     }
 
     @Test
+    fun `deleteOutOfHorizonPredictions drops open rows behind the vehicle and on trips left behind`() {
+        val at = Instant.parse("2026-09-04T10:10:00Z")
+
+        fun row(
+            tripRowId: Long,
+            stopPathIndex: Int,
+            actual: Instant? = null,
+        ) = prediction(at).copy(tripRowId = tripRowId, stopPathIndex = stopPathIndex, actualArrivalTs = actual)
+
+        writer.inTransaction { session ->
+            listOf(
+                row(1L, 1, actual = at), // passed and observed: kept as history
+                row(1L, 2), // passed but never observed: dropped
+                row(1L, 3), // ahead of the vehicle: kept
+                row(2L, 0), // next block trip, still in the horizon: kept
+                row(9L, 4), // a trip the vehicle is no longer on: dropped
+            ).forEach { writer.upsertPrediction(session, it) }
+        }
+
+        writer.inTransaction { session ->
+            writer.deleteOutOfHorizonPredictions(
+                session, feedCode = "f1", vehicleId = "v1", currentTripRowId = 1L, fromStopPathIndex = 3,
+                horizonTripRowIds = setOf(1L, 2L),
+            )
+        }
+
+        val left = predictions.findAll().map { it.tripRowId to it.stopPathIndex }.toSet()
+        assertThat(left).isEqualTo(setOf(1L to 1, 1L to 3, 2L to 0))
+    }
+
+    @Test
     fun `insertAccuracy appends a row`() {
         writer.inTransaction { session ->
             writer.insertAccuracy(

@@ -14,3 +14,4 @@ databaseChangeLog:
   - include: { file: db/changelog/0013-feed-delete-cascade-gaps.yaml }
   - include: { file: db/changelog/0014-prediction-algorithms.yaml }
   - include: { file: db/changelog/0015-feed-code-keys.yaml }
+  - include: { file: db/changelog/0016-stop-pass-learning.yaml }

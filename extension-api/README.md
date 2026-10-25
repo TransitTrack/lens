@@ -111,7 +111,7 @@ interface PredictionStrategy {
     fun predict(
         horizon: List<HorizonStop>,
         serviceDate: LocalDate,
-        adherenceSec: Int,
+        adherenceSec: Int?,
         startTs: Instant,
         ctx: MatchContext,
     ): List<GeneratedPrediction>
@@ -120,6 +120,10 @@ interface PredictionStrategy {
 
 - `HorizonStop` — one stop, on one trip, within the vehicle's remaining
   prediction horizon (built by core from the match outcome).
+  `remainingFraction` is the share of the first stop's stop path the vehicle
+  still has to cover; every later stop is 1.0.
+- `adherenceSec` is `null` when the match has no usable schedule adherence —
+  predict nothing rather than assume the vehicle is on time.
 - `GeneratedPrediction` — one strategy's predicted arrival/departure and
   optional confidence, for one stop.
 

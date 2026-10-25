@@ -178,26 +178,42 @@ class PredictionServiceTest(
     }
 
     @Test
-    fun `second advancing report crosses a stop, filling actuals and learning`() {
+    fun `passing stops lands actuals on the stop reached and learns stop-to-stop times`() {
         val (trip, geom) = t1Geom()
+        val cum = geom.stopPathCumM
         val len = geom.line.lengthM
-
-        insertReport("bus-1", geom.line.pointAt(0.25 * len), ts(8, 5))
-        processor.processBatch()
-        predictionProcessor.processBatch()
-        insertReport("bus-1", geom.line.pointAt(0.60 * len), ts(8, 12))
-        processor.processBatch()
-        predictionProcessor.processBatch()
-
-        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!)
-        assertThat(preds.any { it.actualArrivalTs != null }).isTrue()
-
         val patternId = trip.tripPatternId!!
-        assertThat(travelTimeObservations.findAll().any { it.tripPatternId == patternId }).isTrue()
-        assertThat(predictionAccuracies.findAll().any { it.tripRowId == trip.id }).isTrue()
-        val observed = crossings.findAll()
-        assertThat(observed).isNotEmpty()
-        assertThat(observed.all { it.feedCode == feedRow().code && it.tripRowId == trip.id && it.tripPatternId == patternId }).isTrue()
+
+        // Stop k sits at the end of stop path k: stop 1 at cum[2], stop 2 at cum[3], stop 3 at len.
+        fun advanceTo(
+            alongM: Double,
+            at: Instant,
+        ) {
+            insertReport("bus-1", geom.line.pointAt(alongM), at)
+            processor.processBatch()
+            predictionProcessor.processBatch()
+        }
+
+        advanceTo((cum[1] + cum[2]) / 2, ts(8, 5)) // on stop path 1, heading for stop 1
+        advanceTo((cum[2] + cum[3]) / 2, ts(8, 15)) // passed stop 1
+
+        val afterStop1 = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!).associateBy { it.stopPathIndex }
+        assertThat(afterStop1.getValue(1).actualArrivalTs != null).isTrue()
+        assertThat(afterStop1.getValue(2).actualArrivalTs).isNull()
+
+        advanceTo((cum[3] + len) / 2, ts(8, 25)) // passed stop 2
+
+        val passes = crossings.findAll().filter { it.tripRowId == trip.id }.sortedBy { it.stopPathIndex }
+        assertThat(passes.map { it.stopPathIndex }).isEqualTo(listOf(1, 2))
+        assertThat(passes.all { it.feedCode == feedRow().code && it.tripPatternId == patternId }).isTrue()
+        // Stop 1's pass has no earlier pass to measure from; stop 2's is timed from stop 1's -
+        // roughly the scheduled 10 minutes, not the gap between two AVL reports.
+        assertThat(passes[0].observedTravelTimeSec).isNull()
+        assertThat(passes[1].observedTravelTimeSec!! > 300.0).isTrue()
+
+        val learned = travelTimeObservations.findAll().filter { it.tripPatternId == patternId }
+        assertThat(learned.map { it.stopPathIndex }).isEqualTo(listOf(2))
+        assertThat(predictionAccuracies.findAll().any { it.tripRowId == trip.id && it.stopPathIndex == 1 }).isTrue()
     }
 
     @Test

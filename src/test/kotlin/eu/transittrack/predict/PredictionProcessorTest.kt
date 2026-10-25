@@ -12,6 +12,8 @@ import assertk.assertions.contains
 import assertk.assertions.doesNotContain
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
 import org.junit.jupiter.api.AfterEach
@@ -204,15 +206,26 @@ class PredictionProcessorTest(
         assertThat(matchedAfter).hasSize(3)
         assertThat(matchedAfter.all { it.predictionStatus == PredictionStatus.DONE }).isTrue()
 
-        // Crossing detection must have fired between consecutive claimed rows (not just against stale
+        // Stop-pass detection must have fired between consecutive claimed rows (not just against stale
         // prior state) — this is what a broken prev-threading loop in processFeed would fail to produce.
-        val observedCrossings = crossings.findAll().filter { it.feedCode == feedRow().code && it.tripPatternId == patternId }
-        assertThat(observedCrossings.size).isEqualTo(2)
+        // Stop 1 is the first pass seen (no sample); stop 2's pass follows it, so it yields one.
+        val observedCrossings =
+            crossings.findAll().filter { it.feedCode == feedRow().code && it.tripPatternId == patternId }.sortedBy { it.stopPathIndex }
+        assertThat(observedCrossings.map { it.stopPathIndex }).isEqualTo(listOf(1, 2))
+        assertThat(observedCrossings[0].observedTravelTimeSec).isNull()
+        assertThat(observedCrossings[1].observedTravelTimeSec).isNotNull()
+        assertThat(travelTimeObservations.findAll().any { it.tripPatternId == patternId && it.stopPathIndex == 2 }).isTrue()
 
-        assertThat(travelTimeObservations.findAll().any { it.tripPatternId == patternId }).isTrue()
-
+        // Only the newest match of the backlog is worth predicting from: nothing behind it is left open.
         val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!)
-        assertThat(preds.any { it.actualArrivalTs != null }).isTrue()
+        assertThat(preds.map { it.stopPathIndex }.toSet()).isEqualTo(setOf(3))
+
+        // The next report reaches the last stop: its actual lands on that stop, not the one after it.
+        insertReport("bus-1", geom.line.pointAt(len), ts(8, 30))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+        val last = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-1", trip.id!!).single { it.stopPathIndex == 3 }
+        assertThat(last.actualArrivalTs).isNotNull()
     }
 
     @Test

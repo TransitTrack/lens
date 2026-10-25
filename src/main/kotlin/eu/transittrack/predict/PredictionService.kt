@@ -16,12 +16,14 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
+import eu.transittrack.predict.generate.seedStopToStopSec
 import eu.transittrack.predict.learn.KalmanState
 import eu.transittrack.predict.learn.RunningAverageState
-import eu.transittrack.predict.learn.detectCrossings
+import eu.transittrack.predict.learn.detectStopPasses
 import eu.transittrack.predict.learn.updateKalman
 import eu.transittrack.predict.learn.updateRunningAverage
 import eu.transittrack.predict.model.AvlStopCrossing
+import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.TravelTimeObservationRepository
@@ -31,20 +33,22 @@ import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripRef
 import eu.transittrack.util.observability.TransitTrackMetrics
 
-/** The vehicle's previous match, as needed for crossing detection — deliberately not a full
+/** The vehicle's previous match, as needed for stop-pass detection — deliberately not a full
  * [eu.transittrack.avl.model.VehicleState], since [PredictionService] is reconstructed from
  * persisted `vehicle_match` history, not a live mutable state row. */
 data class PrevVehicleMatch(
     val tripRowId: Long,
     val stopPathIndex: Int,
+    val distanceAlongTripM: Double,
     val reportTs: Instant,
 )
 
 /**
  * Orchestration hub wiring prediction generation into AVL matching: on every matched report it
- * (1) detects stop-path crossings since the vehicle's previous state, learning travel times and
- * filling in the `actual_*`/`prediction_accuracy` rows for predictions already made for those
- * stops, and (2) generates fresh predictions for the vehicle's remaining horizon.
+ * (1) detects the stops the vehicle passed since its previous match on the same trip, recording
+ * each pass, filling in the `actual_*`/`prediction_accuracy` rows for predictions already made for
+ * those stops, and learning stop-to-stop times; and (2) generates fresh predictions for the
+ * vehicle's remaining horizon, dropping its open predictions that fell out of it.
  */
 @Component
 @ConditionalOnProperty("transittrack.predict.enabled", havingValue = "true")
@@ -52,6 +56,7 @@ class PredictionService(
     private val observations: TravelTimeObservationRepository,
     private val kalmanStates: KalmanTravelTimeStateRepository,
     private val predictions: VehiclePredictionRepository,
+    private val crossings: AvlStopCrossingRepository,
     private val travelTimesForStopPath: TravelTimesForStopPathRepository,
     private val writer: PredictionWriter,
     strategyList: List<PredictionStrategy>,
@@ -60,12 +65,17 @@ class PredictionService(
 ) {
     private val strategies: Map<PredictionAlgorithm, PredictionStrategy> = strategyList.associateBy { it.algorithm }
 
+    /**
+     * [generatePredictions] is false for a vehicle's older matches in a backlog: their stop passes
+     * still have to be learned, in order, but only the newest match's horizon is worth predicting.
+     */
     fun onMatched(
         feed: AvlFeed,
         report: AvlReportRow,
         prev: PrevVehicleMatch?,
         outcome: MatchOutcome.Matched,
         ctx: AvlMatchContext,
+        generatePredictions: Boolean = true,
     ) {
         val trip = ctx.trip(outcome.tripRowId) ?: return
         val serviceDate = inferServiceDate(report.toView(), trip, ctx.zone)
@@ -73,19 +83,30 @@ class PredictionService(
 
         // Everything below writes through the same StatelessSession/transaction: a matched report
         // can fan out into dozens of individual upserts (per horizon stop, per algorithm, plus
-        // crossings/learning), and committing each one separately made that commit's fsync the
+        // passes/learning), and committing each one separately made that commit's fsync the
         // dominant cost of the whole prediction pipeline.
         writer.inTransaction { session ->
             if (prev != null && prev.tripRowId == outcome.tripRowId) {
-                processCrossings(session, feed, report, prev, outcome, trip, ctx, now)
+                processStopPasses(session, feed, report, prev, outcome, trip, ctx, now)
             }
+            if (!generatePredictions) return@inTransaction
 
-            val horizon = buildHorizon(outcome.tripRowId, outcome.tripPatternId, outcome.stopPathIndex, ctx)
+            val horizon =
+                buildHorizon(outcome.tripRowId, outcome.tripPatternId, outcome.stopPathIndex, outcome.distanceAlongTripM, ctx)
+            writer.deleteOutOfHorizonPredictions(
+                session,
+                feed.code,
+                report.vehicleId,
+                outcome.tripRowId,
+                horizon.firstOrNull { it.tripRowId == outcome.tripRowId }?.stopPathIndex ?: Int.MAX_VALUE,
+                horizon.map { it.tripRowId }.toSet() + outcome.tripRowId,
+            )
+
             val algorithmsToRun = feed.predictionAlgorithms.mapNotNull { strategies[it] }
             for (strategy in algorithmsToRun) {
                 val startedAt = Instant.now()
                 runCatching {
-                    val generated = strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec ?: 0, report.ts, ctx)
+                    val generated = strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx)
                     for (p in generated) {
                         writer.upsertPrediction(
                             session,
@@ -128,7 +149,13 @@ class PredictionService(
         }
     }
 
-    private fun processCrossings(
+    /**
+     * Records every stop passed between [prev] and this match. A pass whose previous stop on the
+     * same trip was also seen yields one stop-to-stop sample (time from passing the previous stop
+     * to reaching this one), which is what the learners and the optimizer consume; the first stop
+     * counts as passed when the vehicle leaves it.
+     */
+    private fun processStopPasses(
         session: StatelessSession,
         feed: AvlFeed,
         report: AvlReportRow,
@@ -139,32 +166,45 @@ class PredictionService(
         now: Instant,
     ) {
         val geom = ctx.patternGeometry(outcome.tripPatternId) ?: return
-        val elapsedSec = Duration.between(prev.reportTs, report.ts).seconds.toDouble()
-        val crossings =
-            detectCrossings(
-                prev.stopPathIndex,
-                outcome.stopPathIndex,
-                elapsedSec,
+        val passes =
+            detectStopPasses(
+                prev.distanceAlongTripM,
+                prev.reportTs,
+                outcome.distanceAlongTripM,
+                report.ts,
                 geom.stopPathCumM,
                 geom.line.lengthM,
-                props.learn.maxPlausibleTravelTimeSec,
             )
-        metrics.predictionCrossings(feed.code, crossings.size)
-        var cursor = prev.reportTs
-        val algorithmsToScore = feed.predictionAlgorithms
+        if (passes.isEmpty()) return
 
-        // Fetched once per matched report rather than once per crossing: every crossing in this
-        // loop shares the same trip pattern / feed+vehicle+trip, so these don't change mid-loop.
-        val stopPathSeedSec =
-            travelTimesForStopPath
-                .findByTripPatternOrdered(ctx.revisionId, outcome.tripPatternId)
-                .associate { it.stopPathIndex to it.travelTimeSec?.toDouble() }
-        val existingPredictions =
-            predictions.findByVehicleTrip(feed.code, report.vehicleId, outcome.tripRowId)
+        val maxPlausibleSec = props.learn.maxPlausibleTravelTimeSec
+        // Same trip row on an earlier service day, or a stale pass, is never this trip's previous stop.
+        val since = report.ts.minusSeconds(maxPlausibleSec.toLong())
+        val seeds = travelTimesForStopPath.findByTripPatternOrdered(ctx.revisionId, outcome.tripPatternId).associateBy { it.stopPathIndex }
+        val existingPredictions = predictions.findByVehicleTrip(feed.code, report.vehicleId, outcome.tripRowId)
+        val passedHere = HashMap<Int, Instant>()
+        var recorded = 0
 
-        for (crossing in crossings) {
-            cursor = cursor.plusSeconds(crossing.observedTravelTimeSec.toLong())
-            learn(session, outcome.tripPatternId, crossing.stopPathIndex, crossing.observedTravelTimeSec, stopPathSeedSec, now)
+        for (pass in passes) {
+            val k = pass.stopPathIndex
+            // GPS jitter can carry a vehicle across the same stop twice; only the first pass counts.
+            if (crossings.findLastPass(feed.code, report.vehicleId, outcome.tripRowId, k, since) != null) continue
+
+            val previousPassAt =
+                if (k == 0) {
+                    null
+                } else {
+                    passedHere[k - 1] ?: crossings.findLastPass(feed.code, report.vehicleId, outcome.tripRowId, k - 1, since)?.observedAt
+                }
+            val sampleSec =
+                previousPassAt
+                    ?.let { Duration.between(it, pass.passedAt).toMillis() / 1000.0 }
+                    ?.takeIf { it > 0.0 && it <= maxPlausibleSec }
+            if (sampleSec != null) {
+                learn(session, outcome.tripPatternId, k, sampleSec, seedStopToStopSec(seeds, k) ?: sampleSec, now)
+                metrics.predictionLearningSamples(feed.code, 1)
+            }
+
             writer.insertCrossing(
                 session,
                 AvlStopCrossing(
@@ -172,9 +212,9 @@ class PredictionService(
                     vehicleId = report.vehicleId,
                     tripRowId = outcome.tripRowId,
                     tripPatternId = outcome.tripPatternId,
-                    stopPathIndex = crossing.stopPathIndex,
-                    observedAt = cursor,
-                    observedTravelTimeSec = crossing.observedTravelTimeSec,
+                    stopPathIndex = k,
+                    observedAt = pass.passedAt,
+                    observedTravelTimeSec = sampleSec,
                     serviceId = trip.serviceId,
                     tripStartSec = trip.startTimeSec,
                     routeId = trip.routeId,
@@ -182,9 +222,11 @@ class PredictionService(
                     revisionId = ctx.revisionId,
                 ),
             )
-            metrics.predictionLearningSamples(feed.code, 1)
-            fillActualAndScoreAccuracy(session, feed, existingPredictions, crossing.stopPathIndex, cursor, now, algorithmsToScore)
+            fillActualAndScoreAccuracy(session, feed, existingPredictions, k, pass.passedAt, departure = k == 0, now)
+            passedHere[k] = pass.passedAt
+            recorded++
         }
+        metrics.predictionCrossings(feed.code, recorded)
     }
 
     private fun learn(
@@ -192,13 +234,17 @@ class PredictionService(
         tripPatternId: Long,
         stopPathIndex: Int,
         sample: Double,
-        stopPathSeedSec: Map<Int, Double?>,
+        seed: Double,
         now: Instant,
     ) {
-        val seed = stopPathSeedSec[stopPathIndex] ?: sample
-
         val prevObs = observations.findByPatternAndStop(tripPatternId, stopPathIndex)
-        val newObs = updateRunningAverage(prevObs?.let { RunningAverageState(it.sampleCount, it.meanSec) }, seed, sample)
+        val newObs =
+            updateRunningAverage(
+                prevObs?.let { RunningAverageState(it.sampleCount, it.meanSec) },
+                seed,
+                sample,
+                props.learn.historyWindow,
+            )
         writer.upsertObservation(session, tripPatternId, stopPathIndex, newObs.sampleCount, newObs.meanSec, now)
 
         val prevKalman = kalmanStates.findByPatternAndStop(tripPatternId, stopPathIndex)
@@ -208,6 +254,7 @@ class PredictionService(
                 seed,
                 props.learn.kalmanInitialVarianceSec2,
                 props.learn.kalmanMeasurementNoiseSec2,
+                props.learn.kalmanProcessNoiseSec2,
                 sample,
             )
         writer.upsertKalmanState(
@@ -221,18 +268,19 @@ class PredictionService(
         )
     }
 
+    /** [departure] is set for the first stop, whose "pass" is the vehicle leaving it. */
     private fun fillActualAndScoreAccuracy(
         session: StatelessSession,
         feed: AvlFeed,
         existing: List<VehiclePrediction>,
         stopPathIndex: Int,
         actualTs: Instant,
+        departure: Boolean,
         now: Instant,
-        algorithms: Collection<PredictionAlgorithm>,
     ) {
-        for (algorithm in algorithms) {
+        for (algorithm in feed.predictionAlgorithms) {
             val row = existing.firstOrNull { it.stopPathIndex == stopPathIndex && it.algorithm == algorithm } ?: continue
-            val predictedTs = row.predictedArrivalTs ?: continue
+            val predictedTs = (if (departure) row.predictedDepartureTs else row.predictedArrivalTs) ?: continue
             writer.upsertPrediction(
                 session,
                 VehiclePredictionUpsert(
@@ -245,8 +293,8 @@ class PredictionService(
                     algorithm = row.algorithm,
                     predictedArrivalTs = row.predictedArrivalTs,
                     predictedDepartureTs = row.predictedDepartureTs,
-                    actualArrivalTs = actualTs,
-                    actualDepartureTs = row.actualDepartureTs,
+                    actualArrivalTs = if (departure) row.actualArrivalTs else actualTs,
+                    actualDepartureTs = if (departure) actualTs else row.actualDepartureTs,
                     confidenceSec = row.confidenceSec,
                     computedAt = row.computedAt,
                 ),

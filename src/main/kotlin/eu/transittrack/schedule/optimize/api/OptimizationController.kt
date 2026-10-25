@@ -9,6 +9,8 @@ import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.config.ConditionalOnRole
+import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.DraftMapper
 import eu.transittrack.gtfs.api.dto.DraftDto
 import eu.transittrack.gtfs.draft.DraftService
@@ -28,6 +30,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRow
  * other draft in the review/rebuild/activate pipeline.
  */
 @Controller
+@ConditionalOnRole(Role.API)
 class OptimizationController(
     private val service: ScheduleOptimizationService,
     private val draftMapper: DraftMapper,

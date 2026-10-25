@@ -223,7 +223,8 @@ class AvlMatchProcessorTest(
         // a vehicle that never had a trip assignment stays unmatched from the first failure
         assertThat(state.matched).isFalse()
         assertThat(state.stale).isTrue()
-        assertThat(state.consecutiveFailures).isEqualTo(1)
+        // each report in the batch sees the previous report's outcome, so all three failures count
+        assertThat(state.consecutiveFailures).isEqualTo(3)
         assertThat(state.tripRowId).isNull()
     }
 

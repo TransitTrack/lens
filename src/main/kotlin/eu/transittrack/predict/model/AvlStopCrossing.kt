@@ -24,7 +24,8 @@ class AvlStopCrossing(
     @Column(name = "trip_pattern_id", nullable = false) var tripPatternId: Long,
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
     @Column(name = "observed_at", nullable = false) var observedAt: Instant,
-    @Column(name = "observed_travel_time_sec", nullable = false) var observedTravelTimeSec: Double,
+    /** Time since the vehicle passed the previous stop on this trip; `null` when that wasn't seen. */
+    @Column(name = "observed_travel_time_sec") var observedTravelTimeSec: Double?,
     @Column(name = "service_id") var serviceId: String?,
     @Column(name = "trip_start_sec") var tripStartSec: Int?,
     @Column(name = "route_id") var routeId: String?,
@@ -47,7 +48,7 @@ interface AvlStopCrossingRepository : JpaRepository<AvlStopCrossing, Long> {
      */
     @Query(
         "select c from AvlStopCrossing c where c.feedCode in :feedCodes and c.revisionId = :revisionId " +
-            "and c.observedAt >= :from and c.observedAt < :to " +
+            "and c.observedAt >= :from and c.observedAt < :to and c.observedTravelTimeSec is not null " +
             "and (:serviceId is null or c.serviceId = :serviceId) " +
             "and (:routeId is null or c.routeId = :routeId) " +
             "and (:directionId is null or c.directionId = :directionId) " +
@@ -65,4 +66,18 @@ interface AvlStopCrossingRepository : JpaRepository<AvlStopCrossing, Long> {
         windowFromSec: Int?,
         windowToSec: Int?,
     ): List<AvlStopCrossing>
+
+    /** This vehicle's most recent pass of one stop on one trip, no earlier than [since]. */
+    @Query(
+        "select c from AvlStopCrossing c where c.feedCode = :feedCode and c.vehicleId = :vehicleId " +
+            "and c.tripRowId = :tripRowId and c.stopPathIndex = :stopPathIndex and c.observedAt >= :since " +
+            "order by c.observedAt desc limit 1",
+    )
+    fun findLastPass(
+        feedCode: String,
+        vehicleId: String,
+        tripRowId: Long,
+        stopPathIndex: Int,
+        since: Instant,
+    ): AvlStopCrossing?
 }

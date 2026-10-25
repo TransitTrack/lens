@@ -35,4 +35,9 @@ interface TravelTimeObservationRepository : JpaRepository<TravelTimeObservation,
         @Param("tripPatternId") tripPatternId: Long,
         @Param("stopPathIndex") stopPathIndex: Int,
     ): TravelTimeObservation?
+
+    @Query("select e from TravelTimeObservation e where e.tripPatternId = :tripPatternId")
+    fun findByPattern(
+        @Param("tripPatternId") tripPatternId: Long,
+    ): List<TravelTimeObservation>
 }

@@ -111,6 +111,30 @@ class PredictionWriter(
             .executeUpdate()
     }
 
+    /**
+     * Drops this vehicle's still-open predictions (no actual arrival/departure recorded) that fell
+     * out of its horizon: stops of its current trip it is already past, and any trip that isn't in
+     * the horizon any more (finished, or the vehicle was reassigned). Left behind, they'd keep
+     * showing up as upcoming arrivals on stop boards.
+     */
+    fun deleteOutOfHorizonPredictions(
+        session: StatelessSession,
+        feedCode: String,
+        vehicleId: String,
+        currentTripRowId: Long,
+        fromStopPathIndex: Int,
+        horizonTripRowIds: Collection<Long>,
+    ) {
+        session
+            .createNativeMutationQuery(DELETE_OUT_OF_HORIZON_SQL)
+            .setParameter("feed_code", feedCode)
+            .setParameter("vehicle_id", vehicleId)
+            .setParameter("trip_row_id", currentTripRowId)
+            .setParameter("from_index", fromStopPathIndex)
+            .setParameterList("horizon_trip_row_ids", horizonTripRowIds)
+            .executeUpdate()
+    }
+
     fun insertAccuracy(
         session: StatelessSession,
         a: PredictionAccuracy,
@@ -170,6 +194,14 @@ class PredictionWriter(
                 actual_departure_ts = coalesce(excluded.actual_departure_ts, vehicle_prediction.actual_departure_ts),
                 confidence_sec = excluded.confidence_sec,
                 computed_at = excluded.computed_at
+        """
+
+        const val DELETE_OUT_OF_HORIZON_SQL = """
+            delete from vehicle_prediction
+            where feed_code = :feed_code and vehicle_id = :vehicle_id
+              and actual_arrival_ts is null and actual_departure_ts is null
+              and ((trip_row_id = :trip_row_id and stop_path_index < :from_index)
+                   or trip_row_id not in (:horizon_trip_row_ids))
         """
     }
 }

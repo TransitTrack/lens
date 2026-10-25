@@ -94,7 +94,11 @@ class TripShiftAnalyzer(
             }
             val firstIndex = tripCrossings.minOfOrNull { it.stopPathIndex } ?: continue
             val schedule = context.scheduleFor(tripRowId)
-            val schedSeg = schedule.firstOrNull { it.stopPathIndex == firstIndex }?.schedTravelTimeSec
+            val schedSeg =
+                schedule
+                    .indexOfFirst { it.stopPathIndex == firstIndex }
+                    .takeIf { it >= 0 }
+                    ?.let { scheduledStopToStopSec(schedule, it) }
             if (schedSeg == null) {
                 noScheduledSegment++
                 continue
@@ -105,7 +109,7 @@ class TripShiftAnalyzer(
             val observedStartSamples =
                 tripCrossings
                     .filter { it.stopPathIndex == firstIndex }
-                    .map { scheduledStart + (it.observedTravelTimeSec - schedSeg) }
+                    .mapNotNull { c -> c.observedTravelTimeSec?.let { scheduledStart + (it - schedSeg) } }
             if (observedStartSamples.isEmpty()) {
                 noObservedSamples++
                 continue

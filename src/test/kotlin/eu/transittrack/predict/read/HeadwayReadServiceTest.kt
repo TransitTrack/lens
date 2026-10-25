@@ -1,11 +1,13 @@
 package eu.transittrack.predict.read
 
+import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
 import assertk.assertions.isGreaterThanOrEqualTo
 import assertk.assertions.isNotNull
 import org.junit.jupiter.api.AfterAll
@@ -48,9 +50,9 @@ import eu.transittrack.support.PostgresPerClassTest
  * `schedule-sample` facts used here: trips T1 and T2 are both route RA / direction 0 / service WK,
  * and share the same shape (SHP_OUT) with the identical stop sequence S1,S2,S3,S4 - so they derive
  * to the same TripPattern and both serve stop S3 as stopPathIndex 2. Stop S1 (index 0, the very
- * first stop of that pattern) is deliberately NOT used here: a vehicle positioned anywhere along
- * the shape - even a couple of percent in - is matched to stopPathIndex 1 already (the horizon
- * starts at the *next* unvisited stop), so the trip's own first stop never gets a prediction.
+ * first stop of that pattern) is deliberately NOT used here: only a vehicle still standing at the
+ * terminus (within a few metres of it) has its first stop in the horizon; anywhere further along
+ * the shape it's matched to stopPathIndex 1 already and the horizon starts at the next stop.
  * Route RA also has T3 serving S3 in direction 0 (on its own, shorter pattern S1,S3,S4), which is
  * what lets the scheduled-headway average be computed from >= 2 trips.
  */
@@ -173,5 +175,23 @@ class HeadwayReadServiceTest(
         assertThat(headway.waitSec).isNotNull()
         assertThat(headway.waitSec!!).isGreaterThanOrEqualTo(0)
         assertThat(headway.scheduledHeadwaySec).isNotNull()
+    }
+
+    @Test
+    fun `a vehicle whose predictions stopped being refreshed drops off the stop board`() {
+        val bus2 = vehiclePredictions.findAll().filter { it.vehicleId == "bus-2" }
+        val refreshedAt = bus2.associate { it.id to it.computedAt }
+        try {
+            // bus-2 went silent an hour ago: its last predictions are no longer live arrivals.
+            bus2.forEach { it.computedAt = Instant.now().minus(Duration.ofHours(1)) }
+            vehiclePredictions.saveAll(bus2)
+
+            val headway = headwayReadService.headway(feedCode = "a", stopId = "S3", routeId = "RA", directionId = 0)
+
+            assertThat(headway.gapsSec).isEmpty()
+        } finally {
+            bus2.forEach { it.computedAt = refreshedAt.getValue(it.id) }
+            vehiclePredictions.saveAll(bus2)
+        }
     }
 }

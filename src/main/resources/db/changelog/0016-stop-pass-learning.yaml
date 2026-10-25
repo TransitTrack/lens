@@ -1,0 +1,43 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0016-stop-pass-learning
+      author: transittrack
+      comment: >
+        avl_stop_crossing now records every stop a vehicle passes, with observed_travel_time_sec
+        (time since it passed the previous stop on the same trip) left null when that previous pass
+        wasn't seen. Learning looks up a vehicle's last pass of a given stop on a given trip, hence
+        the new index. The learned travel-time tables are emptied: until now each sample was the
+        time between two AVL reports (not the time between two stops) and was attributed to the
+        stop path after the one actually completed, so every learned value is wrong and would keep
+        skewing KALMAN/HISTORICAL_AVERAGE predictions until it decayed away.
+      changes:
+        - dropNotNullConstraint:
+            tableName: avl_stop_crossing
+            columnName: observed_travel_time_sec
+            columnDataType: DOUBLE PRECISION
+        - createIndex:
+            indexName: ix_avl_stop_crossing_vehicle_trip_stop
+            tableName: avl_stop_crossing
+            columns:
+              - column: { name: feed_code }
+              - column: { name: vehicle_id }
+              - column: { name: trip_row_id }
+              - column: { name: stop_path_index }
+              - column: { name: observed_at, descending: true }
+        - sql:
+            sql: truncate table travel_time_observation, kalman_travel_time_state
+
+  - changeSet:
+      id: 0016-stop-pass-reset-derived
+      author: transittrack
+      comment: >
+        Existing avl_stop_crossing rows were written with the old semantics - each row carried the
+        stop path after the stop actually passed, and a sample equal to the gap between two AVL
+        reports. Left in place they're read as passes by the new detection (a stop looks already
+        passed, so its real pass is skipped; a previous-stop lookup yields a bogus sample) and they
+        feed wrong samples to the schedule optimizer for their whole retention. prediction_accuracy
+        rows were scored against the wrong stop for the same reason. Both are derived from AVL
+        data and rebuild as vehicles keep reporting.
+      changes:
+        - sql:
+            sql: truncate table avl_stop_crossing, prediction_accuracy

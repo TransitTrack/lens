@@ -105,6 +105,7 @@ class PredictionProcessor(
                     .findPreviousForVehicle(feed.code, vehicleId, sorted.first().ts)
                     ?.toPrev()
 
+            val newest = sorted.last()
             for (row in sorted) {
                 val outcome = row.toMatchOutcome()
                 if (outcome == null) {
@@ -119,7 +120,7 @@ class PredictionProcessor(
                 }
                 val ctx = contextsByRevision.getOrPut(row.revisionId) { contextFactory.openForRevision(row.revisionId) }
 
-                runCatching { predictionService.onMatched(feed, report, prev, outcome, ctx) }
+                runCatching { predictionService.onMatched(feed, report, prev, outcome, ctx, generatePredictions = row === newest) }
                     .onFailure {
                         log.warn("prediction generation for feed '{}' vehicle '{}' failed", feed.code, vehicleId, it)
                         failedIds.add(row.id!!)
@@ -137,7 +138,7 @@ class PredictionProcessor(
     }
 }
 
-private fun VehicleMatch.toPrev() = PrevVehicleMatch(tripRowId, stopPathIndex, ts)
+private fun VehicleMatch.toPrev() = PrevVehicleMatch(tripRowId, stopPathIndex, distanceAlongTripM, ts)
 
 private fun VehicleMatch.toMatchOutcome(): MatchOutcome.Matched? {
     val patternId = tripPatternId ?: return null

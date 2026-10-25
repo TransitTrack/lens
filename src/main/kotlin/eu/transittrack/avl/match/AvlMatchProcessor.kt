@@ -111,6 +111,10 @@ class AvlMatchProcessor(
 
         for ((vehicleId, vehicleReports) in vehiclesForFeed) {
             val prev = vehiclesPreviousStates[vehicleId]
+            // Advanced after every report, so a multi-report batch matches each report against its
+            // immediate predecessor's outcome (sequential constraint, block advance, failure count),
+            // not against the state from before the whole batch.
+            var prevState = prev?.toView()
             var cursorLat = prev?.lat
             var cursorLon = prev?.lon
             var cursorTs = prev?.reportTs
@@ -128,9 +132,9 @@ class AvlMatchProcessor(
                     cursorLon = report.lon
                     cursorTs = report.ts
 
-                    val match = matcher.match(report.toView(), prev?.toView(), ctx)
+                    val match = matcher.match(report.toView(), prevState, ctx)
 
-                    stats.accumulate(report, match, prev, ctx)
+                    prevState = stats.accumulate(report, match, prevState, ctx)
 
                     metrics.avlReportMatched(
                         feed.code,
@@ -162,12 +166,13 @@ class AvlMatchProcessor(
         val unmatchedIds = mutableListOf<Long>()
         val skippedIds = mutableListOf<Long>()
 
+        /** Returns the vehicle's state after this report, for matching its next report. */
         fun accumulate(
             report: AvlReportRow,
             outcome: MatchOutcome,
-            prev: VehicleState?,
+            prev: VehicleStateView?,
             ctx: AvlMatchContext,
-        ) {
+        ): VehicleStateView? {
             val now = Instant.now()
             when (outcome) {
                 is MatchOutcome.Matched -> {
@@ -256,8 +261,10 @@ class AvlMatchProcessor(
 
                 MatchOutcome.Skipped -> {
                     skippedIds.add(report.id!!)
+                    return prev
                 }
             }
+            return stateUpserts.last().toView(prev?.id)
         }
 
         fun flush() {
@@ -329,6 +336,32 @@ private fun AvlReportRow.toView() =
         currentStatus = currentStatus,
         occupancyStatus = occupancyStatus,
         congestionLevel = congestionLevel,
+    )
+
+private fun VehicleStateUpsert.toView(id: Long?) =
+    VehicleStateView(
+        id = id,
+        feedCode = feedCode,
+        vehicleId = vehicleId,
+        vehicleLabel = vehicleLabel,
+        reportTs = reportTs,
+        lat = lat,
+        lon = lon,
+        bearing = bearing,
+        speedMps = speedMps,
+        occupancyStatus = occupancyStatus,
+        matched = matched,
+        stale = stale,
+        consecutiveFailures = consecutiveFailures,
+        revisionId = revisionId,
+        tripRowId = tripRowId,
+        blockPk = blockPk,
+        tripPatternId = tripPatternId,
+        stopPathIndex = stopPathIndex,
+        distanceAlongTripM = distanceAlongTripM,
+        scheduleAdherenceSec = scheduleAdherenceSec,
+        snappedLat = snappedLat,
+        snappedLon = snappedLon,
     )
 
 private fun VehicleState.toView() =

@@ -79,7 +79,7 @@ class StopTimeAnalyzer(
                 continue
             }
 
-            val scheduledSec = medianInt(affected.mapNotNull { it.schedule[it.segmentPos].schedTravelTimeSec })
+            val scheduledSec = medianInt(affected.mapNotNull { scheduledStopToStopSec(it.schedule, it.segmentPos) })
             if (scheduledSec == null) {
                 noScheduledMedian++
                 continue
@@ -88,7 +88,7 @@ class StopTimeAnalyzer(
             val candidate =
                 RecommendationEngine.stopTime(
                     scheduledSec = scheduledSec,
-                    observedSec = samples.map { it.observedTravelTimeSec },
+                    observedSec = samples.mapNotNull { it.observedTravelTimeSec },
                     minimumSamples = run.minimumSamples,
                     materialitySec = materiality,
                 )
@@ -157,7 +157,7 @@ class StopTimeAnalyzer(
                     "sampleCount" to candidate.sampleCount,
                     "medianObservedTravelTimeSec" to candidate.observedSec,
                     "scheduledTravelTimeSec" to scheduledSec,
-                    "dispersionMad" to RobustStatistics.filter(samples.map { it.observedTravelTimeSec }).mad,
+                    "dispersionMad" to RobustStatistics.filter(samples.mapNotNull { it.observedTravelTimeSec }).mad,
                 ).apply { putAll(context.predictionEvidence(affectedTripRowIds.toList(), stopPathIndex)) }
 
             results +=
@@ -191,4 +191,20 @@ class StopTimeAnalyzer(
         val mid = sorted.size / 2
         return if (sorted.size % 2 == 0) (sorted[mid - 1] + sorted[mid]) / 2 else sorted[mid]
     }
+}
+
+/**
+ * Scheduled counterpart of a crossing's `observedTravelTimeSec`, which is measured stop to stop:
+ * the stop path's travel time plus the dwell at the stop before it. Stop path 1 is measured from
+ * leaving the first stop, so it carries no dwell.
+ */
+internal fun scheduledStopToStopSec(
+    schedule: List<ScheduleTime>,
+    pos: Int,
+): Int? {
+    val s = schedule[pos]
+    val travel = s.schedTravelTimeSec ?: return null
+    if (s.stopPathIndex < 2) return travel
+    val previous = schedule.getOrNull(pos - 1)?.takeIf { it.stopPathIndex == s.stopPathIndex - 1 }
+    return travel + (previous?.schedDwellTimeSec ?: 0)
 }

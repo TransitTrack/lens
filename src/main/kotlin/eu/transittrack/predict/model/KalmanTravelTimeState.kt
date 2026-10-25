@@ -36,4 +36,9 @@ interface KalmanTravelTimeStateRepository : JpaRepository<KalmanTravelTimeState,
         @Param("tripPatternId") tripPatternId: Long,
         @Param("stopPathIndex") stopPathIndex: Int,
     ): KalmanTravelTimeState?
+
+    @Query("select e from KalmanTravelTimeState e where e.tripPatternId = :tripPatternId")
+    fun findByPattern(
+        @Param("tripPatternId") tripPatternId: Long,
+    ): List<KalmanTravelTimeState>
 }
