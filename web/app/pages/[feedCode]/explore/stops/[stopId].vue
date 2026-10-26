@@ -207,8 +207,8 @@ const splitterItems = computed<SplitterItem[]>(() =>
       class="h-full min-h-0 w-full"
     >
       <template #details>
-        <aside class="flex h-full w-full flex-col gap-4 overflow-y-auto bg-elevated/20 p-4">
-          <section class="flex flex-col gap-3 rounded-md border border-default bg-default p-3">
+        <aside class="flex h-full min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+          <section class="app-frame shrink-0 flex flex-col gap-3 p-3">
             <div class="flex items-start justify-between gap-3">
               <div>
                 <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
@@ -245,28 +245,29 @@ const splitterItems = computed<SplitterItem[]>(() =>
             </dl>
           </section>
 
-          <section class="flex flex-col gap-3">
-            <div class="flex items-center justify-between">
+          <section class="app-frame shrink-0">
+            <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
               <span class="text-sm font-medium text-highlighted">Service at this stop</span>
               <span class="text-xs text-dimmed">{{ tripTotals.total.toLocaleString() }} trips</span>
             </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div class="rounded-md border border-default bg-default px-3 py-2">
+            <div class="p-3">
+              <div class="grid grid-cols-2 border border-default">
+              <div class="border-b border-r border-default px-3 py-2">
                 <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
                 <div class="text-xs text-dimmed">routes</div>
               </div>
-              <div class="rounded-md border border-default bg-default px-3 py-2">
+              <div class="border-b border-default px-3 py-2">
                 <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
                 <div class="text-xs text-dimmed">patterns</div>
               </div>
-              <div class="col-span-2 rounded-md border border-default bg-default px-3 py-2">
+              <div class="col-span-2 px-3 py-2">
                 <div class="text-sm font-semibold text-highlighted">
                   {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
                 </div>
                 <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
               </div>
             </div>
-            <div v-if="routes.length" class="flex flex-wrap gap-1">
+            <div v-if="routes.length" class="mt-3 flex flex-wrap gap-1">
               <UBadge
                 v-for="r in routes"
                 :key="r.id"
@@ -277,9 +278,10 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 {{ r.name }}
               </UBadge>
             </div>
+            </div>
           </section>
 
-          <section class="flex flex-col gap-2 rounded-md border border-default bg-default p-3">
+          <section class="app-frame shrink-0 flex flex-col gap-2 p-3">
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-highlighted">Departures by hour</span>
               <UFieldGroup>
@@ -315,7 +317,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       <template #map>
         <div class="relative h-full min-w-0">
           <div
-            class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
+            class="pointer-events-none absolute left-4 top-4 z-1 border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
           >
             {{ stop.stopName ?? stop.stopId }}
           </div>
