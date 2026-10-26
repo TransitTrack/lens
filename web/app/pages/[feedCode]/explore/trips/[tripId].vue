@@ -144,13 +144,16 @@ const splitterItems = computed<SplitterItem[]>(() =>
       class="h-full min-h-0 w-full"
     >
       <template #details>
-        <aside class="flex h-full w-full flex-col gap-3 overflow-y-auto p-4">
-          <div class="flex flex-col gap-1">
-            <div class="text-xs text-muted">
-              {{ trip?.tripId }} · dir {{ trip?.directionId ?? '?' }} · service
-              {{ trip?.serviceId }}
-            </div>
-            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+        <aside class="flex h-full min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4">
+          <section class="app-frame shrink-0">
+            <header class="border-b border-default px-3 py-2.5">
+              <div class="text-xs font-semibold uppercase tracking-wide text-dimmed">Trip profile</div>
+              <div class="mt-1 text-xs text-muted">
+                {{ trip?.tripId }} · direction {{ trip?.directionId ?? '?' }} · service
+                {{ trip?.serviceId }}
+              </div>
+            </header>
+            <div class="flex flex-wrap items-center gap-1.5 p-3 text-xs">
               <UBadge
                 v-if="trip?.pattern"
                 color="neutral"
@@ -184,11 +187,9 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 run {{ Math.round(runtimeSec / 60) }} min
               </span>
             </div>
-          </div>
+          </section>
 
-          <section
-            class="grid grid-cols-2 gap-1 overflow-scroll rounded-md border border-default bg-default"
-          >
+          <section class="app-frame shrink-0 grid grid-cols-2">
             <div class="border-b border-r border-default p-2">
               <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
               <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
@@ -215,7 +216,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             </div>
           </section>
 
-          <section class="overflow-hidden rounded-md border border-default bg-default">
+          <section class="app-frame shrink-0">
             <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
               <span class="text-sm font-medium text-highlighted">Stop timetable</span>
               <span class="text-xs text-dimmed">Scheduled times</span>
@@ -247,7 +248,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                     <span v-else class="line-clamp-1 text-highlighted">—</span>
                     <span
                       v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
-                      class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
+                      class="ml-1 rounded-sm bg-elevated px-1 text-[10px] text-dimmed"
                       >interp</span
                     >
                     <span
