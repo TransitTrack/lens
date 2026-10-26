@@ -4,7 +4,7 @@ import NavbarActions from '~/components/NavbarActions.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
 import FeedFeatures from '~/components/FeedFeatures.vue'
 import FeedDatasetHistory from '~/components/FeedDatasetHistory.vue'
-import {useFeeds} from '~/composables/useFeeds'
+import { useFeeds } from '~/composables/useFeeds'
 import {
   useFeedDetailQuery,
   useAgenciesDetailQuery,
@@ -14,19 +14,19 @@ import {
   useDeleteRevisionMutation,
   useUpdateFeedMutation,
 } from '~~/generated/graphql'
-import {gtfsDate} from '~/utils/gtfs'
-import {deriveFeatures} from '~/utils/feedFeatures'
+import { gtfsDate } from '~/utils/gtfs'
+import { deriveFeatures } from '~/utils/feedFeatures'
 
-const {selectedFeedCode} = useFeeds()
+const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
-const {result: agenciesResult} = useAgenciesDetailQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
+const { result: agenciesResult } = useAgenciesDetailQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
 )
-const {result: routesResult} = useExploreRoutesQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
+const { result: routesResult } = useExploreRoutesQuery(
+  () => ({ feedCode: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
 )
 const routes = computed(() => routesResult.value?.routes ?? [])
 
@@ -41,9 +41,9 @@ const agencies = computed(() => {
   }))
 })
 
-const {result, loading, refetch} = useFeedDetailQuery(
-  () => ({code: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
+const { result, loading, refetch } = useFeedDetailQuery(
+  () => ({ code: selectedFeedCode.value ?? '' }),
+  () => ({ enabled: !!selectedFeedCode.value }),
 )
 
 const feed = computed(() => result.value?.feed ?? null)
@@ -75,23 +75,23 @@ const statusChips = computed<StatusChip[]>(() => {
   if (!v) return []
   return [
     v.errorCount
-      ? {label: `${v.errorCount} errors`, color: 'error', icon: 'i-lucide-circle-x'}
-      : {label: 'No errors', color: 'success', icon: 'i-lucide-circle-check'},
+      ? { label: `${v.errorCount} errors`, color: 'error', icon: 'i-lucide-circle-x' }
+      : { label: 'No errors', color: 'success', icon: 'i-lucide-circle-check' },
     v.warningCount
-      ? {label: `${v.warningCount} warnings`, color: 'warning', icon: 'i-lucide-triangle-alert'}
-      : {label: 'No warnings', color: 'success', icon: 'i-lucide-circle-check'},
+      ? { label: `${v.warningCount} warnings`, color: 'warning', icon: 'i-lucide-triangle-alert' }
+      : { label: 'No warnings', color: 'success', icon: 'i-lucide-circle-check' },
   ]
 })
 
 // --- mutations -------------------------------------------------------------
-const {mutate: ingest, loading: ingesting} = useIngestFeedMutation()
-const {mutate: activate} = useActivateRevisionMutation()
-const {mutate: remove} = useDeleteRevisionMutation()
-const {mutate: update, loading: updating} = useUpdateFeedMutation()
+const { mutate: ingest, loading: ingesting } = useIngestFeedMutation()
+const { mutate: activate } = useActivateRevisionMutation()
+const { mutate: remove } = useDeleteRevisionMutation()
+const { mutate: update, loading: updating } = useUpdateFeedMutation()
 
 async function reingest() {
   try {
-    const res = await ingest({feedCode: selectedFeedCode.value ?? ''})
+    const res = await ingest({ feedCode: selectedFeedCode.value ?? '' })
     toast.add({
       title: 'Ingest triggered',
       description: `Revision ${res?.data?.ingestFeed.id} · ${res?.data?.ingestFeed.status}`,
@@ -100,33 +100,33 @@ async function reingest() {
     })
     await refetch()
   } catch (e) {
-    toast.add({title: 'Ingest failed', description: (e as Error).message, color: 'error'})
+    toast.add({ title: 'Ingest failed', description: (e as Error).message, color: 'error' })
   }
 }
 
 async function activateRevision(id: string) {
   try {
-    await activate({revisionId: id})
-    toast.add({title: `Revision ${id} activated`, color: 'success', icon: 'i-lucide-check'})
+    await activate({ revisionId: id })
+    toast.add({ title: `Revision ${id} activated`, color: 'success', icon: 'i-lucide-check' })
     await refetch()
   } catch (e) {
-    toast.add({title: 'Activate failed', description: (e as Error).message, color: 'error'})
+    toast.add({ title: 'Activate failed', description: (e as Error).message, color: 'error' })
   }
 }
 
 async function deleteRevision(id: string) {
   try {
-    await remove({revisionId: id})
-    toast.add({title: `Revision ${id} deleted`, color: 'success', icon: 'i-lucide-trash-2'})
+    await remove({ revisionId: id })
+    toast.add({ title: `Revision ${id} deleted`, color: 'success', icon: 'i-lucide-trash-2' })
     await refetch()
   } catch (e) {
-    toast.add({title: 'Delete failed', description: (e as Error).message, color: 'error'})
+    toast.add({ title: 'Delete failed', description: (e as Error).message, color: 'error' })
   }
 }
 
 // --- edit modal ----------------------------------------------------------
 const editOpen = ref(false)
-const form = reactive({name: '', description: '', url: '', pollingCron: '', enabled: true})
+const form = reactive({ name: '', description: '', url: '', pollingCron: '', enabled: true })
 
 watch(editOpen, (open) => {
   if (open && feed.value) {
@@ -150,17 +150,17 @@ async function saveFeed() {
         enabled: form.enabled,
       },
     })
-    toast.add({title: 'Feed updated', color: 'success', icon: 'i-lucide-check'})
+    toast.add({ title: 'Feed updated', color: 'success', icon: 'i-lucide-check' })
     editOpen.value = false
     await refetch()
   } catch (e) {
-    toast.add({title: 'Update failed', description: (e as Error).message, color: 'error'})
+    toast.add({ title: 'Update failed', description: (e as Error).message, color: 'error' })
   }
 }
 </script>
 
 <template>
-  <AppPage title="Feed">
+  <AppPage title="Feed" description="Feed metadata, revisions and quality report">
     <template #actions>
       <UButton
         icon="i-lucide-download"
@@ -170,23 +170,23 @@ async function saveFeed() {
         label="Re-ingest"
         @click="reingest"
       />
-      <NavbarActions/>
+      <NavbarActions />
     </template>
     <template #toolbar>
-      <ExploreToolbar :show-agency="false"/>
+      <ExploreToolbar :show-agency="false" />
     </template>
 
     <div v-if="loading && !feed" class="flex flex-col gap-4">
-      <USkeleton class="h-24 w-full"/>
+      <USkeleton class="h-24 w-full" />
       <div class="grid gap-4 lg:grid-cols-3">
-        <USkeleton class="h-72 w-full lg:col-span-2"/>
-        <USkeleton class="h-72 w-full"/>
+        <USkeleton class="h-72 w-full lg:col-span-2" />
+        <USkeleton class="h-72 w-full" />
       </div>
     </div>
 
     <template v-else-if="feed">
       <!-- Header band -->
-      <div class="flex flex-col gap-3 border-b border-default pb-4">
+      <div class="app-frame flex flex-col gap-3 p-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
@@ -225,10 +225,10 @@ async function saveFeed() {
 
       <!-- Body: wide-left / sidebar-right -->
       <div class="grid gap-4 lg:grid-cols-3">
-        <div class="flex flex-col gap-4 lg:col-span-2">
+        <div class="app-frame flex flex-col lg:col-span-2">
           <div
             v-if="rev && rowCounts.length"
-            class="flex flex-col gap-3 rounded-lg border border-default p-4"
+            class="flex flex-col gap-3 border-b border-default p-4"
           >
             <div class="text-sm font-medium text-muted">Active revision #{{ rev.id }}</div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -252,8 +252,8 @@ async function saveFeed() {
           />
         </div>
 
-        <div class="flex flex-col gap-4">
-          <UCard :ui="{ body: 'flex flex-col gap-2' }">
+        <div class="app-frame flex flex-col divide-y divide-default">
+          <div class="flex flex-col gap-2 p-4">
             <div class="text-sm font-medium text-muted">Feed details</div>
             <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
               <dt class="text-dimmed">Code</dt>
@@ -267,13 +267,13 @@ async function saveFeed() {
               <dt class="text-dimmed">URL</dt>
               <dd class="truncate">
                 <a :href="feed.url" target="_blank" class="text-primary hover:underline">{{
-                    feed.url
-                  }}</a>
+                  feed.url
+                }}</a>
               </dd>
             </dl>
-          </UCard>
+          </div>
 
-          <UCard :ui="{ body: 'flex flex-col gap-2' }">
+          <div class="flex flex-col gap-2 p-4">
             <div class="text-sm font-medium text-muted">feed_info.txt</div>
             <dl v-if="info" class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
               <dt class="text-dimmed">Publisher</dt>
@@ -288,9 +288,9 @@ async function saveFeed() {
               <dd>{{ info.feedContactEmail ?? info.feedContactUrl ?? '—' }}</dd>
             </dl>
             <p v-else class="text-sm text-dimmed">No feed_info.txt in this feed.</p>
-          </UCard>
+          </div>
 
-          <UCard :ui="{ body: 'flex flex-col gap-2' }">
+          <div class="flex flex-col gap-2 p-4">
             <div class="text-sm font-medium text-muted">Agencies ({{ agencies.length }})</div>
             <div class="flex flex-col divide-y divide-default">
               <div
@@ -314,14 +314,14 @@ async function saveFeed() {
                     :href="a.agencyUrl"
                     target="_blank"
                     class="text-primary hover:underline"
-                  >site</a
+                    >site</a
                   >
                 </div>
               </div>
             </div>
-          </UCard>
+          </div>
 
-          <FeedFeatures :features="features"/>
+          <FeedFeatures :features="features" />
         </div>
       </div>
     </template>
@@ -330,24 +330,24 @@ async function saveFeed() {
       <template #body>
         <div class="flex flex-col gap-3">
           <UFormField label="Name">
-            <UInput v-model="form.name" class="w-full"/>
+            <UInput v-model="form.name" class="w-full" />
           </UFormField>
           <UFormField label="Description">
-            <UInput v-model="form.description" class="w-full"/>
+            <UInput v-model="form.description" class="w-full" />
           </UFormField>
           <UFormField label="URL">
-            <UInput v-model="form.url" class="w-full"/>
+            <UInput v-model="form.url" class="w-full" />
           </UFormField>
           <UFormField label="Polling cron">
-            <UInput v-model="form.pollingCron" placeholder="0 */15 * * * *" class="w-full"/>
+            <UInput v-model="form.pollingCron" placeholder="0 */15 * * * *" class="w-full" />
           </UFormField>
-          <USwitch v-model="form.enabled" label="Enabled"/>
+          <USwitch v-model="form.enabled" label="Enabled" />
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="editOpen = false"/>
-          <UButton :loading="updating" label="Save" @click="saveFeed"/>
+          <UButton color="neutral" variant="ghost" label="Cancel" @click="editOpen = false" />
+          <UButton :loading="updating" label="Save" @click="saveFeed" />
         </div>
       </template>
     </UModal>

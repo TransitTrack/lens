@@ -8,9 +8,12 @@
 }
 
 :root {
-  /* Every application surface uses the whole browser canvas. Individual
-     components keep their own readable padding rather than a global width cap. */
   --ui-container: 100%;
+  --app-content-max-w: 96rem;
+  --app-page-gutter: clamp(1rem, 2vw, 2rem);
+  --app-page-space: clamp(1rem, 1.5vw, 1.5rem);
+  --app-canvas: var(--ui-bg);
+  --app-rail: var(--ui-border, #e4e4e7);
   --map-popup-bg: #fff;
   --map-popup-text: #18181b;
   --map-popup-muted: #52525b;
@@ -19,11 +22,121 @@
 }
 
 .dark {
+  --app-canvas: var(--ui-bg);
+  --app-rail: var(--ui-border, #27272a);
   --map-popup-bg: #18181b;
   --map-popup-text: #fafafa;
   --map-popup-muted: #a1a1aa;
   --map-popup-border: #3f3f46;
   --map-popup-hover: #27272a;
+}
+
+html,
+body,
+#__nuxt {
+  min-height: 100%;
+}
+
+body {
+  background: var(--app-canvas);
+}
+
+.app-page {
+  background: var(--app-canvas);
+}
+
+.app-page__header {
+  border-bottom: 1px solid var(--app-rail);
+  background: var(--app-canvas);
+}
+
+.app-page__toolbar {
+  border-bottom: 1px solid var(--app-rail);
+  background: var(--app-canvas);
+}
+
+.app-page__content {
+  width: 100%;
+}
+
+.app-page__content--rail {
+  max-width: var(--app-content-max-w);
+  padding: var(--app-page-space) var(--app-page-gutter);
+}
+
+.app-page__content--canvas {
+  max-width: none;
+  padding: 0;
+}
+
+.app-section {
+  overflow: hidden;
+  border: 1px solid var(--app-rail);
+  background: var(--app-canvas);
+}
+
+.app-frame {
+  overflow: hidden;
+  border: 1px solid var(--app-rail);
+  background: var(--app-canvas);
+}
+
+.app-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.125rem;
+  border-bottom: 1px solid var(--app-rail);
+}
+
+.app-section__body {
+  padding: 1rem 1.125rem;
+}
+
+.app-section__footer {
+  padding: 0.75rem 1.125rem;
+  border-top: 1px solid var(--app-rail);
+  background: var(--app-canvas);
+}
+
+.app-page-state {
+  display: grid;
+  min-height: 15rem;
+  place-items: center;
+  border: 1px dashed var(--app-rail);
+  border-radius: 0.375rem;
+  background: var(--app-canvas);
+  padding: clamp(1.5rem, 5vw, 4rem) 1.5rem;
+  text-align: center;
+}
+
+.app-page-state__content {
+  display: grid;
+  max-width: 30rem;
+  justify-items: center;
+  gap: 0.75rem;
+}
+
+.app-page-state__icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: 0.25rem;
+  background: var(--ui-bg-elevated);
+  color: var(--ui-text-muted);
+}
+
+.app-page-state[data-state='error'] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--ui-color-error-500, #c2382b) 45%, var(--app-rail));
+  background: color-mix(in srgb, var(--ui-color-error-500, #c2382b) 7%, var(--ui-bg));
+}
+
+.app-page-state[data-state='error'] .app-page-state__icon {
+  background: color-mix(in srgb, var(--ui-color-error-500, #c2382b) 14%, var(--ui-bg));
+  color: var(--ui-color-error-500, #c2382b);
 }
 
 /* MapLibre ships its popups with a fixed white card. Keep the map's

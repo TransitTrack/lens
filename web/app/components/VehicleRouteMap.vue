@@ -17,16 +17,25 @@ const props = withDefaults(
     follow?: boolean
     /** agency service area — frames the map on load before the route line arrives */
     extent?: LngLatBoundsExtent | null
-    /** lets the parent request a resize after moving the map into an overlay */
-    fullscreen?: boolean
   }>(),
-  {trail: () => [], follow: false, extent: null, fullscreen: false},
+  {trail: () => [], follow: false, extent: null},
 )
 
 const MAP_ID = 'vehicle-route-map'
 const mapStyle = useMapStyle()
 
 const map = useMglMap(MAP_ID)
+
+// maplibre doesn't observe its own container, so a splitter drag or any other
+// layout change that resizes this element without resizing the window leaves
+// the canvas the wrong size until the next full-window resize.
+const mapContainer = useTemplateRef('mapContainer')
+let resizeObserver: ResizeObserver | undefined
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => map.map?.resize())
+  if (mapContainer.value) resizeObserver.observe(mapContainer.value)
+})
+onBeforeUnmount(() => resizeObserver?.disconnect())
 
 // Capture the agency extent once — see StopsMap for why binding it live yanks
 // the view on every poll.
@@ -77,14 +86,6 @@ function fit() {
 watch([lineKey, () => map.isLoaded], fit, {immediate: true})
 
 watch(
-  () => props.fullscreen,
-  async () => {
-    await nextTick()
-    map.map?.resize()
-  },
-)
-
-watch(
   () => props.vehicle,
   (v) => {
     if (props.follow && v && map.map && map.isLoaded) {
@@ -95,7 +96,7 @@ watch(
 </script>
 
 <template>
-  <div class="h-full w-full">
+  <div ref="mapContainer" class="h-full w-full">
     <MglMap
       :map-key="MAP_ID"
       :map-style="mapStyle"
@@ -176,7 +177,7 @@ watch(
       </MglMarker>
     </MglMap>
 <!--
-    <div class="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-lg border border-default bg-default/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur">
+    <div class="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-md border border-default bg-default/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur">
       <div class="flex items-center gap-2">
         <span class="h-0.75 w-6 rounded-full" :style="{ backgroundColor: props.routeColor }"/>
         <span class="text-muted">Scheduled route</span>

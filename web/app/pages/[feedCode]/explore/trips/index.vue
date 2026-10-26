@@ -129,29 +129,38 @@ function onSelect(_e: Event, row: { original: Trip }) {
       <ExploreToolbar />
     </template>
 
-    <section class="flex flex-wrap items-center gap-2 border border-default bg-default p-3">
-      <USelectMenu
-        :model-value="routeId"
-        :items="routeItems"
-        value-key="value"
-        placeholder="Pick a route"
-        icon="i-lucide-route"
-        class="w-72"
-        @update:model-value="routeId = $event"
-      />
-      <template v-if="routeId">
+    <section class="app-frame">
+      <div class="flex flex-wrap items-center gap-2 p-3">
         <USelectMenu
-          :model-value="dir"
-          :items="directionItems"
+          :model-value="routeId"
+          :items="routeItems"
           value-key="value"
+          placeholder="Pick a route"
+          icon="i-lucide-route"
           class="w-72"
-          @update:model-value="dir = $event"
+          @update:model-value="routeId = $event"
         />
-        <UInput v-model="search" icon="i-lucide-search" placeholder="Filter trips…" class="w-72" />
-      </template>
-    </section>
+        <template v-if="routeId">
+          <USelectMenu
+            :model-value="dir"
+            :items="directionItems"
+            value-key="value"
+            class="w-72"
+            @update:model-value="dir = $event"
+          />
+          <UInput
+            v-model="search"
+            icon="i-lucide-search"
+            placeholder="Filter trips…"
+            class="w-72"
+          />
+        </template>
+      </div>
 
-    <TripTimeFilter v-if="routeId" />
+      <div v-if="routeId" class="border-t border-default px-3 py-2">
+        <TripTimeFilter />
+      </div>
+    </section>
 
     <div
       v-if="!routeId"
@@ -172,9 +181,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
     </div>
 
     <template v-else>
-      <section
-        class="grid overflow-hidden border border-default bg-default sm:grid-cols-2 xl:grid-cols-4"
-      >
+      <section class="app-frame grid sm:grid-cols-2 xl:grid-cols-4">
         <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Visible trips</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
@@ -213,7 +220,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
         </div>
       </section>
 
-      <section class="overflow-hidden border border-default bg-default">
+      <section class="app-frame">
         <div class="flex items-center justify-between border-b border-default px-4 py-3">
           <div>
             <div class="text-sm font-medium text-highlighted">Scheduled journeys</div>

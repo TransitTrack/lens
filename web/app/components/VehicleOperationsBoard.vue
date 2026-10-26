@@ -19,6 +19,7 @@ const props = defineProps<{
   error: Error | null
   feedCode: string | null
   extent?: LngLatBoundsExtent | null
+  directoryDefaultSize?: number
 }>()
 
 const emit = defineEmits<{
@@ -62,12 +63,15 @@ function selectVehicle(vehicleId: string) {
 // Side-by-side on desktop; stacked (directory above map) on narrow viewports.
 const isDesktop = useMediaQuery('(min-width: 1024px)')
 const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const desktopDirectorySize = computed(() =>
+  Math.min(Math.max(props.directoryDefaultSize ?? 27, 20), 40),
+)
 
 const splitterItems = computed<SplitterItem[]>(() => [
   {
     id: 'directory',
     slot: 'directory',
-    defaultSize: isDesktop.value ? 27 : 50,
+    defaultSize: isDesktop.value ? desktopDirectorySize.value : 50,
     minSize: 20,
     maxSize: isDesktop.value ? 40 : 80,
     class: 'flex min-h-0 flex-col overflow-hidden',
@@ -75,7 +79,7 @@ const splitterItems = computed<SplitterItem[]>(() => [
   {
     id: 'map',
     slot: 'map',
-    defaultSize: isDesktop.value ? 73 : 50,
+    defaultSize: isDesktop.value ? 100 - desktopDirectorySize.value : 50,
     class: 'flex min-h-0 flex-col overflow-hidden',
   },
 ])
@@ -184,6 +188,10 @@ const splitterItems = computed<SplitterItem[]>(() => [
         selection-action-label="Highlight route"
         @select="selectVehicle"
       />
+    </template>
+
+    <template #resize-handle>
+      <SplitterGrip :orientation="splitterOrientation" />
     </template>
   </USplitter>
 </template>

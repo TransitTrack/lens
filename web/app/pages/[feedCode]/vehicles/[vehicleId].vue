@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
@@ -31,7 +32,6 @@ import {
   bestAlgorithm,
   accuracyFor,
   stopRows,
-  cardinal,
   trailCoords,
 } from '~/utils/vehicleDetail'
 import type { GeoJSON } from 'geojson'
@@ -72,7 +72,39 @@ const trail = computed(() => trailCoords(reports.value))
 
 const follow = ref(false)
 const avlLogOpen = ref(false)
-const mapExpanded = ref(false)
+
+const vehicleSplitterItems: SplitterItem[] = [
+  {
+    id: 'map',
+    slot: 'map',
+    defaultSize: 40,
+    minSize: 20,
+    class: 'flex min-h-0 flex-col overflow-hidden',
+  },
+  {
+    id: 'stops',
+    slot: 'stops',
+    defaultSize: 60,
+    minSize: 25,
+    class: 'flex min-h-0 flex-col overflow-hidden',
+  },
+]
+
+// Details panel beside (desktop) or above (mobile) the map/stops workspace.
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const pageSplitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const pageSplitterItems: SplitterItem[] = [
+  {
+    id: 'details',
+    slot: 'details',
+    sizeUnit: 'px',
+    defaultSize: 440,
+    minSize: 280,
+    maxSize: 680,
+    class: 'flex min-h-0 flex-col overflow-hidden',
+  },
+  { id: 'workspace', slot: 'workspace', class: 'flex min-h-0 flex-col overflow-hidden' },
+]
 
 const adherenceSec = computed(() => vehicle.value?.scheduleAdherenceSec ?? null)
 const { points: adherenceHistory } = useAdherenceHistory(adherenceSec, vehicleId)
@@ -123,6 +155,25 @@ const marker = computed(() => {
 
 const rows = computed(() =>
   vehicle.value ? stopRows(vehicle.value, predictions.value, algorithm.value) : [],
+)
+const currentStopRow = ref<HTMLElement | null>(null)
+const currentStopKey = computed(() => {
+  const current = rows.value.find((row) => row.state === 'current')
+  return current ? `${vehicle.value?.trip?.tripId ?? ''}:${current.stopPathIndex}` : null
+})
+
+function setCurrentStopRow(element: unknown, isCurrent: boolean) {
+  if (isCurrent) currentStopRow.value = element instanceof HTMLElement ? element : null
+}
+
+watch(
+  currentStopKey,
+  async (key) => {
+    if (!key) return
+    await nextTick()
+    currentStopRow.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  },
+  { immediate: true, flush: 'post' },
 )
 
 const title = computed(() => {
@@ -177,6 +228,14 @@ const reportAgeSec = computed(() => {
   const ts = vehicle.value?.reportTs
   const parsed = ts ? Date.parse(ts) : Number.NaN
   return Number.isFinite(parsed) ? (now.value - parsed) / 1000 : null
+})
+
+const reportAgeLabel = computed(() => {
+  const seconds = reportAgeSec.value
+  if (seconds == null) return 'No recent report'
+  if (seconds < 45) return `${Math.round(seconds)}s ago`
+  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`
+  return `${Math.round(seconds / 3600)}h ago`
 })
 
 const coords = computed(() => {
@@ -249,7 +308,7 @@ function adherenceTextClass(sec: number | null): string {
 </script>
 
 <template>
-  <AppPage :title="title" :description="description">
+  <AppPage full-width :title="title" :description="description">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
@@ -324,323 +383,377 @@ function adherenceTextClass(sec: number | null): string {
       class="m-4"
     />
 
-    <div v-else class="flex min-h-0 flex-1 flex-col lg:flex-row">
-      <aside
-        class="flex w-full shrink-0 flex-col gap-4 overflow-y-auto border-b border-default p-4 lg:w-100 lg:border-b-0"
-      >
-        <UAlert
-          v-if="descMismatch"
-          color="warning"
-          icon="i-lucide-git-compare-arrows"
-          title="Descriptor mismatch"
-          :description="`Feed reports trip ${descMismatch.declared}; matched to ${descMismatch.matched}.`"
-        />
-
-        <div
-          :class="
-            mapExpanded
-              ? 'fixed inset-0 z-50 overflow-hidden bg-default'
-              : 'relative h-56 shrink-0 overflow-hidden rounded-lg border border-default'
-          "
+    <USplitter
+      v-else
+      id="vehicle-page-splitter"
+      :orientation="pageSplitterOrientation"
+      :items="pageSplitterItems"
+      class="min-h-0 flex-1"
+    >
+      <template #details>
+        <aside
+          class="flex h-full w-full flex-col gap-4 overflow-y-auto border-r border-default p-4"
         >
-          <UButton
-            class="absolute right-3 top-3 z-10"
-            color="neutral"
-            size="xs"
-            variant="solid"
-            :icon="mapExpanded ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
-            :aria-pressed="mapExpanded"
-            @click="mapExpanded = !mapExpanded"
+          <UAlert
+            v-if="descMismatch"
+            color="warning"
+            icon="i-lucide-git-compare-arrows"
+            title="Descriptor mismatch"
+            :description="`Feed reports trip ${descMismatch.declared}; matched to ${descMismatch.matched}.`"
           />
-          <VehicleRouteMap
-            :line="line"
-            :stops="stops"
-            :vehicle="marker"
-            route-color="#ff0000"
-            :trail="trail"
-            :follow="true"
-            :extent="extent"
-            :fullscreen="mapExpanded"
-          />
-        </div>
 
-        <section class="flex flex-col gap-3 p-1">
-          <div class="flex flex-1 flex-row justify-between gap-3">
-            <div class="min-w-0">
-              <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
-                Live assignment
+          <section class="app-frame">
+            <header class="flex items-start justify-between gap-3 border-b border-default p-3">
+              <div class="min-w-0">
+                <div class="text-xs font-medium uppercase tracking-wide text-dimmed">Live service</div>
+                <div class="mt-1 truncate text-base font-semibold text-highlighted">
+                  {{
+                    vehicle.trip?.tripHeadsign ??
+                    vehicle.trip?.route?.routeLongName ??
+                    'No active trip'
+                  }}
+                </div>
               </div>
-              <div class="mt-1 truncate text-sm font-semibold text-highlighted">
+              <div class="flex shrink-0 flex-wrap justify-end gap-1.5">
+                <UBadge
+                  v-if="vehicle.trip?.route?.routeShortName"
+                  :style="{ backgroundColor: routeColor, color: '#fff' }"
+                >
+                  {{ vehicle.trip.route.routeShortName }}
+                </UBadge>
+                <UBadge
+                  :color="adherenceBadge(vehicle.scheduleAdherenceSec).color"
+                  variant="subtle"
+                >
+                  {{ adherenceBadge(vehicle.scheduleAdherenceSec).label }}
+                </UBadge>
+                <UBadge v-if="vehicle.stale" color="warning" variant="subtle">Stale</UBadge>
+              </div>
+            </header>
+
+            <div class="grid grid-cols-2">
+              <div class="col-span-2 border-b border-default p-3">
+                <div class="flex items-center gap-1.5 text-xs font-medium text-dimmed">
+                  <UIcon name="i-lucide-map-pin" class="size-3.5 text-primary" />
+                  Next stop
+                </div>
+                <div class="mt-1 truncate text-base font-semibold text-highlighted">
+                  {{ vehicle.currentStop?.stopName ?? 'No next stop identified' }}
+                </div>
+              </div>
+              <div class="border-r border-default p-3">
+                <div class="text-xs font-medium text-dimmed">Position</div>
+                <div class="mt-1 text-sm font-semibold text-highlighted">
+                  {{
+                    distToNextStopM == null
+                      ? 'Distance unavailable'
+                      : `${units.distance(distToNextStopM)} to stop`
+                  }}
+                </div>
+              </div>
+              <div class="p-3">
+                <div class="text-xs font-medium text-dimmed">Last report</div>
+                <div class="mt-1 text-sm font-semibold text-highlighted">{{ reportAgeLabel }}</div>
+              </div>
+            </div>
+
+            <div v-if="sparkValues.length >= 2" class="border-t border-default p-3">
+              <div class="flex items-center justify-between text-xs text-dimmed">
+                <span>Adherence trend</span>
+                <span>{{ signedSec(sparkValues[sparkValues.length - 1] ?? null) }}</span>
+              </div>
+              <SparklineChart
+                :values="sparkValues"
+                zero-baseline
+                :height="30"
+                :color="
+                  adherenceBadge(vehicle.scheduleAdherenceSec).color === 'error'
+                    ? '#ef4444'
+                    : adherenceBadge(vehicle.scheduleAdherenceSec).color === 'warning'
+                      ? '#f59e0b'
+                      : '#22c55e'
+                "
+              />
+            </div>
+          </section>
+
+          <!-- Position & progress -->
+          <section class="app-frame flex flex-col gap-2 p-3">
+            <div class="text-sm font-medium text-highlighted">Position</div>
+            <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+              <dt class="text-dimmed">Along trip</dt>
+              <dd class="text-muted">{{ units.distance(vehicle.distanceAlongTripM) }}</dd>
+              <dt class="text-dimmed">To next stop</dt>
+              <dd class="text-muted">{{ units.distance(distToNextStopM) }}</dd>
+              <dt class="text-dimmed">GPS offset</dt>
+              <dd class="text-muted">
                 {{
-                  vehicle.trip?.tripHeadsign ?? vehicle.trip?.route?.routeLongName ?? 'Unknown trip'
+                  gpsOffsetM == null
+                    ? '—'
+                    : gpsOffsetM <= 15
+                      ? 'on route'
+                      : units.distance(gpsOffsetM)
                 }}
-              </div>
-            </div>
-            <div class="flex shrink-0 flex-wrap justify-end gap-1.5">
-              <UBadge :color="adherenceBadge(vehicle.scheduleAdherenceSec).color" variant="subtle">
-                {{ adherenceBadge(vehicle.scheduleAdherenceSec).label }}
-              </UBadge>
-              <UBadge v-if="vehicle.stale" color="warning" variant="subtle">Stale</UBadge>
-              <span
-                v-if="cardinal(vehicle.bearing)"
-                class="inline-flex items-center gap-1 text-sm text-muted"
-              >
-                <UIcon name="i-lucide-compass" class="size-3.5" />
-                {{ cardinal(vehicle.bearing) }} · {{ Math.round(vehicle.bearing ?? 0) }}°
-              </span>
-            </div>
-          </div>
-          <div v-if="sparkValues.length >= 2" class="flex flex-col gap-0.5">
-            <div class="flex items-center justify-between text-xs text-dimmed">
-              <span>Adherence trend (this session)</span>
-              <span>{{ signedSec(sparkValues[sparkValues.length - 1] ?? null) }}</span>
-            </div>
-            <SparklineChart
-              :values="sparkValues"
-              zero-baseline
-              :height="36"
-              :color="
-                adherenceBadge(vehicle.scheduleAdherenceSec).color === 'error'
-                  ? '#ef4444'
-                  : adherenceBadge(vehicle.scheduleAdherenceSec).color === 'warning'
-                    ? '#f59e0b'
-                    : '#22c55e'
-              "
+              </dd>
+            </dl>
+            <button
+              v-if="coords"
+              class="inline-flex w-fit items-center gap-1 font-mono text-xs text-dimmed hover:text-muted"
+              @click="copyCoords"
+            >
+              <UIcon name="i-lucide-copy" class="size-3" />
+              {{ coords }}
+            </button>
+          </section>
+
+          <section class="app-frame p-3">
+            <VehicleTelemetry
+              :speed="units.speed(vehicle.speedMps)"
+              :speed-trail="speedTrail"
+              :report-age-sec="reportAgeSec"
+              :avg-interval-sec="avgInterval"
+              :trail-count="trail.length"
             />
-          </div>
-        </section>
+          </section>
 
-        <section class="border-t border-default pt-4 p-1">
-          <div class="mb-2 text-sm font-medium text-highlighted">Vehicle &amp; trip</div>
-          <VehicleFactsGrid :items="facts" />
-        </section>
+          <section class="app-frame p-3">
+            <div class="mb-2 text-sm font-medium text-highlighted">Vehicle &amp; trip</div>
+            <VehicleFactsGrid :items="facts" />
+          </section>
+        </aside>
+      </template>
 
-        <!-- Position & progress -->
-        <section class="flex flex-col gap-2 rounded-lg border border-default bg-default p-3">
-          <div class="text-sm font-medium text-highlighted">Position &amp; progress</div>
-          <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-            <dt class="text-dimmed">Along trip</dt>
-            <dd class="text-muted">{{ units.distance(vehicle.distanceAlongTripM) }}</dd>
-            <dt class="text-dimmed">To next stop</dt>
-            <dd class="text-muted">{{ units.distance(distToNextStopM) }}</dd>
-            <dt class="text-dimmed">GPS offset</dt>
-            <dd class="text-muted">
-              {{
-                gpsOffsetM == null
-                  ? '—'
-                  : gpsOffsetM <= 15
-                    ? 'on route'
-                    : units.distance(gpsOffsetM)
-              }}
-            </dd>
-          </dl>
-          <div v-if="vehicle.currentStop" class="text-sm">
-            Next stop:
-            <span class="font-medium text-highlighted">{{ vehicle.currentStop.stopName }}</span>
-          </div>
-          <button
-            v-if="coords"
-            class="inline-flex w-fit items-center gap-1 font-mono text-xs text-dimmed hover:text-muted"
-            @click="copyCoords"
-          >
-            <UIcon name="i-lucide-copy" class="size-3" />
-            {{ coords }}
-          </button>
-        </section>
+      <template #workspace>
+        <USplitter
+          id="vehicle-detail-splitter"
+          orientation="vertical"
+          :items="vehicleSplitterItems"
+          class="min-h-0 min-w-0 flex-1"
+        >
+          <template #map>
+            <VehicleRouteMap
+              :line="line"
+              :stops="stops"
+              :vehicle="marker"
+              route-color="#ff0000"
+              :trail="trail"
+              :follow="true"
+              :extent="extent"
+            />
+          </template>
 
-        <section class="rounded-lg border border-default bg-default p-3">
-          <VehicleTelemetry
-            :speed="units.speed(vehicle.speedMps)"
-            :speed-trail="speedTrail"
-            :report-age-sec="reportAgeSec"
-            :avg-interval-sec="avgInterval"
-            :trail-count="trail.length"
-          />
-        </section>
-      </aside>
-      <div class="flex min-h-0 min-w-0 flex-1 flex-col mt-4">
-        <section class="min-h-0 flex-1 overflow-y-auto bg-default">
-          <header class="sticky top-0 z-1 border-b border-default bg-elevated/80 backdrop-blur">
-            <div
-              class="flex flex-col gap-3 border-b border-default px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
-            >
-              <div class="min-w-0">
-                <div class="flex items-center gap-2 text-highlighted">
-                  <span
-                    class="flex size-6 items-center justify-center rounded-md bg-primary/12 text-primary"
-                  >
-                    <UIcon name="i-lucide-map-pinned" class="size-3.5" />
-                  </span>
-                  <h2 class="text-lg font-semibold tracking-tight">
-                    <template v-if="vehicle.trip?.tripId">
-                      Trip
-                      <NuxtLink
-                        :to="feedPath(`/explore/trips/${encodeURIComponent(vehicle.trip.tripId)}`)"
-                        class="text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary"
-                        :title="`Open trip ${vehicle.trip.tripId}`"
-                      >
-                        #{{ vehicle.trip.tripId }}
-                      </NuxtLink>
-                      stops
-                    </template>
-                    <template v-else>Trip stops</template>
-                  </h2>
-                </div>
-                <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-                  <span>
-                    Vehicle
-                    <strong class="font-medium text-highlighted">{{ vehicle.vehicleId }}</strong>
-                  </span>
-                  <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
-                  <span v-if="vehicle.block">
-                    Block
-                    <strong class="font-medium text-highlighted">{{
-                      vehicle.block.blockId
-                    }}</strong>
-                    <template v-if="blockProgress">
-                      trip {{ blockProgress.index }} of {{ blockProgress.total }}</template
-                    >
-                  </span>
-                  <span v-else>Block unavailable</span>
-                </div>
-                <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dimmed">
-                  <span class="inline-flex items-center gap-1">
-                    <UIcon name="i-lucide-clock-3" class="size-3" />
-                    {{ agencyTimezone ? `${agencyTimezone}` : 'Service time unavailable' }}
-                  </span>
-                  <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
-                  <span>{{ rows.length }} {{ rows.length === 1 ? 'stop' : 'stops' }}</span>
-                </div>
-              </div>
-
-              <div
-                class="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-end"
-              >
-                <label class="min-w-56 flex-1 text-xs font-medium text-muted sm:max-w-64">
-                  Prediction model
-                  <USelectMenu
-                    v-model="algorithm"
-                    :items="algorithmOptions"
-                    value-key="value"
-                    placeholder="Prediction algorithm"
-                    class="mt-1 w-full"
-                  />
-                </label>
+          <template #stops>
+            <section class="min-h-0 flex-1 overflow-y-auto bg-default">
+              <header class="sticky top-0 z-1 border-b border-default bg-elevated/80 backdrop-blur">
                 <div
-                  v-if="selectedAccuracy"
-                  class="flex min-w-56 flex-wrap items-center gap-x-3 gap-y-1 border-l border-default pl-3 text-xs"
+                  class="flex flex-col gap-3 border-b border-default px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
                 >
-                  <span class="w-full font-medium text-muted">Forecast quality · last 7 days</span>
-                  <span class="text-dimmed">
-                    Mean error
-                    <strong class="font-semibold text-highlighted"
-                      >±{{ Math.round(selectedAccuracy.meanAbsErrorSec) }}s</strong
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 text-highlighted">
+                      <span
+                        class="flex size-6 items-center justify-center rounded-md bg-primary/12 text-primary"
+                      >
+                        <UIcon name="i-lucide-map-pinned" class="size-3.5" />
+                      </span>
+                      <div class="min-w-0">
+                        <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
+                          Current trip
+                        </div>
+                        <h2 class="mt-0.5 truncate text-base font-semibold tracking-tight">
+                          <template v-if="vehicle.trip?.tripId">
+                            <NuxtLink
+                              :to="
+                                feedPath(`/explore/trips/${encodeURIComponent(vehicle.trip.tripId)}`)
+                              "
+                              class="text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary"
+                              :title="`Open trip ${vehicle.trip.tripId}`"
+                            >
+                              #{{ vehicle.trip.tripId }}
+                            </NuxtLink>
+                            <span class="text-highlighted"> · {{ rows.length }} stops</span>
+                          </template>
+                          <template v-else>Trip stops</template>
+                        </h2>
+                      </div>
+                    </div>
+                    <div
+                      class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted"
                     >
-                  </span>
-                  <span class="text-dimmed">
-                    Bias
-                    <strong class="font-semibold text-highlighted">{{
-                      signedSec(selectedAccuracy.meanErrorSec)
-                    }}</strong>
-                  </span>
-                  <span class="text-dimmed"
-                    >{{ selectedAccuracy.sampleCount.toLocaleString() }} samples</span
-                  >
-                </div>
-                <p v-else class="border-l border-default pl-3 text-xs text-dimmed">
-                  Forecast performance is unavailable for this trip.
-                </p>
-              </div>
-            </div>
-            <div
-              class="hidden grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] gap-3 bg-default/35 px-4 py-1.5 text-xs font-medium text-muted lg:grid"
-            >
-              <span>Stop</span>
-              <span>Scheduled</span>
-              <span>Live time</span>
-              <span class="text-right">Adherence</span>
-            </div>
-          </header>
-          <ol class="divide-y divide-default">
-            <li
-              v-for="r in rows"
-              :key="r.stopPathIndex"
-              class="grid gap-x-3 gap-y-2 border-l-2 px-4 py-2 sm:grid-cols-2 lg:grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] lg:items-center"
-              :class="{
-                'border-primary bg-elevated/40': r.state === 'current',
-                'border-default': r.state !== 'current',
-                'opacity-55': r.state === 'passed',
-              }"
-            >
-              <div class="min-w-0 sm:col-span-2 lg:col-span-1">
-                <NuxtLink
-                  :to="feedPath(`/explore/stops/${encodeURIComponent(r.stopId)}`)"
-                  class="block truncate text-sm font-medium leading-4 text-highlighted hover:text-primary hover:underline"
-                >
-                  {{ r.stopName }}
-                </NuxtLink>
-                <div class="mt-0.5 flex flex-wrap items-center gap-2 text-xs leading-4 text-muted">
-                  <span v-if="r.state === 'current'" class="font-medium text-primary"
-                    >Next stop</span
-                  >
-                  <span v-else-if="r.state === 'passed'">Passed</span>
-                  <span v-else>Upcoming</span>
-                  <span v-if="r.confidenceSec != null" class="text-dimmed"
-                    >±{{ r.confidenceSec }}s confidence</span
-                  >
-                </div>
-              </div>
+                      <span>
+                        Vehicle
+                        <strong class="font-medium text-highlighted">{{
+                          vehicle.vehicleId
+                        }}</strong>
+                      </span>
+                      <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
+                      <span v-if="vehicle.block">
+                        Block
+                        <strong class="font-medium text-highlighted">{{
+                          vehicle.block.blockId
+                        }}</strong>
+                        <template v-if="blockProgress">
+                          trip {{ blockProgress.index }} of {{ blockProgress.total }}</template
+                        >
+                      </span>
+                      <span v-else>Block unavailable</span>
+                    </div>
+                    <div
+                      class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dimmed"
+                    >
+                      <span class="inline-flex items-center gap-1">
+                        <UIcon name="i-lucide-clock-3" class="size-3" />
+                        {{ agencyTimezone ? `${agencyTimezone}` : 'Service time unavailable' }}
+                      </span>
+                      <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
+                      <span>{{ rows.length }} {{ rows.length === 1 ? 'stop' : 'stops' }}</span>
+                    </div>
+                  </div>
 
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-dimmed lg:hidden">Scheduled</div>
-                <time class="block text-sm font-semibold leading-4 tabular-nums text-highlighted">
-                  {{ hhmm(r.scheduledArrival) }}
-                </time>
-              </div>
-
-              <div class="min-w-0">
-                <div class="text-xs font-medium text-dimmed">
-                  {{ r.arrived ? 'Arrived' : r.state === 'passed' ? 'Was due' : 'Predicted' }}
-                </div>
-                <time
-                  class="block text-sm font-semibold leading-4 tabular-nums"
-                  :class="adherenceTextClass(r.deltaVsScheduleSec)"
-                >
-                  {{ r.eta ? hhmm(r.eta) : '—' }}
-                </time>
-                <span
-                  v-if="r.eta && !r.arrived && r.state !== 'passed'"
-                  class="block text-xs leading-4 text-muted"
-                >
-                  {{ relative(r.eta) }}
-                </span>
-              </div>
-
-              <div class="min-w-0 lg:text-right">
-                <template v-if="r.deltaVsScheduleSec != null">
                   <div
-                    class="mt-0.5 text-sm font-semibold leading-4 tabular-nums"
-                    :class="adherenceTextClass(r.deltaVsScheduleSec)"
+                    class="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-end"
                   >
-                    {{ signedAdherence(r.deltaVsScheduleSec) }}
+                    <label class="min-w-56 flex-1 text-xs font-medium text-muted sm:max-w-64">
+                      Prediction model
+                      <USelectMenu
+                        v-model="algorithm"
+                        :items="algorithmOptions"
+                        value-key="value"
+                        placeholder="Prediction algorithm"
+                        class="mt-1 w-full"
+                      />
+                    </label>
+                    <div
+                      v-if="selectedAccuracy"
+                      class="flex min-w-56 flex-wrap items-center gap-x-3 gap-y-1 border-l border-default pl-3 text-xs"
+                    >
+                      <span class="w-full font-medium text-muted"
+                        >Forecast quality · last 7 days</span
+                      >
+                      <span class="text-dimmed">
+                        Mean error
+                        <strong class="font-semibold text-highlighted"
+                          >±{{ Math.round(selectedAccuracy.meanAbsErrorSec) }}s</strong
+                        >
+                      </span>
+                      <span class="text-dimmed">
+                        Bias
+                        <strong class="font-semibold text-highlighted">{{
+                          signedSec(selectedAccuracy.meanErrorSec)
+                        }}</strong>
+                      </span>
+                      <span class="text-dimmed"
+                        >{{ selectedAccuracy.sampleCount.toLocaleString() }} samples</span
+                      >
+                    </div>
+                    <p v-else class="border-l border-default pl-3 text-xs text-dimmed">
+                      Forecast performance is unavailable for this trip.
+                    </p>
                   </div>
-                  <div v-if="!r.arrived" class="text-xs leading-4 text-muted">
-                    {{ r.arrived ? 'actual vs schedule' : 'no computation yet' }}
-                  </div>
-                </template>
-                <span v-else class="text-xs text-dimmed">No schedule comparison</span>
-                <span
-                  v-if="r.errorVsPredictionSec != null"
-                  class="block text-xs leading-4 text-red-500"
+                </div>
+                <div
+                  class="hidden grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] gap-3 bg-default/35 px-4 py-1.5 text-xs font-medium text-muted lg:grid"
                 >
-                  vs prediction {{ signedAdherence(r.errorVsPredictionSec) }}
-                </span>
-              </div>
-            </li>
-          </ol>
-        </section>
-      </div>
-    </div>
+                  <span>Stop</span>
+                  <span>Scheduled</span>
+                  <span>Live time</span>
+                  <span class="text-right">Adherence</span>
+                </div>
+              </header>
+              <ol class="divide-y divide-default">
+                <li
+                  v-for="r in rows"
+                  :key="r.stopPathIndex"
+                  :ref="(element) => setCurrentStopRow(element, r.state === 'current')"
+                  class="grid gap-x-3 gap-y-2 border-l-2 px-4 py-2 sm:grid-cols-2 lg:grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] lg:items-center"
+                  :class="{
+                    'border-primary bg-elevated/40': r.state === 'current',
+                    'border-default': r.state !== 'current',
+                    'opacity-55': r.state === 'passed',
+                  }"
+                >
+                  <div class="min-w-0 sm:col-span-2 lg:col-span-1">
+                    <NuxtLink
+                      :to="feedPath(`/explore/stops/${encodeURIComponent(r.stopId)}`)"
+                      class="block truncate text-sm font-medium leading-4 text-highlighted hover:text-primary hover:underline"
+                    >
+                      {{ r.stopName }}
+                    </NuxtLink>
+                    <div
+                      class="mt-0.5 flex flex-wrap items-center gap-2 text-xs leading-4 text-muted"
+                    >
+                      <span v-if="r.state === 'current'" class="font-medium text-primary"
+                        >Next stop</span
+                      >
+                      <span v-else-if="r.state === 'passed'">Passed</span>
+                      <span v-else>Upcoming</span>
+                      <span v-if="r.confidenceSec != null" class="text-dimmed"
+                        >±{{ r.confidenceSec }}s confidence</span
+                      >
+                    </div>
+                  </div>
+
+                  <div class="min-w-0">
+                    <div class="text-xs font-medium text-dimmed lg:hidden">Scheduled</div>
+                    <time
+                      class="block text-sm font-semibold leading-4 tabular-nums text-highlighted"
+                    >
+                      {{ hhmm(r.scheduledArrival) }}
+                    </time>
+                  </div>
+
+                  <div class="min-w-0">
+                    <div class="text-xs font-medium text-dimmed">
+                      {{ r.arrived ? 'Arrived' : r.state === 'passed' ? 'Was due' : 'Predicted' }}
+                    </div>
+                    <time
+                      class="block text-sm font-semibold leading-4 tabular-nums"
+                      :class="adherenceTextClass(r.deltaVsScheduleSec)"
+                    >
+                      {{ r.eta ? hhmm(r.eta) : '—' }}
+                    </time>
+                    <span
+                      v-if="r.eta && !r.arrived && r.state !== 'passed'"
+                      class="block text-xs leading-4 text-muted"
+                    >
+                      {{ relative(r.eta) }}
+                    </span>
+                  </div>
+
+                  <div class="min-w-0 lg:text-right">
+                    <template v-if="r.deltaVsScheduleSec != null">
+                      <div
+                        class="mt-0.5 text-sm font-semibold leading-4 tabular-nums"
+                        :class="adherenceTextClass(r.deltaVsScheduleSec)"
+                      >
+                        {{ signedAdherence(r.deltaVsScheduleSec) }}
+                      </div>
+                      <div v-if="!r.arrived" class="text-xs leading-4 text-muted">
+                        {{ r.arrived ? 'actual vs schedule' : 'no computation yet' }}
+                      </div>
+                    </template>
+                    <span v-else class="text-xs text-dimmed">No schedule comparison</span>
+                    <span
+                      v-if="r.errorVsPredictionSec != null"
+                      class="block text-xs leading-4 text-red-500"
+                    >
+                      vs prediction {{ signedAdherence(r.errorVsPredictionSec) }}
+                    </span>
+                  </div>
+                </li>
+              </ol>
+            </section>
+          </template>
+
+          <template #resize-handle>
+            <SplitterGrip orientation="vertical" />
+          </template>
+        </USplitter>
+      </template>
+
+      <template #resize-handle>
+        <SplitterGrip :orientation="pageSplitterOrientation" />
+      </template>
+    </USplitter>
 
     <VehicleAvlLog
       v-if="selectedAvlFeedCode"

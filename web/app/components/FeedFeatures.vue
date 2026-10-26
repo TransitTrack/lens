@@ -8,7 +8,7 @@ const absent = computed(() => props.features.filter((f) => !f.present))
 </script>
 
 <template>
-  <UCard :ui="{ body: 'flex flex-col gap-3' }">
+  <div class="flex flex-col gap-3 p-4">
     <div class="text-sm font-medium text-muted">Features</div>
 
     <div v-if="present.length" class="flex flex-wrap gap-1.5">
@@ -35,5 +35,5 @@ const absent = computed(() => props.features.filter((f) => !f.present))
         {{ f.label }}
       </UBadge>
     </div>
-  </UCard>
+  </div>
 </template>

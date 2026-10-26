@@ -23,7 +23,7 @@ function kindColor(kind: string): 'success' | 'error' | 'neutral' {
   <div>
     <h2 class="mb-2 text-sm font-semibold text-highlighted">Calendar changes</h2>
     <div v-if="!changes.length" class="text-sm text-muted">No calendar differences in this filter.</div>
-    <div v-else class="divide-y divide-default rounded-lg border border-default">
+    <div v-else class="divide-y divide-default rounded-md border border-default">
       <div v-for="c in changes" :key="c.serviceId" class="px-3 py-2 text-xs">
         <div class="flex items-center gap-2">
           <span class="font-mono text-sm">{{ c.serviceId }}</span>

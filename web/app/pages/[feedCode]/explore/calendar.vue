@@ -32,7 +32,7 @@ const exColumns: TableColumn<Exception>[] = [
 </script>
 
 <template>
-  <AppPage title="Calendar">
+  <AppPage title="Calendar" description="Service calendars and exceptions">
     <template #toolbar>
       <ExploreToolbar :show-agency="false" />
     </template>

@@ -2,6 +2,7 @@
 import { useRevisionsQuery, useDraftsQuery, useCompareRevisionsQuery } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/AppPage.vue'
+import PageState from '~/components/PageState.vue'
 import CompareTripChanges from '~/components/compare/CompareTripChanges.vue'
 import CompareCalendarChanges from '~/components/compare/CompareCalendarChanges.vue'
 import CompareHeadwaySummary from '~/components/compare/CompareHeadwaySummary.vue'
@@ -109,21 +110,19 @@ const comparison = computed(() => result.value?.compareRevisions ?? null)
       </div>
     </template>
 
-    <div v-if="!fromId || !toId" class="flex flex-col items-center gap-3 py-16 text-center">
-      <UIcon name="i-lucide-git-compare" class="size-8 text-dimmed" />
-      <p class="text-sm text-muted">Pick two revisions to compare.</p>
-    </div>
+    <PageState
+      v-if="!fromId || !toId"
+      state="empty"
+      title="Choose two revisions"
+      description="Select a source and destination revision to review schedule changes."
+      icon="i-lucide-git-compare"
+    />
 
-    <div v-else-if="loading" class="flex flex-col gap-4">
-      <USkeleton class="h-10 w-full" />
-      <USkeleton class="h-40 w-full" />
-    </div>
+    <PageState v-else-if="loading" state="loading" title="Comparing revisions" />
 
-    <UAlert
+    <PageState
       v-else-if="error"
-      color="error"
-      variant="soft"
-      icon="i-lucide-alert-triangle"
+      state="error"
       title="Comparison unavailable"
       :description="error.message"
     />

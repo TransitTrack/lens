@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type {SplitterItem} from '@nuxt/ui'
 import {
   useRoutesQuery,
   useExploreCalendarQuery,
@@ -413,10 +414,26 @@ function openDuplicate(tripId: string) {
   duplicateSourceTripId.value = tripId
   addTripOpen.value = true
 }
+
+// --- grid / rail split --------------------------------------------
+const draftSplitterItems: SplitterItem[] = [
+  {id: 'grid', slot: 'grid', class: 'flex min-h-0 flex-col overflow-hidden'},
+  {
+    id: 'rail',
+    slot: 'rail',
+    sizeUnit: 'px',
+    defaultSize: 280,
+    minSize: 220,
+    maxSize: 480,
+    collapsible: true,
+    collapsedSize: 34,
+    class: 'flex min-h-0 flex-col overflow-hidden border-l border-default',
+  },
+]
 </script>
 
 <template>
-  <AppPage full-bleed>
+  <AppPage full-width>
     <template #leading>
       <span class="flex items-center gap-2 text-lg font-semibold text-highlighted">
         <span>{{ draft?.label ?? 'Draft' }}</span>
@@ -586,8 +603,13 @@ function openDuplicate(tripId: string) {
         </template>
       </UAlert>
 
-      <div class="flex min-h-0 flex-1" :class="{ 'opacity-50': readOnly }">
-        <div class="min-w-0 flex-1 overflow-hidden">
+      <USplitter
+        id="draft-editor-splitter"
+        :items="draftSplitterItems"
+        class="min-h-0 flex-1"
+        :class="{ 'opacity-50': readOnly }"
+      >
+        <template #grid>
           <DraftGrid
             ref="gridRef"
             v-model:selected-trip-id="selectedTripId"
@@ -600,26 +622,36 @@ function openDuplicate(tripId: string) {
             @commit-cell="onCommitCell"
             @add-trip="openAddTrip"
           />
-        </div>
-        <DraftRail
-          :draft-id="draftId"
-          :selected-trip="selectedTrip"
-          :active-cell="activeCell"
-          :active-cell-value="activeCellValue"
-          :active-stop-name="activeStopName"
-          :read-only="readOnly"
-          :derivation-stale="draft?.derivationStale ?? false"
-          :feed-code="selectedFeedCode ?? ''"
-          :last-validation="draft?.lastValidation"
-          :undone-count="undoneCount"
-          :error-count="errorCount"
-          :editor="editor"
-          @changed="onRailChanged"
-          @goto="onRailGoto"
-          @deleted="onRailDeleted"
-          @duplicate="openDuplicate"
-        />
-      </div>
+        </template>
+
+        <template #rail="{ collapsed, collapse, expand }">
+          <DraftRail
+            :draft-id="draftId"
+            :selected-trip="selectedTrip"
+            :active-cell="activeCell"
+            :active-cell-value="activeCellValue"
+            :active-stop-name="activeStopName"
+            :read-only="readOnly"
+            :derivation-stale="draft?.derivationStale ?? false"
+            :feed-code="selectedFeedCode ?? ''"
+            :last-validation="draft?.lastValidation"
+            :undone-count="undoneCount"
+            :error-count="errorCount"
+            :editor="editor"
+            :collapsed="collapsed"
+            @changed="onRailChanged"
+            @goto="onRailGoto"
+            @deleted="onRailDeleted"
+            @duplicate="openDuplicate"
+            @expand="expand"
+            @collapse="collapse"
+          />
+        </template>
+
+        <template #resize-handle>
+          <SplitterGrip />
+        </template>
+      </USplitter>
 
       <BulkShiftDialog
         v-model:open="bulkShiftOpen"

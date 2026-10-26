@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SplitterItem } from '@nuxt/ui'
 import gql from 'graphql-tag'
 import { useApolloClient } from '@vue/apollo-composable'
 import AppPage from '~/components/AppPage.vue'
@@ -143,10 +144,39 @@ const mapFeatures = computed(
           : [],
     }) as GeoJSON.FeatureCollection,
 )
+
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const splitterItems = computed<SplitterItem[]>(() =>
+  isDesktop.value
+    ? [
+        {
+          id: 'details',
+          slot: 'details',
+          sizeUnit: 'px',
+          defaultSize: 416,
+          minSize: 320,
+          maxSize: 560,
+          class: 'flex min-h-0 flex-col overflow-hidden',
+        },
+        { id: 'map', slot: 'map', class: 'flex min-h-0 flex-col overflow-hidden' },
+      ]
+    : [
+        {
+          id: 'details',
+          slot: 'details',
+          defaultSize: 52,
+          minSize: 30,
+          maxSize: 70,
+          class: 'flex min-h-0 flex-col overflow-hidden',
+        },
+        { id: 'map', slot: 'map', class: 'flex min-h-0 flex-col overflow-hidden' },
+      ],
+)
 </script>
 
 <template>
-  <AppPage :title="stop?.stopName ?? stopId" full-bleed>
+  <AppPage full-width :title="stop?.stopName ?? stopId">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
@@ -169,175 +199,188 @@ const mapFeatures = computed(
       </div>
     </div>
 
-    <div v-else-if="stop" class="flex min-h-0 flex-1">
-      <aside
-        class="flex w-104 shrink-0 flex-col gap-4 overflow-y-auto border-r border-default bg-elevated/20 p-4"
-      >
-        <section class="flex flex-col gap-3 rounded-lg border border-default bg-default p-3">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
-                Stop details
+    <USplitter
+      v-else-if="stop"
+      id="stop-detail-splitter"
+      :orientation="splitterOrientation"
+      :items="splitterItems"
+      class="h-full min-h-0 w-full"
+    >
+      <template #details>
+        <aside class="flex h-full w-full flex-col gap-4 overflow-y-auto bg-elevated/20 p-4">
+          <section class="flex flex-col gap-3 rounded-md border border-default bg-default p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
+                  Stop details
+                </div>
+                <div class="mt-1 text-sm text-muted">{{ stop.stopId }}</div>
               </div>
-              <div class="mt-1 text-sm text-muted">{{ stop.stopId }}</div>
+              <UBadge
+                v-if="stop.wheelchairBoarding === 1"
+                color="success"
+                variant="subtle"
+                icon="i-lucide-accessibility"
+              >
+                Accessible
+              </UBadge>
             </div>
-            <UBadge
-              v-if="stop.wheelchairBoarding === 1"
-              color="success"
-              variant="subtle"
-              icon="i-lucide-accessibility"
-            >
-              Accessible
-            </UBadge>
-          </div>
-          <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-            <dt class="text-dimmed">Code</dt>
-            <dd>{{ stop.stopCode ?? '—' }}</dd>
-            <dt class="text-dimmed">Location</dt>
-            <dd>{{ stop.stopLat?.toFixed(5) }}, {{ stop.stopLon?.toFixed(5) }}</dd>
-            <template v-if="stop.stopDesc">
-              <dt class="text-dimmed">About</dt>
-              <dd>{{ stop.stopDesc }}</dd>
-            </template>
-            <template v-if="stop.zoneId">
-              <dt class="text-dimmed">Zone</dt>
-              <dd>{{ stop.zoneId }}</dd>
-            </template>
-            <template v-if="stop.parentStation">
-              <dt class="text-dimmed">Station</dt>
-              <dd>{{ stop.parentStation }}</dd>
-            </template>
-          </dl>
-        </section>
+            <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+              <dt class="text-dimmed">Code</dt>
+              <dd>{{ stop.stopCode ?? '—' }}</dd>
+              <dt class="text-dimmed">Location</dt>
+              <dd>{{ stop.stopLat?.toFixed(5) }}, {{ stop.stopLon?.toFixed(5) }}</dd>
+              <template v-if="stop.stopDesc">
+                <dt class="text-dimmed">About</dt>
+                <dd>{{ stop.stopDesc }}</dd>
+              </template>
+              <template v-if="stop.zoneId">
+                <dt class="text-dimmed">Zone</dt>
+                <dd>{{ stop.zoneId }}</dd>
+              </template>
+              <template v-if="stop.parentStation">
+                <dt class="text-dimmed">Station</dt>
+                <dd>{{ stop.parentStation }}</dd>
+              </template>
+            </dl>
+          </section>
 
-        <section class="flex flex-col gap-3">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-highlighted">Service at this stop</span>
-            <span class="text-xs text-dimmed">{{ tripTotals.total.toLocaleString() }} trips</span>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div class="rounded-md border border-default bg-default px-3 py-2">
-              <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
-              <div class="text-xs text-dimmed">routes</div>
+          <section class="flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-highlighted">Service at this stop</span>
+              <span class="text-xs text-dimmed">{{ tripTotals.total.toLocaleString() }} trips</span>
             </div>
-            <div class="rounded-md border border-default bg-default px-3 py-2">
-              <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
-              <div class="text-xs text-dimmed">patterns</div>
-            </div>
-            <div class="col-span-2 rounded-md border border-default bg-default px-3 py-2">
-              <div class="text-sm font-semibold text-highlighted">
-                {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
+            <div class="grid grid-cols-2 gap-2">
+              <div class="rounded-md border border-default bg-default px-3 py-2">
+                <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
+                <div class="text-xs text-dimmed">routes</div>
               </div>
-              <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
+              <div class="rounded-md border border-default bg-default px-3 py-2">
+                <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
+                <div class="text-xs text-dimmed">patterns</div>
+              </div>
+              <div class="col-span-2 rounded-md border border-default bg-default px-3 py-2">
+                <div class="text-sm font-semibold text-highlighted">
+                  {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
+                </div>
+                <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
+              </div>
             </div>
-          </div>
-          <div v-if="routes.length" class="flex flex-wrap gap-1">
-            <UBadge
-              v-for="r in routes"
-              :key="r.id"
-              class="cursor-pointer"
-              :style="{ backgroundColor: hexColor(r.color, undefined) }"
-              @click="navigateTo(feedPath(`/explore/routes/${r.id}`))"
-            >
-              {{ r.name }}
-            </UBadge>
-          </div>
-        </section>
+            <div v-if="routes.length" class="flex flex-wrap gap-1">
+              <UBadge
+                v-for="r in routes"
+                :key="r.id"
+                class="cursor-pointer"
+                :style="{ backgroundColor: hexColor(r.color, undefined) }"
+                @click="navigateTo(feedPath(`/explore/routes/${r.id}`))"
+              >
+                {{ r.name }}
+              </UBadge>
+            </div>
+          </section>
 
-        <section class="flex flex-col gap-2 rounded-lg border border-default bg-default p-3">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-medium text-highlighted">Departures by hour</span>
-            <UFieldGroup>
+          <section class="flex flex-col gap-2 rounded-md border border-default bg-default p-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-highlighted">Departures by hour</span>
+              <UFieldGroup>
+                <UButton
+                  v-for="k in kindItems"
+                  :key="k.value"
+                  :color="kind === k.value ? 'primary' : 'neutral'"
+                  :variant="kind === k.value ? 'solid' : 'outline'"
+                  :label="k.label"
+                  @click="kind = k.value"
+                />
+              </UFieldGroup>
+            </div>
+            <USkeleton v-if="tripsLoading && !patternTrips.length" class="h-32.5 w-full" />
+            <template v-else>
+              <BarChart :bars="histogram.bars" :height="130" :format="(n) => `${n}`" />
+              <p class="text-xs text-dimmed">
+                {{ histogram.total.toLocaleString() }} scheduled departures on a typical
+                {{ kind }} · estimated from typical segment times
+              </p>
               <UButton
-                v-for="k in kindItems"
-                :key="k.value"
-                :color="kind === k.value ? 'primary' : 'neutral'"
-                :variant="kind === k.value ? 'solid' : 'outline'"
-                :label="k.label"
-                @click="kind = k.value"
+                label="View scheduled departures"
+                icon="i-lucide-list-clock"
+                color="neutral"
+                variant="outline"
+                block
+                @click="departuresOpen = true"
               />
-            </UFieldGroup>
+            </template>
+          </section>
+        </aside>
+      </template>
+      <template #map>
+        <div class="relative h-full min-w-0">
+          <div
+            class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
+          >
+            {{ stop.stopName ?? stop.stopId }}
           </div>
-          <USkeleton v-if="tripsLoading && !patternTrips.length" class="h-32.5 w-full" />
-          <template v-else>
-            <BarChart :bars="histogram.bars" :height="130" :format="(n) => `${n}`" />
-            <p class="text-xs text-dimmed">
-              {{ histogram.total.toLocaleString() }} scheduled departures on a typical {{ kind }} ·
-              estimated from typical segment times
-            </p>
-            <UButton
-              label="View scheduled departures"
-              icon="i-lucide-list-clock"
-              color="neutral"
-              variant="outline"
-              block
-              @click="departuresOpen = true"
-            />
-          </template>
-        </section>
-      </aside>
-      <div class="relative min-w-0 flex-1">
-        <div
-          class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
-        >
-          {{ stop.stopName ?? stop.stopId }}
+          <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" :extent="extent" />
         </div>
-        <StopsMap :stops="mapFeatures" :focus-id="stop.stopId" :extent="extent" />
-      </div>
+      </template>
 
-      <UModal
-        v-model:open="departuresOpen"
-        :title="`Scheduled departures from ${stop.stopName ?? stop.stopId}`"
-        :description="`Typical ${kind} service`"
-        :ui="{ content: 'sm:max-w-5xl' }"
-        scrollable
-      >
-        <template #body>
-          <div v-if="tripsLoading && !patternTrips.length" class="space-y-3">
-            <USkeleton v-for="i in 6" :key="i" class="h-12 w-full" />
-          </div>
-          <div v-else-if="departureGroups.length" class="space-y-4">
-            <section v-for="group in departureGroups" :key="group.hour">
-              <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-dimmed">
-                {{ String(group.hour).padStart(2, '0') }}:00–{{
-                  String(group.hour).padStart(2, '0')
-                }}:59
-              </h3>
-              <table class="w-full text-sm">
-                <tbody>
-                  <tr
-                    v-for="departure in group.departures"
-                    :key="`${departure.routeLabel}:${departure.headsign}:${departure.departureSec}`"
-                    class="border-b border-default last:border-b-0"
-                  >
-                    <td class="w-16 py-2 pr-3">
-                      <UBadge
-                        color="neutral"
-                        variant="subtle"
-                        :style="{
-                          backgroundColor: hexColor(departure.routeColor, undefined),
-                          color: routeTextColor(
-                            hexColor(departure.routeColor),
-                            departure.routeTextColor,
-                          ),
-                        }"
-                        >{{ departure.routeLabel }}</UBadge
-                      >
-                    </td>
-                    <td class="py-2 text-highlighted">{{ departure.headsign ?? '—' }}</td>
-                    <td class="py-2 text-right font-medium tabular-nums text-highlighted">
-                      {{ secToHm(departure.departureSec) }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </section>
-          </div>
-          <p v-else class="py-8 text-center text-sm text-dimmed">
-            No scheduled departures for this service day.
-          </p>
-        </template>
-      </UModal>
-    </div>
+      <template #resize-handle>
+        <SplitterGrip :orientation="splitterOrientation" />
+      </template>
+    </USplitter>
+
+    <UModal
+      v-if="stop"
+      v-model:open="departuresOpen"
+      :title="`Scheduled departures from ${stop.stopName ?? stop.stopId}`"
+      :description="`Typical ${kind} service`"
+      :ui="{ content: 'sm:max-w-5xl' }"
+      scrollable
+    >
+      <template #body>
+        <div v-if="tripsLoading && !patternTrips.length" class="space-y-3">
+          <USkeleton v-for="i in 6" :key="i" class="h-12 w-full" />
+        </div>
+        <div v-else-if="departureGroups.length" class="space-y-4">
+          <section v-for="group in departureGroups" :key="group.hour">
+            <h3 class="mb-1 text-xs font-medium uppercase tracking-wide text-dimmed">
+              {{ String(group.hour).padStart(2, '0') }}:00–{{
+                String(group.hour).padStart(2, '0')
+              }}:59
+            </h3>
+            <table class="w-full text-sm">
+              <tbody>
+                <tr
+                  v-for="departure in group.departures"
+                  :key="`${departure.routeLabel}:${departure.headsign}:${departure.departureSec}`"
+                  class="border-b border-default last:border-b-0"
+                >
+                  <td class="w-16 py-2 pr-3">
+                    <UBadge
+                      color="neutral"
+                      variant="subtle"
+                      :style="{
+                        backgroundColor: hexColor(departure.routeColor, undefined),
+                        color: routeTextColor(
+                          hexColor(departure.routeColor),
+                          departure.routeTextColor,
+                        ),
+                      }"
+                      >{{ departure.routeLabel }}</UBadge
+                    >
+                  </td>
+                  <td class="py-2 text-highlighted">{{ departure.headsign ?? '—' }}</td>
+                  <td class="py-2 text-right font-medium tabular-nums text-highlighted">
+                    {{ secToHm(departure.departureSec) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+        <p v-else class="py-8 text-center text-sm text-dimmed">
+          No scheduled departures for this service day.
+        </p>
+      </template>
+    </UModal>
   </AppPage>
 </template>

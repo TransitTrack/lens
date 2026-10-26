@@ -40,6 +40,7 @@ function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
       v-if="collapsed"
       color="neutral"
       variant="ghost"
+      size="xs"
       square
       aria-label="Switch feed"
       class="data-[state=open]:bg-elevated"
@@ -63,7 +64,14 @@ function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
         <UIcon name="i-lucide-rss" class="size-4 shrink-0" />
       </UChip>
       <UIcon v-else name="i-lucide-rss" class="size-4 shrink-0" />
-      <span class="truncate">{{ selectedFeed?.code ?? 'Select feed' }}</span>
+      <span class="min-w-0 flex-1 text-left">
+        <span class="block truncate text-sm font-medium text-highlighted">
+          {{ selectedFeed?.name ?? 'Select a feed' }}
+        </span>
+        <span v-if="selectedFeed" class="block truncate text-[10px] text-dimmed">
+          {{ selectedFeed.code }} · {{ statusLabel(selectedFeed) }}
+        </span>
+      </span>
     </UButton>
 
     <template #content="{ close }">

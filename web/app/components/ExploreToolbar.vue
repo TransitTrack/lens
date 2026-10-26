@@ -10,11 +10,13 @@ withDefaults(defineProps<{ showAgency?: boolean; showRouteType?: boolean }>(), {
 </script>
 
 <template>
-  <div class="flex h-12 items-center gap-2 overflow-x-auto">
-    <ExploreTabs/>
-    <div class="ml-auto flex shrink-0 items-center gap-2">
+  <UDashboardToolbar>
+    <template #left>
+      <ExploreTabs/>
+    </template>
+    <template #right>
       <RouteTypeFilter v-if="showRouteType"/>
       <AgencyFilter v-if="showAgency"/>
-    </div>
-  </div>
+    </template>
+  </UDashboardToolbar>
 </template>

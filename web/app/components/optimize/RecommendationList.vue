@@ -129,7 +129,7 @@ function delta(row: Recommendation) {
       :description="error.message"
     />
 
-    <div v-else-if="!recommendations.length" class="flex flex-col items-center gap-3 rounded-xl border border-dashed border-default py-16 text-center">
+    <div v-else-if="!recommendations.length" class="flex flex-col items-center gap-3 rounded-md border border-dashed border-default py-16 text-center">
       <UIcon name="i-lucide-inbox" class="size-8 text-dimmed" />
       <div>
         <p class="font-medium text-highlighted">Nothing needs changing</p>
@@ -142,7 +142,7 @@ function delta(row: Recommendation) {
         v-for="recommendation in recommendations"
         :key="recommendation.id"
         data-testid="optimization-recommendation"
-        class="rounded-xl border bg-default p-4 transition sm:p-5"
+        class="rounded-md border bg-default p-4 transition sm:p-5"
         :class="selected.includes(recommendation.id) ? 'border-primary ring-1 ring-primary/25' : 'border-default hover:border-muted'"
       >
         <div class="flex gap-3">
@@ -162,7 +162,7 @@ function delta(row: Recommendation) {
                 <p class="mt-3 text-sm leading-6 text-highlighted">{{ recommendation.reason }}</p>
               </div>
               <div
-                class="shrink-0 rounded-lg px-3 py-2 text-right"
+                class="shrink-0 rounded-md px-3 py-2 text-right"
                 :class="{
                   'bg-success/10 text-success': delta(recommendation).direction === 'later',
                   'bg-warning/10 text-warning': delta(recommendation).direction === 'earlier',
@@ -200,7 +200,7 @@ function delta(row: Recommendation) {
                 />
               </template>
               <template #content>
-                <div class="mt-2 rounded-xl border border-default bg-elevated p-3 sm:p-4">
+                <div class="mt-2 rounded-md border border-default bg-elevated p-3 sm:p-4">
                   <div class="flex items-center gap-2">
                     <div class="grid size-7 place-items-center rounded-md bg-primary/10 text-primary">
                       <UIcon name="i-lucide-git-branch" class="size-3.5" />
@@ -214,7 +214,7 @@ function delta(row: Recommendation) {
                     <div
                       v-for="group in targetGroups(recommendation)"
                       :key="group.tripId"
-                      class="min-w-0 rounded-lg border border-default bg-default px-3 py-2.5"
+                      class="min-w-0 rounded-md border border-default bg-default px-3 py-2.5"
                     >
                       <div class="flex items-center justify-between gap-2">
                         <p class="min-w-0 truncate font-mono text-xs font-medium text-highlighted" :title="group.tripId">{{ group.tripId }}</p>

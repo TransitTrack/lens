@@ -207,7 +207,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
           <article
             v-for="notice in validationNotices"
             :key="`${notice.severity}:${notice.rule}`"
-            class="rounded-lg border border-default bg-elevated/30 p-3"
+            class="rounded-md border border-default bg-elevated/30 p-3"
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="min-w-0 font-medium text-highlighted">{{ notice.rule }}</div>
@@ -256,7 +256,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
             </p>
           </article>
         </div>
-        <div v-else class="rounded-lg border border-default bg-elevated/30 p-4 text-sm text-muted">
+        <div v-else class="rounded-md border border-default bg-elevated/30 p-4 text-sm text-muted">
           {{
             validation
               ? 'This revision has no stored validation problems.'

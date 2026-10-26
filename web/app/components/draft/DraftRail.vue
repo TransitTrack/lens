@@ -21,6 +21,8 @@ const props = defineProps<{
   undoneCount: number
   errorCount: number
   editor: ReturnType<typeof useDraftEditor>
+  /** collapsed/expanded state now lives in the parent splitter panel. */
+  collapsed: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,22 +30,23 @@ const emit = defineEmits<{
   changed: []
   duplicate: [tripId: string]
   deleted: [tripId: string]
+  expand: []
+  collapse: []
 }>()
 
 type Tab = 'trip' | 'history' | 'validation'
-const open = ref(false)
 const tab = ref<Tab>('trip')
 
 function reveal(t: Tab) {
   tab.value = t
-  open.value = true
+  emit('expand')
 }
 
 watch(
   () => props.selectedTrip?.tripId,
   (id) => {
     if (id) {
-      open.value = true
+      emit('expand')
       tab.value = 'trip'
     }
   },
@@ -57,12 +60,9 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
 </script>
 
 <template>
-  <div
-    class="absolute right-0 top-0 bottom-0 z-10 flex border-l border-default bg-default"
-    :style="{ width: open ? '240px' : '34px' }"
-  >
+  <div class="flex h-full w-full flex-col bg-default">
     <!-- collapsed strip -->
-    <div v-if="!open" class="flex w-full flex-col items-center gap-2 py-2">
+    <div v-if="collapsed" class="flex w-full flex-col items-center gap-2 py-2">
       <UButton
         size="xs"
         color="neutral"
@@ -115,7 +115,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
           variant="ghost"
           icon="i-lucide-x"
           aria-label="Collapse"
-          @click="open = false"
+          @click="emit('collapse')"
         />
       </div>
 

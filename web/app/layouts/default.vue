@@ -3,16 +3,16 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 import UserMenu from '~/components/UserMenu.vue'
 import FeedSwitcher from '~/components/FeedSwitcher.vue'
 import NotificationsSlideover from '~/components/NotificationsSlideover.vue'
+import NotificationsButton from '~/components/NotificationsButton.vue'
+import SidebarUtilities from '~/components/SidebarUtilities.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
-import { useDashboard } from '~/composables/useDashboard'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
 import { useFeedReadinessQuery } from '~~/generated/graphql'
 
 useFeedAlerts()
 
 const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
-const { isNotificationsSlideoverOpen } = useDashboard()
 
 const { result, loading, error } = useFeedReadinessQuery(
   () => ({ code: selectedFeedCode.value ?? '' }),
@@ -57,34 +57,6 @@ const unhealthyFeedCount = computed(
 
 const searchOpen = ref(false)
 const route = useRoute()
-const currentTime = ref(new Date())
-const timeMounted = ref(false)
-let clockTimer: ReturnType<typeof setInterval> | undefined
-
-const formattedClock = computed(() => {
-  const date = currentTime.value
-  const twoDigits = (value: number) => String(value).padStart(2, '0')
-  return `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`
-})
-
-const formattedCalendarDate = computed(() => {
-  const date = currentTime.value
-  const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date)
-  const twoDigits = (value: number) => String(value).padStart(2, '0')
-  return `${weekday},${twoDigits(date.getDate())}.${twoDigits(date.getMonth() + 1)}.${date.getFullYear()}`
-})
-
-onMounted(() => {
-  timeMounted.value = true
-  currentTime.value = new Date()
-  clockTimer = setInterval(() => {
-    currentTime.value = new Date()
-  }, 1000)
-})
-
-onBeforeUnmount(() => {
-  if (clockTimer) clearInterval(clockTimer)
-})
 
 /** current route is `to` or a page nested under it (e.g. a detail page) */
 function underPath(to: string): boolean {
@@ -94,126 +66,98 @@ function underPath(to: string): boolean {
 interface NavLeaf {
   label: string
   icon: string
-  description: string
   path: string
 }
 
 const REALTIME: NavLeaf[] = [
   {
-    label: 'Overview',
-    icon: 'i-lucide-layout-dashboard',
-    description: 'Fleet overview and live map',
-    path: '/',
-  },
-  {
     label: 'Vehicles',
     icon: 'i-lucide-bus',
-    description: 'Live vehicle positions and trip matching',
     path: '/vehicles',
   },
   {
     label: 'Headway',
     icon: 'i-lucide-clock',
-    description: 'Service gaps and wait times at a stop',
     path: '/headway',
   },
 ]
 
 const REPORTS: NavLeaf[] = [
   {
-    label: 'AVL Report',
+    label: 'AVL history',
     icon: 'i-lucide-clipboard-list',
-    description: 'View historical AVL reports for a vehicle',
     path: '/reports/avl',
   },
   {
-    label: 'Schedule Adherence for a Route',
+    label: 'Adherence by route',
     icon: 'i-lucide-route',
-    description: 'Per-stop adherence for one route over a date range',
     path: '/reports/adherence-route',
   },
   {
-    label: 'Schedule Adherence for all Routes',
+    label: 'Route adherence summary',
     icon: 'i-lucide-list-tree',
-    description: 'Mean adherence and on-time rate per route over a date range',
     path: '/reports/adherence-routes',
   },
   {
-    label: 'Schedule Adherence for a Trip',
+    label: 'Adherence by trip',
     icon: 'i-lucide-git-branch',
-    description: 'Per-stop adherence for one trip across a date range',
     path: '/reports/adherence-trip',
   },
   {
-    label: 'Schedule Adherence Report for all Trips',
+    label: 'Trip adherence summary',
     icon: 'i-lucide-table',
-    description: 'Mean adherence and on-time rate per trip, optionally filtered by route',
     path: '/reports/adherence-trips',
   },
   {
-    label: 'Schedule Adherence Report for a Stop',
+    label: 'Adherence by stop',
     icon: 'i-lucide-map-pin',
-    description: 'Per-visit adherence for one stop across a date range',
     path: '/reports/adherence-stop',
   },
 ]
 
-const STATIC: NavLeaf[] = [
+const SCHEDULE: NavLeaf[] = [
   {
-    label: 'Optimization',
-    icon: 'i-lucide-sparkles',
-    description: 'AVL-informed schedule optimization',
-    path: '/optimize',
+    label: 'Feed',
+    icon: 'i-lucide-file-text',
+    path: '/explore/feed',
   },
   {
     label: 'Routes',
     icon: 'i-lucide-route',
-    description: 'Browse routes, filter by type and agency',
     path: '/explore/routes',
   },
   {
     label: 'Stops',
     icon: 'i-lucide-map-pin',
-    description: 'Every stop on the map with its patterns',
     path: '/explore/stops',
   },
   {
     label: 'Trips',
     icon: 'i-lucide-git-branch',
-    description: 'Scheduled trips with start/end times and filters',
     path: '/explore/trips',
   },
   {
     label: 'Blocks',
     icon: 'i-lucide-layers',
-    description: 'Vehicle blocks and peak concurrency',
     path: '/explore/blocks',
   },
   {
     label: 'Calendar',
     icon: 'i-lucide-calendar-days',
-    description: 'Service calendars and date exceptions',
     path: '/explore/calendar',
   },
-  {
-    label: 'Feed',
-    icon: 'i-lucide-file-text',
-    description: 'Feed metadata, revisions and quality report',
-    path: '/explore/feed',
-  },
-  {
-    label: 'Drafts',
-    icon: 'i-lucide-file-pen-line',
-    description: 'Edit and activate schedule drafts',
-    path: '/drafts',
-  },
+]
+
+const WORK: NavLeaf[] = [
+  { label: 'Drafts', icon: 'i-lucide-file-pen-line', path: '/drafts' },
+  { label: 'Compare revisions', icon: 'i-lucide-git-compare', path: '/compare' },
+  { label: 'Optimization', icon: 'i-lucide-sparkles', path: '/optimize' },
 ]
 
 function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
   return leaves.map((l) => ({
     label: l.label,
     icon: l.icon,
-    description: l.description,
     to: feedPath(l.path),
     active: underPath(feedPath(l.path)),
     slot: 'leaf',
@@ -222,28 +166,40 @@ function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
 
 const primaryNav = computed<NavigationMenuItem[]>(() => [
   {
-    label: 'Vehicles',
+    label: 'Overview',
+    icon: 'i-lucide-home',
+    to: feedPath(),
+    active: route.path === feedPath(),
+    slot: 'item',
+  },
+  {
+    label: 'Live service',
     icon: 'i-lucide-radio',
-    description: 'Live data from the AVL feed',
-    defaultOpen: true,
+    defaultOpen: REALTIME.some((l) => underPath(feedPath(l.path))),
     active: REALTIME.some((l) => underPath(feedPath(l.path))),
     children: toItems(REALTIME),
     slot: 'group',
   },
   {
-    label: 'Network',
+    label: 'Schedule',
     icon: 'i-lucide-database',
-    description: 'GTFS schedule data for the feed',
-    defaultOpen: true,
-    active: STATIC.some((l) => underPath(feedPath(l.path))),
-    children: toItems(STATIC),
+    defaultOpen: SCHEDULE.some((l) => underPath(feedPath(l.path))),
+    active: SCHEDULE.some((l) => underPath(feedPath(l.path))),
+    children: toItems(SCHEDULE),
+    slot: 'group',
+  },
+  {
+    label: 'Changes',
+    icon: 'i-lucide-file-pen-line',
+    defaultOpen: WORK.some((l) => underPath(feedPath(l.path))),
+    active: WORK.some((l) => underPath(feedPath(l.path))),
+    children: toItems(WORK),
     slot: 'group',
   },
   {
     label: 'Reports',
     icon: 'i-lucide-chart-no-axes-combined',
-    description: 'Historical operational reports',
-    defaultOpen: true,
+    defaultOpen: REPORTS.some((l) => underPath(feedPath(l.path))),
     active: REPORTS.some((l) => underPath(feedPath(l.path))),
     children: toItems(REPORTS),
     slot: 'group',
@@ -251,18 +207,6 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
 ])
 
 const navigationItems = computed(() => (feedIsBlocked.value ? [] : primaryNav.value))
-
-const secondaryNav = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Notifications',
-    icon: 'i-lucide-bell',
-    badge: unhealthyFeedCount.value || undefined,
-    chip: unhealthyFeedCount.value ? { color: 'error' as const } : false,
-    onSelect: () => {
-      isNotificationsSlideoverOpen.value = true
-    },
-  },
-])
 
 const groups = computed(() => [
   {
@@ -286,10 +230,21 @@ const groups = computed(() => [
 
 <template>
   <UDashboardGroup>
-    <UDashboardSidebar collapsible resizable>
+    <UDashboardSidebar
+      collapsible
+      resizable
+      :ui="{
+        header:
+          'h-auto! min-h-(--ui-header-height) shrink-0 flex items-center px-1.5 py-1.5',
+      }"
+    >
       <template #header="{ collapsed }">
-        <div class="flex items-center gap-1">
-          <FeedSwitcher class="min-w-0 flex-1" :collapsed="collapsed" />
+        <div class="flex w-full flex-col gap-1.5">
+          <SidebarUtilities :collapsed="collapsed" />
+          <div class="flex items-center gap-1">
+            <FeedSwitcher class="min-w-0 flex-1" :collapsed="collapsed" />
+            <UDashboardSidebarCollapse side="left" size="xs" square />
+          </div>
         </div>
       </template>
 
@@ -309,100 +264,71 @@ const groups = computed(() => [
           :tooltip="collapsed"
           :popover="collapsed"
           :highlight="true"
-          :ui="{ link: 'py-2 font-semibold' }"
+          :ui="{ link: 'py-2 font-medium' }"
         >
           <template #leaf="{ item: leafItem, active }">
-            <!--
             <UIcon
               v-if="(leafItem as NavigationMenuItem).icon"
-              :name="(leafItem as NavigationMenuItem).icon"
-              class="size-4.5 shrink-0"
+              :name="(leafItem as NavigationMenuItem).icon as string"
+              class="size-4 shrink-0"
               :class="active ? 'text-primary' : 'text-muted'"
             />
-             -->
-            <span class="min-w-0 flex-1">
-              <span
-                class="block truncate text-sm font-semibold"
-                :class="active ? 'text-primary' : 'text-default'"
-              >
-                {{ (leafItem as NavigationMenuItem).label }}
-              </span>
-              <span
-                v-if="(leafItem as NavigationMenuItem).description"
-                class="block truncate text-[10px]"
-                :class="active ? 'text-primary' : 'text-dimmed'"
-              >
-                {{ (leafItem as NavigationMenuItem).description }}
-              </span>
+            <span
+              class="min-w-0 flex-1 truncate text-sm"
+              :class="active ? 'font-semibold text-primary' : 'text-default'"
+            >
+              {{ (leafItem as NavigationMenuItem).label }}
             </span>
           </template>
 
           <template #group-content="groupSlot">
-            <ul class="min-w-64 max-h-120 overflow-y-auto p-1">
+            <ul class="min-w-56 max-h-100 space-y-1 overflow-y-auto px-1 py-1.5">
               <li
                 v-for="child in (groupSlot.item as NavigationMenuItem).children"
                 :key="child.label"
               >
                 <NuxtLink
                   :to="child.to"
-                  class="flex items-start gap-2.5 rounded-md px-2.5 py-2 hover:bg-primary/30"
+                  class="flex items-center gap-2 rounded-md px-2.5 py-2 hover:bg-primary/15"
                   :class="{ 'bg-elevated/60': child.active }"
                   @click="(groupSlot as { close?: () => void }).close?.()"
                 >
                   <UIcon
                     v-if="child.icon"
                     :name="child.icon"
-                    class="mt-0.5 size-5 shrink-0"
+                    class="size-4 shrink-0"
                     :class="child.active ? 'text-primary' : 'text-muted'"
                   />
-                  <span class="min-w-0 flex-1">
-                    <span
-                      class="block truncate text-sm font-medium"
-                      :class="child.active ? 'text-primary' : 'text-highlighted'"
-                    >
-                      {{ child.label }}
-                    </span>
-                    <span v-if="child.description" class="block truncate text-xs text-dimmed">
-                      {{ child.description }}
-                    </span>
+                  <span
+                    class="min-w-0 flex-1 truncate text-sm"
+                    :class="child.active ? 'font-semibold text-primary' : 'text-highlighted'"
+                  >
+                    {{ child.label }}
                   </span>
                 </NuxtLink>
               </li>
             </ul>
           </template>
         </UNavigationMenu>
-        <UNavigationMenu
-          :items="secondaryNav"
-          orientation="vertical"
-          :collapsed="collapsed"
-          class="mt-auto"
-        />
       </template>
 
       <template #footer="{ collapsed }">
-        <UserMenu :collapsed="collapsed" />
+        <div class="w-full border-t border-default px-1.5 py-1.5">
+          <UserMenu :collapsed="collapsed" />
+        </div>
       </template>
     </UDashboardSidebar>
 
     <UDashboardPanel :ui="{ body: 'p-0 gap-0 sm:p-0 sm:gap-0' }">
       <template #header>
-        <UDashboardNavbar toggle class="lg:hidden" />
+        <UDashboardNavbar toggle class="lg:hidden">
+          <template #right>
+            <NotificationsButton :count="unhealthyFeedCount || undefined" />
+          </template>
+        </UDashboardNavbar>
       </template>
 
       <template #body>
-        <time
-          v-if="timeMounted"
-          :datetime="currentTime.toISOString()"
-          class="fixed top-4 right-4 z-40 hidden items-center gap-1 rounded-md bg-elevated px-3 py-0.5 shadow-sm lg:flex tracking-tight"
-          aria-label="Current local date and time"
-        >
-          <span class="text-xl font-bold tracking-tight tabular-nums text-highlighted">
-            {{ formattedClock }}
-          </span>
-          <span class="text-xs font-medium text-muted">-</span>
-          <span class="text-xs font-medium text-muted">{{ formattedCalendarDate }} </span>
-        </time>
-
         <UContainer v-if="feedIsBlocked" class="flex min-h-dvh items-center justify-center py-6">
           <section class="w-full max-w-md space-y-3" aria-live="polite">
             <div class="flex items-center gap-2 text-sm font-medium text-muted">

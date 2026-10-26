@@ -11,6 +11,7 @@ import {useFeeds} from '~/composables/useFeeds'
 import {usePollControl} from '~/composables/usePollControl'
 import {formatClock} from '~/utils/clock'
 import AppPage from '~/components/AppPage.vue'
+import PageState from '~/components/PageState.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import BarChart from '~/components/BarChart.vue'
@@ -208,7 +209,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>
-      <div class="flex flex-wrap items-center gap-3 border-b border-default bg-elevated/30 px-4 py-3">
+      <div class="flex flex-wrap items-center gap-3 py-3">
         <div class="mr-1 text-sm font-medium text-highlighted">Analyse service</div>
         <USelectMenu
           :model-value="selectedRouteId"
@@ -251,13 +252,13 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="headway analysis"/>
 
-    <div v-else-if="!querySelected" class="mx-auto flex max-w-md flex-col items-center gap-3 py-20 text-center">
-      <div class="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-        <UIcon name="i-lucide-timer" class="size-6"/>
-      </div>
-      <div class="text-base font-medium text-highlighted">Choose a service point</div>
-      <p class="text-sm text-muted">Pick a route and stop to review current spacing, recent gaps, and upcoming arrivals.</p>
-    </div>
+    <PageState
+      v-else-if="!querySelected"
+      state="empty"
+      title="Choose a service point"
+      description="Pick a route and stop to review current spacing, recent gaps, and upcoming arrivals."
+      icon="i-lucide-timer"
+    />
 
     <UAlert
       v-else-if="headwayError"
@@ -275,7 +276,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
       </div>
 
       <div v-else-if="headway" class="flex flex-col gap-4">
-        <section class="grid overflow-hidden rounded-xl border border-default bg-default sm:grid-cols-2 xl:grid-cols-4">
+        <section class="app-frame grid sm:grid-cols-2 xl:grid-cols-4">
           <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
             <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Current wait</span>
             <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ headway.waitSec != null ? formatDur(headway.waitSec) : '—' }}</span>
@@ -299,7 +300,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
         </section>
 
         <div class="grid gap-4 lg:grid-cols-3">
-          <UCard class="lg:col-span-1" :ui="{ body: 'flex flex-col gap-3' }">
+          <section class="app-frame flex flex-col gap-3 p-4 lg:col-span-1">
             <div class="text-sm font-medium text-highlighted">Current spacing</div>
             <div v-if="waitRatio" class="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
               <div
@@ -312,9 +313,9 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
               {{ waitRatio.over ? 'Over' : 'Under' }} scheduled headway ({{ Math.round(waitRatio.ratio * 100) }}%)
             </p>
             <p v-else class="text-sm text-dimmed">Waiting for enough live arrivals to compare spacing.</p>
-          </UCard>
+          </section>
 
-          <UCard class="lg:col-span-2" :ui="{ body: 'flex flex-col gap-3' }">
+          <section class="app-frame flex flex-col gap-3 p-4 lg:col-span-2">
             <div class="text-sm font-medium text-highlighted">Recent gaps between arrivals</div>
             <p v-if="!gapBars.length" class="text-sm text-dimmed">No gaps recorded yet.</p>
             <BarChart
@@ -325,10 +326,10 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
               :height="150"
               :format="formatDur"
             />
-          </UCard>
+          </section>
         </div>
 
-      <section class="overflow-hidden rounded-xl border border-default bg-default">
+      <section class="app-frame">
         <div class="flex items-center justify-between border-b border-default px-4 py-3">
           <div>
             <div class="text-sm font-medium text-highlighted">Upcoming arrivals</div>

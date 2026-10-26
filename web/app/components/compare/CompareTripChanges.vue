@@ -40,7 +40,7 @@ function kindColor(kind: string): 'success' | 'error' | 'neutral' {
       Showing first {{ changes.length }} of {{ totalCount }} changed trips.
     </p>
     <div v-if="!changes.length" class="text-sm text-muted">No trip differences in this filter.</div>
-    <div v-else class="divide-y divide-default rounded-lg border border-default">
+    <div v-else class="divide-y divide-default rounded-md border border-default">
       <div v-for="c in changes" :key="c.tripId">
         <button
           type="button"

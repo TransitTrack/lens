@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
@@ -71,10 +72,39 @@ const tripStats = computed(() => ({
     : '—',
   start: trip.value?.startTimeSec != null ? secToHm(trip.value.startTimeSec) : '—',
 }))
+
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const splitterItems = computed<SplitterItem[]>(() =>
+  isDesktop.value
+    ? [
+        {
+          id: 'details',
+          slot: 'details',
+          sizeUnit: 'px',
+          defaultSize: 416,
+          minSize: 320,
+          maxSize: 560,
+          class: 'flex min-h-0 flex-col overflow-hidden',
+        },
+        { id: 'map', slot: 'map', class: 'flex min-h-0 flex-col overflow-hidden' },
+      ]
+    : [
+        {
+          id: 'details',
+          slot: 'details',
+          defaultSize: 52,
+          minSize: 30,
+          maxSize: 70,
+          class: 'flex min-h-0 flex-col overflow-hidden',
+        },
+        { id: 'map', slot: 'map', class: 'flex min-h-0 flex-col overflow-hidden' },
+      ],
+)
 </script>
 
 <template>
-  <AppPage :title="trip?.tripHeadsign ?? tripId" full-bleed>
+  <AppPage full-width :title="trip?.tripHeadsign ?? tripId">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
@@ -106,149 +136,169 @@ const tripStats = computed(() => ({
       <USkeleton class="min-w-0 flex-1 rounded-none" />
     </div>
 
-    <div v-else class="flex min-h-0 flex-1">
-      <aside class="flex w-104 shrink-0 flex-col gap-3 overflow-y-auto p-4">
-        <div class="flex flex-col gap-1">
-          <div class="text-xs text-muted">
-            {{ trip?.tripId }} · dir {{ trip?.directionId ?? '?' }} · service {{ trip?.serviceId }}
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5 text-xs">
-            <UBadge
-              v-if="trip?.pattern"
-              color="neutral"
-              variant="subtle"
-              icon="i-lucide-git-branch"
-            >
-              {{ trip.pattern.stopCount }} stops
-              <template v-if="trip.pattern.lengthM">
-                · {{ (trip.pattern.lengthM / 1000).toFixed(1) }} km
-              </template>
-            </UBadge>
-            <NuxtLink
-              v-if="trip?.block"
-              :to="
-                feedPath(
-                  `/explore/blocks/${encodeURIComponent(trip.block.blockId)}?service=${encodeURIComponent(trip.block.serviceId)}`,
-                )
-              "
-            >
-              <UBadge color="primary" variant="subtle" icon="i-lucide-layers">
-                Block {{ trip.block.blockId }}
-              </UBadge>
-            </NuxtLink>
-            <UBadge v-if="trip?.frequencyBased" color="warning" variant="subtle">
-              frequency-based
-            </UBadge>
-            <UBadge v-if="trip?.noSchedule" color="warning" variant="subtle"> no schedule </UBadge>
-            <span v-if="runtimeSec != null" class="text-dimmed">
-              run {{ Math.round(runtimeSec / 60) }} min
-            </span>
-          </div>
-        </div>
-
-        <section
-          class="grid grid-cols-2 gap-1 overflow-scroll rounded-xl border border-default bg-default"
-        >
-          <div class="border-b border-r border-default p-2">
-            <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
-            <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
-              {{ tripStats.stops }}
+    <USplitter
+      v-else
+      id="trip-detail-splitter"
+      :orientation="splitterOrientation"
+      :items="splitterItems"
+      class="h-full min-h-0 w-full"
+    >
+      <template #details>
+        <aside class="flex h-full w-full flex-col gap-3 overflow-y-auto p-4">
+          <div class="flex flex-col gap-1">
+            <div class="text-xs text-muted">
+              {{ trip?.tripId }} · dir {{ trip?.directionId ?? '?' }} · service
+              {{ trip?.serviceId }}
             </div>
-          </div>
-          <div class="border-b border-default p-2">
-            <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Runtime</div>
-            <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
-              {{ tripStats.runtime }}
-            </div>
-          </div>
-          <div class="border-r border-default p-2">
-            <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Length</div>
-            <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
-              {{ tripStats.length }}
-            </div>
-          </div>
-          <div class="p-2">
-            <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Starts</div>
-            <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
-              {{ tripStats.start }}
-            </div>
-          </div>
-        </section>
-
-        <section class="overflow-hidden rounded-xl border border-default bg-default">
-          <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
-            <span class="text-sm font-medium text-highlighted">Stop timetable</span>
-            <span class="text-xs text-dimmed">Scheduled times</span>
-          </div>
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="text-left text-xs text-dimmed">
-                <th class="py-1 pl-2 pr-2 font-medium">#</th>
-                <th class="py-1 font-medium">Stop</th>
-                <th class="py-1 text-right font-medium">Arr</th>
-                <th class="py-1 pr-2 text-right font-medium">Dep</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="st in stopTimes"
-                :key="st.stopSequence"
-                class="border-t border-default align-top"
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+              <UBadge
+                v-if="trip?.pattern"
+                color="neutral"
+                variant="subtle"
+                icon="i-lucide-git-branch"
               >
-                <td class="py-1 pl-2 text-xs text-dimmed">{{ st.stopSequence }}</td>
-                <td class="py-1">
-                  <NuxtLink
-                    v-if="st.stop?.stopId"
-                    :to="feedPath(`/explore/stops/${encodeURIComponent(st.stop.stopId)}`)"
-                    class="line-clamp-1 text-highlighted hover:text-primary hover:underline"
-                  >
-                    {{ st.stop.stopName ?? st.stop.stopId }}
-                  </NuxtLink>
-                  <span v-else class="line-clamp-1 text-highlighted">—</span>
-                  <span
-                    v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
-                    class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
-                    >interp</span
-                  >
-                  <span
-                    v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
-                    class="ml-1 text-[10px] text-dimmed"
-                    >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span
-                  >
-                </td>
-                <td class="py-1 text-right tabular-nums">
-                  <div class="text-highlighted">
+                {{ trip.pattern.stopCount }} stops
+                <template v-if="trip.pattern.lengthM">
+                  · {{ (trip.pattern.lengthM / 1000).toFixed(1) }} km
+                </template>
+              </UBadge>
+              <NuxtLink
+                v-if="trip?.block"
+                :to="
+                  feedPath(
+                    `/explore/blocks/${encodeURIComponent(trip.block.blockId)}?service=${encodeURIComponent(trip.block.serviceId)}`,
+                  )
+                "
+              >
+                <UBadge color="primary" variant="subtle" icon="i-lucide-layers">
+                  Block {{ trip.block.blockId }}
+                </UBadge>
+              </NuxtLink>
+              <UBadge v-if="trip?.frequencyBased" color="warning" variant="subtle">
+                frequency-based
+              </UBadge>
+              <UBadge v-if="trip?.noSchedule" color="warning" variant="subtle">
+                no schedule
+              </UBadge>
+              <span v-if="runtimeSec != null" class="text-dimmed">
+                run {{ Math.round(runtimeSec / 60) }} min
+              </span>
+            </div>
+          </div>
+
+          <section
+            class="grid grid-cols-2 gap-1 overflow-scroll rounded-md border border-default bg-default"
+          >
+            <div class="border-b border-r border-default p-2">
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
+                {{ tripStats.stops }}
+              </div>
+            </div>
+            <div class="border-b border-default p-2">
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Runtime</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
+                {{ tripStats.runtime }}
+              </div>
+            </div>
+            <div class="border-r border-default p-2">
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Length</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
+                {{ tripStats.length }}
+              </div>
+            </div>
+            <div class="p-2">
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Starts</div>
+              <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
+                {{ tripStats.start }}
+              </div>
+            </div>
+          </section>
+
+          <section class="overflow-hidden rounded-md border border-default bg-default">
+            <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
+              <span class="text-sm font-medium text-highlighted">Stop timetable</span>
+              <span class="text-xs text-dimmed">Scheduled times</span>
+            </div>
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-xs text-dimmed">
+                  <th class="py-1 pl-2 pr-2 font-medium">#</th>
+                  <th class="py-1 font-medium">Stop</th>
+                  <th class="py-1 text-right font-medium">Arr</th>
+                  <th class="py-1 pr-2 text-right font-medium">Dep</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="st in stopTimes"
+                  :key="st.stopSequence"
+                  class="border-t border-default align-top"
+                >
+                  <td class="py-1 pl-2 text-xs text-dimmed">{{ st.stopSequence }}</td>
+                  <td class="py-1">
+                    <NuxtLink
+                      v-if="st.stop?.stopId"
+                      :to="feedPath(`/explore/stops/${encodeURIComponent(st.stop.stopId)}`)"
+                      class="line-clamp-1 text-highlighted hover:text-primary hover:underline"
+                    >
+                      {{ st.stop.stopName ?? st.stop.stopId }}
+                    </NuxtLink>
+                    <span v-else class="line-clamp-1 text-highlighted">—</span>
+                    <span
+                      v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
+                      class="ml-1 rounded bg-elevated px-1 text-[10px] text-dimmed"
+                      >interp</span
+                    >
+                    <span
+                      v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
+                      class="ml-1 text-[10px] text-dimmed"
+                      >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span
+                    >
+                  </td>
+                  <td class="py-1 text-right tabular-nums">
+                    <div class="text-highlighted">
+                      {{
+                        schedByIndex.has(st.stopSequence - 1)
+                          ? secToHm(schedByIndex.get(st.stopSequence - 1)!.arrivalSec ?? null)
+                          : hm(st.arrivalTime)
+                      }}
+                    </div>
+                    <div
+                      v-if="schedByIndex.has(st.stopSequence - 1)"
+                      class="text-[10px] text-dimmed"
+                    >
+                      gtfs {{ hm(st.arrivalTime) }}
+                    </div>
+                  </td>
+                  <td class="py-1 pr-2 text-right tabular-nums text-muted">
                     {{
                       schedByIndex.has(st.stopSequence - 1)
-                        ? secToHm(schedByIndex.get(st.stopSequence - 1)!.arrivalSec ?? null)
-                        : hm(st.arrivalTime)
+                        ? secToHm(schedByIndex.get(st.stopSequence - 1)!.departureSec ?? null)
+                        : hm(st.departureTime)
                     }}
-                  </div>
-                  <div v-if="schedByIndex.has(st.stopSequence - 1)" class="text-[10px] text-dimmed">
-                    gtfs {{ hm(st.arrivalTime) }}
-                  </div>
-                </td>
-                <td class="py-1 pr-2 text-right tabular-nums text-muted">
-                  {{
-                    schedByIndex.has(st.stopSequence - 1)
-                      ? secToHm(schedByIndex.get(st.stopSequence - 1)!.departureSec ?? null)
-                      : hm(st.departureTime)
-                  }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
-      </aside>
-      <div class="relative min-w-0 flex-1">
-        <VehicleRouteMap
-          :line="line"
-          :stops="stops"
-          :vehicle="null"
-          route-color="#ff0000"
-          :extent="extent"
-        />
-      </div>
-    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </aside>
+      </template>
+      <template #map>
+        <div class="relative h-full min-w-0">
+          <VehicleRouteMap
+            :line="line"
+            :stops="stops"
+            :vehicle="null"
+            route-color="#ff0000"
+            :extent="extent"
+          />
+        </div>
+      </template>
+
+      <template #resize-handle>
+        <SplitterGrip :orientation="splitterOrientation" />
+      </template>
+    </USplitter>
   </AppPage>
 </template>

@@ -74,89 +74,98 @@ function onSelect(_e: Event, row: { original: Row }) {
       <ExploreToolbar show-route-type />
     </template>
 
-    <section
-      class="grid overflow-hidden border border-default bg-default sm:grid-cols-2 xl:grid-cols-4"
-    >
-      <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
-        <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Visible routes</span>
-        <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
-          routeStats.routes
-        }}</span>
-        <span class="text-xs text-muted">{{ routeStats.total }} in this feed</span>
-      </div>
-      <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
-        <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Agencies</span>
-        <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
-          routeStats.agencies
-        }}</span>
-        <span class="text-xs text-muted">Represented in this view</span>
-      </div>
-      <div
-        class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r"
-      >
-        <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Service modes</span>
-        <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
-          routeStats.modes
-        }}</span>
-        <span class="text-xs text-muted">GTFS route types</span>
-      </div>
-      <div class="flex flex-col gap-1 p-4">
-        <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Named services</span>
-        <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
-          routeStats.named
-        }}</span>
-        <span class="text-xs text-muted">With a route description</span>
-      </div>
-    </section>
-
-    <section class="overflow-hidden border border-default bg-default">
-      <div
-        class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-4 py-3"
-      >
-        <div>
-          <div class="text-sm font-medium text-highlighted">Route directory</div>
-          <div class="text-xs text-muted">
-            Select a route to inspect its patterns, stops, and trips.
-          </div>
-        </div>
-        <UInput
-          v-model="search"
-          icon="i-lucide-search"
-          placeholder="Search routes…"
-          class="w-64 max-w-full"
-        />
-      </div>
-
-      <div v-if="loading && !rows.length" class="flex flex-col gap-2 p-3">
-        <USkeleton v-for="i in 8" :key="i" class="h-14 w-full" />
-      </div>
-
-      <UTable v-else :data="rows" :columns="columns" @select="onSelect">
-        <template #routeShortName-cell="{ row }">
-          <UBadge
-            :style="{
-              backgroundColor: hexColor(row.original.routeColor, undefined),
-              color: routeTextColor(hexColor(row.original.routeColor), row.original.routeTextColor),
-            }"
+    <div class="flex flex-col gap-6">
+      <section class="app-frame grid sm:grid-cols-2 xl:grid-cols-4">
+        <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
+            >Visible routes</span
           >
-            {{ row.original.routeShortName ?? row.original.routeId }}
-          </UBadge>
-        </template>
-        <template #routeLongName-cell="{ row }">
-          <div class="font-medium text-highlighted">
-            {{ row.original.routeLongName?.substring(0, 60) ?? 'Unnamed service' }}
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            routeStats.routes
+          }}</span>
+          <span class="text-xs text-muted">{{ routeStats.total }} in this feed</span>
+        </div>
+        <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Agencies</span>
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            routeStats.agencies
+          }}</span>
+          <span class="text-xs text-muted">Represented in this view</span>
+        </div>
+        <div
+          class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r"
+        >
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Service modes</span>
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            routeStats.modes
+          }}</span>
+          <span class="text-xs text-muted">GTFS route types</span>
+        </div>
+        <div class="flex flex-col gap-1 p-4">
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
+            >Named services</span
+          >
+          <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
+            routeStats.named
+          }}</span>
+          <span class="text-xs text-muted">With a route description</span>
+        </div>
+      </section>
+
+      <section class="app-frame overflow-scroll">
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-4 py-3"
+        >
+          <div>
+            <div class="text-sm font-medium text-highlighted">Route directory</div>
+            <div class="text-xs text-muted">
+              Select a route to inspect its patterns, stops, and trips.
+            </div>
           </div>
-          <div class="text-xs text-dimmed">{{ row.original.routeId }}</div>
-        </template>
-        <template #routeType-cell="{ row }">{{ routeTypeLabel(row.original.routeType) }}</template>
-        <template #agency-cell="{ row }">
-          {{
-            row.original.agencyId
-              ? (agencyName.get(row.original.agencyId) ?? row.original.agencyId)
-              : '—'
-          }}
-        </template>
-      </UTable>
-    </section>
+          <UInput
+            v-model="search"
+            icon="i-lucide-search"
+            placeholder="Search routes…"
+            class="w-64 max-w-full"
+          />
+        </div>
+
+        <div v-if="loading && !rows.length" class="flex flex-col gap-2 p-3">
+          <USkeleton v-for="i in 8" :key="i" class="h-14 w-full" />
+        </div>
+
+        <UTable v-else :data="rows" :columns="columns" @select="onSelect">
+          <template #routeShortName-cell="{ row }">
+            <UBadge
+              :style="{
+                backgroundColor: hexColor(row.original.routeColor, undefined),
+                color: routeTextColor(
+                  hexColor(row.original.routeColor),
+                  row.original.routeTextColor,
+                ),
+              }"
+            >
+              {{ row.original.routeShortName ?? row.original.routeId }}
+            </UBadge>
+          </template>
+          <template #routeLongName-cell="{ row }">
+            <div class="font-medium text-highlighted">
+              {{ row.original.routeLongName?.substring(0, 60) ?? 'Unnamed service' }}
+            </div>
+            <div class="text-xs text-dimmed">{{ row.original.routeId }}</div>
+          </template>
+          <template #routeType-cell="{ row }">{{
+            routeTypeLabel(row.original.routeType)
+          }}</template>
+          <template #agency-cell="{ row }">
+            {{
+              row.original.agencyId
+                ? (agencyName.get(row.original.agencyId) ?? row.original.agencyId)
+                : '—'
+            }}
+          </template>
+        </UTable>
+      </section>
+    </div>
   </AppPage>
 </template>

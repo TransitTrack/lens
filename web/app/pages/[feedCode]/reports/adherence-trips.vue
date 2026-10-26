@@ -128,7 +128,7 @@ const columns: TableColumn<ReportRow>[] = [
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="schedule adherence reports" />
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
-      <div class="rounded border border-default bg-elevated/20 px-4">
+      <div class="app-frame bg-elevated/20 px-4">
         <UAccordion
           v-model="openFilterAccordion"
           type="single"
@@ -201,7 +201,7 @@ const columns: TableColumn<ReportRow>[] = [
         </UAccordion>
       </div>
 
-      <section v-if="submitted" class="min-h-0 rounded-lg border border-default bg-default">
+      <section v-if="submitted" class="min-h-0 app-frame">
         <UAlert
           v-if="adherenceError"
           color="error"

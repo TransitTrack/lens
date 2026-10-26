@@ -2,6 +2,7 @@
 import { useRoutesQuery, useExploreCalendarQuery } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/AppPage.vue'
+import PageState from '~/components/PageState.vue'
 
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -49,14 +50,17 @@ watchEffect(() => {
 
 <template>
   <AppPage title="Draft editor">
-    <div v-if="noRoutes" class="flex flex-col items-center gap-3 py-16 text-center">
-      <UIcon name="i-lucide-route-off" class="size-8 text-dimmed" />
-      <p class="text-sm text-muted">This draft has no routes.</p>
-      <UButton variant="soft" label="Back to drafts" :to="feedPath('/drafts')" />
-    </div>
-    <div v-else class="flex items-center gap-3 py-16 justify-center text-muted">
-      <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" />
-      <span class="text-sm">Loading editor…</span>
-    </div>
+    <PageState
+      v-if="noRoutes"
+      state="empty"
+      title="This draft has no routes"
+      description="Return to drafts to select or create a schedule draft with route data."
+      icon="i-lucide-route-off"
+    >
+      <template #action>
+        <UButton variant="soft" label="Back to drafts" :to="feedPath('/drafts')" />
+      </template>
+    </PageState>
+    <PageState v-else state="loading" title="Loading editor" />
   </AppPage>
 </template>

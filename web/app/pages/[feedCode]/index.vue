@@ -20,7 +20,7 @@ const newestReport = computed(() =>
 </script>
 
 <template>
-  <AppPage full-bleed full-width>
+  <AppPage full-width>
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="live vehicle operations" />
     <VehicleOperationsBoard
       v-else
@@ -31,6 +31,7 @@ const newestReport = computed(() =>
       :error="error"
       :feed-code="selectedFeedCode"
       :extent="extent"
+      :directory-default-size="32"
       @select-vehicle="(id) => navigateTo(feedPath('/vehicles/' + id))"
     >
       <template #actions>

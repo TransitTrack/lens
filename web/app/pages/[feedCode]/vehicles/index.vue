@@ -88,7 +88,7 @@ function openVehicle(vehicleId: string) {
     />
 
     <div v-else class="flex min-h-0 flex-1 flex-col">
-      <section class="flex flex-col border-default border bg-elevated/20">
+      <section class="app-frame flex min-h-0 flex-1 flex-col">
         <div
           class="flex flex-wrap items-center justify-between gap-3 border-b border-default bg-default/70 px-4 py-2.5"
         >
@@ -103,7 +103,7 @@ function openVehicle(vehicleId: string) {
             >
           </div>
         </div>
-        <div class="min-h-0">
+        <div class="min-h-0 flex-1 overflow-auto">
           <div v-if="showSkeleton" class="flex flex-col gap-2 p-3">
             <USkeleton v-for="i in 6" :key="i" class="h-10 w-full" />
           </div>

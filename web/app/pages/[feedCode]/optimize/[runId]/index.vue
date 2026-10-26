@@ -79,11 +79,11 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
     />
 
     <div v-else class="flex flex-col gap-6">
-      <section class="overflow-hidden rounded-xl border border-default bg-elevated/40">
+      <section class="overflow-hidden rounded-md border border-default bg-elevated/40">
         <div class="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex items-start gap-4">
             <div
-              class="grid size-12 shrink-0 place-items-center rounded-xl"
+              class="grid size-12 shrink-0 place-items-center rounded-md"
               :class="{
                 'bg-primary/10 text-primary': run.state === 'RUNNING',
                 'bg-success/10 text-success': run.state === 'SUCCEEDED',

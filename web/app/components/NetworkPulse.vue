@@ -117,13 +117,13 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
         <div
           class="network-pulse__map min-h-80 border-b border-default p-4 lg:border-b-0 lg:border-r"
         >
-          <USkeleton class="h-full min-h-72 w-full rounded-lg" />
+          <USkeleton class="h-full min-h-72 w-full rounded-md" />
         </div>
         <aside
           class="network-pulse__signals flex min-h-80 flex-col gap-3 p-4 sm:p-5"
           aria-label="Operating signals"
         >
-          <div v-for="index in 3" :key="index" class="rounded-lg border border-default p-4">
+          <div v-for="index in 3" :key="index" class="rounded-md border border-default p-4">
             <USkeleton class="h-4 w-28" />
             <USkeleton class="mt-3 h-7 w-16" />
             <USkeleton class="mt-2 h-3 w-full" />
@@ -156,7 +156,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
             v-for="(signal, index) in signals"
             :key="signal.key"
             type="button"
-            class="dashboard-signal group flex w-full gap-3 rounded-lg border border-default bg-elevated/30 p-3.5 text-left transition hover:border-primary/50 hover:bg-elevated/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-default disabled:hover:border-default disabled:hover:bg-elevated/30"
+            class="dashboard-signal group flex w-full gap-3 rounded-md border border-default bg-elevated/30 p-3.5 text-left transition hover:border-primary/50 hover:bg-elevated/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-default disabled:hover:border-default disabled:hover:bg-elevated/30"
             :style="{ '--dashboard-signal-delay': `${index * 45}ms` }"
             :disabled="!canViewVehicles(signal)"
             :aria-label="

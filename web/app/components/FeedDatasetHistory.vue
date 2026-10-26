@@ -32,7 +32,7 @@ const columns: TableColumn<Rev>[] = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
+  <div class="flex flex-col gap-2 p-4">
     <div class="text-sm font-medium text-muted">Datasets</div>
     <UTable :data="revisions" :columns="columns">
       <template #createdAt-cell="{ row }">

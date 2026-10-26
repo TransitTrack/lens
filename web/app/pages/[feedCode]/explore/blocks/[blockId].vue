@@ -86,8 +86,8 @@ function pct(sec: number): number {
     </div>
 
     <template v-else-if="block">
-      <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Block summary">
-        <div class="rounded-xl border border-default bg-elevated/35 p-4">
+      <section class="grid sm:grid-cols-2 xl:grid-cols-4" aria-label="Block summary">
+        <div class="border border-default bg-elevated/35 p-4">
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
@@ -97,7 +97,7 @@ function pct(sec: number): number {
             {{ block.serviceId }}
           </p>
         </div>
-        <div class="rounded-xl border border-default bg-elevated/35 p-4">
+        <div class="border border-default bg-elevated/35 p-4">
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
@@ -110,7 +110,7 @@ function pct(sec: number): number {
             {{ secToHm(block.startTimeSec) }}–{{ secToHm(block.endTimeSec) }}
           </p>
         </div>
-        <div class="rounded-xl border border-default bg-elevated/35 p-4">
+        <div class="border border-default bg-elevated/35 p-4">
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
@@ -119,7 +119,7 @@ function pct(sec: number): number {
           <p class="mt-2 text-lg font-semibold text-highlighted">{{ block.tripCount }}</p>
           <p class="mt-0.5 text-xs text-muted">Revenue legs in this duty</p>
         </div>
-        <div class="rounded-xl border border-default bg-elevated/35 p-4">
+        <div class="border border-default bg-elevated/35 p-4">
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
@@ -130,10 +130,7 @@ function pct(sec: number): number {
         </div>
       </section>
 
-      <section
-        class="rounded-xl border border-default bg-elevated/35 p-4"
-        aria-labelledby="duty-composition"
-      >
+      <section class="border border-default bg-elevated/35 p-4" aria-labelledby="duty-composition">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 id="duty-composition" class="text-sm font-semibold text-highlighted">
@@ -148,14 +145,14 @@ function pct(sec: number): number {
           <div class="bg-warning/80" :style="{ width: `${pct(split.layoverSec)}%` }" />
         </div>
         <div class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
-          <div class="rounded-lg bg-default/50 px-3 py-2">
+          <div class="rounded-md bg-default/50 px-3 py-2">
             <p class="text-xs text-dimmed">Revenue service</p>
             <p class="mt-1 font-medium tabular-nums text-highlighted">
               {{ fmtDur(split.revenueSec) }}
               <span class="font-normal text-muted">· {{ pct(split.revenueSec) }}%</span>
             </p>
           </div>
-          <div class="rounded-lg bg-default/50 px-3 py-2">
+          <div class="rounded-md bg-default/50 px-3 py-2">
             <p class="text-xs text-dimmed">Layover & recovery</p>
             <p class="mt-1 font-medium tabular-nums text-highlighted">
               {{ fmtDur(split.layoverSec) }}
@@ -166,7 +163,7 @@ function pct(sec: number): number {
       </section>
 
       <section
-        class="overflow-hidden rounded-xl border border-default bg-elevated/35"
+        class="overflow-scroll border border-default bg-elevated/35"
         aria-labelledby="trip-sequence"
       >
         <div class="flex items-center justify-between border-b border-default px-4 py-3">

@@ -75,7 +75,7 @@ async function submit() {
 </script>
 
 <template>
-  <aside class="sticky bottom-4 z-10 rounded-xl border border-primary/30 bg-default/95 p-4 shadow-lg backdrop-blur sm:p-5">
+  <aside class="sticky bottom-4 z-10 rounded-md border border-primary/30 bg-default/95 p-4 shadow-lg backdrop-blur sm:p-5">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-center">
       <div class="flex min-w-44 items-center gap-3">
         <div class="grid size-10 place-items-center rounded-full bg-primary/10 text-primary">
