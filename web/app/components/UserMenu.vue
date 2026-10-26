@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 
+defineProps<{
+  /** Icon-only trigger for a collapsed sidebar; full name row otherwise. */
+  collapsed?: boolean
+}>()
+
 const colorMode = useColorMode()
 
 const user = {
@@ -52,16 +57,28 @@ const items = computed<DropdownMenuItem[][]>(() => [
 <template>
   <UDropdownMenu
     :items="items"
-    :content="{ align: 'end', collisionPadding: 12 }"
-    :ui="{ content: 'w-48' }"
+    :content="{ side: 'top', align: 'start', collisionPadding: 12 }"
+    :ui="{ content: 'w-56' }"
   >
     <UButton
+      v-if="collapsed"
       :avatar="user.avatar"
       :aria-label="user.name"
       color="neutral"
       variant="ghost"
       square
       class="data-[state=open]:bg-elevated"
+    />
+    <UButton
+      v-else
+      :avatar="user.avatar"
+      :label="user.name"
+      color="neutral"
+      variant="ghost"
+      trailing-icon="i-lucide-chevrons-up-down"
+      block
+      class="justify-start data-[state=open]:bg-elevated"
+      :ui="{ trailingIcon: 'ms-auto text-dimmed' }"
     />
   </UDropdownMenu>
 </template>

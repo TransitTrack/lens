@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import AppLogo from '~/components/AppLogo.vue'
 import UserMenu from '~/components/UserMenu.vue'
 import FeedSwitcher from '~/components/FeedSwitcher.vue'
-import FeedDrawer from '~/components/FeedDrawer.vue'
 import NotificationsSlideover from '~/components/NotificationsSlideover.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
@@ -14,7 +12,7 @@ import { useFeedReadinessQuery } from '~~/generated/graphql'
 useFeedAlerts()
 
 const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
-const { isNotificationsSlideoverOpen, transparentHeader } = useDashboard()
+const { isNotificationsSlideoverOpen } = useDashboard()
 
 const { result, loading, error } = useFeedReadinessQuery(
   () => ({ code: selectedFeedCode.value ?? '' }),
@@ -52,6 +50,10 @@ watch(feedIsUnknown, (unknown) => {
     navigateTo(`/${feeds.value[0].code}`, { replace: true })
   }
 })
+
+const unhealthyFeedCount = computed(
+  () => feeds.value.filter((f) => f.hasRealtime && !f.realtimeHealthy).length,
+)
 
 const searchOpen = ref(false)
 const route = useRoute()
@@ -214,34 +216,53 @@ function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
     description: l.description,
     to: feedPath(l.path),
     active: underPath(feedPath(l.path)),
+    slot: 'leaf',
   }))
 }
 
 const primaryNav = computed<NavigationMenuItem[]>(() => [
   {
-    label: 'Live',
+    label: 'Vehicles',
     icon: 'i-lucide-radio',
     description: 'Live data from the AVL feed',
+    defaultOpen: true,
     active: REALTIME.some((l) => underPath(feedPath(l.path))),
     children: toItems(REALTIME),
-  },
-  {
-    label: 'Reports',
-    icon: 'i-lucide-chart-no-axes-combined',
-    description: 'Historical operational reports',
-    active: REPORTS.some((l) => underPath(feedPath(l.path))),
-    children: toItems(REPORTS),
+    slot: 'group',
   },
   {
     label: 'Network',
     icon: 'i-lucide-database',
     description: 'GTFS schedule data for the feed',
+    defaultOpen: true,
     active: STATIC.some((l) => underPath(feedPath(l.path))),
     children: toItems(STATIC),
+    slot: 'group',
+  },
+  {
+    label: 'Reports',
+    icon: 'i-lucide-chart-no-axes-combined',
+    description: 'Historical operational reports',
+    defaultOpen: true,
+    active: REPORTS.some((l) => underPath(feedPath(l.path))),
+    children: toItems(REPORTS),
+    slot: 'group',
   },
 ])
 
 const navigationItems = computed(() => (feedIsBlocked.value ? [] : primaryNav.value))
+
+const secondaryNav = computed<NavigationMenuItem[]>(() => [
+  {
+    label: 'Notifications',
+    icon: 'i-lucide-bell',
+    badge: unhealthyFeedCount.value || undefined,
+    chip: unhealthyFeedCount.value ? { color: 'error' as const } : false,
+    onSelect: () => {
+      isNotificationsSlideoverOpen.value = true
+    },
+  },
+])
 
 const groups = computed(() => [
   {
@@ -264,39 +285,115 @@ const groups = computed(() => [
 </script>
 
 <template>
-  <div>
-    <UHeader
-      mode="drawer"
-      :ui="{
-        center: 'flex-1 justify-center',
-        root: `${transparentHeader ? 'bg-default/10' : 'bg-default/75'} backdrop-blur-sm h-(--ui-header-height) sticky top-0 z-50 transition-colors duration-300`,
-        container: transparentHeader ? 'max-w-[1490px]' : 'max-w-[1490px]',
-      }"
-    >
-      <template #left>
-        <NuxtLink :to="feedPath()" aria-label="Home">
-          <AppLogo :font-size="22" />
-        </NuxtLink>
+  <UDashboardGroup>
+    <UDashboardSidebar collapsible resizable>
+      <template #header="{ collapsed }">
+        <div class="flex items-center gap-1">
+          <FeedSwitcher class="min-w-0 flex-1" :collapsed="collapsed" />
+        </div>
       </template>
 
-      <UNavigationMenu
-        :items="navigationItems"
-        :ui="{
-          link: 'text-sm px-2 py-2 gap-2',
-          linkLeadingIcon: 'size-4',
-          childList: 'sm:grid-cols-1 gap-2',
-          childLink: 'p-2 gap-2 data-[active]:before:bg-primary/10 data-[active]:!text-primary',
-          childLinkIcon: 'size-5 mt-1 group-data-[active]:text-primary',
-          childLinkLabel: 'group-data-[active]:text-primary',
-          childLinkDescription: 'text-sm group-data-[active]:text-primary/70',
-        }"
-      />
+      <template #default="{ collapsed }">
+        <UDashboardSearchButton
+          :collapsed="collapsed"
+          variant="subtle"
+          @click="searchOpen = true"
+        />
 
-      <template #right>
+        <USeparator class="my-1" />
+
+        <UNavigationMenu
+          :items="navigationItems"
+          orientation="vertical"
+          :collapsed="collapsed"
+          :tooltip="collapsed"
+          :popover="collapsed"
+          :highlight="true"
+          :ui="{ link: 'py-2 font-semibold' }"
+        >
+          <template #leaf="{ item: leafItem, active }">
+            <!--
+            <UIcon
+              v-if="(leafItem as NavigationMenuItem).icon"
+              :name="(leafItem as NavigationMenuItem).icon"
+              class="size-4.5 shrink-0"
+              :class="active ? 'text-primary' : 'text-muted'"
+            />
+             -->
+            <span class="min-w-0 flex-1">
+              <span
+                class="block truncate text-sm font-semibold"
+                :class="active ? 'text-primary' : 'text-default'"
+              >
+                {{ (leafItem as NavigationMenuItem).label }}
+              </span>
+              <span
+                v-if="(leafItem as NavigationMenuItem).description"
+                class="block truncate text-[10px]"
+                :class="active ? 'text-primary' : 'text-dimmed'"
+              >
+                {{ (leafItem as NavigationMenuItem).description }}
+              </span>
+            </span>
+          </template>
+
+          <template #group-content="groupSlot">
+            <ul class="min-w-64 max-h-120 overflow-y-auto p-1">
+              <li
+                v-for="child in (groupSlot.item as NavigationMenuItem).children"
+                :key="child.label"
+              >
+                <NuxtLink
+                  :to="child.to"
+                  class="flex items-start gap-2.5 rounded-md px-2.5 py-2 hover:bg-primary/30"
+                  :class="{ 'bg-elevated/60': child.active }"
+                  @click="(groupSlot as { close?: () => void }).close?.()"
+                >
+                  <UIcon
+                    v-if="child.icon"
+                    :name="child.icon"
+                    class="mt-0.5 size-5 shrink-0"
+                    :class="child.active ? 'text-primary' : 'text-muted'"
+                  />
+                  <span class="min-w-0 flex-1">
+                    <span
+                      class="block truncate text-sm font-medium"
+                      :class="child.active ? 'text-primary' : 'text-highlighted'"
+                    >
+                      {{ child.label }}
+                    </span>
+                    <span v-if="child.description" class="block truncate text-xs text-dimmed">
+                      {{ child.description }}
+                    </span>
+                  </span>
+                </NuxtLink>
+              </li>
+            </ul>
+          </template>
+        </UNavigationMenu>
+        <UNavigationMenu
+          :items="secondaryNav"
+          orientation="vertical"
+          :collapsed="collapsed"
+          class="mt-auto"
+        />
+      </template>
+
+      <template #footer="{ collapsed }">
+        <UserMenu :collapsed="collapsed" />
+      </template>
+    </UDashboardSidebar>
+
+    <UDashboardPanel :ui="{ body: 'p-0 gap-0 sm:p-0 sm:gap-0' }">
+      <template #header>
+        <UDashboardNavbar toggle class="lg:hidden" />
+      </template>
+
+      <template #body>
         <time
           v-if="timeMounted"
           :datetime="currentTime.toISOString()"
-          class="hidden items-center gap-1 rounded-md bg-elevated px-3 py-0.5 shadow-sm lg:flex tracking-tight"
+          class="fixed top-4 right-4 z-40 hidden items-center gap-1 rounded-md bg-elevated px-3 py-0.5 shadow-sm lg:flex tracking-tight"
           aria-label="Current local date and time"
         >
           <span class="text-xl font-bold tracking-tight tabular-nums text-highlighted">
@@ -305,52 +402,27 @@ const groups = computed(() => [
           <span class="text-xs font-medium text-muted">-</span>
           <span class="text-xs font-medium text-muted">{{ formattedCalendarDate }} </span>
         </time>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          square
-          aria-label="Feed status"
-          @click="isNotificationsSlideoverOpen = true"
-        >
-          <UChip color="error" inset>
-            <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
-          </UChip>
-        </UButton>
-        <UserMenu />
+
+        <UContainer v-if="feedIsBlocked" class="flex min-h-dvh items-center justify-center py-6">
+          <section class="w-full max-w-md space-y-3" aria-live="polite">
+            <div class="flex items-center gap-2 text-sm font-medium text-muted">
+              <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+              Preparing {{ preparingFeedName }}
+            </div>
+            <UProgress color="primary" />
+            <p class="text-sm text-dimmed">
+              <template v-if="feedIsPreparing">
+                Preparing the first dataset. Browsing will unlock when it is ready.
+              </template>
+              <template v-else>Loading feed status…</template>
+            </p>
+          </section>
+        </UContainer>
+        <slot v-else-if="selectedFeedCode" />
       </template>
+    </UDashboardPanel>
 
-      <template #content>
-        <UNavigationMenu :items="navigationItems" orientation="vertical" class="mx-auto" />
-        <USeparator class="my-3" />
-        <FeedSwitcher block />
-      </template>
-    </UHeader>
-
-    <main>
-      <UContainer
-        v-if="feedIsBlocked"
-        class="flex min-h-[calc(100vh-var(--ui-header-height))] items-center justify-center py-6"
-      >
-        <section class="w-full max-w-md space-y-3" aria-live="polite">
-          <div class="flex items-center gap-2 text-sm font-medium text-muted">
-            <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-            Preparing {{ preparingFeedName }}
-          </div>
-          <UProgress color="primary" />
-          <p class="text-sm text-dimmed">
-            <template v-if="feedIsPreparing">
-              Preparing the first dataset. Browsing will unlock when it is ready.
-            </template>
-            <template v-else>Loading feed status…</template>
-          </p>
-        </section>
-      </UContainer>
-      <slot v-else-if="selectedFeedCode" />
-    </main>
-
-    <FeedSwitcher />
     <UDashboardSearch v-model:open="searchOpen" :groups="groups" />
-    <FeedDrawer />
     <NotificationsSlideover />
-  </div>
+  </UDashboardGroup>
 </template>

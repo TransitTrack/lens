@@ -20,7 +20,7 @@ const newestReport = computed(() =>
 </script>
 
 <template>
-  <AppPage full-bleed floating>
+  <AppPage full-bleed full-width>
     <NoRealtimeState v-if="!selectedAvlFeedCode" what="live vehicle operations" />
     <VehicleOperationsBoard
       v-else

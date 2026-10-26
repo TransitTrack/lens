@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SplitterItem } from '@nuxt/ui'
 import type { VehicleRow } from '~/composables/useVehiclePolling'
 import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
 import VehicleFilters from '~/components/VehicleFilters.vue'
@@ -57,19 +58,39 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
 function selectVehicle(vehicleId: string) {
   selectedVehicleId.value = vehicleId
 }
+
+// Side-by-side on desktop; stacked (directory above map) on narrow viewports.
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+
+const splitterItems = computed<SplitterItem[]>(() => [
+  {
+    id: 'directory',
+    slot: 'directory',
+    defaultSize: isDesktop.value ? 27 : 50,
+    minSize: 20,
+    maxSize: isDesktop.value ? 40 : 80,
+    class: 'flex min-h-0 flex-col overflow-hidden',
+  },
+  {
+    id: 'map',
+    slot: 'map',
+    defaultSize: isDesktop.value ? 73 : 50,
+    class: 'flex min-h-0 flex-col overflow-hidden',
+  },
+])
 </script>
 
 <template>
-  <section
+  <USplitter
+    id="operations-board"
     data-testid="vehicle-operations-board"
-    class="operations-board relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-default lg:flex-row lg:overflow-visible"
+    :orientation="splitterOrientation"
+    :items="splitterItems"
+    class="h-full min-h-0 w-full"
     aria-label="Live vehicle operations"
   >
-    <aside
-      data-testid="operations-vehicle-directory"
-      class="operations-board__directory relative z-10 flex min-h-0 flex-1 flex-col bg-default max-lg:border-b max-lg:border-default lg:absolute lg:top-3 lg:bottom-3 lg:left-[max(0.85rem,calc((100%-var(--app-content-max-w))/2+0.85rem))] lg:w-[clamp(20rem,27%,28rem)] lg:flex-none lg:rounded-xl lg:border lg:border-default lg:shadow-lg lg:overflow-hidden"
-      aria-labelledby="vehicle-directory-heading"
-    >
+    <template #directory>
       <header class="shrink-0 border-b border-default bg-elevated/20 px-2 py-2 sm:px-3">
         <div v-if="title || description" class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -151,11 +172,9 @@ function selectVehicle(vehicleId: string) {
           @open-details="emit('selectVehicle', $event)"
         />
       </div>
-    </aside>
+    </template>
 
-    <div
-      class="operations-board__map relative h-56 shrink-0 overflow-hidden lg:absolute lg:inset-0 lg:h-full lg:w-full"
-    >
+    <template #map>
       <VehicleMap
         :vehicles="filteredVehicles"
         :extent="extent"
@@ -165,6 +184,6 @@ function selectVehicle(vehicleId: string) {
         selection-action-label="Highlight route"
         @select="selectVehicle"
       />
-    </div>
-  </section>
+    </template>
+  </USplitter>
 </template>

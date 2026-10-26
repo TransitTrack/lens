@@ -1,5 +1,17 @@
 export default defineAppConfig({
   ui: {
+    navigationMenu: {
+      compoundVariants: [
+        {
+          orientation: 'vertical',
+          collapsed: true,
+          class: {
+            link: 'flex-col',
+            linkLabel: 'block text-[10px]/3 text-center',
+          },
+        },
+      ],
+    },
     colors: {
       primary: 'blue',
       neutral: 'zinc',

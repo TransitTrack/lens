@@ -4,9 +4,7 @@ const _useDashboard = () => {
   const route = useRoute()
   const router = useRouter()
   const isNotificationsSlideoverOpen = ref(false)
-  const isFeedDrawerOpen = ref(false)
-  /** Set by a floating full-bleed page (e.g. a map) so the app header goes near-transparent over it. */
-  const transparentHeader = ref(false)
+  const isFeedSwitcherOpen = ref(false)
 
   const feedBase = () => {
     const p = route.params.feedCode
@@ -19,21 +17,20 @@ const _useDashboard = () => {
     'g-h': () => feedBase() && router.push(`${feedBase()}/headway`),
     'g-e': () => feedBase() && router.push(`${feedBase()}/explore/routes`),
     n: () => (isNotificationsSlideoverOpen.value = !isNotificationsSlideoverOpen.value),
-    f: () => (isFeedDrawerOpen.value = !isFeedDrawerOpen.value),
+    f: () => (isFeedSwitcherOpen.value = !isFeedSwitcherOpen.value),
   })
 
   watch(
     () => route.fullPath,
     () => {
       isNotificationsSlideoverOpen.value = false
-      isFeedDrawerOpen.value = false
+      isFeedSwitcherOpen.value = false
     },
   )
 
   return {
     isNotificationsSlideoverOpen,
-    isFeedDrawerOpen,
-    transparentHeader,
+    isFeedSwitcherOpen,
   }
 }
 

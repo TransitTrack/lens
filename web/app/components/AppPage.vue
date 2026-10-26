@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import { useDashboard } from '~/composables/useDashboard'
-
-const props = defineProps<{
+defineProps<{
   title?: string
   description?: string
   /**
@@ -17,42 +15,17 @@ const props = defineProps<{
    * the reading-width content container. Useful for dispatch maps and grids.
    */
   fullWidth?: boolean
-  /**
-   * For full-bleed map/canvas pages: at desktop width the content slot fills
-   * the entire page edge-to-edge instead of sitting in a bordered, padded
-   * box. Pages like this typically skip AppPage's own title/actions and
-   * render their own floating panel(s) over the content instead.
-   */
-  floating?: boolean
 }>()
 
 const slots = useSlots()
 const hasHeader = computed(() => !!slots.actions || !!slots.leading)
-const containerClass = computed(() => (props.floating ? '' : 'max-w-(--app-content-max-w)'))
-
-// Every AppPage asserts the header's transparency on mount, so the next
-// page's AppPage always overwrites this before the previous one unmounts —
-// an unmount-time reset here would race that assertion (the old page's
-// unmount can fire after the new page's mount) and intermittently leave the
-// header in the wrong state when navigating back and forth.
-const { transparentHeader } = useDashboard()
-watch(
-  () => props.floating,
-  (floating) => {
-    transparentHeader.value = !!floating
-  },
-  { immediate: true },
-)
+const containerClass = 'max-w-(--app-content-max-w)'
 </script>
 
 <template>
   <div
     class="relative"
-    :class="
-      fullBleed
-        ? 'flex h-[calc(100vh-var(--ui-header-height))] flex-col'
-        : 'flex min-h-[calc(100vh-var(--ui-header-height))] flex-col'
-    "
+    :class="fullBleed ? 'flex h-dvh flex-col' : 'flex min-h-dvh flex-col'"
   >
     <div
       v-if="title || hasHeader"
@@ -84,15 +57,8 @@ watch(
       </UContainer>
     </div>
 
-    <div
-      v-if="floating"
-      data-testid="app-page-floating"
-      class="flex min-h-0 flex-1 flex-col lg:absolute lg:inset-0"
-    >
-      <slot />
-    </div>
     <UContainer
-      v-else-if="fullBleed"
+      v-if="fullBleed"
       data-testid="app-page-bleed"
       class="flex min-h-0 flex-1 flex-col py-4"
       :class="[containerClass, fullWidth && 'max-w-none! px-0! py-0!']"
