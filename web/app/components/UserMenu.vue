@@ -9,6 +9,7 @@ defineProps<{
 
 const colorMode = useColorMode()
 const { name: editorName } = useEditorIdentity()
+const { signOut } = useDemoAuth()
 const identityOpen = ref(false)
 const identityInput = ref('')
 
@@ -71,6 +72,14 @@ const items = computed<DropdownMenuItem[][]>(() => [
           },
         },
       ],
+    },
+    {
+      label: 'Sign out',
+      icon: 'i-lucide-log-out',
+      onSelect() {
+        signOut()
+        navigateTo('/login')
+      },
     },
   ],
 ])

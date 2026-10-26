@@ -11,6 +11,10 @@ export default defineNuxtConfig({
       // Live-dashboard poll interval (ms). Overridable at deploy time via
       // NUXT_PUBLIC_POLL_INTERVAL_MS - no rebuild needed. See usePollControl.ts.
       pollIntervalMs: 5000,
+      // Frontend-only demo gate. These values are intentionally public and must
+      // be replaced with server-side authentication before a production deployment.
+      demoAuthUsername: 'operator',
+      demoAuthPassword: 'transittrack',
     },
   },
   css: ['~/assets/css/main.css'],
