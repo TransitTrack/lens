@@ -269,6 +269,11 @@ class TransitTrackMetrics(
         count: Int,
     ) = increment("transittrack.prediction.learning.samples", tags("feed", feedCode), count)
 
+    fun predictionUnreliableCrossings(
+        feedCode: String,
+        count: Int,
+    ) = increment("transittrack.prediction.crossings.unreliable", tags("feed", feedCode), count)
+
     fun predictionAccuracy(
         feedCode: String,
         algorithm: String,

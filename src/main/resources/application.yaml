@@ -189,16 +189,20 @@ transittrack:
       interval-ms: 5000
       claim-batch-size: 500
       # A stored prediction is rewritten once it moves by this much, or at least every refresh-sec
-      # (readers treat one computed over 10 minutes ago as no longer live).
+      # Readers judge freshness from the source report, not processing time.
       prediction-min-change-sec: 10
       prediction-refresh-sec: 120
+      max-source-age-sec: 600
     learn:
       max-plausible-travel-time-sec: 1800
       kalman-measurement-noise-sec2: 400.0
       kalman-initial-variance-sec2: 3600.0
+      kalman-variance-growth-sec2-per-hour: 400.0
+      max-reliable-report-gap-sec: 120
     accuracy:
-      # Lead times (seconds before the predicted arrival) accuracy is sampled at - see docs/predictions.md §5.
+      # Actual lead-time bins from issuance to crossing; all algorithms share snapshots.
       horizons-sec: [ 60, 180, 300, 600, 900, 1200, 1800 ]
+      sample-interval-sec: 60
     retention:
       prediction-hours: 6
       accuracy-days: 30

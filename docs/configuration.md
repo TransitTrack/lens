@@ -40,8 +40,7 @@ transittrack:
           poll-interval-sec: 15              # default 15
           assignment-mode: FULL_INFERENCE    # TRUST_DESCRIPTOR | DESCRIPTOR_THEN_INFER | FULL_INFERENCE
           enabled: true                      # default true
-          prediction-algorithm: KALMAN       # HISTORICAL_AVERAGE | KALMAN | SCHEDULE_ADHERENCE
-          prediction-mode: SINGLE            # SINGLE | EVALUATION
+          prediction-algorithms: [ KALMAN, SCHEDULE_ADHERENCE ] # first is the designated read/UI default
           headers:                           # optional outbound request headers
             x-api-key: "…"
 ```
@@ -160,16 +159,29 @@ Full behavior: [docs/predictions.md](predictions.md).
 | `run.interval-ms` | `5000` | `PredictionProcessor` per-feed fixed delay (independent of `avl.match.match-interval-ms`) |
 | `run.claim-batch-size` | `500` | Max `PENDING` `vehicle_match` rows claimed per feed per cycle |
 | `run.prediction-min-change-sec` | `10` | An open `vehicle_prediction` row whose predicted times moved less than this is not rewritten |
-| `run.prediction-refresh-sec` | `120` | …unless its `computed_at` is older than this; must be in `[0, 600)` so readers keep it live |
+| `run.prediction-refresh-sec` | `120` | Refresh unchanged rows with newer source evidence; must be in `[0, run.max-source-age-sec)` |
+| `run.max-source-age-sec` | `600` | Old GPS reports still support learning, but cannot create live forecasts; live boards use this same source-age bound |
 | `learn.max-plausible-travel-time-sec` | `1800` | Upper bound on a travel-time observation before it's discarded as noise |
+| `learn.max-reliable-report-gap-sec` | `120` | Largest GPS interval trusted for accuracy labels; learning requires reliable intervals at both endpoints |
 | `learn.kalman-measurement-noise-sec2` | `400.0` | Kalman filter measurement noise variance |
 | `learn.kalman-initial-variance-sec2` | `3600.0` | Kalman filter initial state variance |
+| `learn.kalman-process-noise-sec2` | `25.0` | Drift variance added per learned sample |
+| `learn.kalman-variance-growth-sec2-per-hour` | `400.0` | Additional uncertainty as source evidence ages, in both forecasting and filter updates |
+| `learn.history-window` | `50` | Maximum effective historical-average sample window |
+| `learn.history-prior-samples` | `5` | Weight of the schedule seed before enough observations arrive |
+| `learn.outlier-min-deviation-sec` | `60.0` | Absolute floor on clipping distance from the learned estimate |
+| `learn.outlier-max-relative-deviation` | `1.0` | Relative clipping distance; the larger of this and the absolute floor is used |
+| `learn.min-bucket-samples` | `10` | Samples needed before trusting a bucket instead of its coarser roll-up |
+| `accuracy.horizons-sec` | `[60, 180, 300, 600, 900, 1200, 1800]` | Upper bounds on actual lead from issuance to crossing; algorithms share cohorts |
+| `accuracy.sample-interval-sec` | `60` | Fixed source-report sampling slots, independent of predicted ETAs |
 | `retention.prediction-hours` | `6` | Age-based prune of `vehicle_prediction` |
 | `retention.accuracy-days` | `30` | Age-based prune of `prediction_accuracy` |
+| `retention.raw-crossing-days` | `90` | Age-based prune of raw `avl_stop_crossing` history |
 | `retention.sweep-cron` | `0 15 * * * *` (hourly, minute 15) | `PredictionRetentionScheduler` cadence |
 
-Per-feed `prediction-algorithm` / `prediction-mode` are set in
-`transittrack.feed.feeds[].avl` — see §1.
+Per-feed `prediction-algorithms` is set in `transittrack.feed.feeds[].avl` —
+see §1. The configuration-class master-switch default is `false`; the table
+above reflects the shipped `application.yaml`, which explicitly enables it.
 
 ---
 

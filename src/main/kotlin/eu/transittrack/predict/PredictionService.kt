@@ -1,14 +1,15 @@
 package eu.transittrack.predict
 
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import kotlin.math.abs
 
 import org.hibernate.StatelessSession
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
+import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.avl.match.MatchOutcome
@@ -22,11 +23,13 @@ import eu.transittrack.predict.generate.HorizonStop
 import eu.transittrack.predict.generate.PredictionStrategy
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.generate.seedStopToStopSec
+import eu.transittrack.predict.generate.serviceSecToInstant
 import eu.transittrack.predict.learn.LearningKey
 import eu.transittrack.predict.learn.SampleClip
 import eu.transittrack.predict.learn.StopPass
 import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.learn.detectStopPasses
+import eu.transittrack.predict.learn.stopReachedAtM
 import eu.transittrack.predict.learn.updateKalman
 import eu.transittrack.predict.learn.updateRunningAverage
 import eu.transittrack.predict.model.AvlStopCrossing
@@ -51,7 +54,7 @@ data class PrevVehicleMatch(
  * each pass, filling in the `actual_*` of the predictions made for those stops and scoring their
  * accuracy checkpoints, and learning stop-to-stop times; and (2) generates fresh predictions for
  * the vehicle's remaining horizon, dropping its open predictions that fell out of it and keeping
- * accuracy checkpoints for the stops that just came within a lead-time horizon.
+ * shared report-time snapshots for actual-lead accuracy evaluation.
  *
  * Strategies run before the transaction opens, each isolated from the others: a failing strategy
  * neither holds the transaction (and the learner rows it locks) open nor rolls back the stop passes
@@ -67,6 +70,8 @@ class PredictionService(
     strategyList: List<PredictionStrategy>,
     private val props: PredictProperties,
     private val metrics: TransitTrackMetrics,
+    private val clock: Clock,
+    private val avlProps: AvlProperties,
 ) {
     private val strategies: Map<PredictionAlgorithm, PredictionStrategy> = strategyList.associateBy { it.algorithm }
     private val horizonsSec: List<Int> = props.accuracy.horizonsSec
@@ -80,6 +85,7 @@ class PredictionService(
         val passes: List<StopPass>,
         val learningKey: LearningKey?,
         val seeds: Map<Int, TravelTimesForStopPath>,
+        val reportGapSec: Int,
     )
 
     /** [horizon] is null when it couldn't be built, which leaves the vehicle's predictions as they were. */
@@ -103,20 +109,78 @@ class PredictionService(
     ) {
         val trip = ctx.trip(outcome.tripRowId) ?: return
         val serviceDate = inferServiceDate(report.toView(), trip, ctx.zone)
-        val now = Instant.now()
+        val receivedAt = clock.instant()
 
         val detected = if (prev != null && prev.tripRowId == outcome.tripRowId) detectPasses(report, prev, outcome, ctx) else null
-        val generation = if (generatePredictions) generate(feed, report, outcome, serviceDate, ctx) else null
+        val generation =
+            if (generatePredictions && props.run.isFreshSource(report.ts, receivedAt)) {
+                generate(feed, report, outcome, serviceDate, ctx)
+            } else {
+                null
+            }
+        val now = clock.instant()
 
         // Everything below writes through the same StatelessSession/transaction: a matched report
         // can fan out into hundreds of rows (per horizon stop, per algorithm, plus passes/learning),
         // and committing each one separately made that commit's fsync the dominant cost of the whole
         // prediction pipeline. Each set of rows goes out as one batch.
         writer.inTransaction { session ->
-            if (detected != null) recordStopPasses(session, feed, report, outcome, trip, serviceDate, ctx, detected, now)
-            if (generation != null) writePredictions(session, feed, report, outcome, generation, now)
+            val runStartedAt = resolveFrequencyRun(session, feed, report, prev, outcome, trip, serviceDate, ctx)
+            if (detected != null) recordStopPasses(session, feed, report, outcome, trip, serviceDate, ctx, detected, runStartedAt, now)
+            if (generation != null) {
+                val producedAt = clock.instant()
+                if (props.run.isFreshSource(report.ts, producedAt)) {
+                    writePredictions(session, feed, report, outcome, serviceDate, generation, producedAt)
+                }
+            }
         }
         generation?.failure?.let { throw it }
+    }
+
+    private fun resolveFrequencyRun(
+        session: StatelessSession,
+        feed: AvlFeed,
+        report: AvlReportRow,
+        prev: PrevVehicleMatch?,
+        outcome: MatchOutcome.Matched,
+        trip: TripRef,
+        serviceDate: LocalDate,
+        ctx: AvlMatchContext,
+    ): Instant {
+        val serviceStart = serviceSecToInstant(serviceDate, 0, ctx.zone)
+        if (trip.frequencyBased != true) return serviceStart
+        val state = writer.frequencyRun(session, feed.code, report.vehicleId, trip.id)
+        if (state != null && report.ts.isBefore(state.lastReportTs)) {
+            check(!report.ts.isBefore(state.startedAt)) { "Report ${report.ts} precedes the current frequency run ${state.startedAt}" }
+            return state.startedAt
+        }
+        val previousDistance = state?.lastDistanceAlongTripM ?: prev?.takeIf { it.tripRowId == trip.id }?.distanceAlongTripM
+        val recent = if (previousDistance == null) {
+            writer.passObservations(
+                session, feed.code, report.vehicleId, trip.id, serviceStart, report.ts,
+            )
+        } else {
+            emptyList()
+        }
+        val priorDistance = previousDistance
+            ?: recent.lastOrNull()?.let { crossing ->
+                ctx.patternGeometry(outcome.tripPatternId)?.let {
+                    stopReachedAtM(crossing.stopPathIndex, it.stopPathCumM, it.line.lengthM)
+                }
+            }
+        val reset = state?.let { it.serviceDate != serviceDate } == true ||
+            (state?.startTimeSec != null && report.descStartTimeSec != null && state.startTimeSec != report.descStartTimeSec) ||
+            (priorDistance != null && priorDistance - outcome.distanceAlongTripM > avlProps.match.backtrackToleranceM)
+        val startedAt = if (reset) report.ts else state?.startedAt ?: recent.lastOrNull()?.runStartedAt ?: serviceStart
+        val startTimeSec = report.descStartTimeSec ?: state?.takeUnless { reset }?.startTimeSec
+        if (reset) writer.clearPreviousRun(session, feed.code, report.vehicleId, trip.id)
+        writer.saveFrequencyRun(
+            session, feed.code, report.vehicleId, trip.id,
+            FrequencyRunState(
+                serviceDate, startedAt, report.ts, startTimeSec, outcome.distanceAlongTripM,
+            ),
+        )
+        return startedAt
     }
 
     private fun detectPasses(
@@ -136,10 +200,12 @@ class PredictionService(
                 geom.line.lengthM,
             )
         if (passes.isEmpty()) return null
+        val reportGap = Duration.between(prev.reportTs, report.ts)
         return DetectedPasses(
             passes,
             learningKeys.keyOf(ctx.revisionId, outcome.tripPatternId),
             travelTimes.byStopPath(ctx.revisionId, outcome.tripPatternId),
+            Math.toIntExact(reportGap.seconds + if (reportGap.nano == 0) 0 else 1),
         )
     }
 
@@ -158,19 +224,21 @@ class PredictionService(
 
         var failure: Throwable? = null
         val generated =
-            feed.predictionAlgorithms.mapNotNull { strategies[it] }.mapNotNull { strategy ->
+            feed.predictionAlgorithms.distinct().mapNotNull { algorithm ->
                 val startedAt = Instant.now()
-                val algorithmTag = strategy.algorithm.name.lowercase()
-                runCatching { strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx) }
-                    .onSuccess {
-                        val elapsed = Duration.between(startedAt, Instant.now())
-                        metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.SUCCESS, elapsed, it.size)
-                    }.onFailure {
-                        val elapsed = Duration.between(startedAt, Instant.now())
-                        metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.FAILED, elapsed, 0)
-                        if (failure == null) failure = it else failure?.addSuppressed(it)
-                    }.getOrNull()
-                    ?.let { strategy.algorithm to it }
+                val algorithmTag = algorithm.name.lowercase()
+                runCatching {
+                    val strategy = checkNotNull(strategies[algorithm]) { "No prediction strategy registered for $algorithm" }
+                    strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx)
+                }.onSuccess {
+                    val elapsed = Duration.between(startedAt, Instant.now())
+                    metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.SUCCESS, elapsed, it.size)
+                }.onFailure {
+                    val elapsed = Duration.between(startedAt, Instant.now())
+                    metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.FAILED, elapsed, 0)
+                    if (failure == null) failure = it else failure?.addSuppressed(it)
+                }.getOrNull()
+                    ?.let { algorithm to it }
             }
         return Generation(horizon, generated, failure)
     }
@@ -180,6 +248,7 @@ class PredictionService(
         feed: AvlFeed,
         report: AvlReportRow,
         outcome: MatchOutcome.Matched,
+        serviceDate: LocalDate,
         generation: Generation,
         now: Instant,
     ) {
@@ -191,10 +260,10 @@ class PredictionService(
             outcome.tripRowId,
             horizon.firstOrNull { it.tripRowId == outcome.tripRowId }?.stopPathIndex ?: Int.MAX_VALUE,
             horizon.map { it.tripRowId }.toSet() + outcome.tripRowId,
+            report.ts,
         )
 
         val rows = ArrayList<VehiclePredictionUpsert>()
-        val checkpoints = ArrayList<CheckpointCandidate>()
         for ((algorithm, predictions) in generation.generated) {
             for (p in predictions) {
                 rows.add(
@@ -212,9 +281,10 @@ class PredictionService(
                         actualDepartureTs = null,
                         confidenceSec = p.confidenceSec,
                         computedAt = now,
+                        sourceReportTs = report.ts,
+                        serviceDate = serviceDate,
                     ),
                 )
-                checkpointOf(feed, report, algorithm, p)?.let(checkpoints::add)
             }
         }
         writer.upsertPredictions(
@@ -224,32 +294,33 @@ class PredictionService(
             refreshBefore = now.minusSeconds(props.run.predictionRefreshSec.toLong()),
             minChangeSec = props.run.predictionMinChangeSec,
         )
-        writer.insertCheckpoints(session, checkpoints, report.ts.minus(predictionLifetime()))
-    }
-
-    /**
-     * The accuracy checkpoint [p] falls in, if any: the shortest horizon at least as long as its
-     * lead time (how far ahead of [report] it predicts the vehicle at the stop). A stop already
-     * overdue counts as the shortest horizon.
-     */
-    private fun checkpointOf(
-        feed: AvlFeed,
-        report: AvlReportRow,
-        algorithm: PredictionAlgorithm,
-        p: GeneratedPrediction,
-    ): CheckpointCandidate? {
-        val predictedTs = (if (p.stopPathIndex == 0) p.predictedDepartureTs else p.predictedArrivalTs) ?: return null
-        val leadSec = Duration.between(report.ts, predictedTs).seconds
-        val horizonSec = horizonsSec.firstOrNull { leadSec <= it } ?: return null
-        return CheckpointCandidate(
-            feedCode = feed.code,
-            vehicleId = report.vehicleId,
-            tripRowId = p.tripRowId,
-            stopPathIndex = p.stopPathIndex,
-            algorithm = algorithm,
-            horizonSec = horizonSec,
-            predictedTs = predictedTs,
-            computedAt = report.ts,
+        val interval = props.accuracy.sampleIntervalSec.toLong()
+        val sampleSlot = Instant.ofEpochSecond(Math.floorDiv(report.ts.epochSecond, interval) * interval)
+        val generated = generation.generated.associate { (algorithm, predictions) ->
+            algorithm to predictions.associateBy { it.tripRowId to it.stopPathIndex }
+        }
+        val checkpoints = feed.predictionAlgorithms.distinct().flatMap { algorithm ->
+            horizon.map { stop ->
+                val p = generated[algorithm]?.get(stop.tripRowId to stop.stopPathIndex)
+                CheckpointCandidate(
+                    feedCode = feed.code,
+                    vehicleId = report.vehicleId,
+                    tripRowId = stop.tripRowId,
+                    stopPathIndex = stop.stopPathIndex,
+                    algorithm = algorithm,
+                    predictedTs = if (stop.stopPathIndex == 0) p?.predictedDepartureTs else p?.predictedArrivalTs,
+                    computedAt = report.ts,
+                    sampleSlot = sampleSlot,
+                    confidenceSec = p?.confidenceSec,
+                    serviceDate = serviceDate,
+                    producedAt = now,
+                )
+            }
+        }
+        writer.insertCheckpoints(
+            session,
+            checkpoints,
+            now.minusSeconds(horizonsSec.last().toLong() + interval),
         )
     }
 
@@ -283,26 +354,32 @@ class PredictionService(
         serviceDate: LocalDate,
         ctx: AvlMatchContext,
         detected: DetectedPasses,
+        runStartedAt: Instant,
         now: Instant,
     ) {
         val maxPlausibleSec = props.learn.maxPlausibleTravelTimeSec
         // Same trip row on an earlier service day, or a stale pass, is never this trip's previous stop.
-        val since = report.ts.minusSeconds(maxPlausibleSec.toLong())
-        val passedAt = HashMap(writer.lastPasses(session, feed.code, report.vehicleId, outcome.tripRowId, since))
+        val serviceStart = serviceSecToInstant(serviceDate, 0, ctx.zone)
+        val since = maxOf(report.ts.minusSeconds(maxPlausibleSec.toLong()), serviceStart, runStartedAt)
+        val recent = writer.passObservations(session, feed.code, report.vehicleId, outcome.tripRowId, since, report.ts)
+        val passedAt = recent.filter { !it.observedAt.isBefore(runStartedAt) }.associateBy { it.stopPathIndex }.toMutableMap()
         val passedHere = LinkedHashMap<Int, Instant>()
         val samples = ArrayList<LearningSample>()
         val crossings = ArrayList<AvlStopCrossing>()
+        val reliable = detected.reportGapSec <= props.learn.maxReliableReportGapSec
 
         for (pass in detected.passes) {
+            if (pass.passedAt.isBefore(runStartedAt)) continue
             val k = pass.stopPathIndex
-            if (trip.frequencyBased == true && passedAt.keys.any { it > k }) {
-                passedAt.clear()
-                writer.clearPreviousRun(session, feed.code, report.vehicleId, outcome.tripRowId)
-            }
             // GPS jitter can carry a vehicle across the same stop twice; only the first pass counts.
             if (k in passedAt) continue
 
-            val previousPassAt = if (k == 0 || (k - 1) in passedHere) null else passedAt[k - 1]
+            val previousPass = if (k == 0 || (k - 1) in passedHere) null else passedAt[k - 1]
+            val previousPassAt =
+                previousPass
+                    ?.takeIf {
+                        reliable && (it.reportGapSec?.let { gap -> gap <= props.learn.maxReliableReportGapSec } == true)
+                    }?.observedAt
             val sampleSec =
                 previousPassAt
                     ?.let { Duration.between(it, pass.passedAt).toMillis() / 1000.0 }
@@ -314,34 +391,36 @@ class PredictionService(
                 samples.add(LearningSample(k, bucket, sampleSec, seedStopToStopSec(detected.seeds, k) ?: sampleSec))
             }
 
-            crossings.add(
-                AvlStopCrossing(
-                    feedCode = feed.code,
-                    vehicleId = report.vehicleId,
-                    tripRowId = outcome.tripRowId,
-                    tripPatternId = outcome.tripPatternId,
-                    stopPathIndex = k,
-                    observedAt = pass.passedAt,
-                    observedTravelTimeSec = sampleSec,
-                    serviceId = trip.serviceId,
-                    tripStartSec = trip.startTimeSec,
-                    routeId = trip.routeId,
-                    directionId = trip.directionId,
-                    revisionId = ctx.revisionId,
-                ),
+            val crossing = AvlStopCrossing(
+                feedCode = feed.code,
+                vehicleId = report.vehicleId,
+                tripRowId = outcome.tripRowId,
+                tripPatternId = outcome.tripPatternId,
+                stopPathIndex = k,
+                observedAt = pass.passedAt,
+                observedTravelTimeSec = sampleSec,
+                serviceId = trip.serviceId,
+                tripStartSec = trip.startTimeSec,
+                routeId = trip.routeId,
+                directionId = trip.directionId,
+                revisionId = ctx.revisionId,
+                runStartedAt = runStartedAt,
+                reportGapSec = detected.reportGapSec,
             )
-            passedAt[k] = pass.passedAt
+            crossings.add(crossing)
+            passedAt[k] = crossing
             passedHere[k] = pass.passedAt
         }
 
         if (detected.learningKey != null && samples.isNotEmpty()) {
-            learn(session, detected.learningKey, samples, now)
+            learn(session, detected.learningKey, samples, report.ts)
             metrics.predictionLearningSamples(feed.code, samples.size)
         }
         writer.insertCrossings(session, crossings)
-        writer.fillActuals(session, feed.code, report.vehicleId, outcome.tripRowId, passedHere)
-        scoreCheckpoints(session, feed, report.vehicleId, outcome.tripRowId, passedHere, now)
+        writer.fillActuals(session, feed.code, report.vehicleId, outcome.tripRowId, passedHere, detected.reportGapSec, serviceDate)
+        scoreCheckpoints(session, feed, report.vehicleId, trip, serviceDate, ctx, passedHere, reliable, now)
         metrics.predictionCrossings(feed.code, crossings.size)
+        if (!reliable) metrics.predictionUnreliableCrossings(feed.code, crossings.size)
     }
 
     /**
@@ -377,7 +456,7 @@ class PredictionService(
             }
         writer.upsertObservations(session, key, newObservations, now)
 
-        val states = writer.lockKalmanStates(session, key, rows.map { it.first })
+        val states = writer.lockKalmanStates(session, key, rows.map { it.first }, now, props.learn.kalmanVarianceGrowthSec2PerHour)
         val newStates =
             rows.associate { (b, s) ->
                 b to
@@ -396,40 +475,67 @@ class PredictionService(
 
     /**
      * Scores the accuracy checkpoints kept for the stops the vehicle just passed, at the times in
-     * [passedAt]: one `prediction_accuracy` row per stop, algorithm and horizon. A checkpoint older
-     * than a prediction's lifetime belongs to the same trip row on an earlier service day and is
-     * dropped unscored.
+     * [passedAt]. Horizons use actual lead time, never an algorithm's predicted ETA. Within each
+     * horizon, all algorithms use the same earliest snapshot, including explicitly missing forecasts.
+     * Crossings interpolated over excessive report gaps are retained but not treated as ground truth.
      */
     private fun scoreCheckpoints(
         session: StatelessSession,
         feed: AvlFeed,
         vehicleId: String,
-        tripRowId: Long,
+        trip: TripRef,
+        serviceDate: LocalDate,
+        ctx: AvlMatchContext,
         passedAt: Map<Int, Instant>,
+        reliable: Boolean,
         now: Instant,
     ) {
+        val checkpoints = writer.takeCheckpoints(session, feed.code, vehicleId, trip.id, passedAt.keys)
+        if (!reliable) return
         val rows = ArrayList<PredictionAccuracy>()
-        for (c in writer.takeCheckpoints(session, feed.code, vehicleId, tripRowId, passedAt.keys)) {
-            val actualTs = passedAt[c.stopPathIndex] ?: continue
-            if (c.computedAt.isBefore(actualTs.minus(predictionLifetime()))) continue
-            val errorSec = Duration.between(c.predictedTs, actualTs).seconds.toInt()
-            rows.add(
-                PredictionAccuracy(
-                    feedCode = feed.code,
-                    vehicleId = vehicleId,
-                    tripRowId = tripRowId,
-                    stopPathIndex = c.stopPathIndex,
-                    algorithm = c.algorithm,
-                    predictedTs = c.predictedTs,
-                    actualTs = actualTs,
-                    errorSec = errorSec,
-                    absErrorSec = abs(errorSec),
-                    createdAt = now,
-                    horizonSec = c.horizonSec,
-                    predictedAt = c.computedAt,
-                ),
-            )
-            metrics.predictionAccuracy(feed.code, c.algorithm.name.lowercase(), errorSec)
+        for ((stopIndex, snapshots) in checkpoints.groupBy { it.stopPathIndex }) {
+            val actualTs = passedAt.getValue(stopIndex)
+            val cohorts = snapshots
+                .filter {
+                    it.serviceDate == serviceDate && it.producedAt?.let { at -> !at.isAfter(actualTs) } == true
+                }.groupBy { Triple(it.sampleSlot, it.computedAt, checkNotNull(it.producedAt)) }
+            var shorterHorizon = -1
+            for (horizonSec in horizonsSec) {
+                val cohort = cohorts.entries
+                    .filter {
+                        Duration.between(it.key.third, actualTs).seconds in (shorterHorizon + 1).toLong()..horizonSec.toLong()
+                    }.minByOrNull { it.key.third }
+                shorterHorizon = horizonSec
+                if (cohort == null) continue
+                for (c in cohort.value) {
+                    val errorSec = c.predictedTs?.let { Math.toIntExact(Duration.between(it, actualTs).seconds) }
+                    val bucket = TravelTimeBucket.at(serviceDate, ctx.zone, c.computedAt)
+                    rows.add(
+                        PredictionAccuracy(
+                            feedCode = feed.code,
+                            vehicleId = vehicleId,
+                            tripRowId = trip.id,
+                            stopPathIndex = stopIndex,
+                            algorithm = c.algorithm,
+                            predictedTs = c.predictedTs,
+                            actualTs = actualTs,
+                            errorSec = errorSec,
+                            absErrorSec = errorSec?.let { Math.absExact(it) },
+                            createdAt = now,
+                            horizonSec = horizonSec,
+                            predictedAt = c.computedAt,
+                            actualLeadSec = Math.toIntExact(Duration.between(cohort.key.third, actualTs).seconds),
+                            producedAt = cohort.key.third,
+                            confidenceSec = c.confidenceSec,
+                            routeId = trip.routeId,
+                            directionId = trip.directionId,
+                            dayType = bucket.dayType,
+                            timeBand = bucket.timeBand,
+                        ),
+                    )
+                    if (errorSec != null) metrics.predictionAccuracy(feed.code, c.algorithm.name.lowercase(), errorSec)
+                }
+            }
         }
         writer.insertAccuracy(session, rows)
     }

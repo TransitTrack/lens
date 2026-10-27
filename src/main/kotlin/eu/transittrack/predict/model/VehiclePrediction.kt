@@ -1,6 +1,7 @@
 package eu.transittrack.predict.model
 
 import java.time.Instant
+import java.time.LocalDate
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Enumerated
@@ -35,6 +36,9 @@ class VehiclePrediction(
     @Column(name = "actual_departure_ts") var actualDepartureTs: Instant?,
     @Column(name = "confidence_sec") var confidenceSec: Int?,
     @Column(name = "computed_at", nullable = false) var computedAt: Instant,
+    @Column(name = "source_report_ts") var sourceReportTs: Instant? = computedAt,
+    @Column(name = "service_date") var serviceDate: LocalDate? = null,
+    @Column(name = "actual_report_gap_sec") var actualReportGapSec: Int? = null,
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehiclePredictionSeq")
     @SequenceGenerator(name = "vehiclePredictionSeq", sequenceName = "vehicle_prediction_seq", allocationSize = 50)

@@ -29,7 +29,7 @@ import {
   routeLine,
   stopFeatureCollection,
   algorithmsIn,
-  bestAlgorithm,
+  preferredAlgorithm,
   accuracyFor,
   stopRows,
   trailCoords,
@@ -37,7 +37,7 @@ import {
 import type { GeoJSON } from 'geojson'
 
 const route = useRoute()
-const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
+const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const { intervalMs } = usePollControl()
 const units = useUnits()
@@ -111,7 +111,21 @@ const { points: adherenceHistory } = useAdherenceHistory(adherenceSec, vehicleId
 const sparkValues = computed(() => adherenceHistory.value.map((p) => p.sec))
 
 const algorithms = computed(() => algorithmsIn(predictions.value))
-const algorithm = ref<string | undefined>(undefined)
+const selectedAlgorithm = ref<string | undefined>()
+const algorithm = computed({
+  get: () =>
+    preferredAlgorithm(
+      algorithms.value,
+      selectedFeed.value?.predictionAlgorithms ?? [],
+      selectedAlgorithm.value,
+    ),
+  set: (value: string | undefined) => {
+    selectedAlgorithm.value = value
+  },
+})
+watch(selectedAvlFeedCode, () => {
+  selectedAlgorithm.value = undefined
+})
 function algorithmLabel(value: string): string {
   return value
     .toLowerCase()
@@ -121,15 +135,6 @@ function algorithmLabel(value: string): string {
 }
 const algorithmOptions = computed(() =>
   algorithms.value.map((value) => ({ label: algorithmLabel(value), value })),
-)
-watch(
-  [algorithms, accuracy],
-  ([algos, acc]) => {
-    if (!algorithm.value || !algos.includes(algorithm.value)) {
-      algorithm.value = bestAlgorithm(algos, acc)
-    }
-  },
-  { immediate: true },
 )
 const selectedAccuracy = computed(() => accuracyFor(algorithm.value, accuracy.value))
 
@@ -405,7 +410,9 @@ function adherenceTextClass(sec: number | null): string {
           <section class="app-frame">
             <header class="flex items-start justify-between gap-3 border-b border-default p-3">
               <div class="min-w-0">
-                <div class="text-xs font-medium uppercase tracking-wide text-dimmed">Live service</div>
+                <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
+                  Live service
+                </div>
                 <div class="mt-1 truncate text-base font-semibold text-highlighted">
                   {{
                     vehicle.trip?.tripHeadsign ??
@@ -563,7 +570,9 @@ function adherenceTextClass(sec: number | null): string {
                           <template v-if="vehicle.trip?.tripId">
                             <NuxtLink
                               :to="
-                                feedPath(`/explore/trips/${encodeURIComponent(vehicle.trip.tripId)}`)
+                                feedPath(
+                                  `/explore/trips/${encodeURIComponent(vehicle.trip.tripId)}`,
+                                )
                               "
                               class="text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary"
                               :title="`Open trip ${vehicle.trip.tripId}`"
@@ -627,26 +636,62 @@ function adherenceTextClass(sec: number | null): string {
                       class="flex min-w-56 flex-wrap items-center gap-x-3 gap-y-1 border-l border-default pl-3 text-xs"
                     >
                       <span class="w-full font-medium text-muted"
-                        >Forecast quality · last 7 days</span
+                        >Feed-wide quality · last 7 days</span
                       >
                       <span class="text-dimmed">
-                        Mean error
-                        <strong class="font-semibold text-highlighted"
-                          >±{{ Math.round(selectedAccuracy.meanAbsErrorSec) }}s</strong
-                        >
+                        Paired MAE
+                        <strong class="font-semibold text-highlighted">{{
+                          selectedAccuracy.meanAbsErrorSec == null
+                            ? '—'
+                            : `${Math.round(selectedAccuracy.meanAbsErrorSec)}s`
+                        }}</strong>
                       </span>
                       <span class="text-dimmed">
                         Bias
                         <strong class="font-semibold text-highlighted">{{
-                          signedSec(selectedAccuracy.meanErrorSec)
+                          selectedAccuracy.meanErrorSec == null
+                            ? '—'
+                            : signedSec(selectedAccuracy.meanErrorSec)
                         }}</strong>
                       </span>
+                      <span class="text-dimmed">
+                        P90 / P95
+                        <strong class="font-semibold text-highlighted"
+                          >{{
+                            selectedAccuracy.p90AbsErrorSec == null
+                              ? '—'
+                              : `${Math.round(selectedAccuracy.p90AbsErrorSec)}s`
+                          }}
+                          /
+                          {{
+                            selectedAccuracy.p95AbsErrorSec == null
+                              ? '—'
+                              : `${Math.round(selectedAccuracy.p95AbsErrorSec)}s`
+                          }}</strong
+                        >
+                      </span>
                       <span class="text-dimmed"
-                        >{{ selectedAccuracy.sampleCount.toLocaleString() }} samples</span
+                        >Coverage
+                        <strong class="font-semibold text-highlighted"
+                          >{{ Math.round(selectedAccuracy.predictionCoverage * 100) }}%</strong
+                        ></span
+                      >
+                      <span
+                        v-if="selectedAccuracy.confidenceCoverage != null"
+                        class="text-dimmed"
+                        :title="`${selectedAccuracy.confidenceSampleCount} forecasts with an estimated spread`"
+                        >Within ±1 SD
+                        <strong class="font-semibold text-highlighted"
+                          >{{ Math.round(selectedAccuracy.confidenceCoverage * 100) }}%</strong
+                        ></span
+                      >
+                      <span class="text-dimmed"
+                        >{{ selectedAccuracy.pairedSampleCount.toLocaleString() }} paired /
+                        {{ selectedAccuracy.eligibleCount.toLocaleString() }} eligible</span
                       >
                     </div>
                     <p v-else class="border-l border-default pl-3 text-xs text-dimmed">
-                      Forecast performance is unavailable for this trip.
+                      No comparable forecast samples for this feed.
                     </p>
                   </div>
                 </div>
@@ -687,7 +732,13 @@ function adherenceTextClass(sec: number | null): string {
                       <span v-else-if="r.state === 'passed'">Passed</span>
                       <span v-else>Upcoming</span>
                       <span v-if="r.confidenceSec != null" class="text-dimmed"
-                        >±{{ r.confidenceSec }}s confidence</span
+                        >±{{ r.confidenceSec }}s (1 SD)</span
+                      >
+                      <span
+                        v-if="r.arrived && r.actualReliable === false"
+                        class="text-warning"
+                        :title="`Interpolated between reports ${r.actualReportGapSec}s apart`"
+                        >Sparse GPS estimate</span
                       >
                     </div>
                   </div>
@@ -703,7 +754,15 @@ function adherenceTextClass(sec: number | null): string {
 
                   <div class="min-w-0">
                     <div class="text-xs font-medium text-dimmed">
-                      {{ r.arrived ? 'Arrived' : r.state === 'passed' ? 'Was due' : 'Predicted' }}
+                      {{
+                        r.arrived
+                          ? r.stopPathIndex === 0
+                            ? 'Departed'
+                            : 'Arrived'
+                          : r.state === 'passed'
+                            ? 'Was due'
+                            : 'Predicted'
+                      }}
                     </div>
                     <time
                       class="block text-sm font-semibold leading-4 tabular-nums"

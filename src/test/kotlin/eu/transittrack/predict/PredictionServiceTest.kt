@@ -1,9 +1,8 @@
 package eu.transittrack.predict
 
-import java.time.DayOfWeek
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -27,6 +26,7 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -70,6 +70,8 @@ import eu.transittrack.support.PostgresPerClassTest
         "transittrack.feed.feeds=",
         "transittrack.predict.enabled=true",
         "transittrack.predict.run.interval-ms=3600000",
+        // These synthetic reports intentionally span whole ten-minute stop paths.
+        "transittrack.predict.learn.max-reliable-report-gap-sec=3600",
     ],
 )
 @Import(PredictionServiceTest.Stub::class)
@@ -94,6 +96,9 @@ class PredictionServiceTest(
 ) : PostgresPerClassTest() {
     @MockitoSpyBean
     lateinit var kalman: KalmanAlgorithm
+
+    @MockitoBean
+    lateinit var clock: Clock
 
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -143,8 +148,7 @@ class PredictionServiceTest(
         minute: Int,
     ): Instant =
         LocalDate
-            .now(factory.open(feedRow())!!.zone)
-            .with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY))
+            .of(2026, 9, 7)
             .atTime(hour, minute)
             .atZone(factory.open(feedRow())!!.zone)
             .toInstant()
@@ -162,6 +166,7 @@ class PredictionServiceTest(
         p: Point,
         at: Instant,
     ) {
+        whenever(clock.instant()).thenReturn(at)
         reports.save(
             AvlReportRow(
                 feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
@@ -246,7 +251,7 @@ class PredictionServiceTest(
         assertThat(scored.single().predictedAt).isEqualTo(ts(8, 5))
         assertThat(scored.single().horizonSec!! in listOf(180, 300, 600)).isTrue()
         assertThat(
-            scored.single().errorSec.toLong(),
+            scored.single().errorSec!!.toLong(),
         ).isEqualTo(
             java.time.Duration
                 .between(scored.single().predictedTs, scored.single().actualTs)
@@ -308,9 +313,13 @@ class PredictionServiceTest(
             predictionAccuracies
                 .findAll()
                 .filter { it.vehicleId == "bus-3" }
+                .filter { it.errorSec != null }
                 .map { it.algorithm }
                 .toSet(),
         ).isEqualTo(setOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.HISTORICAL_AVERAGE))
+        val missing = predictionAccuracies.findAll().filter { it.vehicleId == "bus-3" && it.algorithm == PredictionAlgorithm.KALMAN }
+        assertThat(missing).isNotEmpty()
+        assertThat(missing.all { it.predictedTs == null && it.errorSec == null && it.absErrorSec == null }).isTrue()
     }
 
     @Test

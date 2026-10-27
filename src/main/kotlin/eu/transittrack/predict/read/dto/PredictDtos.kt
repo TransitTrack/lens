@@ -12,6 +12,9 @@ data class StopPredictionDto(
     val predictedDeparture: String?,
     val algorithm: PredictionAlgorithm?,
     val confidenceSec: Int?,
+    val sourceReportTs: String? = null,
+    val actualReportGapSec: Int? = null,
+    val actualReliable: Boolean? = null,
     // resolver-only, not exposed as schema fields:
     val revisionId: Long,
     val gtfsFeedCode: String,
@@ -21,16 +24,30 @@ data class StopPredictionDto(
 data class PredictionAccuracySummaryDto(
     val algorithm: PredictionAlgorithm,
     val sampleCount: Int,
-    val meanErrorSec: Double,
-    val meanAbsErrorSec: Double,
+    val meanErrorSec: Double?,
+    val meanAbsErrorSec: Double?,
+    val eligibleCount: Int,
+    val predictionCoverage: Double,
+    val pairedSampleCount: Int,
+    val p90AbsErrorSec: Double?,
+    val p95AbsErrorSec: Double?,
+    val confidenceCoverage: Double?,
+    val confidenceSampleCount: Int,
     val byHorizon: List<PredictionAccuracyHorizonDto> = emptyList(),
 )
 
 data class PredictionAccuracyHorizonDto(
     val horizonSec: Int,
     val sampleCount: Int,
-    val meanErrorSec: Double,
-    val meanAbsErrorSec: Double,
+    val meanErrorSec: Double?,
+    val meanAbsErrorSec: Double?,
+    val eligibleCount: Int,
+    val predictionCoverage: Double,
+    val pairedSampleCount: Int,
+    val p90AbsErrorSec: Double?,
+    val p95AbsErrorSec: Double?,
+    val confidenceCoverage: Double?,
+    val confidenceSampleCount: Int,
 )
 
 data class HeadwayDto(

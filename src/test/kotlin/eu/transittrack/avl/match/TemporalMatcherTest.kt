@@ -27,7 +27,7 @@ class TemporalMatcherTest {
     fun `interpolates scheduled clock at a mid-path distance`() {
         // halfway along path 1 (stop 0 -> stop 1): dep 36000 (stop 0) to arr 36120 (stop 1) → 36060
         // actual 36090 → +30 s late
-        assertThat(tm.adherenceSec(sched, cum, 500.0, 36090, noSchedule = false)).isEqualTo(30)
+        assertThat(tm.adherenceSec(sched, cum, 500.0, 36090, noSchedule = false, patternLengthM = 2000.0)).isEqualTo(30)
     }
 
     @Test
@@ -35,17 +35,29 @@ class TemporalMatcherTest {
         // distanceAlongTripM = 0, the degenerate path-0 segment - scheduledSec must resolve to
         // schedule[0]'s own time (36000, the trip start), not a time borrowed from the NEXT stop's
         // SchedulePoint. 5 minutes early (35700) must read -300s, never positive/"late".
-        assertThat(tm.adherenceSec(sched, cum, 0.0, 35700, noSchedule = false)).isEqualTo(-300)
+        assertThat(tm.adherenceSec(sched, cum, 0.0, 35700, noSchedule = false, patternLengthM = 2000.0)).isEqualTo(-300)
     }
 
     @Test
     fun `no schedule returns null`() {
-        assertThat(tm.adherenceSec(sched, cum, 500.0, 36090, noSchedule = true)).isNull()
+        assertThat(tm.adherenceSec(sched, cum, 500.0, 36090, noSchedule = true, patternLengthM = 2000.0)).isNull()
     }
 
     @Test
     fun `absurd adherence is nulled`() {
-        assertThat(tm.adherenceSec(sched, cum, 500.0, 50000, noSchedule = false)).isNull()
+        assertThat(tm.adherenceSec(sched, cum, 500.0, 50000, noSchedule = false, patternLengthM = 2000.0)).isNull()
+    }
+
+    @Test
+    fun `interpolates the last path through the end of the geometry`() {
+        assertThat(tm.adherenceSec(sched, cum, 1500.0, 36225, false, 2000.0)).isEqualTo(0)
+        assertThat(tm.adherenceSec(sched, cum, 2000.0, 36300, false, 2000.0)).isEqualTo(0)
+    }
+
+    @Test
+    fun `interpolates the only travel path of a two-stop trip`() {
+        val schedule = listOf(SchedulePoint(0, 36000, 36000), SchedulePoint(1, 36600, 36600))
+        assertThat(tm.adherenceSec(schedule, doubleArrayOf(0.0, 0.0), 500.0, 36300, false, 1000.0)).isEqualTo(0)
     }
 
     @Test

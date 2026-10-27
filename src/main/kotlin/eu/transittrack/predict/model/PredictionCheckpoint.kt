@@ -1,6 +1,7 @@
 package eu.transittrack.predict.model
 
 import java.time.Instant
+import java.time.LocalDate
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Enumerated
@@ -13,9 +14,8 @@ import jakarta.persistence.Table
 import eu.transittrack.predict.PredictionAlgorithm
 
 /**
- * A prediction kept for accuracy scoring: the first one made for a stop (per algorithm) within
- * [horizonSec] of its predicted time. Scored into `prediction_accuracy` and deleted once the vehicle
- * passes the stop. [computedAt] is the AVL report time the prediction was made at.
+ * A shared report-time snapshot, retained independently of an algorithm's ETA. A null [predictedTs]
+ * records an unavailable prediction, so scoring can measure coverage as well as error.
  */
 @Entity
 @Table(name = "prediction_checkpoint")
@@ -25,9 +25,12 @@ class PredictionCheckpoint(
     @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
     @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
     @Enumerated @Column(nullable = false) var algorithm: PredictionAlgorithm,
-    @Column(name = "horizon_sec", nullable = false) var horizonSec: Int,
-    @Column(name = "predicted_ts", nullable = false) var predictedTs: Instant,
+    @Column(name = "predicted_ts") var predictedTs: Instant?,
     @Column(name = "computed_at", nullable = false) var computedAt: Instant,
+    @Column(name = "sample_slot", nullable = false) var sampleSlot: Instant,
+    @Column(name = "confidence_sec") var confidenceSec: Int?,
+    @Column(name = "service_date") var serviceDate: LocalDate?,
+    @Column(name = "produced_at") var producedAt: Instant? = computedAt,
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "predictionCheckpointSeq")
     @SequenceGenerator(name = "predictionCheckpointSeq", sequenceName = "prediction_checkpoint_seq", allocationSize = 50)

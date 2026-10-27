@@ -487,7 +487,7 @@ export type Headway = {
   /** Observed gaps in seconds between the vehicles currently predicted at this stop, in arrival order. */
   gapsSec: Array<Scalars['Int']['output']>;
   routeId: Scalars['String']['output'];
-  /** The schedule's own headway at this stop/time, in seconds, for comparison. */
+  /** The schedule's own average headway at this stop, in seconds, for comparison: trips running that service day, from an hour before the first predicted arrival to an hour after the last (around now if none). Frequency-based trips are left out. */
   scheduledHeadwaySec?: Maybe<Scalars['Int']['output']>;
   stopId: Scalars['String']['output'];
   /** Seconds until the next vehicle is predicted to reach this stop, or null if none is currently predicted. */
@@ -887,15 +887,45 @@ export type Pathway = {
   traversalTime?: Maybe<Scalars['Int']['output']>;
 };
 
-/** Aggregate prediction error for one algorithm over a recent time window. */
+/** Prediction error for snapshots made at most horizonSec (and more than the next shorter horizon) before the actual crossing. */
+export type PredictionAccuracyHorizon = {
+  __typename?: 'PredictionAccuracyHorizon';
+  confidenceCoverage?: Maybe<Scalars['Float']['output']>;
+  confidenceSampleCount: Scalars['Int']['output'];
+  eligibleCount: Scalars['Int']['output'];
+  horizonSec: Scalars['Int']['output'];
+  meanAbsErrorSec?: Maybe<Scalars['Float']['output']>;
+  /** Mean signed error in seconds (actual minus predicted); positive means vehicles got there later than predicted. */
+  meanErrorSec?: Maybe<Scalars['Float']['output']>;
+  p90AbsErrorSec?: Maybe<Scalars['Float']['output']>;
+  p95AbsErrorSec?: Maybe<Scalars['Float']['output']>;
+  pairedSampleCount: Scalars['Int']['output'];
+  predictionCoverage: Scalars['Float']['output'];
+  sampleCount: Scalars['Int']['output'];
+};
+
+/** Aggregate prediction error for one algorithm over a recent time window. Each stop the vehicle reaches is scored once per lead-time horizon a prediction was made within, so the overall figures pool every horizon. */
 export type PredictionAccuracySummary = {
   __typename?: 'PredictionAccuracySummary';
   algorithm: PredictionAlgorithm;
+  /** The same statistics per lead-time horizon, shortest first. */
+  byHorizon: Array<PredictionAccuracyHorizon>;
+  /** Observed fraction of errors within the algorithm's one-SD spread, among available forecasts with a spread. */
+  confidenceCoverage?: Maybe<Scalars['Float']['output']>;
+  confidenceSampleCount: Scalars['Int']['output'];
+  /** Eligible shared snapshots, including missing forecasts. Only reliable actual crossings are scored. */
+  eligibleCount: Scalars['Int']['output'];
   /** Mean absolute error in seconds. */
-  meanAbsErrorSec: Scalars['Float']['output'];
-  /** Mean signed error in seconds (predicted minus actual); positive means predictions ran late. */
-  meanErrorSec: Scalars['Float']['output'];
-  /** Number of resolved (predicted-then-actual) samples this summary is computed from. */
+  meanAbsErrorSec?: Maybe<Scalars['Float']['output']>;
+  /** Mean signed error in seconds (actual minus predicted); positive means vehicles got there later than predicted. */
+  meanErrorSec?: Maybe<Scalars['Float']['output']>;
+  p90AbsErrorSec?: Maybe<Scalars['Float']['output']>;
+  p95AbsErrorSec?: Maybe<Scalars['Float']['output']>;
+  /** Snapshots where every compared algorithm produced a forecast. Error statistics use only these paired samples. */
+  pairedSampleCount: Scalars['Int']['output'];
+  /** Available forecasts divided by eligibleCount; conditional on matched observations, not total scheduled service. */
+  predictionCoverage: Scalars['Float']['output'];
+  /** Available forecasts across eligible shared snapshots and all horizons. */
   sampleCount: Scalars['Int']['output'];
 };
 
@@ -907,6 +937,18 @@ export type PredictionAlgorithm =
   | 'KALMAN'
   /** Projects the vehicle's current schedule adherence forward along the rest of its trip. */
   | 'SCHEDULE_ADHERENCE';
+
+export type PredictionDayType =
+  | 'SATURDAY'
+  | 'SUNDAY'
+  | 'WEEKDAY';
+
+export type PredictionTimeBand =
+  | 'AFTERNOON_PEAK'
+  | 'EVENING'
+  | 'MIDDAY'
+  | 'MORNING_PEAK'
+  | 'NIGHT';
 
 export type Query = {
   __typename?: 'Query';
@@ -963,7 +1005,7 @@ export type Query = {
   /** Optimization runs for a feed, newest first. */
   optimizationRuns: Array<OptimizationRun>;
   pathways: Array<Pathway>;
-  /** Recent prediction-error statistics per algorithm, over the last sinceDays days. Pass algorithm to restrict to one. */
+  /** Recent, paired prediction-error statistics, overall and by actual lead time. Compares currently configured algorithms unless algorithm restricts to one. Optional route, direction and observation-time context filters apply before pairing. */
   predictionAccuracy: Array<PredictionAccuracySummary>;
   /** Raw rows from one of the less commonly queried GTFS tables (fares v2, flex, translations, attributions), returned as untyped JSON since their shapes vary by GTFS extension. */
   records: Array<Scalars['JSON']['output']>;
@@ -1001,7 +1043,7 @@ export type Query = {
   tripsOnDate: Array<Trip>;
   /** A single vehicle's latest known state, or null if the feed or vehicle is unknown. */
   vehicle?: Maybe<Vehicle>;
-  /** Open (not-yet-arrived) stop predictions for one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm; otherwise all algorithms configured for the feed are returned. */
+  /** Predicted and reached stops of one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm. */
   vehiclePredictions: Array<StopPrediction>;
   /** Vehicles currently reporting on this feed, from each vehicle's latest known state rather than raw history. Set matchedOnly to only return vehicles currently matched to a trip. */
   vehicles: Array<Vehicle>;
@@ -1188,8 +1230,12 @@ export type QueryPathwaysArgs = {
 
 export type QueryPredictionAccuracyArgs = {
   algorithm?: InputMaybe<PredictionAlgorithm>;
+  dayType?: InputMaybe<PredictionDayType>;
+  directionId?: InputMaybe<Scalars['Int']['input']>;
   feedCode: Scalars['String']['input'];
+  routeId?: InputMaybe<Scalars['String']['input']>;
   sinceDays?: InputMaybe<Scalars['Int']['input']>;
+  timeBand?: InputMaybe<PredictionTimeBand>;
 };
 
 
@@ -1654,19 +1700,25 @@ export type StopPath = {
 /** A predicted (and, once reached, actual) arrival/departure at one scheduled stop of a vehicle's current trip. */
 export type StopPrediction = {
   __typename?: 'StopPrediction';
-  /** ISO-8601 instant the vehicle actually arrived, present once the stop has been reached. */
+  /** ISO-8601 GPS-interpolated arrival, present once the stop has been reached. */
   actualArrival?: Maybe<Scalars['String']['output']>;
   actualDeparture?: Maybe<Scalars['String']['output']>;
+  /** Whether the actual crossing meets the configured report-gap quality limit; null when unknown. */
+  actualReliable?: Maybe<Scalars['Boolean']['output']>;
+  /** Gap in seconds between GPS reports bracketing the actual crossing; null when unknown. */
+  actualReportGapSec?: Maybe<Scalars['Int']['output']>;
   /** The algorithm that produced this prediction, or null for a stop already reached (no prediction was needed). */
   algorithm?: Maybe<PredictionAlgorithm>;
-  /** How far in the future this prediction reaches, in seconds; larger values are typically less reliable. */
+  /** Estimated arrival standard deviation in seconds (one SD), not a guaranteed confidence interval. Includes uncertainty of unlearned legs and ageing Kalman state. */
   confidenceSec?: Maybe<Scalars['Int']['output']>;
-  /** ISO-8601 instant of the predicted arrival; null once actualArrival is set. */
+  /** ISO-8601 predicted arrival, retained after arrival for comparison with the actual. */
   predictedArrival?: Maybe<Scalars['String']['output']>;
   predictedDeparture?: Maybe<Scalars['String']['output']>;
   /** ISO-8601 instant of the scheduled arrival, or null if the trip has no scheduled arrival at this stop. */
   scheduledArrival?: Maybe<Scalars['String']['output']>;
   scheduledDeparture?: Maybe<Scalars['String']['output']>;
+  /** ISO-8601 timestamp of the AVL observation used to generate this prediction, independent of processing time. */
+  sourceReportTs?: Maybe<Scalars['String']['output']>;
   stop?: Maybe<Stop>;
   /** Index into the trip pattern's stopPaths this prediction is for. */
   stopPathIndex: Scalars['Int']['output'];
@@ -2421,7 +2473,7 @@ export type PredictionAccuracyQueryVariables = Exact<{
 }>;
 
 
-export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null }> };
 
 export type RevisionsQueryVariables = Exact<{
   feedCode: string;
@@ -2493,7 +2545,7 @@ export type VehicleDetailQueryVariables = Exact<{
 }>;
 
 
-export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, predictedArrival: string | null, actualArrival: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number, meanAbsErrorSec: number }> };
+export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, scheduledDeparture: string | null, predictedArrival: string | null, predictedDeparture: string | null, actualArrival: string | null, actualDeparture: string | null, actualReportGapSec: number | null, actualReliable: boolean | null, sourceReportTs: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, eligibleCount: number, predictionCoverage: number, pairedSampleCount: number, p90AbsErrorSec: number | null, p95AbsErrorSec: number | null, confidenceCoverage: number | null, confidenceSampleCount: number }> };
 
 export type VehiclesQueryVariables = Exact<{
   feedCode: string;
@@ -5401,8 +5453,14 @@ export const VehicleDetailDocument = gql`
       stopName
     }
     scheduledArrival
+    scheduledDeparture
     predictedArrival
+    predictedDeparture
     actualArrival
+    actualDeparture
+    actualReportGapSec
+    actualReliable
+    sourceReportTs
     algorithm
     confidenceSec
   }
@@ -5411,6 +5469,13 @@ export const VehicleDetailDocument = gql`
     sampleCount
     meanErrorSec
     meanAbsErrorSec
+    eligibleCount
+    predictionCoverage
+    pairedSampleCount
+    p90AbsErrorSec
+    p95AbsErrorSec
+    confidenceCoverage
+    confidenceSampleCount
   }
 }
     `;

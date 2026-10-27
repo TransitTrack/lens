@@ -39,6 +39,7 @@ class PredictionRetentionScheduler(
         val crossings: Int,
         val orphanObservations: Int,
         val orphanKalman: Int,
+        val frequencyRuns: Int = 0,
     )
 
     @Scheduled(cron = "\${transittrack.predict.retention.sweep-cron}")
@@ -49,8 +50,8 @@ class PredictionRetentionScheduler(
         result.onSuccess { c ->
             log.info(
                 "predict retention: pruned {} predictions, {} checkpoints, {} accuracy, {} crossings, " +
-                    "{} orphan observations, {} orphan kalman",
-                c.predictions, c.checkpoints, c.accuracy, c.crossings, c.orphanObservations, c.orphanKalman,
+                    "{} orphan observations, {} orphan kalman, {} frequency runs",
+                c.predictions, c.checkpoints, c.accuracy, c.crossings, c.orphanObservations, c.orphanKalman, c.frequencyRuns,
             )
         }
         metrics.scheduledJobFinished(
@@ -58,7 +59,7 @@ class PredictionRetentionScheduler(
             outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
             elapsed = Duration.between(start, Instant.now()),
             items = result.getOrNull()?.let {
-                (it.predictions + it.checkpoints + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman)
+                (it.predictions + it.checkpoints + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman + it.frequencyRuns)
                     .toLong()
             },
         )
@@ -85,7 +86,11 @@ class PredictionRetentionScheduler(
         )
         val orphanObservations = jdbc.update(orphanSweepSql("travel_time_observation"))
         val orphanKalman = jdbc.update(orphanSweepSql("kalman_travel_time_state"))
-        return PruneCounts(predictions, checkpoints, accuracy, crossings, orphanObservations, orphanKalman)
+        val frequencyRuns = jdbc.update(
+            "delete from prediction_frequency_run where last_report_ts < ?",
+            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
+        )
+        return PruneCounts(predictions, checkpoints, accuracy, crossings, orphanObservations, orphanKalman, frequencyRuns)
     }
 }
 

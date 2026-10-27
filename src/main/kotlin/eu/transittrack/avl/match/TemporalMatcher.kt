@@ -24,15 +24,16 @@ class TemporalMatcher {
         distanceAlongTripM: Double,
         actualServiceSec: Int,
         noSchedule: Boolean,
+        patternLengthM: Double,
     ): Int? {
         if (noSchedule || schedule.size < 2) return null
         val n = minOf(schedule.size, stopPathCumM.size)
         if (n < 2) return null
 
         var i = 0
-        while (i < n - 2 && stopPathCumM[i + 1] <= distanceAlongTripM) i++
+        while (i < n - 1 && stopPathCumM[i + 1] <= distanceAlongTripM) i++
         val segFrom = stopPathCumM[i]
-        val segTo = stopPathCumM[i + 1]
+        val segTo = stopPathCumM.getOrNull(i + 1) ?: patternLengthM
         val frac =
             if (segTo <= segFrom) {
                 0.0

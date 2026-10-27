@@ -52,8 +52,10 @@ class OptimizationAnalysisContext internal constructor(
         stopPathIndex: Int,
     ): Map<String, Double?> {
         val rows = predictionAccuracy.findForTargets(avlFeedCodes, tripRowIds, stopPathIndex, run.observedFrom, run.observedTo)
-        val meanError = if (rows.isEmpty()) null else rows.map { it.errorSec }.average()
-        val meanAbsError = if (rows.isEmpty()) null else rows.map { it.absErrorSec }.average()
+        val errors = rows.mapNotNull { it.errorSec }
+        val absErrors = rows.mapNotNull { it.absErrorSec }
+        val meanError = if (errors.isEmpty()) null else errors.average()
+        val meanAbsError = if (absErrors.isEmpty()) null else absErrors.average()
         return linkedMapOf("predictionMeanErrorSec" to meanError, "predictionMeanAbsErrorSec" to meanAbsError)
     }
 

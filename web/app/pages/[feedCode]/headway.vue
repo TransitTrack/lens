@@ -143,7 +143,7 @@ const boardColumns: TableColumn<BoardRow>[] = [
   {accessorKey: 'scheduledArrival', header: 'Scheduled'},
   {accessorKey: 'predictedArrival', header: 'Predicted'},
   {accessorKey: 'algorithm', header: 'Algorithm'},
-  {accessorKey: 'confidenceSec', header: 'Confidence'},
+  {accessorKey: 'confidenceSec', header: 'Spread (1 SD)'},
 ]
 
 function formatTs(iso: string | null | undefined): string {
@@ -158,9 +158,9 @@ function confidenceRating(
   sec: number | null | undefined,
 ): { label: string; color: 'success' | 'neutral' | 'warning' } | null {
   if (sec == null) return null
-  if (sec <= 20) return {label: 'High', color: 'success'}
-  if (sec <= 60) return {label: 'Fair', color: 'neutral'}
-  return {label: 'Low', color: 'warning'}
+  if (sec <= 20) return {label: 'Small', color: 'success'}
+  if (sec <= 60) return {label: 'Medium', color: 'neutral'}
+  return {label: 'Large', color: 'warning'}
 }
 
 function formatDur(sec: number): string {

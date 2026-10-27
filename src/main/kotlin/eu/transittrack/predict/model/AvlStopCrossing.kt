@@ -31,6 +31,8 @@ class AvlStopCrossing(
     @Column(name = "route_id") var routeId: String?,
     @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "direction_id") var directionId: Int?,
     @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    @Column(name = "run_started_at") var runStartedAt: Instant? = null,
+    @Column(name = "report_gap_sec") var reportGapSec: Int? = null,
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlStopCrossingSeq")
     @SequenceGenerator(name = "avlStopCrossingSeq", sequenceName = "avl_stop_crossing_seq", allocationSize = 50)

@@ -1,5 +1,6 @@
 package eu.transittrack.predict.read
 
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -33,6 +34,7 @@ class HeadwayReadService(
     private val serviceDates: CachedServiceDateReader,
     private val agencies: CachedAgencyReader,
     private val read: PredictionReadService,
+    private val clock: Clock,
 ) {
     fun headway(
         feedCode: String,
@@ -41,7 +43,7 @@ class HeadwayReadService(
         directionId: Int?,
         algorithm: PredictionAlgorithm? = null,
     ): HeadwayDto {
-        val now = Instant.now()
+        val now = clock.instant()
         val arrivals =
             read
                 .stopPredictions(feedCode, stopId, routeId, directionId, algorithm)

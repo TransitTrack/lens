@@ -1,10 +1,9 @@
 package eu.transittrack.predict
 
-import java.time.DayOfWeek
+import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.TemporalAdjusters
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -19,6 +18,7 @@ import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.data.domain.Pageable
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -73,6 +74,7 @@ import eu.transittrack.util.concurrency.FeedLockCoordinator
         "transittrack.feed.feeds=",
         "transittrack.predict.enabled=true",
         "transittrack.predict.run.interval-ms=3600000",
+        "transittrack.predict.learn.max-reliable-report-gap-sec=3600",
     ],
 )
 @Import(PredictionProcessorTest.Stub::class)
@@ -96,6 +98,9 @@ class PredictionProcessorTest(
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val lockProvider: JdbcTemplateLockProvider,
 ) : PostgresPerClassTest() {
+    @MockitoBean
+    lateinit var clock: Clock
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -148,8 +153,7 @@ class PredictionProcessorTest(
         minute: Int,
     ): Instant =
         LocalDate
-            .now(factory.open(feedRow())!!.zone)
-            .with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY))
+            .of(2026, 9, 7)
             .atTime(hour, minute)
             .atZone(factory.open(feedRow())!!.zone)
             .toInstant()
@@ -166,8 +170,9 @@ class PredictionProcessorTest(
         vehicleId: String,
         p: Point,
         at: Instant,
-    ): Long =
-        reports
+    ): Long {
+        whenever(clock.instant()).thenReturn(at)
+        return reports
             .save(
                 AvlReportRow(
                     feedCode = feedRow().code, vehicleId = vehicleId, vehicleLabel = null, ts = at,
@@ -179,6 +184,7 @@ class PredictionProcessorTest(
                     matchStatus = MatchStatus.PENDING, matchedAt = null, createdAt = at,
                 ),
             ).id!!
+    }
 
     @Test
     fun `processBatch drains every claimed row for a vehicle in one pass, threading prev across the batch`() {

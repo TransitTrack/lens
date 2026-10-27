@@ -74,6 +74,7 @@ class FullInferenceMatcher(
                         sm.distanceAlongTripM,
                         actualServiceSec,
                         t.noSchedule == true,
+                        geom.line.lengthM,
                     )
                 val continuity = continuityOf(t, prev, ctx)
 

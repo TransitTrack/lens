@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Primary
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.match.AvlMatchContextFactory
+import eu.transittrack.avl.match.MatchContext
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.download.FeedDownloader
@@ -211,6 +212,38 @@ class ScheduleAdherenceAlgorithmTest(
 
         assertThat(nextTripDeparture(layoverSec / 2)).isEqualTo(scheduledNextDeparture)
         assertThat(nextTripDeparture(layoverSec + 120)).isEqualTo(scheduledNextDeparture.plusSeconds(120))
+    }
+
+    @Test
+    fun `layover absorbs delay even after the reached terminal disappeared from the horizon`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val horizon = buildHorizon(trip.id!!, trip.tripPatternId!!, geom.stopPathCumM.lastIndex, geom.line.lengthM - 10, ctx)
+        assertThat(horizon.first().tripHop).isEqualTo(1)
+        val terminalTime = serviceSecToInstant(serviceDate, ctx.scheduleOf(trip.id!!).last().arrivalSec!!, ctx.zone)
+        val scheduledNext = serviceSecToInstant(serviceDate, ctx.scheduleOf(horizon.first().tripRowId).first().departureSec!!, ctx.zone)
+
+        fun departure(delay: Int) =
+            ScheduleAdherenceAlgorithm()
+                .predict(horizon, serviceDate, delay, terminalTime.plusSeconds(delay.toLong()), ctx)
+                .first()
+                .predictedDepartureTs
+
+        assertThat(departure(60)).isEqualTo(scheduledNext)
+        assertThat(departure(720)).isEqualTo(terminalTime.plusSeconds(720))
+    }
+
+    @Test
+    fun `horizon stops before a deadhead rather than assuming an instantaneous transfer`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val blocked = ctx.blockTripOf(trip.id!!)!!.copy(deadheadAfter = true)
+        val transfer = object : MatchContext by ctx {
+            override fun blockTripOf(tripRowId: Long) = if (tripRowId == trip.id) blocked else ctx.blockTripOf(tripRowId)
+        }
+        val horizon = buildHorizon(trip.id!!, trip.tripPatternId!!, 1, midPath1(ctx, trip.tripPatternId!!), transfer)
+        assertThat(horizon.map { it.tripRowId }.toSet()).isEqualTo(setOf(trip.id))
     }
 
     @Test

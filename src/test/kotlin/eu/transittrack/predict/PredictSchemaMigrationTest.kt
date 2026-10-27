@@ -23,6 +23,7 @@ class PredictSchemaMigrationTest(
             "vehicle_prediction",
             "prediction_accuracy",
             "prediction_checkpoint",
+            "prediction_frequency_run",
         )) {
             val n = jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name = ?",
@@ -57,9 +58,9 @@ class PredictSchemaMigrationTest(
     fun `prediction_accuracy records the horizon and time each prediction was made`() {
         val n = jdbc.queryForObject(
             "select count(*) from information_schema.columns where table_name = 'prediction_accuracy' " +
-                "and column_name in ('horizon_sec', 'predicted_at')",
+                "and column_name in ('horizon_sec', 'predicted_at', 'actual_lead_sec', 'produced_at')",
             Int::class.java,
         )
-        assertThat(n).isEqualTo(2)
+        assertThat(n).isEqualTo(4)
     }
 }

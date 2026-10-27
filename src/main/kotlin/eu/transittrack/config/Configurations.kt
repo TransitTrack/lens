@@ -1,5 +1,6 @@
 package eu.transittrack.config
 
+import java.time.Clock
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
@@ -21,6 +22,12 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 
 import eu.transittrack.FeedsProperties
 import eu.transittrack.HttpClientProperties
+
+@Configuration
+class TimeConfiguration {
+    @Bean
+    fun clock(): Clock = Clock.systemUTC()
+}
 
 @Configuration
 @EnableScheduling

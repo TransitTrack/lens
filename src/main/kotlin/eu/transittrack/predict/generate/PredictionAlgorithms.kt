@@ -18,7 +18,7 @@ import eu.transittrack.predict.learn.stopReachedAtM
 /**
  * Walks the current trip's remaining stop paths (from [fromStopPathIndex] to its last stop), then
  * follows the trip's block up to 2 more block-trips, each contributing all of its stop paths from
- * index 0. Stops early (not an error) once the block runs out of trips.
+ * index 0. Stops early once the block runs out of trips or requires an unmodelled deadhead.
  *
  * The first horizon stop carries the share of its stop path still ahead of [distanceAlongTripM].
  * A vehicle still standing at its trip's first stop (within [FIRST_STOP_RADIUS_M] of the start)
@@ -57,10 +57,11 @@ fun buildHorizon(
                 stops.add(HorizonStop(tripRowId, patternId, i, fraction))
             }
         } else {
-            for (i in 0 until stopCount) stops.add(HorizonStop(tripRowId, patternId, i))
+            for (i in 0 until stopCount) stops.add(HorizonStop(tripRowId, patternId, i, tripHop = hops))
         }
         if (hops == 2) break
         val bt = ctx.blockTripOf(tripRowId) ?: break
+        if (bt.deadheadAfter == true) break
         val next = ctx.nextBlockTrip(bt.blockId, bt.listIndex) ?: break
         val nextTrip = ctx.trip(next.tripId) ?: break
         val nextPatternId = nextTrip.tripPatternId ?: break
@@ -125,6 +126,7 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
         var delaySec = adherenceSec ?: return emptyList()
         var previousTripRowId: Long? = null
         var lastArrivalTs: Instant? = null
+        var lastDepartureTs: Instant? = null
         val predictions = ArrayList<GeneratedPrediction>()
         for (stop in horizon) {
             if (stop.tripRowId != previousTripRowId && ctx.trip(stop.tripRowId)?.frequencyBased == true) break
@@ -135,17 +137,23 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
             val scheduledArrivalSec = schedulePoint.arrivalSec ?: schedulePoint.departureSec ?: continue
             val scheduledDepartureSec = schedulePoint.departureSec ?: scheduledArrivalSec
 
-            val startsNextTrip = previousTripRowId != null && previousTripRowId != stop.tripRowId
+            val startsNextTrip =
+                previousTripRowId?.let { it != stop.tripRowId } ?: (stop.tripHop > 0)
             val arrival =
-                if (startsNextTrip && lastArrivalTs != null) {
-                    lastArrivalTs
+                if (startsNextTrip) {
+                    maxOf(lastArrivalTs ?: startTs, lastDepartureTs ?: startTs)
                 } else {
                     serviceSecToInstant(serviceDate, scheduledArrivalSec + delaySec, ctx.zone)
                 }
             val scheduledDeparture = serviceSecToInstant(serviceDate, scheduledDepartureSec, ctx.zone)
             // On the next trip the vehicle leaves from where it actually arrives; the delay carried
             // over from the previous trip doesn't apply to it until it's re-derived below.
-            var departure = if (startsNextTrip) arrival else maxOf(arrival, scheduledDeparture.plusSeconds(delaySec.toLong()))
+            var departure =
+                if (startsNextTrip) {
+                    maxOf(arrival, lastDepartureTs ?: startTs)
+                } else {
+                    maxOf(arrival, scheduledDeparture.plusSeconds(delaySec.toLong()))
+                }
             if (holdsUntilScheduled(stop)) {
                 departure = maxOf(departure, scheduledDeparture)
                 delaySec = Duration.between(scheduledDeparture, departure).seconds.toInt()
@@ -163,6 +171,7 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
             )
             previousTripRowId = stop.tripRowId
             lastArrivalTs = arrival
+            lastDepartureTs = departure
         }
         return predictions
     }

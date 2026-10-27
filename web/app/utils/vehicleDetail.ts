@@ -1,4 +1,4 @@
-import type {VehicleDetailQuery} from '../../generated/graphql'
+import type { VehicleDetailQuery } from '../../generated/graphql'
 
 type Vehicle = NonNullable<VehicleDetailQuery['vehicle']>
 type Prediction = VehicleDetailQuery['vehiclePredictions'][number]
@@ -16,7 +16,12 @@ export function routeLine(vehicle: Vehicle): LngLat[] {
     const geom = p.pathGeometry
     if (Array.isArray(geom)) {
       for (const pt of geom) {
-        if (Array.isArray(pt) && pt.length >= 2 && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
+        if (
+          Array.isArray(pt) &&
+          pt.length >= 2 &&
+          typeof pt[0] === 'number' &&
+          typeof pt[1] === 'number'
+        ) {
           fromPattern.push([pt[0], pt[1]])
         }
       }
@@ -26,7 +31,7 @@ export function routeLine(vehicle: Vehicle): LngLat[] {
 
   const shapePts = vehicle.trip?.shape?.points ?? []
   const fromShape: LngLat[] = shapePts
-    .filter((pt): pt is { lat: number, lon: number } => pt.lat != null && pt.lon != null)
+    .filter((pt): pt is { lat: number; lon: number } => pt.lat != null && pt.lon != null)
     .map((pt) => [pt.lon, pt.lat])
   if (fromShape.length >= 2) return dedupe(fromShape)
 
@@ -43,15 +48,17 @@ function stopCoords(vehicle: Vehicle): LngLat[] {
 }
 
 function dedupe(coords: LngLat[]): LngLat[] {
-  return coords.filter((c, i) => i === 0 || c[0] !== coords[i - 1]![0] || c[1] !== coords[i - 1]![1])
+  return coords.filter(
+    (c, i) => i === 0 || c[0] !== coords[i - 1]![0] || c[1] !== coords[i - 1]![1],
+  )
 }
 
 export type StopState = 'passed' | 'current' | 'upcoming'
 
 export interface StopFeature {
   type: 'Feature'
-  geometry: { type: 'Point', coordinates: LngLat }
-  properties: { name: string, state: StopState }
+  geometry: { type: 'Point'; coordinates: LngLat }
+  properties: { name: string; state: StopState }
 }
 
 export function stopFeatureCollection(vehicle: Vehicle) {
@@ -60,13 +67,16 @@ export function stopFeatureCollection(vehicle: Vehicle) {
     .filter((p) => p.stop?.stopLat != null && p.stop?.stopLon != null)
     .map((p) => ({
       type: 'Feature' as const,
-      geometry: {type: 'Point' as const, coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat},
+      geometry: {
+        type: 'Point' as const,
+        coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat,
+      },
       properties: {
         name: p.stop!.stopName ?? p.stopId,
         state: stateFor(p.stopPathIndex, nextIndex),
       },
     }))
-  return {type: 'FeatureCollection' as const, features}
+  return { type: 'FeatureCollection' as const, features }
 }
 
 function stateFor(index: number, nextIndex: number): StopState {
@@ -78,7 +88,10 @@ function stateFor(index: number, nextIndex: number): StopState {
 
 export function boundsOf(coords: LngLat[]): [LngLat, LngLat] | null {
   if (coords.length === 0) return null
-  let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity
+  let minLon = Infinity,
+    minLat = Infinity,
+    maxLon = -Infinity,
+    maxLat = -Infinity
   for (const [lon, lat] of coords) {
     minLon = Math.min(minLon, lon)
     minLat = Math.min(minLat, lat)
@@ -104,18 +117,20 @@ export function algorithmsIn(predictions: Prediction[]): string[] {
   return out
 }
 
-/** Default algorithm: the available one with the lowest mean absolute error. */
-export function bestAlgorithm(available: string[], accuracy: Accuracy[]): string | undefined {
-  if (available.length === 0) return undefined
-  const ranked = [...available].sort((a, b) => errFor(a, accuracy) - errFor(b, accuracy))
-  return ranked[0] ?? undefined
+/** Preserve explicit selection; otherwise honor feed configuration, never global error rankings. */
+export function preferredAlgorithm(
+  available: string[],
+  configured: string[],
+  selected?: string,
+): string | undefined {
+  if (selected && available.includes(selected)) return selected
+  return configured.find((algorithm) => available.includes(algorithm)) ?? available[0]
 }
 
-function errFor(algorithm: string, accuracy: Accuracy[]): number {
-  return accuracy.find((a) => a.algorithm === algorithm)?.meanAbsErrorSec ?? Number.POSITIVE_INFINITY
-}
-
-export function accuracyFor(algorithm: string | undefined, accuracy: Accuracy[]): Accuracy | undefined {
+export function accuracyFor(
+  algorithm: string | undefined,
+  accuracy: Accuracy[],
+): Accuracy | undefined {
   if (!algorithm) return undefined
   return accuracy.find((a) => a.algorithm === algorithm) ?? undefined
 }
@@ -134,11 +149,13 @@ export interface StopRow {
   /** for reached stops: actual − predicted, in seconds (prediction error) */
   errorVsPredictionSec: number | null
   confidenceSec: number | null
+  actualReportGapSec: number | null
+  actualReliable: boolean | null
 }
 
 /** One row per pattern stop, joined with the selected algorithm's prediction. */
 export function stopRows(
-  vehicle: Vehicle,
+  vehicle: Pick<Vehicle, 'pattern' | 'stopPathIndex'>,
   predictions: Prediction[],
   algorithm: string | undefined,
 ): StopRow[] {
@@ -153,19 +170,31 @@ export function stopRows(
     .sort((a, b) => a.stopPathIndex - b.stopPathIndex)
     .map((sp) => {
       const p = byIndex.get(sp.stopPathIndex)
-      const arrived = !!p?.actualArrival
-      const eta = p?.actualArrival ?? p?.predictedArrival ?? null
+      const actual =
+        sp.stopPathIndex === 0 ? (p?.actualDeparture ?? p?.actualArrival) : p?.actualArrival
+      const predicted =
+        sp.stopPathIndex === 0
+          ? (p?.predictedDeparture ?? p?.predictedArrival)
+          : p?.predictedArrival
+      const scheduled =
+        sp.stopPathIndex === 0
+          ? (p?.scheduledDeparture ?? p?.scheduledArrival)
+          : p?.scheduledArrival
+      const arrived = !!actual
+      const eta = actual ?? predicted ?? null
       return {
         stopPathIndex: sp.stopPathIndex,
         stopId: sp.stopId,
         stopName: sp.stop?.stopName ?? sp.stopId,
-        state: stateFor(sp.stopPathIndex, nextIndex),
-        scheduledArrival: p?.scheduledArrival ?? null,
+        state: arrived ? 'passed' : stateFor(sp.stopPathIndex, nextIndex),
+        scheduledArrival: scheduled ?? null,
         eta,
         arrived,
-        deltaVsScheduleSec: diffSec(eta, p?.scheduledArrival ?? null),
-        errorVsPredictionSec: arrived ? diffSec(p?.actualArrival ?? null, p?.predictedArrival ?? null) : null,
+        deltaVsScheduleSec: diffSec(eta, scheduled ?? null),
+        errorVsPredictionSec: arrived ? diffSec(actual ?? null, predicted ?? null) : null,
         confidenceSec: p?.confidenceSec ?? null,
+        actualReportGapSec: p?.actualReportGapSec ?? null,
+        actualReliable: p?.actualReliable ?? null,
       }
     })
 }
@@ -180,12 +209,12 @@ const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
 /** Compass label for a bearing in degrees, e.g. 63 → "NE". */
 export function cardinal(bearing: number | null | undefined): string | null {
   if (bearing == null || !Number.isFinite(bearing)) return null
-  return COMPASS[Math.round(((bearing % 360) + 360) % 360 / 45) % 8]!
+  return COMPASS[Math.round((((bearing % 360) + 360) % 360) / 45) % 8]!
 }
 
 interface TrailReport {
   ts: string
-  position: { lat: number | null, lon: number | null } | null
+  position: { lat: number | null; lon: number | null } | null
 }
 
 /** AVL fixes as an oldest→newest [lon, lat] polyline. */

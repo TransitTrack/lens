@@ -1,12 +1,26 @@
 extend type Query {
-    "Open (not-yet-arrived) stop predictions for one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm; otherwise all algorithms configured for the feed are returned."
+    "Predicted and reached stops of one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm."
     vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): [StopPrediction!]!
-    "Recent prediction-error statistics per algorithm, over the last sinceDays days, overall and per lead-time horizon. Pass algorithm to restrict to one."
-    predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7): [PredictionAccuracySummary!]!
+    "Recent, paired prediction-error statistics, overall and by actual lead time. Compares currently configured algorithms unless algorithm restricts to one. Optional route, direction and observation-time context filters apply before pairing."
+    predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7, routeId: String, directionId: Int, dayType: PredictionDayType, timeBand: PredictionTimeBand): [PredictionAccuracySummary!]!
     "Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm."
     stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: PredictionAlgorithm): [StopPrediction!]!
     "Current headway (gap between consecutive vehicles) at a stop for one route/direction."
     headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: PredictionAlgorithm): Headway!
+}
+
+enum PredictionDayType {
+    WEEKDAY
+    SATURDAY
+    SUNDAY
+}
+
+enum PredictionTimeBand {
+    NIGHT
+    MORNING_PEAK
+    MIDDAY
+    AFTERNOON_PEAK
+    EVENING
 }
 
 "A method for predicting a vehicle's arrival/departure time at an upcoming stop."
@@ -27,38 +41,62 @@ type StopPrediction {
     "ISO-8601 instant of the scheduled arrival, or null if the trip has no scheduled arrival at this stop."
     scheduledArrival: String
     scheduledDeparture: String
-    "ISO-8601 instant the vehicle actually arrived, present once the stop has been reached."
+    "ISO-8601 GPS-interpolated arrival, present once the stop has been reached."
     actualArrival: String
     actualDeparture: String
-    "ISO-8601 instant of the predicted arrival; null once actualArrival is set."
+    "ISO-8601 predicted arrival, retained after arrival for comparison with the actual."
     predictedArrival: String
     predictedDeparture: String
     "The algorithm that produced this prediction, or null for a stop already reached (no prediction was needed)."
     algorithm: PredictionAlgorithm
-    "How far in the future this prediction reaches, in seconds; larger values are typically less reliable."
+    "Estimated arrival standard deviation in seconds (one SD), not a guaranteed confidence interval. Includes uncertainty of unlearned legs and ageing Kalman state."
     confidenceSec: Int
+    "ISO-8601 timestamp of the AVL observation used to generate this prediction, independent of processing time."
+    sourceReportTs: String
+    "Gap in seconds between GPS reports bracketing the actual crossing; null when unknown."
+    actualReportGapSec: Int
+    "Whether the actual crossing meets the configured report-gap quality limit; null when unknown."
+    actualReliable: Boolean
 }
 
 "Aggregate prediction error for one algorithm over a recent time window. Each stop the vehicle reaches is scored once per lead-time horizon a prediction was made within, so the overall figures pool every horizon."
 type PredictionAccuracySummary {
     algorithm: PredictionAlgorithm!
-    "Number of resolved (predicted-then-actual) samples this summary is computed from, across all horizons."
+    "Available forecasts across eligible shared snapshots and all horizons."
     sampleCount: Int!
+    "Eligible shared snapshots, including missing forecasts. Only reliable actual crossings are scored."
+    eligibleCount: Int!
+    "Available forecasts divided by eligibleCount; conditional on matched observations, not total scheduled service."
+    predictionCoverage: Float!
+    "Snapshots where every compared algorithm produced a forecast. Error statistics use only these paired samples."
+    pairedSampleCount: Int!
     "Mean signed error in seconds (actual minus predicted); positive means vehicles got there later than predicted."
-    meanErrorSec: Float!
+    meanErrorSec: Float
     "Mean absolute error in seconds."
-    meanAbsErrorSec: Float!
+    meanAbsErrorSec: Float
+    p90AbsErrorSec: Float
+    p95AbsErrorSec: Float
+    "Observed fraction of errors within the algorithm's one-SD spread, among available forecasts with a spread."
+    confidenceCoverage: Float
+    confidenceSampleCount: Int!
     "The same statistics per lead-time horizon, shortest first."
     byHorizon: [PredictionAccuracyHorizon!]!
 }
 
-"Prediction error for predictions made at most horizonSec (and more than the next shorter horizon) ahead of the predicted time."
+"Prediction error for snapshots made at most horizonSec (and more than the next shorter horizon) before the actual crossing."
 type PredictionAccuracyHorizon {
     horizonSec: Int!
     sampleCount: Int!
+    eligibleCount: Int!
+    predictionCoverage: Float!
+    pairedSampleCount: Int!
     "Mean signed error in seconds (actual minus predicted); positive means vehicles got there later than predicted."
-    meanErrorSec: Float!
-    meanAbsErrorSec: Float!
+    meanErrorSec: Float
+    meanAbsErrorSec: Float
+    p90AbsErrorSec: Float
+    p95AbsErrorSec: Float
+    confidenceCoverage: Float
+    confidenceSampleCount: Int!
 }
 
 "Current gap between consecutive vehicles serving a route/direction at a stop, compared to what the schedule calls for."

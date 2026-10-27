@@ -1,0 +1,90 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0020-prediction-source-and-crossing-quality
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: vehicle_prediction
+            columns:
+              - column: { name: source_report_ts, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: service_date, type: DATE }
+              - column: { name: actual_report_gap_sec, type: INT }
+        - addColumn:
+            tableName: avl_stop_crossing
+            columns:
+              - column: { name: run_started_at, type: "TIMESTAMP WITH TIME ZONE" }
+              - column: { name: report_gap_sec, type: INT }
+
+  - changeSet:
+      id: 0020-shared-prediction-snapshots
+      author: transittrack
+      comment: >
+        Replace unscored ETA-selected checkpoints with shared report-time snapshots. Their old
+        sampling policy cannot be converted into paired, actual-lead observations. Existing scored
+        accuracy is retained, but excluded from the new comparison via its null actual_lead_sec.
+      changes:
+        - delete: { tableName: prediction_checkpoint }
+        - dropUniqueConstraint: { tableName: prediction_checkpoint, constraintName: uq_prediction_checkpoint_key }
+        - dropColumn: { tableName: prediction_checkpoint, columnName: horizon_sec }
+        - dropNotNullConstraint: { tableName: prediction_checkpoint, columnName: predicted_ts, columnDataType: "TIMESTAMP WITH TIME ZONE" }
+        - addColumn:
+            tableName: prediction_checkpoint
+            columns:
+              - column: { name: sample_slot, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: confidence_sec, type: INT }
+              - column: { name: service_date, type: DATE }
+        - addUniqueConstraint:
+            tableName: prediction_checkpoint
+            columnNames: "feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, sample_slot"
+            constraintName: uq_prediction_checkpoint_key
+        - dropNotNullConstraint: { tableName: prediction_accuracy, columnName: predicted_ts, columnDataType: "TIMESTAMP WITH TIME ZONE" }
+        - dropNotNullConstraint: { tableName: prediction_accuracy, columnName: error_sec, columnDataType: INT }
+        - dropNotNullConstraint: { tableName: prediction_accuracy, columnName: abs_error_sec, columnDataType: INT }
+        - addColumn:
+            tableName: prediction_accuracy
+            columns:
+              - column: { name: actual_lead_sec, type: INT }
+              - column: { name: confidence_sec, type: INT }
+              - column: { name: route_id, type: VARCHAR(255) }
+              - column: { name: direction_id, type: SMALLINT }
+              - column: { name: day_type, type: SMALLINT }
+              - column: { name: time_band, type: SMALLINT }
+        - createIndex:
+            tableName: prediction_accuracy
+            indexName: ix_prediction_accuracy_actual
+            columns: [ { column: { name: feed_code } }, { column: { name: actual_ts } } ]
+
+  - changeSet:
+      id: 0020-frequency-run-and-issued-time
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: prediction_checkpoint
+            columns:
+              - column: { name: produced_at, type: "TIMESTAMP WITH TIME ZONE" }
+        - addColumn:
+            tableName: prediction_accuracy
+            columns:
+              - column: { name: produced_at, type: "TIMESTAMP WITH TIME ZONE" }
+        - createTable:
+            tableName: prediction_frequency_run
+            columns:
+              - column: { name: feed_code, type: VARCHAR(255), constraints: { nullable: false, primaryKey: true } }
+              - column: { name: vehicle_id, type: VARCHAR(255), constraints: { nullable: false, primaryKey: true } }
+              - column: { name: trip_row_id, type: BIGINT, constraints: { nullable: false, primaryKey: true } }
+              - column: { name: service_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: run_started_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: last_report_ts, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: start_time_sec, type: INT }
+              - column: { name: last_distance_along_trip_m, type: DOUBLE PRECISION }
+        - addForeignKeyConstraint:
+            baseTableName: prediction_frequency_run
+            baseColumnNames: feed_code
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            constraintName: fk_prediction_frequency_run_feed
+            onDelete: CASCADE
+        - createIndex:
+            tableName: prediction_frequency_run
+            indexName: ix_prediction_frequency_run_report
+            columns: [ { column: { name: last_report_ts } } ]

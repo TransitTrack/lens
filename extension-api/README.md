@@ -23,7 +23,9 @@ minimal, buildable extension exercising all of this end to end.
 **Stability:** all four interfaces below may gain new methods in a minor
 release (implement against an interface, and a later minor version may add
 a method you need to implement too — watch the changelog). No existing
-method's signature changes without a major version bump.
+interface method's signature changes without a major version bump. Supporting
+data classes are not binary-stable: rebuild extension jars when their
+constructor/data-class shape changes.
 
 ## AVL feed decoders
 
@@ -121,7 +123,10 @@ interface PredictionStrategy {
 - `HorizonStop` — one stop, on one trip, within the vehicle's remaining
   prediction horizon (built by core from the match outcome).
   `remainingFraction` is the share of the first stop's stop path the vehicle
-  still has to cover; every later stop is 1.0.
+  still has to cover; every later stop is 1.0. `tripHop` is zero for the matched
+  trip and positive for future block trips, even when the matched trip's
+  terminal has already left the horizon. This defaulted constructor addition
+  is source-compatible, but existing compiled extensions must be rebuilt.
 - `adherenceSec` is `null` when the match has no usable schedule adherence —
   predict nothing rather than assume the vehicle is on time.
 - `GeneratedPrediction` — one strategy's predicted arrival/departure and
@@ -130,9 +135,11 @@ interface PredictionStrategy {
 Bundled strategies (`ScheduleAdherenceAlgorithm`,
 `HistoricalAverageAlgorithm`, `KalmanAlgorithm`, all in core) show the
 pattern: an extension registering a `PredictionStrategy` bean with a
-distinct `algorithm` makes that algorithm selectable per-feed via
-`transittrack.predict.algorithm`, or run alongside the others under
-`transittrack.predict.mode: EVALUATION`.
+distinct `algorithm` makes it selectable per-feed through
+`transittrack.feed.feeds[].avl.prediction-algorithms`. All listed algorithms run;
+the first is the designated read/UI default. A missing output is retained as
+unavailable in shared accuracy snapshots, rather than disappearing from their
+coverage denominator.
 
 ## Supporting types
 
@@ -142,5 +149,5 @@ interfaces above: `TripRef`, `BlockTripRef`, `StopPathRef`
 (`eu.transittrack.avl.match`). Also re-exported here for extensions that
 need them directly: `Point`, `Vector`, `Polyline`, `Projection`
 (`eu.transittrack.Geo`), `AvlFormat`, `AvlAssignmentMode`
-(`eu.transittrack.AvlEnums`), `PredictionAlgorithm`, `PredictionMode`
+(`eu.transittrack.AvlEnums`), `PredictionAlgorithm`
 (`eu.transittrack.predict.PredictionEnums`).

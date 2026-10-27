@@ -7,7 +7,8 @@ headway/wait-time view — over a Spring GraphQL read API.
 
 Schema migrations: `src/main/resources/db/changelog/0003-predict.yaml`, reshaped
 by 0010/0012/0015/0016/0017 (feed-code keys, sequences, pattern keys, learning
-buckets) and 0018/0019 (claim index, accuracy horizons).
+buckets), 0018/0019 (claim index, accuracy horizons), and 0020 (source freshness,
+crossing quality, persistent frequency runs and shared accuracy snapshots).
 Builds directly on top of the AVL subsystem — see [`docs/avl.md`](avl.md) first.
 
 ---
@@ -27,7 +28,7 @@ flowchart TD
 
     D --> I["generation"]
     I --> J[("vehicle_prediction<br/>upserted, current trip + up to 2 block-trips")]
-    I --> M[("prediction_checkpoint<br/>first prediction per lead-time horizon")]
+    I --> M[("prediction_checkpoint<br/>shared fixed-slot snapshots, including missing output")]
     J --> K(["GraphQL: vehiclePredictions / stopPredictions /<br/>headway / predictionAccuracy"])
 
     D --> L["vehicle_match row marked DONE (or FAILED)<br/>decoupled from the AVL match cycle"]
@@ -70,13 +71,19 @@ nor rolls back the stop passes and learning of the same report. Its failure is
 rethrown once everything else is committed, so the `vehicle_match` row is still
 marked `FAILED`.
 
+Generation requires a source report no older than `run.max-source-age-sec`
+(default 600). A backlog is still processed for crossings and learning, but
+reprocessing old GPS data does not turn it into a live forecast. Source report
+time, GTFS service date and processing time are stored separately.
+
 ---
 
 ## 2. Configuration
 
-The whole tree is under `transittrack.predict` and is **disabled by default**
-(`enabled: false`) — no beans that touch predictions are created, and
-`AvlMatchProcessor` runs exactly as it does without this module.
+The whole tree is under `transittrack.predict`. The configuration class defaults
+to `enabled: false`, but the shipped `application.yaml` explicitly enables it.
+Setting it to `false` disables generation and prediction housekeeping; the read
+API remains available for stored data.
 
 ```yaml
 transittrack:
@@ -88,24 +95,28 @@ transittrack:
           # ...AVL fields (see docs/avl.md)...
           prediction-algorithms: [ SCHEDULE_ADHERENCE, KALMAN ]   # first one is the feed's designated algorithm
   predict:
-    enabled: false
+    enabled: true
     run:
       interval-ms: 5000                            # PredictionProcessor's own poll cadence, independent of avl.match.match-interval-ms
       claim-batch-size: 500
       prediction-min-change-sec: 10                # an open prediction moving less than this is not rewritten...
-      prediction-refresh-sec: 120                  # ...unless its computed_at is older than this (must be < 600)
+      prediction-refresh-sec: 120                  # ...unless its computed_at is older than this
+      max-source-age-sec: 600                      # generation and live reads use source GPS age; refresh must be below this
     learn:
       max-plausible-travel-time-sec: 1800          # samples outside (0, this] are discarded, not learned from
       kalman-measurement-noise-sec2: 400.0         # ~20s std-dev of a single observation
       kalman-initial-variance-sec2: 3600.0         # ~60s std-dev before any observation
       kalman-process-noise-sec2: 25.0              # drift allowed per sample; keeps the gain from decaying to zero
+      kalman-variance-growth-sec2-per-hour: 400.0  # additional uncertainty while evidence ages
+      max-reliable-report-gap-sec: 120            # longer GPS intervals still record actuals, but aren't trusted labels
       history-window: 50                           # past this many samples each new one weighs 1/window
       history-prior-samples: 5                     # the schedule seed counts as this many samples in the average
       outlier-min-deviation-sec: 60.0              # a sample is clipped to estimate ± max(this,
       outlier-max-relative-deviation: 1.0          #   this × estimate) before either learner takes it in
       min-bucket-samples: 10                       # a bucket is trusted over its roll-up from this many samples
     accuracy:
-      horizons-sec: [ 60, 180, 300, 600, 900, 1200, 1800 ]   # lead times accuracy is sampled at (§5)
+      horizons-sec: [ 60, 180, 300, 600, 900, 1200, 1800 ]   # actual lead-time upper bounds (§5)
+      sample-interval-sec: 60                      # shared source-report slots, independent of each algorithm's ETA
     retention:
       prediction-hours: 6
       accuracy-days: 30
@@ -139,8 +150,8 @@ before any prediction is (re)generated:
   prediction run no longer predicts it.
 - Each pass is appended to `avl_stop_crossing` (also the optimizer's input).
   GPS jitter carrying a vehicle across the same stop twice counts once: a stop
-  already passed on that trip within `max-plausible-travel-time-sec` is
-  skipped.
+  already passed within the current service day/run and
+  `max-plausible-travel-time-sec` is skipped.
 - A pass whose previous stop on the same trip was also passed yields one
   **stop-to-stop sample**: the time from passing stop `k-1` to reaching stop
   `k` (so it includes the dwell at `k-1`). A sample outside
@@ -149,6 +160,12 @@ before any prediction is (re)generated:
   times are interpolated over one interval, so the "sample" would only echo
   the uniform-speed assumption (the passes are still recorded and fill
   actuals).
+- `report_gap_sec` records the report interval, rounded **up** to whole seconds.
+  A gap above `learn.max-reliable-report-gap-sec` marks the actual unreliable.
+  Learning requires reliable intervals at **both** endpoints; a reliable new
+  crossing cannot rehabilitate an unreliable or legacy unknown endpoint.
+  Unreliable actuals remain visible, but their checkpoints are discarded without
+  accuracy scoring. `transittrack.prediction.crossings.unreliable` counts them.
 - Every pass fills `actual_arrival_ts` (`actual_departure_ts` for stop 0) on
   the vehicle's `vehicle_prediction` rows for that stop, and scores its
   accuracy checkpoints (§5).
@@ -183,7 +200,8 @@ tracking changing conditions.
 travel-time value itself:
 
 ```
-prior = errorVariance + processNoise        // no process noise on the first sample
+agedVariance = errorVariance + max(0, evidenceAgeHours) * varianceGrowthPerHour
+prior = agedVariance + processNoise         // no process noise on the first sample
 gain = prior / (prior + measurementNoise)
 estimateSec += gain * (clippedSample - estimateSec)
 errorVariance = prior * measurementNoise / (prior + measurementNoise)
@@ -191,11 +209,14 @@ errorVariance = prior * measurementNoise / (prior + measurementNoise)
 
 With the defaults the gain settles around 0.2.
 
-A `KALMAN` prediction's `confidenceSec` is `√Σ(errorVariance + measurementNoise)`
-over the learned legs from the vehicle to the stop — the spread of the next
-actual travel time, not just of the estimate. `errorVariance` alone shrinks
-towards zero as samples accumulate and would claim near-certainty; adding the
-measurement noise keeps it at least ~20 s per leg with the defaults.
+A `KALMAN` prediction's `confidenceSec` is an estimated **one-standard-deviation
+spread**, not a confidence percentage. Each learned leg contributes its state
+variance, measurement noise and elapsed-evidence-age variance. An unlearned
+schedule-fallback leg contributes `initialVariance + measurementNoise` (4000
+sec² by default), rather than silently adding zero uncertainty. A partial leg's
+variance scales by `remainingFraction²`; independent-leg variances accumulate.
+The defaults are conservative modeling assumptions, not empirically calibrated
+production values; §5 exposes their observed coverage.
 
 Both learners are **seeded from the schedule-derived stop-to-stop time**
 (`travel_times_for_stop_path` travel time plus the dwell at the previous stop)
@@ -206,8 +227,11 @@ predictions are sane from the very first match.
 **Consistency.** All reads and writes of one report go through a single
 `StatelessSession` transaction. Learner rows are read with `SELECT ... FOR UPDATE`
 in a fixed order (stop path ascending, then fine to coarse bucket, observation
-before Kalman state), so two AVL feeds sharing a GTFS feed can learn into the
-same rows concurrently without losing samples or deadlocking.
+before Kalman state). A transaction-scoped advisory lock per GTFS feed/pattern
+also protects initialization when there is no row to lock yet. Concurrent first
+samples are therefore retained without inserting artificial seed observations.
+Learner freshness uses the newest source evidence timestamp, not processing time,
+and older samples cannot move that timestamp backwards.
 
 **Batching.** A report's writes are batched rather than issued row by row: one
 locking `SELECT` per learner table for every bucket the report's samples touch,
@@ -230,7 +254,8 @@ stop_path_index, algorithm)`, upserted in place (native
 - **Created on first match** for the vehicle's current trip (stop paths from
   its current position through the end of the trip) plus up to its next **2
   block-trips** (fewer than 2 remain in the block → predict as many as
-  exist). Stop paths before the vehicle was first observed on the trip never
+  exist). A flagged deadhead transition ends the horizon: there is no modeled
+  transfer duration to support a forecast across it. Stop paths before the vehicle was first observed on the trip never
   get a row — there's nothing to predict (already past) and nothing to
   backfill as actual (the vehicle wasn't tracked yet).
 - **The same row later gets `actual_arrival_ts`/`actual_departure_ts` filled
@@ -242,28 +267,40 @@ stop_path_index, algorithm)`, upserted in place (native
   predicted, in one row.
 - A row that just got an actual filled in is no longer forward-looking, so
   `stopPredictions`/headway (§6) exclude it — only rows with
-  `predicted_arrival_ts != null && actual_arrival_ts == null` count for those
+  `predicted_arrival_ts != null && actual_arrival_ts == null && actual_departure_ts == null` count for those
   reads. (`vehiclePredictions` has no such filter — it shows the full trip
   history including already-crossed stops.)
 - **A row with an actual is not overwritten** by later prediction runs (a
   vehicle jittering back before a stop it passed would otherwise wipe the
-  pass): it is only replaced once its `computed_at` is older than
-  `retention.prediction-hours`, i.e. the same trip row on a later service day,
-  which also resets the actuals.
+  pass). A different persisted `service_date` resets the row and its actuals
+  immediately; expiry remains a fallback for older rows without that date.
+  Older source reports cannot overwrite newer predictions or delete their
+  remaining horizon.
 - **An open row is only rewritten when it changed**: its block or pattern
   changed, a predicted time appeared or disappeared, or a predicted time moved
   by at least `run.prediction-min-change-sec` — or its `computed_at` is older
-  than `run.prediction-refresh-sec`, so readers (which drop rows older than
-  10 minutes) keep seeing it as live. This spares most rows the write a
+  than `run.prediction-refresh-sec`, refreshing its source evidence. Live readers
+  use `source_report_ts` against `run.max-source-age-sec`, never `computed_at`.
+  This spares most rows the write a
   vehicle's every report would otherwise cost.
+
+Learned arrival-to-arrival duration is split into travel and preceding dwell in
+the schedule's proportions. The previous departure and next arrival use that
+same split, so a shortened learned leg cannot put departure after the following
+arrival. Future block-trip metadata survives omission of a reached terminal,
+allowing the next trip's scheduled layover to absorb previous lateness.
 
 **Frequency-based trips** (GTFS `frequencies.txt`) have no clock times, so
 `SCHEDULE_ADHERENCE` predicts none of their stops (nor anything after them in
 the horizon), and the learned algorithms don't hold a vehicle at their first
 stop until a scheduled departure. A frequency trip runs as repeated laps on
-the same trip row: a pass at a stop before one already passed on the trip
-starts a new lap, which drops the previous lap's passes and clears its rows'
-actuals and checkpoints.
+the same trip row. `prediction_frequency_run` persists the current service date,
+run boundary, descriptor departure and latest report/distance per feed/vehicle/trip,
+so returning after another assignment does not reload the old lap.
+A changed service date/descriptor departure or recognized backwards reset starts
+a new run **before its first crossing**. Previous predictions and pending
+checkpoints are cleared, while historical crossings remain intact and are
+excluded from current-run learning. Matching still has the limitation in §9.
 
 ---
 
@@ -272,35 +309,53 @@ actuals and checkpoints.
 Scoring only a stop's latest prediction — refreshed on every match until the
 vehicle gets there — would measure predictions made seconds before arrival,
 which every algorithm gets nearly right. Accuracy is therefore sampled at
-fixed **lead-time horizons** (`accuracy.horizons-sec`, default 1, 3, 5, 10, 15,
-20 and 30 minutes):
+fixed shared snapshots, then grouped into **actual lead-time horizons**
+(`accuracy.horizons-sec`, default 1, 3, 5, 10, 15, 20 and 30 minutes):
 
-1. **Capture.** Whenever predictions are generated, each one's lead time is
-   `predicted time − report time` (predicted departure for a trip's first stop,
-   predicted arrival otherwise). It falls in the shortest horizon at least that
-   long; an overdue stop counts as the shortest horizon, and one further ahead
-   than the longest horizon is not sampled. The **first** prediction per
-   `(vehicle, trip, stop, algorithm, horizon)` is kept in
-   `prediction_checkpoint` — later ones in the same horizon don't replace it.
-   A stop the vehicle already passed (its row has an actual) gets no new
-   checkpoint.
-2. **Score.** When the vehicle passes the stop, each of its checkpoints becomes
-   one `prediction_accuracy` row (with `horizon_sec` and `predicted_at`, the
-   report time the prediction was made at) and is deleted:
+1. **Capture.** Source report time is rounded down to
+   `accuracy.sample-interval-sec` (default 60 seconds). The first report cohort
+   in each slot is retained for every horizon target and configured algorithm.
+   Missing output, including strategy failure, is an explicit null forecast.
+   Later reports cannot fill a cohort with different source/production times.
+   Already-passed stops get no new snapshot.
+2. **Timestamp.** `computed_at` on a checkpoint is its source report time;
+   `produced_at` is captured just before persistence, after generation and
+   crossing/learner locking. Source freshness is checked again there.
+3. **Score.** At a reliable crossing, lead is `actual − produced_at`, never
+   `predicted − report`. Snapshots from another service date, issued after the
+   crossing, or beyond the longest horizon are excluded. In each non-overlapping
+   lead-time bin, the earliest issued cohort supplies **all** algorithms'
+   results. Stop 0 uses departure; other stops use arrival. Consumed checkpoints
+   are deleted. Accuracy retains source time as `predicted_at` and issuance time
+   separately as `produced_at`:
 
 ```
 error_sec = actual − predicted     // positive = the vehicle got there later than predicted
 ```
 
-A checkpoint older than `retention.prediction-hours` when it would be scored
-(or when a new one would be captured) is the same trip row on an earlier
-service day, and is dropped or replaced instead.
+Missing output has null prediction/error fields, not fabricated zero error.
+Snapshots older than the longest scored lead plus one sample interval are
+pruned as new ones are captured; retention also removes abandoned checkpoints.
 
-`predictionAccuracy` aggregates in SQL per algorithm and horizon: the overall
-figures pool every horizon, and `byHorizon` breaks them down — the latter is
-what to compare when choosing a feed's algorithm, since algorithms differ most
-at the longer horizons. Accuracy rows written before horizons existed
-(`horizon_sec` null) are left out of the summary. The
+`predictionAccuracy` compares the feed's configured algorithms by default, or
+one explicitly requested algorithm. Cohorts must contain a recorded outcome
+for every compared algorithm at identical source/production times. `eligibleCount`
+is that denominator; `sampleCount` and `predictionCoverage` show available
+forecasts. MAE, signed error and P90/P95 use **only fully paired cohorts**,
+reported as `pairedSampleCount`. Unavailable comparisons return null error
+statistics. Overall percentiles pool raw paired errors across horizons; they
+are not averages of horizon percentiles.
+
+`byHorizon` separates near-term and longer-range performance. Optional route,
+direction, day-type and source-observation-time-band filters allow contextual
+comparisons. `confidenceCoverage` measures the fraction of available forecasts
+whose absolute error is within their estimated one-SD spread;
+`confidenceSampleCount` gives that separate denominator.
+
+Migration 0020 clears only old **unscored checkpoints**. Scored history remains
+stored (and usable as raw optimizer evidence), but legacy ETA-selected rows are
+excluded from the new comparison because they lack actual-lead/issuance markers.
+Comparable summaries therefore refill from newly observed crossings. The
 `transittrack.prediction.error` / `.absolute.error` metrics are tagged only by
 `feed` and `algorithm` (pooling every horizon) to keep their cardinality flat;
 use `byHorizon` for the per-horizon breakdown.
@@ -344,6 +399,7 @@ runs on `retention.sweep-cron` (hourly, offset from the AVL sweep):
 | --- | --- | --- |
 | `vehicle_prediction` | `computed_at` older than `retention.prediction-hours` (default 6h) | predictions go stale fast |
 | `prediction_checkpoint` | `computed_at` older than `retention.prediction-hours` | never scored: the vehicle didn't reach (or wasn't seen passing) the stop |
+| `prediction_frequency_run` | `last_report_ts` older than `retention.prediction-hours` | idle run state; raw crossing history is retained independently |
 | `prediction_accuracy` | `created_at` older than `retention.accuracy-days` (default 30d) | kept far longer — this is what an operator reviews to pick an algorithm |
 | `avl_stop_crossing` | `observed_at` older than `retention.raw-crossing-days` (default 90d) | raw passes, input to schedule optimization |
 | `travel_time_observation` | no stored revision of its GTFS feed has a pattern with its `pattern_key` | orphan sweep; a revision swap that keeps a pattern keeps its learning |
@@ -357,7 +413,8 @@ runs on `retention.sweep-cron` (hourly, offset from the AVL sweep):
 vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): [StopPrediction!]!
 stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: PredictionAlgorithm): [StopPrediction!]!
 headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: PredictionAlgorithm): Headway!
-predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7): [PredictionAccuracySummary!]!
+predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7,
+  routeId: String, directionId: Int, dayType: PredictionDayType, timeBand: PredictionTimeBand): [PredictionAccuracySummary!]!
 ```
 
 - `vehiclePredictions` — every `vehicle_prediction` row for that vehicle's
@@ -369,10 +426,14 @@ predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays:
   aggregates), restricted to the requested AVL feed. A trip predicted by two
   vehicles at once (the one running it, and one with it later in its block)
   counts once: the vehicle actually on the trip wins, otherwise the most
-  recently computed prediction.
+  recent source report. The deduplicated result is explicitly ordered by arrival.
 - `headway` — see §6.
-- `predictionAccuracy` — see §5. Each summary carries `sampleCount`,
-  `meanErrorSec`, `meanAbsErrorSec` and `byHorizon { horizonSec sampleCount meanErrorSec meanAbsErrorSec }`.
+- `predictionAccuracy` — see §5. Summary and horizon rows expose availability,
+  paired sample counts, nullable error/percentile metrics and one-SD coverage.
+- `StopPrediction` includes `sourceReportTs`, `actualReportGapSec` and
+  `actualReliable`. The vehicle timeline uses departure for stop 0 and warns on
+  unreliable actuals. Its default algorithm follows feed configuration, not
+  an unqualified global-MAE ranking.
 
 ```graphql
 {
@@ -387,26 +448,17 @@ predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays:
 
 ## 9. Known limitations
 
-1. **`vehicle_prediction`'s uniqueness key has no `service_date` column** —
-   it's `(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm)`.
-   Since a GTFS `trip_row_id` recurs every day its calendar runs, an
-   `actual_arrival_ts` filled in on one service day could in principle survive
-   into the next occurrence of the same trip if retention hasn't pruned it
-   yet. In practice this is mitigated by `retention.prediction-hours`
-   defaulting to 6h, well under the typical ~24h interval between recurrences
-   — **operators should keep `prediction-hours` well under the shortest
-   trip-repeat interval** for that mitigation to hold. Accuracy checkpoints
-   rely on the same bound to tell service days apart.
-2. **Learned state resets when a pattern changes** — a new route, shape or stop
+1. **Learned state resets when a pattern changes** — a new route, shape or stop
    list gives the pattern a new `pattern_key`, and its learning starts again
    from the schedule seed.
-3. **Stop passes between two sparse reports are interpolated** at uniform
+2. **Stop passes between two reports are interpolated** at uniform
    speed. Samples between stops passed in the same interval are dropped (§3),
-   but a sample's two ends are still interpolated, so sparse reports blur
-   where the dwell and any stop-and-go fall.
-4. **Outlier clipping biases skewed travel times slightly low**: the long
+   and excessive gaps are excluded, but accepted endpoints remain approximate.
+   Empirical uncertainty calibration and correlated-leg modeling are not yet
+   implemented.
+3. **Outlier clipping biases skewed travel times slightly low**: the long
    tail of genuinely slow trips is clipped together with true outliers.
-5. **A frequency trip's next lap is only recognized after a matching gap.**
+4. **A frequency trip's next lap may require a matching gap/reassignment.**
    The AVL matchers never match a vehicle backwards along the trip it is
    already on, so a vehicle looping straight back to the start of the same
    frequency trip stays matched near the end until it is unmatched or matched

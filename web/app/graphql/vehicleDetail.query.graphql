@@ -82,8 +82,14 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
       stopName
     }
     scheduledArrival
+    scheduledDeparture
     predictedArrival
+    predictedDeparture
     actualArrival
+    actualDeparture
+    actualReportGapSec
+    actualReliable
+    sourceReportTs
     algorithm
     confidenceSec
   }
@@ -92,5 +98,12 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
     sampleCount
     meanErrorSec
     meanAbsErrorSec
+    eligibleCount
+    predictionCoverage
+    pairedSampleCount
+    p90AbsErrorSec
+    p95AbsErrorSec
+    confidenceCoverage
+    confidenceSampleCount
   }
 }
