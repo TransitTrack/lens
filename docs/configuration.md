@@ -159,6 +159,8 @@ Full behavior: [docs/predictions.md](predictions.md).
 | `enabled` | `true` | Master switch — `false` means no `PredictionProcessor`/related beans exist |
 | `run.interval-ms` | `5000` | `PredictionProcessor` per-feed fixed delay (independent of `avl.match.match-interval-ms`) |
 | `run.claim-batch-size` | `500` | Max `PENDING` `vehicle_match` rows claimed per feed per cycle |
+| `run.prediction-min-change-sec` | `10` | An open `vehicle_prediction` row whose predicted times moved less than this is not rewritten |
+| `run.prediction-refresh-sec` | `120` | …unless its `computed_at` is older than this; must be in `[0, 600)` so readers keep it live |
 | `learn.max-plausible-travel-time-sec` | `1800` | Upper bound on a travel-time observation before it's discarded as noise |
 | `learn.kalman-measurement-noise-sec2` | `400.0` | Kalman filter measurement noise variance |
 | `learn.kalman-initial-variance-sec2` | `3600.0` | Kalman filter initial state variance |

@@ -23,6 +23,14 @@ data class PredictionAccuracySummaryDto(
     val sampleCount: Int,
     val meanErrorSec: Double,
     val meanAbsErrorSec: Double,
+    val byHorizon: List<PredictionAccuracyHorizonDto> = emptyList(),
+)
+
+data class PredictionAccuracyHorizonDto(
+    val horizonSec: Int,
+    val sampleCount: Int,
+    val meanErrorSec: Double,
+    val meanAbsErrorSec: Double,
 )
 
 data class HeadwayDto(

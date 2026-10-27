@@ -56,10 +56,11 @@ interface VehiclePredictionRepository : JpaRepository<VehiclePrediction, Long> {
     ): List<VehiclePrediction>
 
     @Query(
-        "select e from VehiclePrediction e where e.tripPatternId = :tripPatternId " +
+        "select e from VehiclePrediction e where e.feedCode = :feedCode and e.tripPatternId = :tripPatternId " +
             "and e.stopPathIndex = :stopPathIndex and e.algorithm = :algorithm",
     )
     fun findByPatternStopAlgorithm(
+        @Param("feedCode") feedCode: String,
         @Param("tripPatternId") tripPatternId: Long,
         @Param("stopPathIndex") stopPathIndex: Int,
         @Param("algorithm") algorithm: PredictionAlgorithm,

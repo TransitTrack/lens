@@ -3,6 +3,7 @@ package eu.transittrack.predict
 import kotlin.test.Test
 
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
@@ -21,6 +22,7 @@ class PredictSchemaMigrationTest(
             "kalman_travel_time_state",
             "vehicle_prediction",
             "prediction_accuracy",
+            "prediction_checkpoint",
         )) {
             val n = jdbc.queryForObject(
                 "select count(*) from information_schema.tables where table_name = ?",
@@ -39,5 +41,25 @@ class PredictSchemaMigrationTest(
             Int::class.java,
         )
         assertThat(n).isEqualTo(1)
+    }
+
+    @Test
+    fun `prediction claim query is served by a partial index on pending matches`() {
+        val def = jdbc.queryForObject(
+            "select indexdef from pg_indexes where tablename = 'vehicle_match' and indexname = 'ix_vehicle_match_pending'",
+            String::class.java,
+        )!!
+        assertThat(def).contains("(feed_code, ts, vehicle_id)")
+        assertThat(def).contains("WHERE (prediction_status = 0)")
+    }
+
+    @Test
+    fun `prediction_accuracy records the horizon and time each prediction was made`() {
+        val n = jdbc.queryForObject(
+            "select count(*) from information_schema.columns where table_name = 'prediction_accuracy' " +
+                "and column_name in ('horizon_sec', 'predicted_at')",
+            Int::class.java,
+        )
+        assertThat(n).isEqualTo(2)
     }
 }

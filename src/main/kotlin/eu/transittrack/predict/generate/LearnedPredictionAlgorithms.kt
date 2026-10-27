@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.match.MatchContext
 import eu.transittrack.avl.match.cache.CachedLearningKeyReader
+import eu.transittrack.avl.match.cache.CachedTravelTimesReader
 import eu.transittrack.predict.PredictProperties
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.learn.TravelTimeBucket
@@ -16,7 +17,6 @@ import eu.transittrack.predict.learn.pickLearned
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPath
-import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 
 /**
  * Schedule-derived stop-to-stop time for stop path [stopPathIndex]: the time from passing the
@@ -38,7 +38,10 @@ private fun dwellBeforeSec(
     stopPathIndex: Int,
 ): Double = if (stopPathIndex >= 2) (seeds[stopPathIndex - 1]?.dwellTimeSec ?: 0).toDouble() else 0.0
 
-/** A learned stop-to-stop time, with its variance when the learner tracks one. */
+/**
+ * A learned stop-to-stop time, with the variance of the next vehicle's actual time around it when the
+ * learner tracks one.
+ */
 internal data class LearnedStopToStop(
     val sec: Double,
     val varianceSec2: Double?,
@@ -50,19 +53,19 @@ internal data class LearnedStopToStop(
  * stop path is driven in, falling back to coarser roll-ups, else the schedule seed) from
  * [startTs]. Only the uncovered share of the vehicle's current stop path is counted. At a trip's
  * first stop the vehicle isn't predicted to leave before its scheduled departure, which also
- * carries it across into the next block trip. Confidence, when any learned
- * variance is involved, is the standard deviation accumulated along the walk so far.
+ * carries it across into the next block trip (a frequency-based trip has no clock-time departure to
+ * hold for). Confidence, when any learned variance is involved, is the standard deviation
+ * accumulated along the walk so far, treating stop paths as independent.
  */
 internal fun walkHorizon(
     horizon: List<HorizonStop>,
     serviceDate: LocalDate,
     startTs: Instant,
     ctx: MatchContext,
-    seedRepository: TravelTimesForStopPathRepository,
+    seedReader: CachedTravelTimesReader,
     minBucketSamples: Int,
     learnedFor: (tripPatternId: Long) -> Map<Int, Map<TravelTimeBucket, LearnedStopToStop>>,
 ): List<GeneratedPrediction> {
-    val seedsByPattern = HashMap<Long, Map<Int, TravelTimesForStopPath>>()
     val learnedByPattern = HashMap<Long, Map<Int, Map<TravelTimeBucket, LearnedStopToStop>>>()
 
     // The last predicted pass: arrival at the previous stop, or the departure from it when it held.
@@ -71,10 +74,7 @@ internal fun walkHorizon(
     var varianceSum: Double? = null
     val out = ArrayList<GeneratedPrediction>()
     for (stop in horizon) {
-        val seeds =
-            seedsByPattern.getOrPut(stop.tripPatternId) {
-                seedRepository.findByTripPatternOrdered(ctx.revisionId, stop.tripPatternId).associateBy { it.stopPathIndex }
-            }
+        val seeds = seedReader.byStopPath(ctx.revisionId, stop.tripPatternId)
         val learned = learnedByPattern.getOrPut(stop.tripPatternId) { learnedFor(stop.tripPatternId) }
         val i = stop.stopPathIndex
 
@@ -101,7 +101,7 @@ internal fun walkHorizon(
         val dwellHere = (seeds[i]?.dwellTimeSec ?: 0).toLong()
         val holds = holdsUntilScheduled(stop)
         val scheduledDeparture =
-            if (holds) {
+            if (holds && ctx.trip(stop.tripRowId)?.frequencyBased != true) {
                 ctx
                     .scheduleOf(stop.tripRowId)
                     .firstOrNull { it.stopPathIndex == i }
@@ -137,7 +137,7 @@ internal fun walkHorizon(
 @Component
 class HistoricalAverageAlgorithm(
     private val observations: TravelTimeObservationRepository,
-    private val seeds: TravelTimesForStopPathRepository,
+    private val seeds: CachedTravelTimesReader,
     private val learningKeys: CachedLearningKeyReader,
     private val props: PredictProperties,
 ) : PredictionStrategy {
@@ -163,12 +163,15 @@ class HistoricalAverageAlgorithm(
 
 /**
  * Accumulates each stop path's learned Kalman stop-to-stop estimate (schedule seed fallback),
- * reporting `confidenceSec` as the accumulated standard deviation of the learned legs so far.
+ * reporting `confidenceSec` as the accumulated standard deviation of the learned legs so far. Each
+ * leg's variance is the estimate's own uncertainty plus the trip-to-trip spread the filter assumes
+ * for a single vehicle (its measurement noise): the estimate's uncertainty alone shrinks to a few
+ * seconds once a stop path is well sampled, while any one vehicle still varies around it.
  */
 @Component
 class KalmanAlgorithm(
     private val states: KalmanTravelTimeStateRepository,
-    private val seeds: TravelTimesForStopPathRepository,
+    private val seeds: CachedTravelTimesReader,
     private val learningKeys: CachedLearningKeyReader,
     private val props: PredictProperties,
 ) : PredictionStrategy {
@@ -188,7 +191,8 @@ class KalmanAlgorithm(
                 .groupBy { it.stopPathIndex }
                 .mapValues { (_, rows) ->
                     rows.associate {
-                        TravelTimeBucket(it.dayType, it.timeBand) to LearnedStopToStop(it.estimateSec, it.errorVariance, it.sampleCount)
+                        TravelTimeBucket(it.dayType, it.timeBand) to
+                            LearnedStopToStop(it.estimateSec, it.errorVariance + props.learn.kalmanMeasurementNoiseSec2, it.sampleCount)
                     }
                 }
         }

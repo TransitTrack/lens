@@ -135,6 +135,24 @@ class ScheduleAdherenceAlgorithmTest(
     }
 
     @Test
+    fun `buildHorizon drops the last stop once the vehicle reached it`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val last = geom.stopPathCumM.size - 1
+
+        val approaching = buildHorizon(trip.id!!, trip.tripPatternId!!, last, geom.line.lengthM - 100.0, ctx)
+        assertThat(approaching.first().tripRowId).isEqualTo(trip.id)
+        assertThat(approaching.first().stopPathIndex).isEqualTo(last)
+
+        // Pulled up a few metres short of where the shape ends: the next block trip (T4) is next.
+        val arrived = buildHorizon(trip.id!!, trip.tripPatternId!!, last, geom.line.lengthM - 10.0, ctx)
+        assertThat(arrived.none { it.tripRowId == trip.id }).isTrue()
+        assertThat(arrived.first().tripRowId).isEqualTo(trips.findByTripId(ctx.revisionId, "T4")!!.id)
+        assertThat(arrived.first().stopPathIndex).isEqualTo(0)
+    }
+
+    @Test
     fun `predict projects schedule time forward by adherence`() {
         val ctx = factory.open(avlFeed)!!
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!

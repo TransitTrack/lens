@@ -259,8 +259,11 @@ class PredictionGraphQlTest(
     fun `predictionAccuracy summarizes samples after a crossing`() {
         val rows =
             tester
-                .document("""{ predictionAccuracy(feedCode:"a") { algorithm sampleCount } }""")
-                .execute()
+                .document(
+                    """{ predictionAccuracy(feedCode:"a") {
+                         algorithm sampleCount meanAbsErrorSec byHorizon { horizonSec sampleCount meanAbsErrorSec }
+                       } }""",
+                ).execute()
                 .path("predictionAccuracy")
                 .entityList(Map::class.java)
                 .get()
@@ -268,5 +271,9 @@ class PredictionGraphQlTest(
         assertThat(rows).isNotEmpty()
         val sampleCount = (rows.first()["sampleCount"] as Number).toInt()
         assertThat(sampleCount).isGreaterThanOrEqualTo(1)
+        @Suppress("UNCHECKED_CAST")
+        val byHorizon = rows.first()["byHorizon"] as List<Map<String, Any>>
+        assertThat(byHorizon).isNotEmpty()
+        assertThat(byHorizon.sumOf { (it["sampleCount"] as Number).toInt() }).isEqualTo(sampleCount)
     }
 }

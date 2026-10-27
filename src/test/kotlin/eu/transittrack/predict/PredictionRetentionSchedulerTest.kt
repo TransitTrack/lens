@@ -78,6 +78,17 @@ class PredictionRetentionSchedulerTest(
             Timestamp.from(now.minus(1, ChronoUnit.HOURS)),
         )
 
+        // prediction_checkpoint: one never scored within a prediction's lifetime (deleted), one young (kept)
+        for ((vehicleId, age) in listOf("v1" to 10L, "v2" to 1L)) {
+            val ts = Timestamp.from(now.minus(age, ChronoUnit.HOURS))
+            jdbc.update(
+                "insert into prediction_checkpoint " +
+                    "(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, horizon_sec, predicted_ts, computed_at) " +
+                    "values ('f1', ?, 1, 0, 0, 300, ?, ?)",
+                vehicleId, ts, ts,
+            )
+        }
+
         // prediction_accuracy: one old (deleted), one young (kept)
         val oldAccuracyTs = Timestamp.from(now.minus(40, ChronoUnit.DAYS))
         jdbc.update(
@@ -118,7 +129,7 @@ class PredictionRetentionSchedulerTest(
 
         assertThat(counts).isEqualTo(
             PredictionRetentionScheduler.PruneCounts(
-                predictions = 1, accuracy = 1, crossings = 1, orphanObservations = 2, orphanKalman = 2,
+                predictions = 1, checkpoints = 1, accuracy = 1, crossings = 1, orphanObservations = 2, orphanKalman = 2,
             ),
         )
 
@@ -130,6 +141,9 @@ class PredictionRetentionSchedulerTest(
         ).containsExactly("g/k")
         assertThat(
             jdbc.queryForList("select vehicle_id from vehicle_prediction", String::class.java),
+        ).containsExactly("v2")
+        assertThat(
+            jdbc.queryForList("select vehicle_id from prediction_checkpoint", String::class.java),
         ).containsExactly("v2")
         assertThat(
             jdbc.queryForList("select vehicle_id from prediction_accuracy", String::class.java),

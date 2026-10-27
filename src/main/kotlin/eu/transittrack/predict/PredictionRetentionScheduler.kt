@@ -34,6 +34,7 @@ class PredictionRetentionScheduler(
 
     data class PruneCounts(
         val predictions: Int,
+        val checkpoints: Int,
         val accuracy: Int,
         val crossings: Int,
         val orphanObservations: Int,
@@ -47,8 +48,9 @@ class PredictionRetentionScheduler(
         val result = runCatching { prune(start) }
         result.onSuccess { c ->
             log.info(
-                "predict retention: pruned {} predictions, {} accuracy, {} orphan observations, {} orphan kalman",
-                c.predictions, c.accuracy, c.orphanObservations, c.orphanKalman,
+                "predict retention: pruned {} predictions, {} checkpoints, {} accuracy, {} crossings, " +
+                    "{} orphan observations, {} orphan kalman",
+                c.predictions, c.checkpoints, c.accuracy, c.crossings, c.orphanObservations, c.orphanKalman,
             )
         }
         metrics.scheduledJobFinished(
@@ -56,7 +58,7 @@ class PredictionRetentionScheduler(
             outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
             elapsed = Duration.between(start, Instant.now()),
             items = result.getOrNull()?.let {
-                (it.predictions + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman)
+                (it.predictions + it.checkpoints + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman)
                     .toLong()
             },
         )
@@ -66,6 +68,11 @@ class PredictionRetentionScheduler(
     fun prune(now: Instant): PruneCounts {
         val predictions = jdbc.update(
             "delete from vehicle_prediction where computed_at < ?",
+            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
+        )
+        // Never scored: the vehicle didn't reach the stop on that trip, or wasn't seen passing it.
+        val checkpoints = jdbc.update(
+            "delete from prediction_checkpoint where computed_at < ?",
             Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
         )
         val accuracy = jdbc.update(
@@ -78,7 +85,7 @@ class PredictionRetentionScheduler(
         )
         val orphanObservations = jdbc.update(orphanSweepSql("travel_time_observation"))
         val orphanKalman = jdbc.update(orphanSweepSql("kalman_travel_time_state"))
-        return PruneCounts(predictions, accuracy, crossings, orphanObservations, orphanKalman)
+        return PruneCounts(predictions, checkpoints, accuracy, crossings, orphanObservations, orphanKalman)
     }
 }
 

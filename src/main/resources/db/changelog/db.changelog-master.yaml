@@ -16,3 +16,5 @@ databaseChangeLog:
   - include: { file: db/changelog/0015-feed-code-keys.yaml }
   - include: { file: db/changelog/0016-stop-pass-learning.yaml }
   - include: { file: db/changelog/0017-learning-buckets.yaml }
+  - include: { file: db/changelog/0018-vehicle-match-pending-index.yaml }
+  - include: { file: db/changelog/0019-prediction-checkpoint.yaml }

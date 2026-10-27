@@ -8,6 +8,8 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.contains
+import assertk.assertions.hasSize
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNull
@@ -15,12 +17,17 @@ import assertk.assertions.isTrue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -42,6 +49,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.generate.KalmanAlgorithm
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.predict.learn.TravelTimeBucket
@@ -84,6 +92,9 @@ class PredictionServiceTest(
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val tripPatterns: TripPatternRepository,
 ) : PostgresPerClassTest() {
+    @MockitoSpyBean
+    lateinit var kalman: KalmanAlgorithm
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -228,7 +239,78 @@ class PredictionServiceTest(
                 TravelTimeBucket.OVERALL,
             ),
         )
-        assertThat(predictionAccuracies.findAll().any { it.tripRowId == trip.id && it.stopPathIndex == 1 }).isTrue()
+        // Stop 1 was predicted once, at 08:05 - a few minutes ahead - and scored at that horizon
+        // when the vehicle got there.
+        val scored = predictionAccuracies.findAll().filter { it.tripRowId == trip.id && it.stopPathIndex == 1 }
+        assertThat(scored).hasSize(1)
+        assertThat(scored.single().predictedAt).isEqualTo(ts(8, 5))
+        assertThat(scored.single().horizonSec!! in listOf(180, 300, 600)).isTrue()
+        assertThat(
+            scored.single().errorSec.toLong(),
+        ).isEqualTo(
+            java.time.Duration
+                .between(scored.single().predictedTs, scored.single().actualTs)
+                .seconds,
+        )
+    }
+
+    @Test
+    fun `two stops passed between the same two reports record both passes but learn nothing`() {
+        val (trip, geom) = t1Geom()
+        val cum = geom.stopPathCumM
+        val len = geom.line.lengthM
+
+        for ((alongM, at) in listOf((cum[1] + cum[2]) / 2 to ts(8, 5), (cum[3] + len) / 2 to ts(8, 25))) {
+            insertReport("bus-4", geom.line.pointAt(alongM), at)
+            processor.processBatch()
+            predictionProcessor.processBatch()
+        }
+
+        // Stop 2's pass time is interpolated along the same interval as stop 1's: the time between
+        // them is distance over average speed, not a driven stop-to-stop time.
+        val passes = crossings.findAll().filter { it.tripRowId == trip.id }.sortedBy { it.stopPathIndex }
+        assertThat(passes.map { it.stopPathIndex }).isEqualTo(listOf(1, 2))
+        assertThat(passes.map { it.observedTravelTimeSec }).isEqualTo(listOf<Double?>(null, null))
+        assertThat(travelTimeObservations.findAll()).isEmpty()
+        assertThat(kalmanStates.findAll()).isEmpty()
+    }
+
+    @Test
+    fun `a failing strategy keeps the other algorithms' predictions and the report's learning`() {
+        val (trip, geom) = t1Geom()
+        val cum = geom.stopPathCumM
+        val len = geom.line.lengthM
+
+        val feed = feedRow()
+        feed.predictionAlgorithms = PredictionAlgorithm.entries
+        feeds.save(feed)
+        doThrow(IllegalStateException("boom")).whenever(kalman).predict(any(), any(), anyOrNull(), any(), any())
+
+        val positions = listOf((cum[1] + cum[2]) / 2 to ts(8, 5), (cum[2] + cum[3]) / 2 to ts(8, 15), (cum[3] + len) / 2 to ts(8, 25))
+        for ((alongM, at) in positions) {
+            insertReport("bus-3", geom.line.pointAt(alongM), at)
+            processor.processBatch()
+            predictionProcessor.processBatch()
+        }
+
+        val algorithms = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-3", trip.id!!).map { it.algorithm }.toSet()
+        assertThat(algorithms).isEqualTo(setOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.HISTORICAL_AVERAGE))
+        assertThat(
+            crossings
+                .findAll()
+                .filter { it.vehicleId == "bus-3" }
+                .map { it.stopPathIndex }
+                .sorted(),
+        ).isEqualTo(listOf(1, 2))
+        assertThat(travelTimeObservations.findAll()).isNotEmpty()
+        assertThat(kalmanStates.findAll()).isNotEmpty()
+        assertThat(
+            predictionAccuracies
+                .findAll()
+                .filter { it.vehicleId == "bus-3" }
+                .map { it.algorithm }
+                .toSet(),
+        ).isEqualTo(setOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.HISTORICAL_AVERAGE))
     }
 
     @Test

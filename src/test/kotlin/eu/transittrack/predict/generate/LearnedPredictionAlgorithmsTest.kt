@@ -24,6 +24,7 @@ import eu.transittrack.AvlFormat
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.cache.CachedLearningKeyReader
+import eu.transittrack.avl.match.cache.CachedTravelTimesReader
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.download.FeedDownloader
@@ -69,6 +70,7 @@ class LearnedPredictionAlgorithmsTest(
     @Autowired val states: KalmanTravelTimeStateRepository,
     @Autowired val seeds: TravelTimesForStopPathRepository,
     @Autowired val learningKeys: CachedLearningKeyReader,
+    @Autowired val seedReader: CachedTravelTimesReader,
     @Autowired val props: PredictProperties,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
@@ -103,9 +105,9 @@ class LearnedPredictionAlgorithmsTest(
 
     private val serviceDate: LocalDate = LocalDate.of(2026, 9, 7)
 
-    private fun historical() = HistoricalAverageAlgorithm(observations, seeds, learningKeys, props)
+    private fun historical() = HistoricalAverageAlgorithm(observations, seedReader, learningKeys, props)
 
-    private fun kalman() = KalmanAlgorithm(states, seeds, learningKeys, props)
+    private fun kalman() = KalmanAlgorithm(states, seedReader, learningKeys, props)
 
     private fun keyOf(
         ctx: AvlMatchContext,
@@ -249,7 +251,8 @@ class LearnedPredictionAlgorithmsTest(
         val prediction = predictions.first { it.stopPathIndex == 3 }
 
         assertThat(prediction.predictedArrivalTs).isEqualTo(tsBeforeTarget.plusSeconds(777L))
-        assertThat(prediction.confidenceSec).isEqualTo(sqrt(64.0).roundToInt())
+        // The estimate's own variance plus the trip-to-trip spread of one vehicle around it.
+        assertThat(prediction.confidenceSec).isEqualTo(sqrt(64.0 + props.learn.kalmanMeasurementNoiseSec2).roundToInt())
     }
 
     private fun seedTravelSec(

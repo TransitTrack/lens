@@ -15,7 +15,9 @@ import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.generate.serviceSecToInstant
 import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.predict.read.dto.PredictionAccuracyHorizonDto
 import eu.transittrack.predict.read.dto.PredictionAccuracySummaryDto
 import eu.transittrack.predict.read.dto.StopPredictionDto
 import eu.transittrack.schedule.model.ScheduleTimeRepository
@@ -87,30 +89,59 @@ class PredictionReadService(
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
         val resolvedAlgorithm = algorithm ?: feed.predictionAlgorithms.first()
         val now = Instant.now()
-        return matchingStopPaths.flatMap { sp ->
-            predictions
-                .findByPatternStopAlgorithm(sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm)
+        val rows =
+            matchingStopPaths
+                .flatMap { sp -> predictions.findByPatternStopAlgorithm(feed.code, sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm) }
                 .filter { it.predictedArrivalTs != null && it.actualArrivalTs == null && isLive(it.computedAt, now) }
-                .map { r ->
-                    val scheduleRows = scheduleTimes.findByTripOrdered(revisionId, r.tripRowId)
-                    val sched = scheduleRows.firstOrNull { it.stopPathIndex == r.stopPathIndex }
-                    val tripStartSec = scheduleRows.firstOrNull()?.let { it.departureSec ?: it.arrivalSec }
-                    val serviceDate = displayServiceDate(r.computedAt, zone, tripStartSec)
-                    StopPredictionDto(
-                        stopPathIndex = r.stopPathIndex,
-                        scheduledArrival = sched?.arrivalSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
-                        scheduledDeparture = sched?.departureSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
-                        actualArrival = null,
-                        actualDeparture = null,
-                        predictedArrival = r.predictedArrivalTs?.toString(),
-                        predictedDeparture = r.predictedDepartureTs?.toString(),
-                        algorithm = r.algorithm,
-                        confidenceSec = r.confidenceSec,
-                        revisionId = revisionId,
-                        gtfsFeedCode = feed.gtfsFeedCode,
-                        stopId = stopId,
-                    )
+                .let { onePerTrip(feed.code, it) }
+        if (rows.isEmpty()) return emptyList()
+
+        // Each trip's row at this stop, plus its first one for the trip's start time.
+        val scheduleRows =
+            scheduleTimes
+                .findByTripsAtStopPaths(revisionId, rows.map { it.tripRowId }.toSet(), rows.map { it.stopPathIndex }.toSet() + 0)
+                .groupBy { it.tripId }
+        return rows.map { r ->
+            val tripSchedule = scheduleRows[r.tripRowId].orEmpty()
+            val sched = tripSchedule.firstOrNull { it.stopPathIndex == r.stopPathIndex }
+            val tripStartSec = tripSchedule.firstOrNull { it.stopPathIndex == 0 }?.let { it.departureSec ?: it.arrivalSec }
+            val serviceDate = displayServiceDate(r.computedAt, zone, tripStartSec)
+            StopPredictionDto(
+                stopPathIndex = r.stopPathIndex,
+                scheduledArrival = sched?.arrivalSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
+                scheduledDeparture = sched?.departureSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
+                actualArrival = null,
+                actualDeparture = null,
+                predictedArrival = r.predictedArrivalTs?.toString(),
+                predictedDeparture = r.predictedDepartureTs?.toString(),
+                algorithm = r.algorithm,
+                confidenceSec = r.confidenceSec,
+                revisionId = revisionId,
+                gtfsFeedCode = feed.gtfsFeedCode,
+                stopId = stopId,
+            )
+        }
+    }
+
+    /**
+     * One prediction per trip: a trip can be predicted by two vehicles at once - the one running it,
+     * and one that has it as the next trip of its block (e.g. after a vehicle swap). The vehicle
+     * actually on the trip wins; failing that, the most recently computed prediction.
+     */
+    private fun onePerTrip(
+        feedCode: String,
+        rows: List<VehiclePrediction>,
+    ): List<VehiclePrediction> {
+        val byTrip = rows.groupBy { it.tripRowId }
+        if (byTrip.values.none { it.size > 1 }) return rows
+        val currentTrip = HashMap<String, Long?>()
+        return byTrip.values.map { candidates ->
+            candidates.singleOrNull()
+                ?: candidates.firstOrNull { r ->
+                    currentTrip.getOrPut(r.vehicleId) { vehicleStates.findByFeedCodeAndVehicleId(feedCode, r.vehicleId)?.tripRowId } ==
+                        r.tripRowId
                 }
+                ?: candidates.maxBy { it.computedAt }
         }
     }
 
@@ -163,15 +194,22 @@ class PredictionReadService(
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val since = Instant.now().minus(sinceDays.toLong(), ChronoUnit.DAYS)
         val algorithms = algorithm?.let { listOf(it) } ?: PredictionAlgorithm.entries.toList()
-        return algorithms.mapNotNull { alg ->
-            val rows = accuracy.findRecentByFeedAndAlgorithm(feed.code, alg, since)
-            if (rows.isEmpty()) return@mapNotNull null
-            PredictionAccuracySummaryDto(
-                algorithm = alg,
-                sampleCount = rows.size,
-                meanErrorSec = rows.map { it.errorSec }.average(),
-                meanAbsErrorSec = rows.map { it.absErrorSec }.average(),
-            )
-        }
+        return accuracy
+            .aggregateByHorizon(feed.code, algorithms, since)
+            .groupBy { it.algorithm }
+            .toSortedMap()
+            .map { (alg, horizons) ->
+                val samples = horizons.sumOf { it.sampleCount }
+                PredictionAccuracySummaryDto(
+                    algorithm = alg,
+                    sampleCount = samples.toInt(),
+                    meanErrorSec = horizons.sumOf { it.meanErrorSec * it.sampleCount } / samples,
+                    meanAbsErrorSec = horizons.sumOf { it.meanAbsErrorSec * it.sampleCount } / samples,
+                    byHorizon =
+                        horizons.map {
+                            PredictionAccuracyHorizonDto(it.horizonSec, it.sampleCount.toInt(), it.meanErrorSec, it.meanAbsErrorSec)
+                        },
+                )
+            }
     }
 }

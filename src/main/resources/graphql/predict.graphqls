@@ -1,7 +1,7 @@
 extend type Query {
     "Open (not-yet-arrived) stop predictions for one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm; otherwise all algorithms configured for the feed are returned."
     vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): [StopPrediction!]!
-    "Recent prediction-error statistics per algorithm, over the last sinceDays days. Pass algorithm to restrict to one."
+    "Recent prediction-error statistics per algorithm, over the last sinceDays days, overall and per lead-time horizon. Pass algorithm to restrict to one."
     predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7): [PredictionAccuracySummary!]!
     "Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm."
     stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: PredictionAlgorithm): [StopPrediction!]!
@@ -39,14 +39,25 @@ type StopPrediction {
     confidenceSec: Int
 }
 
-"Aggregate prediction error for one algorithm over a recent time window."
+"Aggregate prediction error for one algorithm over a recent time window. Each stop the vehicle reaches is scored once per lead-time horizon a prediction was made within, so the overall figures pool every horizon."
 type PredictionAccuracySummary {
     algorithm: PredictionAlgorithm!
-    "Number of resolved (predicted-then-actual) samples this summary is computed from."
+    "Number of resolved (predicted-then-actual) samples this summary is computed from, across all horizons."
     sampleCount: Int!
-    "Mean signed error in seconds (predicted minus actual); positive means predictions ran late."
+    "Mean signed error in seconds (actual minus predicted); positive means vehicles got there later than predicted."
     meanErrorSec: Float!
     "Mean absolute error in seconds."
+    meanAbsErrorSec: Float!
+    "The same statistics per lead-time horizon, shortest first."
+    byHorizon: [PredictionAccuracyHorizon!]!
+}
+
+"Prediction error for predictions made at most horizonSec (and more than the next shorter horizon) ahead of the predicted time."
+type PredictionAccuracyHorizon {
+    horizonSec: Int!
+    sampleCount: Int!
+    "Mean signed error in seconds (actual minus predicted); positive means vehicles got there later than predicted."
+    meanErrorSec: Float!
     meanAbsErrorSec: Float!
 }
 
@@ -59,6 +70,6 @@ type Headway {
     waitSec: Int
     "Observed gaps in seconds between the vehicles currently predicted at this stop, in arrival order."
     gapsSec: [Int!]!
-    "The schedule's own headway at this stop/time, in seconds, for comparison."
+    "The schedule's own average headway at this stop, in seconds, for comparison: trips running that service day, from an hour before the first predicted arrival to an hour after the last (around now if none). Frequency-based trips are left out."
     scheduledHeadwaySec: Int
 }

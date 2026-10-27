@@ -32,14 +32,41 @@ class PredictionAccuracy(
     @Column(name = "error_sec", nullable = false) var errorSec: Int,
     @Column(name = "abs_error_sec", nullable = false) var absErrorSec: Int,
     @Column(name = "created_at", nullable = false) var createdAt: Instant,
+    /** Lead-time horizon the prediction was sampled at; null on rows from before horizons existed. */
+    @Column(name = "horizon_sec") var horizonSec: Int? = null,
+    /** AVL report time the prediction was made at. */
+    @Column(name = "predicted_at") var predictedAt: Instant? = null,
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "predictionAccuracySeq")
     @SequenceGenerator(name = "predictionAccuracySeq", sequenceName = "prediction_accuracy_seq", allocationSize = 50)
     var id: Long? = null,
 )
 
+/** Accuracy of one algorithm at one lead-time horizon, aggregated over a time window. */
+data class PredictionAccuracyAggregate(
+    val algorithm: PredictionAlgorithm,
+    val horizonSec: Int,
+    val sampleCount: Long,
+    val meanErrorSec: Double,
+    val meanAbsErrorSec: Double,
+)
+
 @Repository
 interface PredictionAccuracyRepository : JpaRepository<PredictionAccuracy, Long> {
+    /** Rows from before horizons existed (null [PredictionAccuracy.horizonSec]) are left out. */
+    @Query(
+        "select new eu.transittrack.predict.model.PredictionAccuracyAggregate(" +
+            "e.algorithm, e.horizonSec, count(e), avg(e.errorSec), avg(e.absErrorSec)) " +
+            "from PredictionAccuracy e where e.feedCode = :feedCode and e.algorithm in :algorithms " +
+            "and e.createdAt > :since and e.horizonSec is not null " +
+            "group by e.algorithm, e.horizonSec order by e.algorithm, e.horizonSec",
+    )
+    fun aggregateByHorizon(
+        @Param("feedCode") feedCode: String,
+        @Param("algorithms") algorithms: Collection<PredictionAlgorithm>,
+        @Param("since") since: Instant,
+    ): List<PredictionAccuracyAggregate>
+
     @Query(
         "select e from PredictionAccuracy e where e.feedCode = :feedCode and e.algorithm = :algorithm " +
             "and e.createdAt > :since",

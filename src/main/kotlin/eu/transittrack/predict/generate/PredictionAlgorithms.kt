@@ -13,6 +13,7 @@ import eu.transittrack.avl.match.serviceDayStart
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.learn.FIRST_STOP_RADIUS_M
 import eu.transittrack.predict.learn.stopDistanceM
+import eu.transittrack.predict.learn.stopReachedAtM
 
 /**
  * Walks the current trip's remaining stop paths (from [fromStopPathIndex] to its last stop), then
@@ -21,7 +22,8 @@ import eu.transittrack.predict.learn.stopDistanceM
  *
  * The first horizon stop carries the share of its stop path still ahead of [distanceAlongTripM].
  * A vehicle still standing at its trip's first stop (within [FIRST_STOP_RADIUS_M] of the start)
- * gets that first stop in its horizon, so strategies can hold it until its scheduled departure.
+ * gets that first stop in its horizon, so strategies can hold it until its scheduled departure; one
+ * that already reached its trip's last stop (see [stopReachedAtM]) no longer has it in its horizon.
  */
 fun buildHorizon(
     currentTripRowId: Long,
@@ -40,7 +42,10 @@ fun buildHorizon(
         if (hops == 0) {
             val standingAtStart = fromStopPathIndex <= 1 && distanceAlongTripM <= FIRST_STOP_RADIUS_M
             val fromIndex = if (standingAtStart) 0 else fromStopPathIndex
-            for (i in fromIndex until stopCount) {
+            val reachedLastStop =
+                geom != null && stopCount > 1 && distanceAlongTripM >= stopReachedAtM(stopCount - 1, geom.stopPathCumM, geom.line.lengthM)
+            val untilIndex = if (reachedLastStop) stopCount - 1 else stopCount
+            for (i in fromIndex until untilIndex) {
                 val fraction = if (i == fromIndex &&
                     !standingAtStart &&
                     geom != null
@@ -102,6 +107,9 @@ internal fun holdsUntilScheduled(stop: HorizonStop): Boolean = stop.stopPathInde
  * departure, so being early is absorbed there; and on the next block trip the vehicle starts from
  * where the previous trip's prediction left it, so lateness is absorbed by the scheduled layover
  * instead of being copied onto the next trip whole.
+ *
+ * Frequency-based trips (GTFS `frequencies.txt`) have no clock-time schedule to adhere to - their
+ * stop times are offsets from whenever a run starts - so the walk stops at the first one.
  */
 @Component
 class ScheduleAdherenceAlgorithm : PredictionStrategy {
@@ -119,6 +127,7 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
         var lastArrivalTs: Instant? = null
         val predictions = ArrayList<GeneratedPrediction>()
         for (stop in horizon) {
+            if (stop.tripRowId != previousTripRowId && ctx.trip(stop.tripRowId)?.frequencyBased == true) break
             val schedulePoint =
                 ctx
                     .scheduleOf(stop.tripRowId)

@@ -44,7 +44,40 @@ interface ScheduleTimeRepository : RevisionScopedRepository<ScheduleTime, Long> 
         revisionId: Long,
         tripId: Long,
     ): List<ScheduleTime>
+
+    @Query(
+        "select st from ScheduleTime st " +
+            "where st.revisionId = :revisionId and st.tripId in :tripIds and st.stopPathIndex in :stopPathIndexes",
+    )
+    fun findByTripsAtStopPaths(
+        revisionId: Long,
+        tripIds: Collection<Long>,
+        stopPathIndexes: Collection<Int>,
+    ): List<ScheduleTime>
+
+    /**
+     * Every clock-time trip's scheduled time at one stop path of a pattern, with its service.
+     * Frequency-based trips are left out: their times are offsets from whenever a run starts.
+     */
+    @Query(
+        "select new eu.transittrack.schedule.model.ServiceStopTime(st.arrivalSec, st.departureSec, t.serviceId) " +
+            "from ScheduleTime st join Trip t on t.id = st.tripId " +
+            "where st.revisionId = :revisionId and t.tripPatternId = :tripPatternId and st.stopPathIndex = :stopPathIndex " +
+            "and (t.frequencyBased is null or t.frequencyBased = false)",
+    )
+    fun findTimedAtStopPath(
+        revisionId: Long,
+        tripPatternId: Long,
+        stopPathIndex: Int,
+    ): List<ServiceStopTime>
 }
+
+/** A trip's scheduled time at a stop (service-day seconds), with the service it runs on. */
+data class ServiceStopTime(
+    val arrivalSec: Int?,
+    val departureSec: Int?,
+    val serviceId: String,
+)
 
 interface BlockRepository : RevisionScopedRepository<Block, Long> {
     @Query("select b from Block b where b.revisionId = :revisionId and b.blockId = :blockId")
