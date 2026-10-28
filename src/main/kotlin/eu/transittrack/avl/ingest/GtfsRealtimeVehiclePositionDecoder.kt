@@ -74,7 +74,7 @@ class GtfsRealtimeVehiclePositionDecoder : AvlFeedDecoder {
             lat = pos.latitude.toDouble(),
             lon = pos.longitude.toDouble(),
             bearing = if (pos.hasBearing()) pos.bearing.toDouble() else null,
-            speedMps = if (pos.hasSpeed()) pos.speed.toDouble() else null,
+            speedMps = if (pos.hasSpeed()) pos.speed.toDouble() / (if (feed.code == "kombus") 3.6 else 1.0) else null,
             odometerM = if (pos.hasOdometer()) pos.odometer else null,
             descTripId = trip?.tripId?.ifEmpty { null },
             descRouteId = trip?.routeId?.ifEmpty { null },
