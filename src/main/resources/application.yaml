@@ -206,7 +206,7 @@ logging:
     level: '%5p'
     dateformat: dd-MM-YYYY' 'HH:mm:ss
     correlation: "[%X{traceId:-}%X{spanId:-}]"
-    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr(${PID:-}){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-30.30logger{29}){cyan} %clr(:){faint} %m%n"
+    console: "%clr(%d{MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%12.12t]){red} %clr(%-30.30logger{29}){cyan} %clr(:){faint} %m%n"
   level:
     eu.transittrack: debug
     root: warn
