@@ -11,7 +11,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
 
-import eu.transittrack.exception.ParseException
+import eu.transittrack.ParseException
 
 class GtfsArchiveTest {
     private val tmp = Files.createTempDirectory("arch")

@@ -6,6 +6,8 @@ import java.time.ZoneId
 
 import org.springframework.stereotype.Service
 
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlReportView
@@ -16,9 +18,6 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
-import eu.transittrack.gtfs.model.Stop
 import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository

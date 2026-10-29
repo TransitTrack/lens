@@ -4,9 +4,9 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.avl.read.AvlReadService
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
 
 /**
  * GraphQL query entry points for the AVL read layer. Thin delegation to [AvlReadService].

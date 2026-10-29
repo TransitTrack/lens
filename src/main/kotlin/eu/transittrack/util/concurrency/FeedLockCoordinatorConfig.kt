@@ -6,8 +6,8 @@ import net.javacrumbs.shedlock.core.LockProvider
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 
 @Configuration
 class FeedLockCoordinatorConfig {

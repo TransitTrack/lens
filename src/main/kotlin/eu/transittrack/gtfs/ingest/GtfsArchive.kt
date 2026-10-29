@@ -5,7 +5,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.zip.ZipInputStream
 
-import eu.transittrack.exception.ParseException
+import eu.transittrack.ParseException
 
 object GtfsArchive {
     fun extract(

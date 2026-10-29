@@ -6,7 +6,7 @@ import java.time.LocalDate
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.RawAvlPayload
 
-enum class RtScheduleRelationship {
+enum class RealtimeScheduleRelationship {
     SCHEDULED,
     ADDED,
     UNSCHEDULED,
@@ -54,7 +54,7 @@ data class AvlReport(
     val descDirectionId: Int? = null,
     val descStartDate: LocalDate? = null,
     val descStartTimeSec: Int? = null,
-    val descScheduleRelationship: RtScheduleRelationship? = null,
+    val descScheduleRelationship: RealtimeScheduleRelationship? = null,
     val currentStopSequence: Int? = null,
     val currentStopId: String? = null,
     val currentStatus: VehicleStopStatus? = null,

@@ -70,19 +70,31 @@ transittrack:
   feed:
     prune-config-feeds: false
     feeds:
-      - code: poznan
-        name: ZTM
+      - code: kombus
+        name: Kombus
         auto-activate: true
         polling-cron: "0 * * * * *"
-#        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile/?file=20261015_20261031.zip
-        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
+        url: http://iplaner.pl/gtfs/ztmkombus.zip
         avl:
-          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
-          assignment-mode: trust_descriptor
+          url: https://tcztmkombus.iplaner.pl/api/v1/key/f78a2e9a/agency/4/command/gtfs-rt/vehiclePositions
+          assignment-mode: descriptor_then_infer
           prediction-algorithms:
             - kalman
             - schedule-adherence
             - historical-average
+#      - code: poznan
+#        name: ZTM
+#        auto-activate: true
+#        polling-cron: "0 * * * * *"
+##        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile/?file=20261015_20261031.zip
+#        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
+#        avl:
+#          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
+#          assignment-mode: trust_descriptor
+#          prediction-algorithms:
+#            - kalman
+#            - schedule-adherence
+#            - historical-average
 #      - code: wroclaw
 #        name: Wroclaw
 #        auto-activate: true
@@ -100,16 +112,15 @@ transittrack:
 #        avl:
 #          url: https://gtfs.tpbi.ro/api/gtfs-rt/vehiclePositions
 #          assignment-mode: descriptor_then_infer
-#      - code: stpt
-#        name: Societatea de transport public Timisoara
-#        polling-cron: "0 * * * * *"
-#        url: https://smtt.ro/transit/gtfs/maps/smtt-timisoara-ro.zip
-#        avl:
-#          format: STPT
-#          url: https://live.stpt.ro/gtfs-vehicles.php
-#          prediction-algorithm: kalman
-#          prediction-mode: evaluation
-#          assignment-mode: descriptor_then_infer
+      - code: stpt
+        name: Societatea de transport public Timisoara
+        polling-cron: "0 * * * * *"
+        url: https://smtt.ro/transit/gtfs/maps/smtt-timisoara-ro.zip
+        avl:
+          format: STPT
+          url: https://live.stpt.ro/gtfs-vehicles.php
+          prediction-algorithms: [kalman, schedule_adherence]
+          assignment-mode: descriptor_then_infer
 #      - code: ctp
 #        name: Compania de transport public Cluj
 #        polling-cron: "0 * * * * *"

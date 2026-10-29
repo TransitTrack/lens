@@ -103,13 +103,13 @@ class GtfsRealtimeVehiclePositionDecoder : AvlFeedDecoder {
         return h * 3600 + m * 60 + sec
     }
 
-    private fun mapRelationship(r: TripDescriptor.ScheduleRelationship): RtScheduleRelationship? =
+    private fun mapRelationship(r: TripDescriptor.ScheduleRelationship): RealtimeScheduleRelationship? =
         when (r) {
-            TripDescriptor.ScheduleRelationship.SCHEDULED -> RtScheduleRelationship.SCHEDULED
-            TripDescriptor.ScheduleRelationship.ADDED -> RtScheduleRelationship.ADDED
-            TripDescriptor.ScheduleRelationship.UNSCHEDULED -> RtScheduleRelationship.UNSCHEDULED
-            TripDescriptor.ScheduleRelationship.CANCELED -> RtScheduleRelationship.CANCELED
-            TripDescriptor.ScheduleRelationship.DUPLICATED -> RtScheduleRelationship.DUPLICATED
+            TripDescriptor.ScheduleRelationship.SCHEDULED -> RealtimeScheduleRelationship.SCHEDULED
+            TripDescriptor.ScheduleRelationship.ADDED -> RealtimeScheduleRelationship.ADDED
+            TripDescriptor.ScheduleRelationship.UNSCHEDULED -> RealtimeScheduleRelationship.UNSCHEDULED
+            TripDescriptor.ScheduleRelationship.CANCELED -> RealtimeScheduleRelationship.CANCELED
+            TripDescriptor.ScheduleRelationship.DUPLICATED -> RealtimeScheduleRelationship.DUPLICATED
             else -> null
         }
 

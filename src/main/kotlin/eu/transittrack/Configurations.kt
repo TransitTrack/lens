@@ -1,9 +1,10 @@
-package eu.transittrack.config
+package eu.transittrack
 
 import java.time.Clock
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
+import com.github.benmanes.caffeine.cache.Caffeine
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -13,15 +14,15 @@ import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.cache.autoconfigure.CacheManagerCustomizer
 import org.springframework.boot.persistence.autoconfigure.EntityScan
+import org.springframework.cache.annotation.EnableCaching
+import org.springframework.cache.caffeine.CaffeineCacheManager
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
-
-import eu.transittrack.FeedsProperties
-import eu.transittrack.HttpClientProperties
 
 @Configuration
 class TimeConfiguration {
@@ -122,3 +123,28 @@ class HttpClientsConfiguration(
 @EntityScan(basePackages = ["eu.transittrack"])
 @EnableJpaRepositories(basePackages = ["eu.transittrack"])
 class DatabaseConfiguration
+
+/**
+ * Programmatic Caffeine setup for the AVL match read cache. Every cache in `AvlCaches.NAMES` is
+ * created heap-only with a shared TTL and max-entry cap from [CacheProperties]. Unlike a JSR-107
+ * provider (e.g. EhCache), [CaffeineCacheManager] is a plain Spring-scoped bean with no JVM-wide
+ * registry behind it, so distinct `@SpringBootTest` contexts in the same JVM never share — or tear
+ * down — each other's cache manager.
+ */
+@Configuration
+@EnableCaching
+class CacheConfiguration(
+    private val props: CacheProperties,
+) {
+    @Bean
+    fun cacheManagerCustomizer(): CacheManagerCustomizer<CaffeineCacheManager> =
+        CacheManagerCustomizer { cacheManager ->
+            cacheManager.setCaffeine(
+                Caffeine
+                    .newBuilder()
+                    .maximumSize(props.maxEntries)
+                    .expireAfterWrite(props.ttl)
+                    .recordStats(), // Required for Micrometer to fetch hit/miss metrics
+            )
+        }
+}

@@ -1,9 +1,18 @@
-package eu.transittrack.config
+package eu.transittrack
 
 import org.springframework.context.annotation.Condition
 import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
 import org.springframework.core.type.AnnotatedTypeMetadata
+
+enum class Role(
+    val profile: String,
+) {
+    API("role-api"),
+    INGESTER("role-ingester"),
+    FEED_PROCESSOR("role-feed-processor"),
+    PREDICTOR("role-predictor"),
+}
 
 /**
  * Gates a bean by deployment role, with monolith-by-default semantics: if no `role-*` Spring

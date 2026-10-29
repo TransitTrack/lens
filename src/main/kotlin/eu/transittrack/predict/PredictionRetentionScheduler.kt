@@ -12,8 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**

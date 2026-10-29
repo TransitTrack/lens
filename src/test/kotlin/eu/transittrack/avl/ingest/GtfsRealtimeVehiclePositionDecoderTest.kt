@@ -85,7 +85,7 @@ class GtfsRealtimeVehiclePositionDecoderTest {
         assertThat(r.descDirectionId).isEqualTo(1)
         assertThat(r.descStartDate).isEqualTo(LocalDate.of(2026, 9, 4))
         assertThat(r.descStartTimeSec).isEqualTo(25 * 3600 + 600)
-        assertThat(r.descScheduleRelationship).isEqualTo(RtScheduleRelationship.SCHEDULED)
+        assertThat(r.descScheduleRelationship).isEqualTo(RealtimeScheduleRelationship.SCHEDULED)
         assertThat(r.currentStatus).isEqualTo(VehicleStopStatus.IN_TRANSIT_TO)
         assertThat(r.occupancyStatus).isEqualTo(AvlOccupancyStatus.FEW_SEATS_AVAILABLE)
     }

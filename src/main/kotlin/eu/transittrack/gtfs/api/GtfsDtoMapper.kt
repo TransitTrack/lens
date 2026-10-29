@@ -3,8 +3,8 @@ package eu.transittrack.gtfs.api
 import org.springframework.stereotype.Component
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.gtfs.api.dto.FeedDto
 import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.api.dto.ValidationNoticeDto

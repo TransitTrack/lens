@@ -83,7 +83,7 @@ components run in the one process — this is what local `bootRun` and the
 Docker smoke test above do, and it's also what every `@SpringBootTest` in the
 codebase gets by default. Only setting one or more `role-*` profiles
 restricts a process to those roles. This is implemented by
-`eu.transittrack.config.ConditionalOnRole` (a `Condition`, not a bare
+`eu.transittrack.ConditionalOnRole` (a `Condition`, not a bare
 `@Profile`) — see the design spec for why a bare `@Profile` wouldn't give this
 semantics.
 
