@@ -266,7 +266,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
         <span class="text-sm font-medium tabular-nums" :class="adherenceTextClass(vehicle)">
           {{ formatAdherence(vehicle.scheduleAdherenceSec) }}
         </span>
-        <span class="text-sm text-dimmed">{{ units.speed(vehicle.speedMps) }}</span>
+        <span class="text-xs text-dimmed">{{ units.speed(vehicle.speedMps) }}</span>
       </div>
       <div>
         <UDropdownMenu
