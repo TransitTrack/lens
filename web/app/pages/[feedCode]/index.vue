@@ -31,7 +31,7 @@ const newestReport = computed(() =>
       :error="error"
       :feed-code="selectedFeedCode"
       :extent="extent"
-      :directory-default-size="32"
+      :directory-default-size="30"
       @select-vehicle="(id) => navigateTo(feedPath('/vehicles/' + id))"
     >
       <template #actions>
