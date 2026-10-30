@@ -19,6 +19,11 @@ class FullInferenceMatcher(
     private val scorer: MatchScorer,
     props: AvlProperties,
 ) : VehicleMatcher {
+    private companion object {
+        /** GPS noise can project a vehicle standing at the first stop a few metres past it. */
+        const val AT_FIRST_STOP_RADIUS_M = 30.0
+    }
+
     private val cfg = props.match
     override val mode = AvlAssignmentMode.FULL_INFERENCE
 
@@ -35,7 +40,7 @@ class FullInferenceMatcher(
         if (serviceIds.isEmpty()) return MatchOutcome.Failed
         val actualServiceSec = temporal.toServiceSeconds(report.ts, ctx.zone, serviceDate)
 
-        // 2. candidate trips: derived, active service, ts within [start-slack, end+slack], extent near the point.
+        // 2. candidate trips: derived, active service, ts within [start-lead, end+slack], extent near the point.
         val descTrip = report.descTripId?.let { ctx.tripByGtfsId(it) }
         val candidates =
             (ctx.candidateTrips(serviceIds) + listOfNotNull(descTrip))
@@ -44,7 +49,7 @@ class FullInferenceMatcher(
                     val pid = t.tripPatternId ?: return@filter false
                     val start = t.startTimeSec ?: return@filter false
                     val end = t.endTimeSec ?: return@filter false
-                    actualServiceSec in (start - cfg.candidateTimeSlackSec)..(end + cfg.candidateTimeSlackSec) &&
+                    actualServiceSec in (start - cfg.candidateLeadSec)..(end + cfg.candidateTimeSlackSec) &&
                         ctx.patternExtentWithin(pid, point, cfg.maxDeviationM)
                 }
         if (candidates.isEmpty()) return MatchOutcome.Failed
@@ -66,10 +71,14 @@ class FullInferenceMatcher(
                 // spatial matching
                 val sm = spatial.match(geom, point, minAlong) ?: return@mapNotNull null
 
+                val schedule = ctx.scheduleOf(t.id)
+                if (missedDeparture(t, geom, sm, schedule, actualServiceSec)) return@mapNotNull null
+                if (finishedTrip(t, geom, sm, prev, actualServiceSec)) return@mapNotNull null
+
                 // temporal matching
                 val adherence =
                     temporal.adherenceSec(
-                        ctx.scheduleOf(t.id),
+                        schedule,
                         geom.stopPathCumM,
                         sm.distanceAlongTripM,
                         actualServiceSec,
@@ -94,6 +103,51 @@ class FullInferenceMatcher(
             }
 
         return toMatched(chosen.trip, chosen.geom, chosen.sm, chosen.adherence, chosen.score, ctx)
+    }
+
+    /**
+     * Whether the vehicle is still at [t]'s first stop well past its scheduled departure (see
+     * `match.maxFirstStopLatenessSec`). Without this, a parked vehicle stays on a trip it never
+     * started: continuity and hysteresis keep the incumbent ahead of the next departure, with its
+     * delay growing until the trip leaves the candidate window. Frequency-based and unscheduled
+     * trips have no clock-time departure to compare against.
+     */
+    private fun missedDeparture(
+        t: TripRef,
+        geom: PatternGeometry,
+        sm: SpatialMatch,
+        schedule: List<SchedulePoint>,
+        actualServiceSec: Int,
+    ): Boolean {
+        if (t.noSchedule == true || t.frequencyBased == true) return false
+        val first = schedule.firstOrNull() ?: return false
+        val departureSec = first.departureSec ?: first.arrivalSec ?: return false
+        val firstStopM = geom.stopPathCumM.getOrElse(1) { 0.0 }
+        val atFirstStop = sm.stopPathIndex == 0 || sm.distanceAlongTripM <= firstStopM + AT_FIRST_STOP_RADIUS_M
+        return atFirstStop && actualServiceSec - departureSec > cfg.maxFirstStopLatenessSec
+    }
+
+    /**
+     * Whether the vehicle is standing at [t]'s terminus after the trip is over (past its scheduled
+     * end + `match.tripEndAdvanceGraceSec`) without having just arrived there on it. The arrival
+     * itself still matches, however late; but a vehicle already at the terminus on this trip, or
+     * one found there from elsewhere, isn't running it. Without this, a parked vehicle stays on a
+     * finished trip with its delay growing until the trip leaves the candidate window
+     * (`match.candidateTimeSlackSec`).
+     */
+    private fun finishedTrip(
+        t: TripRef,
+        geom: PatternGeometry,
+        sm: SpatialMatch,
+        prev: VehicleStateView?,
+        actualServiceSec: Int,
+    ): Boolean {
+        if (t.noSchedule == true || t.frequencyBased == true) return false
+        val endSec = t.endTimeSec ?: return false
+        val terminusM = geom.line.lengthM - cfg.backtrackToleranceM
+        if (sm.distanceAlongTripM < terminusM || actualServiceSec <= endSec + cfg.tripEndAdvanceGraceSec) return false
+        val arrivingNow = prev?.tripRowId == t.id && (prev.distanceAlongTripM ?: 0.0) < terminusM
+        return !arrivingNow
     }
 
     private fun continuityOf(
