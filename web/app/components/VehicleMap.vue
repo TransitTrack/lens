@@ -400,7 +400,24 @@ function fitSelectedRoute() {
   )
 }
 
-watch([selectedRouteKey, () => map.isLoaded], fitSelectedRoute, { immediate: true })
+// Set by onVehicleClick just before it emits 'select' for a vehicle clicked
+// directly on the map — that vehicle is already on screen, so the resulting
+// selectedRoute update shouldn't also fly the camera to its bounds. A
+// list-driven selection (no matching flag) still gets the fit, since the
+// vehicle may not be visible yet.
+let suppressFitForVehicleId: string | null = null
+
+watch(
+  [selectedRouteKey, () => map.isLoaded],
+  () => {
+    if (props.selectedRoute?.vehicleId === suppressFitForVehicleId) {
+      suppressFitForVehicleId = null
+      return
+    }
+    fitSelectedRoute()
+  },
+  { immediate: true },
+)
 
 function placeStopsAboveSelectedRoute() {
   const instance = map.map
@@ -579,7 +596,10 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
   activeVehicleId.value = id
   // Opening a vehicle's popup is the only "select" gesture now — it
   // highlights the vehicle in the list and draws its route immediately,
-  // no separate "Highlight route" step.
+  // no separate "Highlight route" step. The vehicle is already visible (you
+  // just clicked it), so unlike a list-driven selection this shouldn't also
+  // fly the camera to the route's bounds.
+  suppressFitForVehicleId = id
   emit('select', id)
 }
 

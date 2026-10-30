@@ -45,5 +45,6 @@ out/
 # Superpowers scratch (brainstorm mockups, SDD ledgers)
 .superpowers/
 docs/superpowers/
+.worktrees/
 
 node_modules
