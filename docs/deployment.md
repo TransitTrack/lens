@@ -226,8 +226,11 @@ its own image and is **off by default** in the Helm chart —
 `frontend.enabled: false`.
 
 ```bash
-docker build -t lens-web:local web/
+docker build --build-context transittrack-docs=docs -t lens-web:local web/
 ```
+
+The `transittrack-docs` build context bakes this `docs/` directory into the
+dashboard's in-app Docs pages (rendered by Nuxt Content at build time).
 
 `web/Dockerfile` is a two-stage build: `node:22-alpine` runs `pnpm run
 generate` (the app is client-side-only — `ssr: false` — so this produces a
@@ -235,7 +238,8 @@ fully static bundle in `.output/public/`, no Node runtime needed at
 runtime), and `nginx:alpine` serves it. The Apollo client calls a relative
 `/graphql` URL (see `app/plugins/apollo.client.ts`), which a static bundle
 has no way to point at a backend host itself — nginx fills that gap via
-`web/nginx.conf.template`, reverse-proxying `/graphql` to `${BACKEND_URL}`.
+`web/nginx.conf.template`, reverse-proxying `/graphql` (and the read-only `/actuator/configprops`
+behind Docs → Live configuration) to `${BACKEND_URL}`.
 That template is processed by the official `nginx` image's own
 env-substitution-on-startup feature (any `*.template` under
 `/etc/nginx/templates/`), so the backend target is a plain environment

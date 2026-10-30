@@ -8,6 +8,7 @@ import SidebarUtilities from '~/components/SidebarUtilities.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
+import { docSearchItems, type DocSearchSection } from '~/utils/docs'
 import { useFeedReadinessQuery } from '~~/generated/graphql'
 
 useFeedAlerts()
@@ -154,12 +155,19 @@ const WORK: NavLeaf[] = [
   { label: 'Optimization', icon: 'i-lucide-sparkles', path: '/optimize' },
 ]
 
+const DOCS: NavLeaf[] = [{ label: 'Docs', icon: 'i-lucide-book-open', path: '/docs' }]
+
 function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
+  // A leaf nested under a sibling's path (/docs/live-config under /docs) takes
+  // the highlight from that sibling.
+  const isActive = (l: NavLeaf) =>
+    underPath(feedPath(l.path)) &&
+    !leaves.some((o) => o.path.startsWith(`${l.path}/`) && underPath(feedPath(o.path)))
   return leaves.map((l) => ({
     label: l.label,
     icon: l.icon,
     to: feedPath(l.path),
-    active: underPath(feedPath(l.path)),
+    active: isActive(l),
     slot: 'leaf',
   }))
 }
@@ -181,7 +189,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     slot: 'group',
   },
   {
-    label: 'Schedule',
+    label: 'GTFS',
     icon: 'i-lucide-database',
     defaultOpen: SCHEDULE.some((l) => underPath(feedPath(l.path))),
     active: SCHEDULE.some((l) => underPath(feedPath(l.path))),
@@ -208,11 +216,32 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
 
 const navigationItems = computed(() => (feedIsBlocked.value ? [] : primaryNav.value))
 
+// Docs sit apart from the feed's pages, pinned to the bottom of the sidebar.
+const docsNav = computed<NavigationMenuItem[]>(() =>
+  feedIsBlocked.value ? [] : toItems(DOCS).map((item) => ({ ...item, slot: undefined })),
+)
+
+// Docs sections join ⌘K search. The index lives in the content collection's
+// WASM SQLite, so it's only loaded the first time the palette opens.
+const docSections = ref<DocSearchSection[]>([])
+watch(searchOpen, async (open) => {
+  if (!open || docSections.value.length) return
+  try {
+    docSections.value = await queryCollectionSearchSections('docs')
+  } catch {
+    // search still works for pages and feeds
+  }
+})
+// `content` is searched for docs items only (others don't have the field)
+const searchFuse = { fuseOptions: { keys: ['content'] } }
+
 const groups = computed(() => [
   {
     id: 'links',
     label: 'Go to',
-    items: feedIsBlocked.value ? [] : primaryNav.value.flatMap((i) => i.children ?? [i]),
+    items: feedIsBlocked.value
+      ? []
+      : [...primaryNav.value.flatMap((i) => i.children ?? [i]), ...docsNav.value],
   },
   {
     id: 'feeds',
@@ -225,6 +254,13 @@ const groups = computed(() => [
       to: `/${f.code}`,
     })),
   },
+  {
+    id: 'docs',
+    label: 'Docs',
+    items: feedIsBlocked.value ? [] : docSearchItems(docSections.value, feedPath('/docs')),
+    // only once something is typed — otherwise every docs section lists on open
+    postFilter: (term: string, items: unknown[]) => (term ? items : []),
+  },
 ])
 </script>
 
@@ -234,13 +270,12 @@ const groups = computed(() => [
       collapsible
       resizable
       :ui="{
-        header:
-          'h-auto! min-h-(--ui-header-height) shrink-0 flex items-center px-1.5 py-1.5',
+        header: 'h-auto! min-h-(--ui-header-height) shrink-0 flex items-center px-1.5 py-1.5',
       }"
     >
       <template #header="{ collapsed }">
         <div class="flex w-full flex-col gap-1.5">
-          <SidebarUtilities :collapsed="collapsed" />
+          <!-- <SidebarUtilities :collapsed="collapsed" /> -->
           <div class="flex items-center gap-1">
             <FeedSwitcher class="min-w-0 flex-1" :collapsed="collapsed" />
             <UDashboardSidebarCollapse side="left" size="xs" square />
@@ -310,10 +345,20 @@ const groups = computed(() => [
             </ul>
           </template>
         </UNavigationMenu>
+
+        <UNavigationMenu
+          :items="docsNav"
+          orientation="vertical"
+          :collapsed="collapsed"
+          :tooltip="collapsed"
+          :highlight="true"
+          class="mt-auto"
+          :ui="{ link: 'py-2 font-medium' }"
+        />
       </template>
 
       <template #footer="{ collapsed }">
-        <div class="w-full border-t border-default px-1.5 py-1.5">
+        <div class="flex w-full justify-center border-t border-default px-1.5 py-1.5">
           <UserMenu :collapsed="collapsed" />
         </div>
       </template>
@@ -348,7 +393,7 @@ const groups = computed(() => [
       </template>
     </UDashboardPanel>
 
-    <UDashboardSearch v-model:open="searchOpen" :groups="groups" />
+    <UDashboardSearch v-model:open="searchOpen" :groups="groups" :fuse="searchFuse" />
     <NotificationsSlideover />
   </UDashboardGroup>
 </template>

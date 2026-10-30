@@ -300,7 +300,7 @@ function badge(v: VehicleRow) {
 type VehicleState = 'stale' | 'stopped' | 'matched' | 'unmatched'
 
 const STOPPED_SPEED_MPS = 0.5
-const STOPPED_DISTANCE_M = 25
+const STOPPED_DISTANCE_M = 10
 
 function stateFor(v: VehicleRow): VehicleState {
   if (v.stale) return 'stale'
@@ -325,9 +325,7 @@ const STATE_COLORS: Record<VehicleState, string> = {
 const vehiclesGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
   type: 'FeatureCollection',
   features: props.vehicles
-    .filter(
-      (v) => v.position && (!props.selectedVehicleId || v.vehicleId === props.selectedVehicleId),
-    )
+    .filter((v) => v.position)
     .map((v) => {
       const hasBearing = v.bearing != null && Number.isFinite(v.bearing)
       return {
@@ -557,7 +555,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
       :attribution-control="false"
       :fit-bounds-options="{ padding: 40, animate: true }"
     >
-      <MglNavigationControl />
+      <!-- <MglNavigationControl /> -->
 
       <MglPopup
         v-if="activeVehicle"
@@ -565,7 +563,6 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         :coordinates="[activeVehicle.position.lon, activeVehicle.position.lat]"
         :close-on-click="true"
         :close-button="false"
-        :close-on-move="true"
         :offset="14"
         max-width="22rem"
         class-name="vehicle-operation-popup"
@@ -845,6 +842,8 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
                 iconId('unmatched', false),
               ],
             ],
+            // Draw the selected vehicle last so it stays on top of the rest of the fleet.
+            'symbol-sort-key': ['case', ['get', 'selected'], 1, 0],
             'icon-rotate': ['get', 'bearing'],
             'icon-rotation-alignment': 'map',
             'icon-allow-overlap': true,

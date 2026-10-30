@@ -35,12 +35,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,configprops
   endpoint:
     health:
       probes:
         enabled: true
       show-details: when_authorized
+    # Backs the web UI's Docs → Live configuration page. Values are shown
+    # except what ActuatorConfiguration's SanitizingFunction masks: credential-
+    # named keys, feed request headers, and keys/passwords inside URLs.
+    configprops:
+      show-values: always
   metrics:
     tags:
       application: ${spring.application.name}
@@ -82,36 +87,36 @@ transittrack:
             - kalman
             - schedule-adherence
             - historical-average
-#      - code: poznan
-#        name: ZTM
-#        auto-activate: true
-#        polling-cron: "0 * * * * *"
-##        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile/?file=20261015_20261031.zip
-#        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
-#        avl:
-#          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
-#          assignment-mode: trust_descriptor
-#          prediction-algorithms:
-#            - kalman
-#            - schedule-adherence
-#            - historical-average
-#      - code: wroclaw
-#        name: Wroclaw
-#        auto-activate: true
-#        polling-cron: "0 * * * * *"
-#        url: https://iplaner.pl/gtfs/wroclaw.zip
-#        avl:
-#          enabled: false
-#          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
-#          prediction-algorithms: [ kalman ]
-#          assignment-mode: descriptor_then_infer
-#      - code: bucharest
-#        name: Bucharest zone feeds
-#        polling-cron: "0 * * * * *"
-#        url: https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip
-#        avl:
-#          url: https://gtfs.tpbi.ro/api/gtfs-rt/vehiclePositions
-#          assignment-mode: descriptor_then_infer
+      #      - code: poznan
+      #        name: ZTM
+      #        auto-activate: true
+      #        polling-cron: "0 * * * * *"
+      ##        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile/?file=20261015_20261031.zip
+      #        url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGTFSFile
+      #        avl:
+      #          url: https://www.ztm.poznan.pl/pl/dla-deweloperow/getGtfsRtFile?file=vehicle_positions.pb
+      #          assignment-mode: trust_descriptor
+      #          prediction-algorithms:
+      #            - kalman
+      #            - schedule-adherence
+      #            - historical-average
+      #      - code: wroclaw
+      #        name: Wroclaw
+      #        auto-activate: true
+      #        polling-cron: "0 * * * * *"
+      #        url: https://iplaner.pl/gtfs/wroclaw.zip
+      #        avl:
+      #          enabled: false
+      #          url: https://tcwroclaw.iplaner.pl/api/v1/key/f78a2e9a/agency/2/command/gtfs-rt/vehiclePositions
+      #          prediction-algorithms: [ kalman ]
+      #          assignment-mode: descriptor_then_infer
+      #      - code: bucharest
+      #        name: Bucharest zone feeds
+      #        polling-cron: "0 * * * * *"
+      #        url: https://gtfs.tpbi.ro/regional/BUCHAREST-REGION.zip
+      #        avl:
+      #          url: https://gtfs.tpbi.ro/api/gtfs-rt/vehiclePositions
+      #          assignment-mode: descriptor_then_infer
       - code: stpt
         name: Societatea de transport public Timisoara
         polling-cron: "0 * * * * *"
@@ -121,16 +126,16 @@ transittrack:
           url: https://live.stpt.ro/gtfs-vehicles.php
           prediction-algorithms: [kalman, schedule_adherence]
           assignment-mode: descriptor_then_infer
-#      - code: ctp
-#        name: Compania de transport public Cluj
-#        polling-cron: "0 * * * * *"
-#        url: https://external.gtfs.ro/cluj/CLUJ.zip
-#        avl:
-#          format: gtfs_rt
-#          url: https://cluj-rt-feed.gtfs.ro/vehiclePositions
-#          prediction-algorithm: kalman
-#          prediction-mode: evaluation
-#          assignment-mode: descriptor_then_infer
+  #      - code: ctp
+  #        name: Compania de transport public Cluj
+  #        polling-cron: "0 * * * * *"
+  #        url: https://external.gtfs.ro/cluj/CLUJ.zip
+  #        avl:
+  #          format: gtfs_rt
+  #          url: https://cluj-rt-feed.gtfs.ro/vehiclePositions
+  #          prediction-algorithm: kalman
+  #          prediction-mode: evaluation
+  #          assignment-mode: descriptor_then_infer
   #      - code: otl
   #        name: Oradea
   #        polling-cron: "0 * * * * *"
@@ -154,7 +159,7 @@ transittrack:
   schedule:
     enabled: true
     layover-threshold-sec: 60
-    stop-projection-max-deviation-m: 100
+    stop-projection-max-deviation-m: 50
     inferred-blocks:
       enabled: true
       allow-deadhead: false
@@ -212,7 +217,7 @@ transittrack:
       max-reliable-report-gap-sec: 120
     accuracy:
       # Actual lead-time bins from issuance to crossing; all algorithms share snapshots.
-      horizons-sec: [ 60, 180, 300, 600, 900, 1200, 1800 ]
+      horizons-sec: [60, 180, 300, 600, 900, 1200, 1800]
       sample-interval-sec: 60
     retention:
       prediction-hours: 6
@@ -225,7 +230,7 @@ transittrack:
 
 logging:
   pattern:
-    level: '%5p'
+    level: "%5p"
     dateformat: dd-MM-YYYY' 'HH:mm:ss
     correlation: "[%X{traceId:-}%X{spanId:-}]"
     console: "%clr(%d{MM-dd HH:mm:ss.SSS}){faint} %clr(%5p) %clr([%12.12t]){red} %clr(%-30.30logger{29}){cyan} %clr(:){faint} %m%n"

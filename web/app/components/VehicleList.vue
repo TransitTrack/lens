@@ -4,6 +4,9 @@ import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge, formatAdherence } from '../utils/adherence'
 import { useUnits } from '../composables/useUnits'
 import { hexColor, routeTextColor } from '~/utils/gtfs'
+import { sortVehicles } from '~/utils/vehicleFilters'
+import { useFeeds } from '~/composables/useFeeds'
+import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 
 const props = defineProps<{
   vehicles: VehicleRow[]
@@ -14,6 +17,8 @@ const emit = defineEmits<{
 }>()
 
 const units = useUnits()
+const { feedPath } = useFeeds()
+const { showTripDetails } = useVehicleListPrefs()
 const descending = ref(false)
 const rowElements = new Map<string, HTMLElement>()
 
@@ -23,14 +28,7 @@ interface TripProgress {
   remainingM: number
 }
 
-const rows = computed(() =>
-  [...props.vehicles].sort((a, b) => {
-    const order = (a.label ?? a.vehicleId).localeCompare(b.label ?? b.vehicleId, undefined, {
-      numeric: true,
-    })
-    return descending.value ? -order : order
-  }),
-)
+const rows = computed(() => sortVehicles(props.vehicles, descending.value))
 
 function setRowElement(vehicleId: string, element: unknown) {
   if (element instanceof HTMLElement) rowElements.set(vehicleId, element)
@@ -146,7 +144,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
       :data-testid="`vehicle-row-${vehicle.vehicleId}`"
       role="button"
       tabindex="0"
-      class="group flex cursor-pointer w-full items-center gap-4 px-4 py-2 text-left transition-colors hover:bg-elevated focus-visible:bg-elevated focus-visible:outline-none"
+      class="group flex cursor-pointer w-full items-center gap-2 px-4 py-2 text-left transition-colors hover:bg-elevated focus-visible:bg-elevated focus-visible:outline-none"
       :class="
         vehicle.vehicleId === selectedVehicleId &&
         'bg-primary/10 shadow-[inset_3px_0_0_var(--ui-primary)]'
@@ -194,7 +192,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
         </div>
       </div>
 
-      <div class="min-w-42 flex-1">
+      <div class="min-w-34 flex-1">
         <template v-if="tripProgress(vehicle)">
           <div class="flex items-center justify-between gap-2 text-xs">
             <UBadge
@@ -230,6 +228,32 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
           <div class="mt-1 flex justify-between gap-2 text-xs tabular-nums text-muted">
             <span>{{ units.distance(tripProgress(vehicle)?.travelledM) }} complete</span>
             <span>{{ units.distance(tripProgress(vehicle)?.remainingM) }} left</span>
+          </div>
+          <div
+            v-if="showTripDetails && vehicle.trip"
+            class="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs text-muted"
+          >
+            <span v-if="vehicle.block">
+              · block
+              <NuxtLink
+                :to="{
+                  path: feedPath(`/explore/blocks/${encodeURIComponent(vehicle.block.blockId)}`),
+                  query: { service: vehicle.block.serviceId },
+                }"
+                class="font-mono text-primary hover:underline"
+                @click.stop
+                >{{ vehicle.block.blockId }}</NuxtLink
+              >
+            </span>
+            <span>
+              · trip
+              <NuxtLink
+                :to="feedPath(`/explore/trips/${encodeURIComponent(vehicle.trip.tripId)}`)"
+                class="font-mono text-primary hover:underline"
+                @click.stop
+                >{{ vehicle.trip.tripId }}</NuxtLink
+              >
+            </span>
           </div>
         </template>
         <div v-else class="flex items-center gap-2 text-sm text-dimmed">

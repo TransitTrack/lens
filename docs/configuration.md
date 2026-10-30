@@ -12,7 +12,10 @@ shipped defaults, and `SPRING_PROFILES_ACTIVE` layers additional
 This reference lists every property, its default, and what it controls.
 Subsystem docs ([gtfs.md](gtfs.md), [schedule.md](schedule.md),
 [avl.md](avl.md), [predictions.md](predictions.md)) cover the *behavior* each
-setting tunes in depth; this page is the flat lookup table.
+setting tunes in depth; this page is the flat lookup table. To see the values a
+running backend actually resolved, and whether each came from a file, an
+environment variable or the code default, open **Docs → Live configuration** in
+the web dashboard (backed by the read-only `/actuator/configprops` endpoint).
 
 ---
 
@@ -134,8 +137,11 @@ explicitly if you don't want any AVL beans created at all.
 | `match.backtrack-tolerance-m` | `30.0` | Allowed backward jump along the pattern before rejecting a match |
 | `match.max-deviation-m` | `60.0` | Max point-to-polyline distance accepted as a match |
 | `match.unmatch-after-failures` | `5` | Consecutive-miss threshold before clearing a vehicle's assignment |
-| `match.trip-end-advance-grace-sec` | `120` | Grace window past a trip's scheduled end before it stops being a candidate |
-| `match.candidate-time-slack-sec` | `1800` | ± window around a trip's `[start, end]` for candidacy |
+| `match.trip-end-advance-grace-sec` | `120` | Grace window past a trip's scheduled end during which a vehicle standing at its terminus still counts as on it; after that `TRUST_DESCRIPTOR` advances to the next block trip and `FULL_INFERENCE` drops the finished trip (the arrival itself matches however late) |
+| `match.layover-distance-m` | `50.0` | Off-route allowance at layover stops: `max(1.5x the distance from the previous stop, this)` mid-pattern; alone bounds a trip's first and last stops, so a vehicle parked near a terminus isn't taken for one at it |
+| `match.candidate-lead-sec` | `600` | How long before a trip's scheduled start it becomes a candidate (`FULL_INFERENCE`) |
+| `match.candidate-time-slack-sec` | `1800` | How long after a trip's scheduled end it stays a candidate (`FULL_INFERENCE`) |
+| `match.max-first-stop-lateness-sec` | `600` | A vehicle still at a trip's first stop this long after its departure is dropped from that trip (`FULL_INFERENCE`) |
 | `match.match-interval-ms` | `5000` | `AvlMatchProcessor` per-feed fixed delay |
 | `match.claim-batch-size` | `500` | Max `PENDING` `avl_report` rows claimed per feed per cycle |
 | `match.reassign-hysteresis` | `0.15` | Score margin protecting the incumbent trip from churn (`FULL_INFERENCE`) |
@@ -236,7 +242,8 @@ overridden per environment:
 | `spring.datasource.password` | `${POSTGRES_PASSWORD:password}` | DB password — set via `POSTGRES_PASSWORD` env var |
 | `spring.liquibase.enabled` | `true` | Run migrations on startup |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | Never auto-generates schema — Liquibase owns it; this only validates the mapping matches |
-| `management.endpoints.web.exposure.include` | `health,info,prometheus` | Which actuator endpoints are reachable over HTTP |
+| `management.endpoints.web.exposure.include` | `health,info,prometheus,configprops` | Which actuator endpoints are reachable over HTTP |
+| `management.endpoint.configprops.show-values` | `always` | Shows resolved values for the web dashboard's Docs → Live configuration page; `ActuatorConfiguration` still masks credential-named keys and feed request headers whole, and redacts keys/passwords inside URLs |
 | `logging.level.eu.transittrack` | `debug` | Application log level — turn down for production (`info` or `warn`) |
 | `logging.level.root` | `warn` | Framework/library log level |
 

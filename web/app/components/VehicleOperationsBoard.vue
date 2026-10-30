@@ -9,6 +9,7 @@ import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
 import { routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
 import { usePollControl } from '~/composables/usePollControl'
+import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useVehicleDetailQuery } from '~~/generated/graphql'
 
 const props = defineProps<{
@@ -38,10 +39,14 @@ const attentionVehicles = computed(
 )
 
 const { intervalMs } = usePollControl()
+const { showTripDetails } = useVehicleListPrefs()
 
 const { result: selectedVehicleResult } = useVehicleDetailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
-  () => ({ enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value }),
+  () => ({
+    enabled: !!props.feedCode && !!selectedVehicleId.value,
+    pollInterval: intervalMs.value,
+  }),
 )
 
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
@@ -114,31 +119,20 @@ const splitterItems = computed<SplitterItem[]>(() => [
           </div>
         </div>
 
-        <div
-          class="mt-3 flex flex-wrap justify-between gap-x-3 gap-y-1.5 text-xs text-muted"
-          aria-label="Fleet summary"
-        >
-          <span
-            ><strong class="font-semibold text-highlighted">{{ vehicles.length }}</strong>
-            reporting</span
+        <div class="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Fleet summary">
+          <UBadge color="neutral" variant="subtle" size="sm"
+            >{{ vehicles.length }} reporting</UBadge
           >
-          <span
-            ><strong class="font-semibold text-success">{{ matchedVehicles }}</strong> matched</span
-          >
-          <span v-if="attentionVehicles"
-            ><strong class="font-semibold text-warning">{{ attentionVehicles }}</strong> need
-            attention</span
+          <UBadge color="success" variant="subtle" size="sm">{{ matchedVehicles }} matched</UBadge>
+          <UBadge v-if="attentionVehicles" color="warning" variant="subtle" size="sm"
+            >{{ attentionVehicles }} need attention</UBadge
           >
 
-          <div class="flex-1 justify-end">
-            <span class="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-              {{ filteredVehicles.length.toLocaleString() }} shown
-            </span>
-          </div>
+          <USwitch v-model="showTripDetails" class="ml-auto" size="xs" label="Trip & block" />
         </div>
 
-        <div class="mt-3">
-          <VehicleFilters v-model="filters" :feed-code="feedCode" />
+        <div class="mt-2">
+          <VehicleFilters v-model="filters" :vehicles="vehicles" />
         </div>
       </header>
 

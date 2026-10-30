@@ -14,6 +14,7 @@ import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.actuate.endpoint.SanitizingFunction
 import org.springframework.boot.cache.autoconfigure.CacheManagerCustomizer
 import org.springframework.boot.persistence.autoconfigure.EntityScan
 import org.springframework.cache.annotation.EnableCaching
@@ -117,6 +118,55 @@ class HttpClientsConfiguration(
                 },
             ).addInterceptor(MaxBytesResponseInterceptor(props.maxSizeBytes))
             .build()
+}
+
+/**
+ * Masking for the `configprops` Actuator endpoint behind the web UI's Docs → Live configuration
+ * page. That endpoint runs with `show-values: always`, in which Boot masks nothing by itself, so:
+ * credential-named keys (`*password`, `*secret`, `*key`, `*token`) and every AVL request header
+ * (usually auth) are masked whole; in any other value only the secret part of a URL is — a
+ * `user:password@`, an `api_key=`/`token=` query parameter, or a `/key/<value>/` path segment — so
+ * the rest of a feed URL stays readable for debugging.
+ */
+@Configuration
+class ActuatorConfiguration {
+    @Bean
+    fun configPropsSanitizer(): SanitizingFunction {
+        val maskWhole =
+            SanitizingFunction
+                .sanitizeValue()
+                .ifLikelyCredential()
+                .ifLikelySensitiveProperty()
+                .ifVcapServices()
+                .ifKeyContains(".headers.")
+        return SanitizingFunction { data ->
+            val masked = maskWhole.applyUnlessFiltered(data)
+            val value = data.value
+            when {
+                masked !== data -> masked
+                value is String -> data.withValue(redactUrlSecrets(value))
+                else -> data
+            }
+        }
+    }
+
+    private companion object {
+        private const val MASK = "******"
+        private const val SECRET_NAME = "api[_-]?key|apikey|key|token|access[_-]?token|secret|password"
+        private val URL_SECRETS =
+            listOf(
+                Regex("(://[^/:@\\s]*:)[^/@\\s]+@") to "$1$MASK@",
+                Regex("([?&](?:$SECRET_NAME)=)[^&#]*", RegexOption.IGNORE_CASE) to "$1$MASK",
+                Regex("(://[^\\s]*?/(?:$SECRET_NAME)/)[^/?#]+", RegexOption.IGNORE_CASE) to "$1$MASK",
+            )
+
+        fun redactUrlSecrets(value: String): String =
+            if ("://" !in value) {
+                value
+            } else {
+                URL_SECRETS.fold(value) { v, (pattern, replacement) -> pattern.replace(v, replacement) }
+            }
+    }
 }
 
 @Configuration

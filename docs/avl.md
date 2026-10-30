@@ -79,7 +79,10 @@ transittrack:
       max-deviation-m: 60.0             # max point-to-polyline distance for a match
       unmatch-after-failures: 3         # clear the last assignment after N consecutive misses
       trip-end-advance-grace-sec: 120
-      candidate-time-slack-sec: 1800    # ± window around a trip's [start,end] for candidacy
+      layover-distance-m: 50.0          # off-route allowance at layover stops (alone bounds a trip's first and last stops)
+      candidate-lead-sec: 600           # how long before a trip's start it becomes a candidate
+      candidate-time-slack-sec: 1800    # how long after a trip's end it stays a candidate
+      max-first-stop-lateness-sec: 600  # drop a trip once a vehicle still at its first stop is this late
       match-interval-ms: 5000           # AvlMatchProcessor fixed delay
       claim-batch-size: 500
       reassign-hysteresis: 0.15         # score margin protecting the incumbent trip
