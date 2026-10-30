@@ -59,6 +59,11 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       exclude: ['maplibre-gl'],
+      include: [
+        '@apollo/client/core',
+        '@indoorequal/vue-maplibre-gl',
+        '@vue/apollo-composable',
+      ]
     },
   },
   nitro: {
