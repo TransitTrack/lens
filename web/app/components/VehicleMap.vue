@@ -39,7 +39,13 @@ const props = withDefaults(
     selectionActionLabel: 'Open details',
   },
 )
-const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
+const emit = defineEmits<{
+  select: [vehicleId: string]
+  viewTrip: [tripId: string]
+  viewBlock: [block: { blockId: string; serviceId: string }]
+  viewRoute: [routeId: string]
+  viewVehicle: [vehicleId: string]
+}>()
 
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
@@ -128,6 +134,36 @@ const activeVehicleDetail = computed(() => {
   const vehicle = activeVehicleDetailResult.value?.vehicle
   return vehicle?.vehicleId === activeVehicleId.value ? vehicle : null
 })
+
+// Once the popup's own vehicle has had its route highlighted (selectedRoute
+// is populated for it), the single action button's job is done — it splits
+// into direct links to the vehicle's matched trip/block/route/vehicle record
+// instead of re-highlighting it.
+const activeRouteHighlighted = computed(
+  () => !!activeVehicleId.value && props.selectedRoute?.vehicleId === activeVehicleId.value,
+)
+const activeTripId = computed(
+  () => activeVehicleDetail.value?.trip?.tripId ?? activeVehicle.value?.trip?.tripId ?? null,
+)
+const activeBlockId = computed(
+  () => activeVehicleDetail.value?.block?.blockId ?? activeVehicle.value?.block?.blockId ?? null,
+)
+const activeServiceId = computed(
+  () =>
+    activeVehicleDetail.value?.block?.serviceId ?? activeVehicle.value?.block?.serviceId ?? null,
+)
+const activeRouteId = computed(
+  () => activeVehicleDetail.value?.trip?.routeId ?? activeVehicle.value?.trip?.routeId ?? null,
+)
+
+function handleActionClick() {
+  if (activeVehicle.value) emit('select', activeVehicle.value.vehicleId)
+}
+
+function handleViewBlock() {
+  if (activeBlockId.value && activeServiceId.value)
+    emit('viewBlock', { blockId: activeBlockId.value, serviceId: activeServiceId.value })
+}
 
 const { result: activeVehicleTrailResult } = useAvlTrailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '', limit: 2 }),
@@ -742,12 +778,58 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
           </div>
 
           <UButton
+            v-if="!activeRouteHighlighted"
             color="primary"
             trailing-icon="i-lucide-arrow-right"
             block
             :label="selectionActionLabel"
-            @click="emit('select', activeVehicle.vehicleId)"
+            @click="handleActionClick"
           />
+          <div v-else class="flex flex-col gap-1.5">
+            <UFieldGroup class="w-full">
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-milestone"
+                label="View trip"
+                :disabled="!activeTripId"
+                @click="activeTripId && emit('viewTrip', activeTripId)"
+              />
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-layers"
+                label="View block"
+                :disabled="!activeBlockId || !activeServiceId"
+                @click="handleViewBlock"
+              />
+            </UFieldGroup>
+            <UFieldGroup class="w-full">
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-route"
+                label="View route"
+                :disabled="!activeRouteId"
+                @click="activeRouteId && emit('viewRoute', activeRouteId)"
+              />
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-bus"
+                label="View vehicle"
+                @click="emit('viewVehicle', activeVehicle.vehicleId)"
+              />
+            </UFieldGroup>
+          </div>
         </div>
       </MglPopup>
 
@@ -762,7 +844,6 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         :show-routes="visibleLayers.networkRoutes"
         :show-stops="visibleLayers.networkStops"
         before="vehicles-icons"
-        dim
       />
 
       <MglGeoJsonSource

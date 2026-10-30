@@ -10,6 +10,7 @@ import { routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
 import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
+import { useFeeds } from '~/composables/useFeeds'
 import { useVehicleDetailQuery } from '~~/generated/graphql'
 
 const props = defineProps<{
@@ -40,6 +41,7 @@ const attentionVehicles = computed(
 
 const { intervalMs } = usePollControl()
 const { showTripDetails } = useVehicleListPrefs()
+const { feedPath } = useFeeds()
 
 const { result: selectedVehicleResult } = useVehicleDetailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
@@ -63,6 +65,25 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
 
 function selectVehicle(vehicleId: string) {
   selectedVehicleId.value = vehicleId
+}
+
+function viewTripDetails(tripId: string) {
+  navigateTo(feedPath(`/explore/trips/${encodeURIComponent(tripId)}`))
+}
+
+function viewBlockDetails(block: { blockId: string; serviceId: string }) {
+  navigateTo({
+    path: feedPath(`/explore/blocks/${encodeURIComponent(block.blockId)}`),
+    query: { service: block.serviceId },
+  })
+}
+
+function viewRouteDetails(routeId: string) {
+  navigateTo(feedPath(`/explore/routes/${encodeURIComponent(routeId)}`))
+}
+
+function viewVehicleDetails(vehicleId: string) {
+  navigateTo(feedPath(`/vehicles/${encodeURIComponent(vehicleId)}`))
 }
 
 // Side-by-side on desktop; stacked (directory above map) on narrow viewports.
@@ -181,6 +202,10 @@ const splitterItems = computed<SplitterItem[]>(() => [
         :selected-route="selectedRoute"
         selection-action-label="Highlight route"
         @select="selectVehicle"
+        @view-trip="viewTripDetails"
+        @view-block="viewBlockDetails"
+        @view-route="viewRouteDetails"
+        @view-vehicle="viewVehicleDetails"
       />
     </template>
 
