@@ -7,7 +7,7 @@ import java.time.Instant
  * A vehicle within this distance of its trip's start hasn't left the first stop yet: it's standing
  * at the terminus, even if its GPS projects a few metres onto the first real stop path.
  */
-const val FIRST_STOP_RADIUS_M = 30.0
+const val FIRST_STOP_RADIUS_M = 10.0
 
 /**
  * A vehicle within this distance of its trip's end has reached the last stop: shapes often run on a
@@ -15,7 +15,7 @@ const val FIRST_STOP_RADIUS_M = 30.0
  * pattern's full length. The matcher's default `backtrackToleranceM` treats the same span as the
  * trip's end when it advances a vehicle to its next block trip.
  */
-const val LAST_STOP_RADIUS_M = 30.0
+const val LAST_STOP_RADIUS_M = 10.0
 
 /** A stop the vehicle reached (or, for the first stop, left) between two matched positions. */
 data class StopPass(
