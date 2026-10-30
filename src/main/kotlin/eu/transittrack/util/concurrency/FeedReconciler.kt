@@ -39,7 +39,8 @@ abstract class FeedReconciler(
 
     private val scheduler =
         ThreadPoolTaskScheduler().apply {
-            poolSize = 4
+            // at least 1: ThreadPoolTaskScheduler rejects 0, which an instance with no AVL feeds would get
+            poolSize = maxOf(feeds.count().toInt(), 2)
             setVirtualThreads(useVirtualThreads)
             setThreadNamePrefix(threadNamePrefix)
             initialize()
