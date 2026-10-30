@@ -5,7 +5,11 @@
  * faint stop-dot layer; tune prominence with `dim` when it sits under live
  * markers.
  */
-import type { CircleLayerSpecification, LineLayerSpecification } from 'maplibre-gl'
+import type {
+  CircleLayerSpecification,
+  LineLayerSpecification,
+  SymbolLayerSpecification,
+} from 'maplibre-gl'
 
 const props = withDefaults(
   defineProps<{
@@ -51,6 +55,30 @@ const stopPaint = computed<CircleLayerSpecification['paint']>(() => ({
   'circle-stroke-color': '#ffffff',
 }))
 
+const routeLabelLayout = computed<SymbolLayerSpecification['layout']>(() => ({
+  'symbol-placement': 'line',
+  'symbol-spacing': 350,
+  'text-field': ['get', 'shortName'],
+  'text-size': props.dim ? 10 : 11,
+  // Matches the glyph fontstack the VersaTiles basemap styles actually serve
+  // (confirmed against their style.json) — an unregistered name like "Open
+  // Sans SemiBold" 404s per-glyph-range and silently renders no text.
+  'text-font': ['noto_sans_bold'],
+  'text-rotation-alignment': 'map',
+  'text-keep-upright': true,
+  // Lifts the label above the line instead of letting the stroke cut
+  // through the glyphs — offset is in the line's local (rotated) frame.
+  'text-offset': [0, -0.9],
+  visibility: props.showRoutes ? 'visible' : 'none',
+}))
+
+const routeLabelPaint = computed<SymbolLayerSpecification['paint']>(() => ({
+  'text-color': ['get', 'color'],
+  'text-halo-color': colorMode.value === 'dark' ? '#0b0d0e' : '#ffffff',
+  'text-halo-width': 1.4,
+  'text-opacity': props.dim ? 0.75 : 1,
+}))
+
 </script>
 
 <template>
@@ -66,6 +94,14 @@ const stopPaint = computed<CircleLayerSpecification['paint']>(() => ({
       :before="before"
       :paint="linePaint"
       :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: showRoutes ? 'visible' : 'none' }"
+    />
+    <MglSymbolLayer
+      layer-id="feed-network-routes-labels"
+      :before="before"
+      :minzoom="12.5"
+      :filter="['!=', ['get', 'shortName'], '']"
+      :layout="routeLabelLayout"
+      :paint="routeLabelPaint"
     />
   </MglGeoJsonSource>
 
