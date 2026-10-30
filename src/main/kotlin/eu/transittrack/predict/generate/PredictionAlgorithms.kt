@@ -32,7 +32,7 @@ fun buildHorizon(
     distanceAlongTripM: Double,
     ctx: MatchContext,
 ): List<HorizonStop> {
-    val stops = ArrayList<HorizonStop>()
+    val stops = mutableListOf<HorizonStop>()
     var tripRowId = currentTripRowId
     var patternId = currentTripPatternId
     var hops = 0
@@ -127,7 +127,7 @@ class ScheduleAdherenceAlgorithm : PredictionStrategy {
         var previousTripRowId: Long? = null
         var lastArrivalTs: Instant? = null
         var lastDepartureTs: Instant? = null
-        val predictions = ArrayList<GeneratedPrediction>()
+        val predictions = arrayListOf<GeneratedPrediction>()
         for (stop in horizon) {
             if (stop.tripRowId != previousTripRowId && ctx.trip(stop.tripRowId)?.frequencyBased == true) break
             val schedulePoint =
