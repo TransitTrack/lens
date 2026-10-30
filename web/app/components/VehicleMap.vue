@@ -988,13 +988,14 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
         <MglSymbolLayer
           layer-id="selected-vehicle-stops-labels"
           before="vehicles-icons"
+          :minzoom="12"
           :layout="{
             'text-field': ['get', 'name'],
             'text-size': 10,
             'text-font': ['noto_sans_regular'],
-            'text-anchor': 'top',
-            'text-offset': [0, 0.7],
-            'text-max-width': 10,
+            'text-anchor': 'left',
+            'text-offset': [1, 0],
+            'text-max-width': 8,
             'text-allow-overlap': false,
             'text-ignore-placement': false,
             visibility: visibleLayers.selectedTripStops ? 'visible' : 'none',
@@ -1002,7 +1003,7 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
           :paint="{
             'text-color': '#1e293b',
             'text-halo-color': '#ffffff',
-            'text-halo-width': 1.4,
+            'text-halo-width': 1.2,
           }"
         />
       </MglGeoJsonSource>
