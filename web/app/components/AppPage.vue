@@ -6,20 +6,29 @@ withDefaults(
     title?: string
     description?: string
     /**
-     * true (default) → "fill" page: the page is a definite height (viewport
-     * minus the app header) and the body is a framed flex column that scrolls
-     * internally, so map / split-pane children can flex to fill it without
-     * scrolling the document. false → normal-flow page: body scrolls with the
-     * document instead.
+     * true (default) → the page fills the viewport below the app chrome.
+     * Combine with constrainContent for map and split-pane pages. false →
+     * normal-flow page: body scrolls with the document instead.
      */
     fullBleed?: boolean
+    /**
+     * Keep the content within the viewport for map and split-pane pages.
+     * Normal index pages retain natural document flow.
+     */
+    constrainContent?: boolean
     /**
      * true (default) → the page uses the full application canvas instead of
      * the reading-width content container.
      */
     fullWidth?: boolean
   }>(),
-  { title: undefined, description: undefined, fullBleed: true, fullWidth: false },
+  {
+    title: undefined,
+    description: undefined,
+    fullBleed: true,
+    fullWidth: false,
+    constrainContent: false,
+  },
 )
 
 const slots = useSlots()
@@ -67,6 +76,7 @@ const containerClass = 'max-w-(--app-content-max-w)'
       data-testid="app-page-container"
       :class="[
         'app-page__content flex flex-1 flex-col gap-4',
+        constrainContent && 'min-h-0',
         fullWidth ? 'app-page__content--canvas max-w-none! h-full' : 'app-page__content--rail',
       ]"
     >

@@ -1010,7 +1010,7 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
           before="vehicles-icons"
           :minzoom="12"
           :layout="{
-            'text-field': ['get', 'name'],
+            'text-field': ['coalesce', ['get', 'label'], ['get', 'name']],
             'text-size': 10,
             'text-font': ['noto_sans_regular'],
             'text-anchor': 'left',

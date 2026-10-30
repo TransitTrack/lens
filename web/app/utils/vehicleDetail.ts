@@ -1,4 +1,5 @@
 import type { VehicleDetailQuery } from '../../generated/graphql'
+import { formatClock } from './clock'
 
 type Vehicle = NonNullable<VehicleDetailQuery['vehicle']>
 type Prediction = VehicleDetailQuery['vehiclePredictions'][number]
@@ -58,24 +59,50 @@ export type StopState = 'passed' | 'current' | 'upcoming'
 export interface StopFeature {
   type: 'Feature'
   geometry: { type: 'Point'; coordinates: LngLat }
-  properties: { name: string; state: StopState }
+  properties: { name: string; label?: string; state: StopState }
 }
 
-export function stopFeatureCollection(vehicle: Vehicle) {
+/**
+ * Stops for a selected vehicle's map overlay. When a prediction algorithm is
+ * available, upcoming stops also carry its ETA as a second label line.
+ */
+export function stopFeatureCollection(
+  vehicle: Vehicle,
+  predictions: Prediction[] = [],
+  algorithm?: string,
+  timeZone?: string,
+) {
   const nextIndex = vehicle.stopPathIndex ?? -1
+  const predictionsByIndex = new Map<number, Prediction>()
+  for (const prediction of predictions) {
+    if (prediction.algorithm === algorithm) {
+      predictionsByIndex.set(prediction.stopPathIndex, prediction)
+    }
+  }
   const features: StopFeature[] = (vehicle.pattern?.stopPaths ?? [])
     .filter((p) => p.stop?.stopLat != null && p.stop?.stopLon != null)
-    .map((p) => ({
-      type: 'Feature' as const,
-      geometry: {
-        type: 'Point' as const,
-        coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat,
-      },
-      properties: {
-        name: p.stop!.stopName ?? p.stopId,
-        state: stateFor(p.stopPathIndex, nextIndex),
-      },
-    }))
+    .map((p) => {
+      const name = p.stop!.stopName ?? p.stopId
+      const state = stateFor(p.stopPathIndex, nextIndex)
+      const prediction = predictionsByIndex.get(p.stopPathIndex)
+      const eta = state === 'passed'
+        ? null
+        : p.stopPathIndex === 0
+          ? prediction?.predictedDeparture ?? prediction?.predictedArrival
+          : prediction?.predictedArrival
+      return {
+        type: 'Feature' as const,
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat,
+        },
+        properties: {
+          name,
+          label: eta ? `${name}\n${formatClock(eta, { timeZone })}` : name,
+          state,
+        },
+      }
+    })
   return { type: 'FeatureCollection' as const, features }
 }
 

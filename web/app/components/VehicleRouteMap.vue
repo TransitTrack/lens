@@ -17,8 +17,10 @@ const props = withDefaults(
     follow?: boolean
     /** agency service area — frames the map on load before the route line arrives */
     extent?: LngLatBoundsExtent | null
+    /** stopId to highlight and centre on */
+    focusId?: string | null
   }>(),
-  {trail: () => [], follow: false, extent: null},
+  {trail: () => [], follow: false, extent: null, focusId: null},
 )
 
 const MAP_ID = 'vehicle-route-map'
@@ -85,6 +87,20 @@ function fit() {
 
 watch([lineKey, () => map.isLoaded], fit, {immediate: true})
 
+function focusStop() {
+  const id = props.focusId
+  if (!id || !map.map || !map.isLoaded) return
+  const stop = props.stops.features.find((feature) => feature.properties?.stopId === id)
+  if (!stop || stop.geometry.type !== 'Point') return
+  map.map.easeTo({
+    center: stop.geometry.coordinates as [number, number],
+    zoom: Math.max(map.map.getZoom(), 15),
+    duration: 600,
+  })
+}
+
+watch([() => props.focusId, () => map.isLoaded], focusStop, {immediate: true})
+
 watch(
   () => props.vehicle,
   (v) => {
@@ -131,6 +147,18 @@ watch(
 
       <MglGeoJsonSource source-id="route-stops" :data="props.stops">
         <MglCircleLayer
+          v-if="props.focusId"
+          layer-id="route-focused-stop-halo"
+          :filter="['==', ['get', 'stopId'], props.focusId]"
+          :paint="{
+            'circle-radius': 13,
+            'circle-color': props.routeColor,
+            'circle-opacity': 0.2,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': props.routeColor,
+          }"
+        />
+        <MglCircleLayer
           layer-id="route-stops-circles"
           :paint="{
             'circle-radius': ['match', ['get', 'state'], 'current', 8, 4],
@@ -145,10 +173,21 @@ watch(
             'circle-stroke-color': '#ffffff',
           }"
         />
+        <MglCircleLayer
+          v-if="props.focusId"
+          layer-id="route-focused-stop-core"
+          :filter="['==', ['get', 'stopId'], props.focusId]"
+          :paint="{
+            'circle-radius': 7,
+            'circle-color': props.routeColor,
+            'circle-stroke-width': 2.5,
+            'circle-stroke-color': '#ffffff',
+          }"
+        />
         <MglSymbolLayer
           layer-id="route-stop-labels"
           :layout="{
-            'text-field': ['get', 'name'],
+            'text-field': ['coalesce', ['get', 'label'], ['get', 'name']],
             'text-size': 11,
             'text-font': ['Open Sans SemiBold'],
             'text-anchor': 'top',

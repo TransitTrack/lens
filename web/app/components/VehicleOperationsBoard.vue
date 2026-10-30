@@ -6,12 +6,12 @@ import VehicleFilters from '~/components/VehicleFilters.vue'
 import VehicleList from '~/components/VehicleList.vue'
 import VehicleMap, { type SelectedRouteOverlay } from '~/components/VehicleMap.vue'
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
-import { routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
+import { algorithmsIn, preferredAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
 import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useFeeds } from '~/composables/useFeeds'
-import { useVehicleDetailQuery } from '~~/generated/graphql'
+import { useAgenciesDetailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
 const props = defineProps<{
   title?: string
@@ -41,7 +41,7 @@ const attentionVehicles = computed(
 
 const { intervalMs } = usePollControl()
 const { showTripDetails } = useVehicleListPrefs()
-const { feedPath } = useFeeds()
+const { feedPath, selectedFeed } = useFeeds()
 
 const { result: selectedVehicleResult } = useVehicleDetailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
@@ -51,6 +51,21 @@ const { result: selectedVehicleResult } = useVehicleDetailQuery(
   }),
 )
 
+const { result: agenciesResult } = useAgenciesDetailQuery(
+  () => ({ feedCode: props.feedCode ?? '' }),
+  () => ({ enabled: !!props.feedCode }),
+)
+const agencyTimezone = computed(
+  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
+)
+
+const selectedPredictionAlgorithm = computed(() =>
+  preferredAlgorithm(
+    algorithmsIn(selectedVehicleResult.value?.vehiclePredictions ?? []),
+    selectedFeed.value?.predictionAlgorithms ?? [],
+  ),
+)
+
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
   const vehicle = selectedVehicleResult.value?.vehicle
   if (!vehicle) return null
@@ -58,7 +73,12 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
   return {
     vehicleId: vehicle.vehicleId,
     line: routeLine(vehicle),
-    stops: stopFeatureCollection(vehicle),
+    stops: stopFeatureCollection(
+      vehicle,
+      selectedVehicleResult.value?.vehiclePredictions ?? [],
+      selectedPredictionAlgorithm.value,
+      agencyTimezone.value,
+    ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
   }
 })

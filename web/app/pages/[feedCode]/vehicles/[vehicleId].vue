@@ -37,6 +37,7 @@ import {
 import type { GeoJSON } from 'geojson'
 
 const route = useRoute()
+const router = useRouter()
 const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const { intervalMs } = usePollControl()
@@ -313,14 +314,14 @@ function adherenceTextClass(sec: number | null): string {
 </script>
 
 <template>
-  <AppPage full-width :title="title" :description="description">
+  <AppPage :title="title" :description="description">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        :to="feedPath('/vehicles')"
-        aria-label="Back to vehicles"
+        aria-label="Go back"
+        @click="router.back()"
       />
     </template>
     <template #actions>

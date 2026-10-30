@@ -7,15 +7,11 @@ import { hexColor, routeTextColor } from '~/utils/gtfs'
 import { timeSplit, timelineSegments } from '~/utils/blocks'
 
 const route = useRoute()
+const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const blockId = computed(() => String(route.params.blockId))
 const serviceId = computed(() => String(route.query.service ?? ''))
 const timelineOpen = ref(false)
-
-const backTo = computed(() => {
-  const from = route.query.from
-  return typeof from === 'string' && from ? from : feedPath('/explore/blocks')
-})
 
 const { result, loading, error } = useBlockDetailQuery(
   () => ({
@@ -58,8 +54,8 @@ function pct(sec: number): number {
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        :to="backTo"
-        aria-label="Back to blocks"
+        @click="router.back()"
+        aria-label="Go back"
       />
     </template>
 
