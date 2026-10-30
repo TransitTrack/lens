@@ -58,9 +58,8 @@ const stops = computed(
           const arrival = schedule ? secToHm(schedule.arrivalSec ?? null) : hm(s.arrivalTime)
           const departure = schedule ? secToHm(schedule.departureSec ?? null) : hm(s.departureTime)
           const times = [arrival, departure].filter((time) => time !== '—')
-          const timeLabel = times.length === 2 && times[0] !== times[1]
-            ? `${times[0]}–${times[1]}`
-            : times[0]
+          const timeLabel =
+            times.length === 2 && times[0] !== times[1] ? `${times[0]}–${times[1]}` : times[0]
           const name = s.stop!.stopName ?? s.stop!.stopId
           return {
             type: 'Feature',
@@ -125,14 +124,14 @@ const splitterItems = computed<SplitterItem[]>(() =>
 </script>
 
 <template>
-  <AppPage constrain-content :title="trip?.tripHeadsign ?? tripId">
+  <AppPage :title="trip?.tripHeadsign ?? tripId" constrain-content>
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        @click="router.back()"
         aria-label="Go back"
+        @click="router.back()"
       />
     </template>
     <template v-if="trip?.route?.routeShortName" #actions>
@@ -249,8 +248,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <table class="w-full text-sm">
               <thead>
                 <tr class="text-left text-xs text-dimmed">
-                  <th class="py-1 pl-2 pr-2 font-medium">#</th>
-                  <th class="py-1 font-medium">Stop</th>
+                  <th class="py-1 pl-2 pr-2 font-medium">Stop</th>
                   <th class="py-1 text-right font-medium">Arr</th>
                   <th class="py-1 pr-2 text-right font-medium">Dep</th>
                 </tr>
@@ -262,8 +260,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                   class="border-t border-default align-top"
                   :class="st.stop?.stopId === selectedStopId ? 'bg-primary/10' : ''"
                 >
-                  <td class="py-1 pl-2 text-xs text-dimmed">{{ st.stopSequence }}</td>
-                  <td class="py-1">
+                  <td class="py-1 pl-2">
                     <button
                       v-if="st.stop?.stopId"
                       type="button"
