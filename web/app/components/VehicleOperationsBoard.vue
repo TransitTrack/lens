@@ -200,7 +200,6 @@ const splitterItems = computed<SplitterItem[]>(() => [
         :feed-code="feedCode"
         :selected-vehicle-id="selectedVehicleId"
         :selected-route="selectedRoute"
-        selection-action-label="Highlight route"
         @select="selectVehicle"
         @view-trip="viewTripDetails"
         @view-block="viewBlockDetails"

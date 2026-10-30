@@ -29,15 +29,12 @@ const props = withDefaults(
     selectedRoute?: SelectedRouteOverlay | null
     /** Vehicle currently being inspected; the map enters focused mode when set. */
     selectedVehicleId?: string | null
-    /** Label for the marker-popup action. */
-    selectionActionLabel?: string
   }>(),
   {
     extent: null,
     feedCode: null,
     selectedRoute: null,
     selectedVehicleId: null,
-    selectionActionLabel: 'Open details',
   },
 )
 const emit = defineEmits<{
@@ -137,13 +134,6 @@ const activeVehicleDetail = computed(() => {
   return vehicle?.vehicleId === activeVehicleId.value ? vehicle : null
 })
 
-// Once the popup's own vehicle has had its route highlighted (selectedRoute
-// is populated for it), the single action button's job is done — it splits
-// into direct links to the vehicle's matched trip/block/route/vehicle record
-// instead of re-highlighting it.
-const activeRouteHighlighted = computed(
-  () => !!activeVehicleId.value && props.selectedRoute?.vehicleId === activeVehicleId.value,
-)
 const activeTripId = computed(
   () => activeVehicleDetail.value?.trip?.tripId ?? activeVehicle.value?.trip?.tripId ?? null,
 )
@@ -157,10 +147,6 @@ const activeServiceId = computed(
 const activeRouteId = computed(
   () => activeVehicleDetail.value?.trip?.routeId ?? activeVehicle.value?.trip?.routeId ?? null,
 )
-
-function handleActionClick() {
-  if (activeVehicle.value) emit('select', activeVehicle.value.vehicleId)
-}
 
 function handleViewBlock() {
   if (activeBlockId.value && activeServiceId.value)
@@ -589,7 +575,12 @@ watch(markerContrastColor, (contrastColor) => {
 function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
   if (measuring.value) return
   const id = e.features?.[0]?.properties?.vehicleId
-  if (typeof id === 'string') activeVehicleId.value = id
+  if (typeof id !== 'string') return
+  activeVehicleId.value = id
+  // Opening a vehicle's popup is the only "select" gesture now — it
+  // highlights the vehicle in the list and draws its route immediately,
+  // no separate "Highlight route" step.
+  emit('select', id)
 }
 
 // Ruler tool: click points on the map to chain segments and see a running
@@ -878,15 +869,7 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
             <span v-if="activeVehicle.stale" class="text-warning">stale</span>
           </div>
 
-          <UButton
-            v-if="!activeRouteHighlighted"
-            color="primary"
-            trailing-icon="i-lucide-arrow-right"
-            block
-            :label="selectionActionLabel"
-            @click="handleActionClick"
-          />
-          <div v-else class="flex flex-col gap-1.5">
+          <div class="flex flex-col gap-1.5">
             <UFieldGroup class="w-full">
               <UButton
                 class="flex-1 justify-center"
