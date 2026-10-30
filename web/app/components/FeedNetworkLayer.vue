@@ -22,11 +22,13 @@ const props = withDefaults(
     showRoutes?: boolean
     /** hide the stop dots (they can be noisy on a fleet map) */
     showStops?: boolean
+    /** use a deterministic palette instead of the feed-published route colours */
+    routeColorMode?: 'official' | 'distinct'
     /** id of an existing layer to insert these below (e.g. a live marker layer
      * that must stay on top regardless of mount order) */
     before?: string
   }>(),
-  { dim: false, showRoutes: true, showStops: true, before: undefined },
+  { dim: false, showRoutes: true, showStops: true, routeColorMode: 'official', before: undefined },
 )
 const emit = defineEmits<{
   clusterClick: [cluster: { id: number; center: LngLat }]
@@ -38,7 +40,7 @@ const baseWidth = computed(() => (props.dim ? 1.5 : 2))
 const baseOpacity = computed(() => (props.dim ? 0.72 : 0.9))
 
 const linePaint = computed<LineLayerSpecification['paint']>(() => ({
-  'line-color': ['get', 'color'],
+  'line-color': ['get', props.routeColorMode === 'distinct' ? 'distinctColor' : 'color'],
   'line-width': baseWidth.value,
   'line-opacity': baseOpacity.value,
 }))
@@ -77,7 +79,7 @@ const routeLabelLayout = computed<SymbolLayerSpecification['layout']>(() => ({
 }))
 
 const routeLabelPaint = computed<SymbolLayerSpecification['paint']>(() => ({
-  'text-color': ['get', 'color'],
+  'text-color': ['get', props.routeColorMode === 'distinct' ? 'distinctColor' : 'color'],
   'text-halo-color': colorMode.value === 'dark' ? '#0b0d0e' : '#ffffff',
   'text-halo-width': 1.4,
   'text-opacity': props.dim ? 0.75 : 1,

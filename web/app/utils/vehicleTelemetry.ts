@@ -19,6 +19,19 @@ export function haversineM(
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)))
 }
 
+/** Approximate geodesic area of a longitude/latitude polygon, in square metres. */
+export function polygonAreaM2(points: [number, number][]): number {
+  if (points.length < 3) return 0
+  const toRad = (d: number) => (d * Math.PI) / 180
+  let sum = 0
+  for (let index = 0; index < points.length; index++) {
+    const [lonA, latA] = points[index]!
+    const [lonB, latB] = points[(index + 1) % points.length]!
+    sum += (toRad(lonB) - toRad(lonA)) * (2 + Math.sin(toRad(latA)) + Math.sin(toRad(latB)))
+  }
+  return Math.abs(sum) * (6_371_000 ** 2) / 2
+}
+
 /** Mean seconds between consecutive AVL reports. `null` with fewer than two. */
 export function avgIntervalSec(reports: { ts: string }[]): number | null {
   const times = reports

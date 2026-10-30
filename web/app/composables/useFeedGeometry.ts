@@ -11,11 +11,20 @@ const LINE_SIMPLIFY_TOLERANCE_DEG = 0.00003
 export interface RouteLineProps {
   routeId: string
   color: string
+  distinctColor: string
   shortName: string
   longName: string
   typeLabel: string
   headsign: string
   tripCount: number
+}
+
+const DISTINCT_ROUTE_COLORS = ['#2563eb', '#db2777', '#16a34a', '#d97706', '#7c3aed', '#0891b2']
+
+function distinctRouteColor(routeId: string): string {
+  let hash = 0
+  for (const character of routeId) hash = (hash * 31 + character.charCodeAt(0)) | 0
+  return DISTINCT_ROUTE_COLORS[Math.abs(hash) % DISTINCT_ROUTE_COLORS.length]!
 }
 
 /**
@@ -48,6 +57,7 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
         const props: RouteLineProps = {
           routeId: p.routeId,
           color: hexColor(p.route?.routeColor),
+          distinctColor: distinctRouteColor(p.routeId),
           shortName: p.route?.routeShortName ?? '',
           longName: p.route?.routeLongName ?? '',
           typeLabel: routeTypeLabel(p.route?.routeType),

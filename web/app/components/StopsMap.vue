@@ -17,6 +17,8 @@ const emit = defineEmits<{ (e: 'select', stopId: string): void }>()
 const MAP_ID = 'stops-map'
 const mapStyle = useMapStyle()
 const map = useMglMap(MAP_ID)
+const tools = useMapTools()
+const visibleLayers = reactive({ stops: true })
 
 // Capture the agency extent once. `useFeedExtent` hands back a fresh object on
 // every Apollo tick; binding it live would make <MglMap>'s bounds watcher snap
@@ -77,11 +79,27 @@ watch(
 )
 
 function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
+  if (tools.activeTool.value) return
   const id = e.features?.[0]?.properties?.stopId
   if (typeof id === 'string') emit('select', id)
 }
 
+function onMapClick(e: { event?: { lngLat?: { lng: number; lat: number }; originalEvent?: MouseEvent } }) {
+  const lngLat = e.event?.lngLat
+  if (!lngLat) return
+  tools.onMapClick(
+    [lngLat.lng, lngLat.lat],
+    e.event?.originalEvent?.detail === 2,
+  )
+}
+
+watch(() => tools.activeTool.value, (active) => {
+  const canvas = map.map?.getCanvas()
+  if (canvas) canvas.style.cursor = active ? 'crosshair' : ''
+})
+
 async function onClusterClick(e: MapLayerMouseEvent) {
+  if (tools.activeTool.value) return
   const cluster = e.features?.[0]
   const clusterId = cluster?.properties?.cluster_id
   if (
@@ -105,7 +123,7 @@ async function onClusterClick(e: MapLayerMouseEvent) {
 </script>
 
 <template>
-  <div class="h-full w-full">
+  <div class="relative h-full w-full">
     <MglMap
       :map-key="MAP_ID"
       :map-style="mapStyle"
@@ -114,6 +132,7 @@ async function onClusterClick(e: MapLayerMouseEvent) {
       :attribution-control="false"
       :center="[0, 0]"
       :zoom="2"
+      @map:click="onMapClick"
     >
       <MglNavigationControl />
       <MglGeoJsonSource
@@ -125,6 +144,7 @@ async function onClusterClick(e: MapLayerMouseEvent) {
       >
         <MglCircleLayer
           layer-id="stop-clusters"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :filter="['has', 'point_count']"
           :paint="{
             'circle-radius': ['step', ['get', 'point_count'], 13, 10, 16, 50, 20, 250, 24],
@@ -137,18 +157,20 @@ async function onClusterClick(e: MapLayerMouseEvent) {
         />
         <MglSymbolLayer
           layer-id="stop-cluster-counts"
-          :filter="['has', 'point_count']"
           :layout="{
             'text-field': ['get', 'point_count_abbreviated'],
             'text-font': ['noto_sans_bold'],
             'text-size': 12,
             'text-allow-overlap': true,
+            visibility: visibleLayers.stops ? 'visible' : 'none',
           }"
+          :filter="['has', 'point_count']"
           :paint="{ 'text-color': '#ffffff' }"
         />
         <MglCircleLayer
           v-if="props.focusId"
           layer-id="focused-stop-halo"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :filter="[
             'all',
             ['!', ['has', 'point_count']],
@@ -164,6 +186,7 @@ async function onClusterClick(e: MapLayerMouseEvent) {
         />
         <MglCircleLayer
           layer-id="all-stops-circles"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :filter="['!', ['has', 'point_count']]"
           :paint="{
             'circle-radius': 4,
@@ -177,6 +200,7 @@ async function onClusterClick(e: MapLayerMouseEvent) {
         <MglCircleLayer
           v-if="props.focusId"
           layer-id="focused-stop-core"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :filter="[
             'all',
             ['!', ['has', 'point_count']],
@@ -191,6 +215,12 @@ async function onClusterClick(e: MapLayerMouseEvent) {
           @click="onClick"
         />
       </MglGeoJsonSource>
+      <MapToolLayers :map-id="MAP_ID" :tools="tools" />
     </MglMap>
+    <MapToolbox
+      :tools="tools"
+      :layers="[{ id: 'stops', label: 'Stops', enabled: visibleLayers.stops }]"
+      @update:layer="({ id, enabled }) => id === 'stops' && (visibleLayers.stops = enabled)"
+    />
   </div>
 </template>

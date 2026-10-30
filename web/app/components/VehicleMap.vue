@@ -9,7 +9,6 @@ import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
 import { haversineM } from '../utils/vehicleTelemetry'
 import { usePollControl } from '../composables/usePollControl'
-import { useUnits } from '../composables/useUnits'
 import { useAvlTrailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
 export interface SelectedRouteOverlay {
@@ -60,7 +59,7 @@ const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#00000
 // and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
 // before that silently no-op).
 const map = useMglMap(MAP_ID)
-const units = useUnits()
+const tools = useMapTools()
 
 // The route/stop network is a large, decorative underlay (a whole agency's
 // shapes can be tens of thousands of coordinate points) behind the live
@@ -76,6 +75,7 @@ const visibleLayers = reactive({
   selectedTripStops: true,
   vehicle: true,
 })
+const routeColorMode = ref<'official' | 'distinct'>('official')
 let networkArmed = false
 watch(
   () => map.isLoaded,
@@ -601,7 +601,7 @@ watch(markerContrastColor, (contrastColor) => {
 })
 
 function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
-  if (measuring.value) return
+  if (tools.activeTool.value) return
   const id = e.features?.[0]?.properties?.vehicleId
   if (typeof id !== 'string') return
   activeVehicleId.value = id
@@ -614,80 +614,22 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
   emit('select', id)
 }
 
-// Ruler tool: click points on the map to chain segments and see a running
-// total — e.g. tracing a vehicle's actual path against its matched route to
-// see exactly where (and by how much) it diverges.
-const measuring = ref(false)
-const measurePoints = ref<LngLat[]>([])
-
-function toggleMeasuring() {
-  if (measuring.value) {
-    measuring.value = false
-    return
-  }
-  measuring.value = true
-  measurePoints.value = []
-  activeVehicleId.value = null
-}
-
-function clearMeasurement() {
-  measurePoints.value = []
-}
-
-function onMapClick(e: { event?: { lngLat?: { lng: number; lat: number } } }) {
+function onMapClick(e: {
+  event?: { lngLat?: { lng: number; lat: number }; originalEvent?: MouseEvent }
+}) {
   const lngLat = e.event?.lngLat
-  if (!measuring.value || !lngLat) return
-  measurePoints.value = [...measurePoints.value, [lngLat.lng, lngLat.lat]]
+  if (!lngLat) return
+  if (tools.onMapClick([lngLat.lng, lngLat.lat], e.event?.originalEvent?.detail === 2))
+    activeVehicleId.value = null
 }
 
-watch(measuring, (active) => {
-  const canvas = map.map?.getCanvas()
-  if (canvas) canvas.style.cursor = active ? 'crosshair' : ''
-})
-
-const measureSegments = computed(() => {
-  const pts = measurePoints.value
-  const segments: { distanceM: number; totalM: number; midpoint: LngLat }[] = []
-  let total = 0
-  for (let i = 1; i < pts.length; i++) {
-    const [prevLon, prevLat] = pts[i - 1]!
-    const [lon, lat] = pts[i]!
-    const distanceM = haversineM({ lat: prevLat, lon: prevLon }, { lat, lon }) ?? 0
-    total += distanceM
-    segments.push({
-      distanceM,
-      totalM: total,
-      midpoint: [(prevLon + lon) / 2, (prevLat + lat) / 2],
-    })
-  }
-  return segments
-})
-
-const measureTotalM = computed(() => measureSegments.value.at(-1)?.totalM ?? 0)
-
-const measureLine = computed<GeoJSON.Feature>(() => ({
-  type: 'Feature',
-  properties: {},
-  geometry: { type: 'LineString', coordinates: measurePoints.value },
-}))
-
-const measurePointsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
-  type: 'FeatureCollection',
-  features: measurePoints.value.map((point) => ({
-    type: 'Feature',
-    properties: {},
-    geometry: { type: 'Point', coordinates: point },
-  })),
-}))
-
-const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
-  type: 'FeatureCollection',
-  features: measureSegments.value.map((segment) => ({
-    type: 'Feature',
-    properties: { label: units.distance(segment.distanceM) },
-    geometry: { type: 'Point', coordinates: segment.midpoint },
-  })),
-}))
+watch(
+  () => tools.activeTool.value,
+  (active) => {
+    const canvas = map.map?.getCanvas()
+    if (canvas) canvas.style.cursor = active ? 'crosshair' : ''
+  },
+)
 </script>
 
 <template>
@@ -958,6 +900,7 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
         :stops="networkStops"
         :show-routes="visibleLayers.networkRoutes"
         :show-stops="visibleLayers.networkStops"
+        :route-color-mode="routeColorMode"
         before="vehicles-icons"
         @cluster-click="expandNetworkStopCluster"
       />
@@ -1102,114 +1045,40 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
         />
       </MglGeoJsonSource>
 
-      <MglGeoJsonSource
-        v-if="measurePoints.length > 1"
-        source-id="measure-line"
-        :data="measureLine"
-      >
-        <MglLineLayer
-          layer-id="measure-line-casing"
-          :paint="{
-            'line-color': '#78350f',
-            'line-width': 5,
-            'line-opacity': 0.4,
-          }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
-        />
-        <MglLineLayer
-          layer-id="measure-line-line"
-          :paint="{
-            'line-color': '#f59e0b',
-            'line-width': 2.5,
-            'line-dasharray': [2, 1.5],
-          }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
-        />
-      </MglGeoJsonSource>
-
-      <MglGeoJsonSource
-        v-if="measureSegments.length"
-        source-id="measure-labels"
-        :data="measureLabelsGeoJson"
-      >
-        <MglSymbolLayer
-          layer-id="measure-labels-text"
-          :layout="{
-            'text-field': ['get', 'label'],
-            'text-size': 11,
-            'text-offset': [0, -0.7],
-            'text-anchor': 'bottom',
-            'text-allow-overlap': true,
-          }"
-          :paint="{
-            'text-color': '#92400e',
-            'text-halo-color': '#ffffff',
-            'text-halo-width': 1.4,
-          }"
-        />
-      </MglGeoJsonSource>
-
-      <MglGeoJsonSource
-        v-if="measurePoints.length"
-        source-id="measure-points"
-        :data="measurePointsGeoJson"
-      >
-        <MglCircleLayer
-          layer-id="measure-points-circles"
-          :paint="{
-            'circle-radius': 5,
-            'circle-color': '#f59e0b',
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff',
-          }"
-        />
-      </MglGeoJsonSource>
+      <MapToolLayers :map-id="MAP_ID" :tools="tools" />
     </MglMap>
 
     <VehicleMapLegend class="absolute bottom-10 right-2" />
 
-    <div class="absolute right-14 top-3 flex items-center gap-2">
-      <UPopover>
-        <UButton color="neutral" variant="subtle" icon="i-lucide-layers-3" />
-        <template #content>
-          <div class="w-52 space-y-2.5 p-3">
-            <p class="text-xs font-semibold tracking-wide text-muted uppercase">Map layers</p>
-            <UCheckbox v-model="visibleLayers.networkRoutes" label="Network routes" />
-            <UCheckbox v-model="visibleLayers.networkStops" label="Network stops" />
-            <UCheckbox v-model="visibleLayers.selectedTripLine" label="Selected trip line" />
-            <UCheckbox v-model="visibleLayers.selectedTripStops" label="Selected trip stops" />
-            <UCheckbox v-model="visibleLayers.vehicle" label="Vehicle marker" />
-          </div>
-        </template>
-      </UPopover>
-      <UButton color="neutral" variant="subtle" icon="i-lucide-scan" @click="fit" />
-      <UButton
-        :color="measuring ? 'warning' : 'neutral'"
-        :variant="measuring ? 'solid' : 'subtle'"
-        icon="i-lucide-ruler"
-        @click="toggleMeasuring"
-      />
-    </div>
-
-    <div
-      v-if="measuring || measurePoints.length > 0"
-      class="absolute left-2 top-3 flex items-center gap-2 rounded-lg bg-default/95 px-3 py-2 text-xs shadow-md ring-1 ring-default"
-    >
-      <UIcon name="i-lucide-ruler" class="size-4 shrink-0 text-warning" />
-      <span v-if="measurePoints.length < 2" class="text-muted">
-        Click the map to {{ measurePoints.length === 0 ? 'start measuring' : 'add another point' }}
-      </span>
-      <span v-else class="font-semibold tabular-nums text-highlighted">
-        Total: {{ units.distance(measureTotalM) }}
-      </span>
-      <UButton
-        v-if="measurePoints.length > 0"
-        color="neutral"
-        variant="ghost"
-        size="xs"
-        icon="i-lucide-x"
-        @click="clearMeasurement"
-      />
-    </div>
+    <MapToolbox
+      :tools="tools"
+      route-colors-available
+      :route-color-mode="routeColorMode"
+      :layers="[
+        { id: 'networkRoutes', label: 'Network routes', enabled: visibleLayers.networkRoutes },
+        { id: 'networkStops', label: 'Network stops', enabled: visibleLayers.networkStops },
+        {
+          id: 'selectedTripLine',
+          label: 'Selected trip line',
+          enabled: visibleLayers.selectedTripLine,
+        },
+        {
+          id: 'selectedTripStops',
+          label: 'Selected trip stops',
+          enabled: visibleLayers.selectedTripStops,
+        },
+        { id: 'vehicle', label: 'Vehicle marker', enabled: visibleLayers.vehicle },
+      ]"
+      @update:layer="
+        ({ id, enabled }) => {
+          if (id === 'networkRoutes') visibleLayers.networkRoutes = enabled
+          if (id === 'networkStops') visibleLayers.networkStops = enabled
+          if (id === 'selectedTripLine') visibleLayers.selectedTripLine = enabled
+          if (id === 'selectedTripStops') visibleLayers.selectedTripStops = enabled
+          if (id === 'vehicle') visibleLayers.vehicle = enabled
+        }
+      "
+      @update:route-color-mode="routeColorMode = $event"
+    />
   </div>
 </template>

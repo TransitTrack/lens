@@ -27,6 +27,12 @@ const MAP_ID = 'vehicle-route-map'
 const mapStyle = useMapStyle()
 
 const map = useMglMap(MAP_ID)
+const tools = useMapTools()
+const visibleLayers = reactive({ routeLine: true, stops: true, trail: true, vehicle: true })
+const routeColorMode = ref<'official' | 'distinct'>('official')
+const displayRouteColor = computed(() =>
+  routeColorMode.value === 'distinct' ? '#2563eb' : props.routeColor,
+)
 
 // maplibre doesn't observe its own container, so a splitter drag or any other
 // layout change that resizes this element without resizing the window leaves
@@ -109,10 +115,24 @@ watch(
     }
   },
 )
+
+function onMapClick(e: { event?: { lngLat?: { lng: number; lat: number }; originalEvent?: MouseEvent } }) {
+  const lngLat = e.event?.lngLat
+  if (!lngLat) return
+  tools.onMapClick(
+    [lngLat.lng, lngLat.lat],
+    e.event?.originalEvent?.detail === 2,
+  )
+}
+
+watch(() => tools.activeTool.value, (active) => {
+  const canvas = map.map?.getCanvas()
+  if (canvas) canvas.style.cursor = active ? 'crosshair' : ''
+})
 </script>
 
 <template>
-  <div ref="mapContainer" class="h-full w-full">
+  <div ref="mapContainer" class="relative h-full w-full">
     <MglMap
       :map-key="MAP_ID"
       :map-style="mapStyle"
@@ -121,6 +141,7 @@ watch(
       :fit-bounds-options="{padding: 40, animate: false}"
       :center="[0, 0]"
       :zoom="2"
+      @map:click="onMapClick"
     >
 <!--      <MglNavigationControl/>-->
 
@@ -128,7 +149,7 @@ watch(
         <MglLineLayer
           layer-id="avl-trail-line"
           :paint="{ 'line-color': '#38bdf8', 'line-width': 2, 'line-opacity': 0.7, 'line-dasharray': [2, 2] }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+          :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: visibleLayers.trail ? 'visible' : 'none' }"
         />
       </MglGeoJsonSource>
 
@@ -136,12 +157,12 @@ watch(
         <MglLineLayer
           layer-id="route-line-casing"
           :paint="{ 'line-color': '#0f172a', 'line-width': 7, 'line-opacity': 0.35 }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+          :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: visibleLayers.routeLine ? 'visible' : 'none' }"
         />
         <MglLineLayer
           layer-id="route-line-main"
-          :paint="{ 'line-color': props.routeColor, 'line-width': 4 }"
-          :layout="{ 'line-cap': 'round', 'line-join': 'round' }"
+          :paint="{ 'line-color': displayRouteColor, 'line-width': 4 }"
+          :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: visibleLayers.routeLine ? 'visible' : 'none' }"
         />
       </MglGeoJsonSource>
 
@@ -149,24 +170,26 @@ watch(
         <MglCircleLayer
           v-if="props.focusId"
           layer-id="route-focused-stop-halo"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :filter="['==', ['get', 'stopId'], props.focusId]"
           :paint="{
             'circle-radius': 13,
-            'circle-color': props.routeColor,
+            'circle-color': displayRouteColor,
             'circle-opacity': 0.2,
             'circle-stroke-width': 2,
-            'circle-stroke-color': props.routeColor,
+            'circle-stroke-color': displayRouteColor,
           }"
         />
         <MglCircleLayer
           layer-id="route-stops-circles"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :paint="{
             'circle-radius': ['match', ['get', 'state'], 'current', 8, 4],
             'circle-color': [
               'match',
               ['get', 'state'],
               'passed', '#94a3b8',
-              'current', props.routeColor,
+              'current', displayRouteColor,
               '#475569',
             ],
             'circle-stroke-width': ['match', ['get', 'state'], 'current', 2.5, 1.5],
@@ -176,10 +199,11 @@ watch(
         <MglCircleLayer
           v-if="props.focusId"
           layer-id="route-focused-stop-core"
+          :layout="{ visibility: visibleLayers.stops ? 'visible' : 'none' }"
           :filter="['==', ['get', 'stopId'], props.focusId]"
           :paint="{
             'circle-radius': 7,
-            'circle-color': props.routeColor,
+            'circle-color': displayRouteColor,
             'circle-stroke-width': 2.5,
             'circle-stroke-color': '#ffffff',
           }"
@@ -195,6 +219,7 @@ watch(
             'text-max-width': 14,
             'text-allow-overlap': false,
             'text-ignore-placement': false,
+            visibility: visibleLayers.stops ? 'visible' : 'none',
           }"
           :paint="{
             'text-color': '#1e293b',
@@ -204,17 +229,36 @@ watch(
         />
       </MglGeoJsonSource>
 
-      <MglMarker v-if="props.vehicle" :coordinates="[props.vehicle.lng, props.vehicle.lat]">
+      <MglMarker v-if="props.vehicle && visibleLayers.vehicle" :coordinates="[props.vehicle.lng, props.vehicle.lat]">
         <template #marker>
           <VehicleHeadingMarker
-            :color="props.routeColor"
+            :color="displayRouteColor"
             :bearing="props.vehicle.bearing"
             :size="22"
             halo
           />
         </template>
       </MglMarker>
+      <MapToolLayers :map-id="MAP_ID" :tools="tools" />
     </MglMap>
+    <MapToolbox
+      :tools="tools"
+      route-colors-available
+      :route-color-mode="routeColorMode"
+      :layers="[
+        { id: 'routeLine', label: 'Route line', enabled: visibleLayers.routeLine },
+        { id: 'stops', label: 'Stops', enabled: visibleLayers.stops },
+        { id: 'trail', label: 'AVL trail', enabled: visibleLayers.trail },
+        { id: 'vehicle', label: 'Vehicle marker', enabled: visibleLayers.vehicle },
+      ]"
+      @update:layer="({ id, enabled }) => {
+        if (id === 'routeLine') visibleLayers.routeLine = enabled
+        if (id === 'stops') visibleLayers.stops = enabled
+        if (id === 'trail') visibleLayers.trail = enabled
+        if (id === 'vehicle') visibleLayers.vehicle = enabled
+      }"
+      @update:route-color-mode="routeColorMode = $event"
+    />
 <!--
     <div class="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1.5 rounded-md border border-default bg-default/90 px-3 py-2.5 text-xs shadow-sm backdrop-blur">
       <div class="flex items-center gap-2">
