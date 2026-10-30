@@ -424,6 +424,8 @@ function placeStopsAboveSelectedRoute() {
   // Placing stops immediately below the vehicle icons keeps them above both
   // selected-route layers without relying on a not-yet-registered `before` target.
   instance.moveLayer('selected-vehicle-stops-circles', 'vehicles-icons')
+  if (instance.getLayer('selected-vehicle-stops-labels'))
+    instance.moveLayer('selected-vehicle-stops-labels', 'vehicles-icons')
 }
 
 function placeFeedNetworkBelowSelectedRoute() {
@@ -986,7 +988,7 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
           before="vehicles-icons"
           :layout="{ visibility: visibleLayers.selectedTripStops ? 'visible' : 'none' }"
           :paint="{
-            'circle-radius': ['match', ['get', 'state'], 'current', 9, 6],
+            'circle-radius': ['match', ['get', 'state'], 'current', 6, 4],
             'circle-color': [
               'match',
               ['get', 'state'],
@@ -996,8 +998,28 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
               selectedRoute?.routeColor ?? '#2563eb',
               '#475569',
             ],
-            'circle-stroke-width': ['match', ['get', 'state'], 'current', 3, 2],
+            'circle-stroke-width': ['match', ['get', 'state'], 'current', 2, 1.5],
             'circle-stroke-color': '#ffffff',
+          }"
+        />
+        <MglSymbolLayer
+          layer-id="selected-vehicle-stops-labels"
+          before="vehicles-icons"
+          :layout="{
+            'text-field': ['get', 'name'],
+            'text-size': 10,
+            'text-font': ['noto_sans_regular'],
+            'text-anchor': 'top',
+            'text-offset': [0, 0.7],
+            'text-max-width': 10,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+            visibility: visibleLayers.selectedTripStops ? 'visible' : 'none',
+          }"
+          :paint="{
+            'text-color': '#1e293b',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1.4,
           }"
         />
       </MglGeoJsonSource>
