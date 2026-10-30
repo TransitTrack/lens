@@ -8,6 +8,7 @@
 import type {
   CircleLayerSpecification,
   LineLayerSpecification,
+  MapLayerMouseEvent,
   SymbolLayerSpecification,
 } from 'maplibre-gl'
 
@@ -27,6 +28,9 @@ const props = withDefaults(
   }>(),
   { dim: false, showRoutes: true, showStops: true, before: undefined },
 )
+const emit = defineEmits<{
+  clusterClick: [cluster: { id: number; center: LngLat }]
+}>()
 
 const colorMode = useColorMode()
 
@@ -48,11 +52,11 @@ const casingPaint = computed<LineLayerSpecification['paint']>(() => ({
 }))
 
 const stopPaint = computed<CircleLayerSpecification['paint']>(() => ({
-  'circle-radius': props.dim ? 2 : 3,
-  'circle-color': '#64748b',
-  'circle-opacity': props.dim ? 0.45 : 0.8,
-  'circle-stroke-width': props.dim ? 0 : 1,
-  'circle-stroke-color': '#ffffff',
+  'circle-radius': props.dim ? 3 : 4,
+  'circle-color': colorMode.value === 'dark' ? '#0b0d0e' : '#f8fafc',
+  'circle-opacity': 1,
+  'circle-stroke-width': 0.5,
+  'circle-stroke-color': colorMode.value === 'dark' ? '#999' : '#fff',
 }))
 
 const routeLabelLayout = computed<SymbolLayerSpecification['layout']>(() => ({
@@ -79,6 +83,16 @@ const routeLabelPaint = computed<SymbolLayerSpecification['paint']>(() => ({
   'text-opacity': props.dim ? 0.75 : 1,
 }))
 
+function onClusterClick(e: MapLayerMouseEvent) {
+  const cluster = e.features?.[0]
+  const id = cluster?.properties?.cluster_id
+  if (typeof id !== 'number' || !cluster || cluster.geometry.type !== 'Point') return
+
+  emit('clusterClick', {
+    id,
+    center: cluster.geometry.coordinates as LngLat,
+  })
+}
 </script>
 
 <template>
@@ -87,13 +101,21 @@ const routeLabelPaint = computed<SymbolLayerSpecification['paint']>(() => ({
       layer-id="feed-network-routes-casing"
       :before="before"
       :paint="casingPaint"
-      :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: showRoutes ? 'visible' : 'none' }"
+      :layout="{
+        'line-cap': 'round',
+        'line-join': 'round',
+        visibility: showRoutes ? 'visible' : 'none',
+      }"
     />
     <MglLineLayer
       layer-id="feed-network-routes-line"
       :before="before"
       :paint="linePaint"
-      :layout="{ 'line-cap': 'round', 'line-join': 'round', visibility: showRoutes ? 'visible' : 'none' }"
+      :layout="{
+        'line-cap': 'round',
+        'line-join': 'round',
+        visibility: showRoutes ? 'visible' : 'none',
+      }"
     />
     <MglSymbolLayer
       layer-id="feed-network-routes-labels"
@@ -105,8 +127,44 @@ const routeLabelPaint = computed<SymbolLayerSpecification['paint']>(() => ({
     />
   </MglGeoJsonSource>
 
-  <MglGeoJsonSource v-if="showStops" source-id="feed-network-stops" :data="stops">
-    <MglCircleLayer layer-id="feed-network-stops-circles" :before="before" :paint="stopPaint" />
+  <MglGeoJsonSource
+    v-if="showStops"
+    source-id="feed-network-stops"
+    :data="stops"
+    cluster
+    :cluster-radius="48"
+    :cluster-max-zoom="14"
+  >
+    <MglCircleLayer
+      layer-id="feed-network-stop-clusters"
+      :before="before"
+      :filter="['has', 'point_count']"
+      :paint="{
+        'circle-radius': ['step', ['get', 'point_count'], 13, 10, 16, 50, 20, 250, 24],
+        'circle-color': colorMode.value === 'dark' ? '#0b0d0e' : '#f8fafc',
+        'circle-opacity': 0.8,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#ffffff',
+      }"
+      @click="onClusterClick"
+    />
+    <MglSymbolLayer
+      layer-id="feed-network-stop-cluster-counts"
+      :before="before"
+      :filter="['has', 'point_count']"
+      :layout="{
+        'text-field': ['get', 'point_count_abbreviated'],
+        'text-font': ['noto_sans_bold'],
+        'text-size': 12,
+        'text-allow-overlap': true,
+      }"
+      :paint="{ 'text-color': '#ffffff' }"
+    />
+    <MglCircleLayer
+      layer-id="feed-network-stops-circles"
+      :before="before"
+      :filter="['!', ['has', 'point_count']]"
+      :paint="stopPaint"
+    />
   </MglGeoJsonSource>
-
 </template>

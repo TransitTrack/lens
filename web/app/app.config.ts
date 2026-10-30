@@ -6,8 +6,8 @@ export default defineAppConfig({
           orientation: 'vertical',
           collapsed: true,
           class: {
-            link: 'flex-col',
-            linkLabel: 'block text-[10px]/3 text-center',
+            link: 'flex-col my-2',
+            // linkLabel: 'block text-[10px]/3 text-center',
           },
         },
       ],

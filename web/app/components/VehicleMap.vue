@@ -443,10 +443,21 @@ function placeFeedNetworkBelowSelectedRoute() {
     'feed-network-routes-casing',
     'feed-network-routes-line',
     'feed-network-routes-hit',
+    'feed-network-stop-clusters',
+    'feed-network-stop-cluster-counts',
     'feed-network-stops-circles',
   ]) {
     if (instance.getLayer(layerId)) instance.moveLayer(layerId, target)
   }
+}
+
+async function expandNetworkStopCluster(cluster: { id: number; center: LngLat }) {
+  const instance = map.map
+  const source = instance?.getSource('feed-network-stops')
+  if (!instance || source?.type !== 'geojson') return
+
+  const zoom = await source.getClusterExpansionZoom(cluster.id)
+  instance.easeTo({ center: cluster.center, zoom, duration: 500 })
 }
 
 watch(
@@ -948,6 +959,7 @@ const measureLabelsGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
         :show-routes="visibleLayers.networkRoutes"
         :show-stops="visibleLayers.networkStops"
         before="vehicles-icons"
+        @cluster-click="expandNetworkStopCluster"
       />
 
       <MglGeoJsonSource

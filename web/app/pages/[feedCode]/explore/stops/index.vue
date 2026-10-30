@@ -201,7 +201,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
           <div
             class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
           >
-            Select a stop on the map or in the directory
+            Select a stop, or choose a cluster to zoom in
           </div>
           <StopsMap
             :stops="stopFeatures"

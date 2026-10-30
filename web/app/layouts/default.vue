@@ -190,7 +190,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
   },
   {
     label: 'GTFS',
-    icon: 'i-lucide-database',
+    icon: 'i-lucide-playing-cards-fan',
     defaultOpen: SCHEDULE.some((l) => underPath(feedPath(l.path))),
     active: SCHEDULE.some((l) => underPath(feedPath(l.path))),
     children: toItems(SCHEDULE),
@@ -267,31 +267,25 @@ const groups = computed(() => [
 <template>
   <UDashboardGroup>
     <UDashboardSidebar
-      collapsible
-      resizable
+      collapsed
       :ui="{
         header: 'h-auto! min-h-(--ui-header-height) shrink-0 flex items-center px-1.5 py-1.5',
       }"
     >
-      <template #header="{ collapsed }">
-        <div class="flex w-full flex-col gap-1.5">
-          <!-- <SidebarUtilities :collapsed="collapsed" /> -->
-          <div class="flex items-center gap-1">
-            <FeedSwitcher class="min-w-0 flex-1" :collapsed="collapsed" />
-            <UDashboardSidebarCollapse side="left" size="xs" square />
-          </div>
-        </div>
+      <template #header>
+        <NuxtLink
+          :to="feedPath()"
+          class="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-elevated mx-auto"
+          aria-label="TransitTrack overview"
+        >
+          <span
+            class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary"
+          >
+            <UIcon name="i-lucide-route" class="size-4" />
+          </span>
+        </NuxtLink>
       </template>
-
       <template #default="{ collapsed }">
-        <UDashboardSearchButton
-          :collapsed="collapsed"
-          variant="subtle"
-          @click="searchOpen = true"
-        />
-
-        <USeparator class="my-1" />
-
         <UNavigationMenu
           :items="navigationItems"
           orientation="vertical"
@@ -356,19 +350,41 @@ const groups = computed(() => [
           :ui="{ link: 'py-2 font-medium' }"
         />
       </template>
-
-      <template #footer="{ collapsed }">
-        <div class="flex w-full justify-center border-t border-default px-1.5 py-1.5">
-          <UserMenu :collapsed="collapsed" />
-        </div>
-      </template>
     </UDashboardSidebar>
 
     <UDashboardPanel :ui="{ body: 'p-0 gap-0 sm:p-0 sm:gap-0' }">
       <template #header>
-        <UDashboardNavbar toggle class="lg:hidden">
+        <UDashboardNavbar
+          toggle
+          class="h-12 px-3 sm:px-5"
+          :ui="{
+            center: 'hidden min-w-0 flex-1 items-center justify-center px-6 lg:flex',
+            title: 'min-w-0',
+          }"
+        >
+          <template #title>
+            <div class="w-64" />
+          </template>
+
+          <UButton
+            color="neutral"
+            variant="soft"
+            class="w-full max-w-lg mx-auto justify-start gap-2.5 text-left font-normal text-muted"
+            aria-label="Search TransitTrack"
+            @click="searchOpen = true"
+          >
+            <UIcon name="i-lucide-search" class="size-4 shrink-0" />
+            <span class="flex-1 truncate">Search routes, stops, trips, and docs…</span>
+            <span class="flex shrink-0 items-center gap-1 text-dimmed">
+              <UKbd value="meta" />
+              <UKbd value="K" />
+            </span>
+          </UButton>
+
           <template #right>
+            <FeedSwitcher class="hidden w-56 xl:flex" />
             <NotificationsButton :count="unhealthyFeedCount || undefined" />
+            <UserMenu collapsed />
           </template>
         </UDashboardNavbar>
       </template>

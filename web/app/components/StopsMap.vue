@@ -3,6 +3,7 @@ import { useMapStyle } from '~/composables/useMapStyle'
 import { boundsOf } from '~/utils/vehicleDetail'
 import { extentToBounds } from '~/utils/mapBounds'
 import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import type { MapLayerMouseEvent } from 'maplibre-gl'
 
 const props = defineProps<{
   stops: GeoJSON.FeatureCollection
@@ -79,6 +80,28 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
   const id = e.features?.[0]?.properties?.stopId
   if (typeof id === 'string') emit('select', id)
 }
+
+async function onClusterClick(e: MapLayerMouseEvent) {
+  const cluster = e.features?.[0]
+  const clusterId = cluster?.properties?.cluster_id
+  if (
+    typeof clusterId !== 'number' ||
+    !cluster ||
+    cluster.geometry.type !== 'Point' ||
+    !map.map
+  )
+    return
+
+  const source = map.map.getSource('all-stops')
+  if (source?.type !== 'geojson') return
+
+  const zoom = await source.getClusterExpansionZoom(clusterId)
+  map.map.easeTo({
+    center: cluster.geometry.coordinates as [number, number],
+    zoom,
+    duration: 500,
+  })
+}
 </script>
 
 <template>
@@ -93,11 +116,44 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
       :zoom="2"
     >
       <MglNavigationControl />
-      <MglGeoJsonSource source-id="all-stops" :data="props.stops">
+      <MglGeoJsonSource
+        source-id="all-stops"
+        :data="props.stops"
+        cluster
+        :cluster-radius="48"
+        :cluster-max-zoom="14"
+      >
+        <MglCircleLayer
+          layer-id="stop-clusters"
+          :filter="['has', 'point_count']"
+          :paint="{
+            'circle-radius': ['step', ['get', 'point_count'], 13, 10, 16, 50, 20, 250, 24],
+            'circle-color': '#4f46e5',
+            'circle-opacity': 0.94,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff',
+          }"
+          @click="onClusterClick"
+        />
+        <MglSymbolLayer
+          layer-id="stop-cluster-counts"
+          :filter="['has', 'point_count']"
+          :layout="{
+            'text-field': ['get', 'point_count_abbreviated'],
+            'text-font': ['noto_sans_bold'],
+            'text-size': 12,
+            'text-allow-overlap': true,
+          }"
+          :paint="{ 'text-color': '#ffffff' }"
+        />
         <MglCircleLayer
           v-if="props.focusId"
           layer-id="focused-stop-halo"
-          :filter="['==', ['get', 'stopId'], props.focusId]"
+          :filter="[
+            'all',
+            ['!', ['has', 'point_count']],
+            ['==', ['get', 'stopId'], props.focusId],
+          ]"
           :paint="{
             'circle-radius': 10,
             'circle-color': '#ffffff',
@@ -108,6 +164,7 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
         />
         <MglCircleLayer
           layer-id="all-stops-circles"
+          :filter="['!', ['has', 'point_count']]"
           :paint="{
             'circle-radius': 4,
             'circle-color': '#475569',
@@ -120,7 +177,11 @@ function onClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
         <MglCircleLayer
           v-if="props.focusId"
           layer-id="focused-stop-core"
-          :filter="['==', ['get', 'stopId'], props.focusId]"
+          :filter="[
+            'all',
+            ['!', ['has', 'point_count']],
+            ['==', ['get', 'stopId'], props.focusId],
+          ]"
           :paint="{
             'circle-radius': 5.5,
             'circle-color': '#4f46e5',
