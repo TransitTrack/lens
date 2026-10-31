@@ -15,10 +15,12 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isNotNull
+import assertk.assertions.isTrue
 
 /** Plain JUnit: exercises [GtfsFeedLoader]'s [GtfsValidator] extension point (findings merged into
- * the report, independent of the canonical MobilityData validator's own notices). */
+ * the report alongside the gtfs-analyzer notices). */
 class GtfsFeedLoaderExtensionTest {
     private val workDirs = mutableListOf<Path>()
 
@@ -74,6 +76,20 @@ class GtfsFeedLoaderExtensionTest {
         assertThat(custom!!.severity).isEqualTo(Severity.ERROR)
         assertThat(custom.sample).contains("found it")
         assertThat(report.errorCount).isEqualTo(1L)
+        assertThat(report.publishable).isFalse()
+    }
+
+    @Test
+    fun `extension warnings keep a feed publishable`() {
+        val zip = zipFixture("minimal-valid")
+        val warn =
+            GtfsValidator {
+                listOf(GtfsValidationFinding(GtfsValidationFinding.Severity.WARNING, "custom_warning", "meh"))
+            }
+
+        val report = GtfsFeedLoader(listOf(warn)).load(zip, "acme")
+
+        assertThat(report.publishable).isTrue()
     }
 
     @Test

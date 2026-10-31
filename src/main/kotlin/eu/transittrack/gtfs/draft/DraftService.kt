@@ -210,13 +210,14 @@ class DraftService(
         if (!force) {
             // `deriving` spans the whole submit -> derive -> validate window. Without this, a
             // concurrent activate during the VALIDATING phase would see !derivationStale (rederive
-            // clears it) and read the PREVIOUS run's errorCount.
+            // clears it) and read the PREVIOUS run's verdict.
             check(!d.deriving) { "draft is rebuilding; wait for it to finish" }
             check(!d.derivationStale) { "rebuild the draft before activating" }
-            val errors =
+            // A validation stored before `publishable` existed counts as not validated.
+            val publishable =
                 d.lastValidation
-                    ?.let { objectMapper.readTree(it).path("errorCount").asInt(0) } ?: -1
-            check(errors == 0) { "draft has $errors validation error(s); rebuild & validate, or force" }
+                    ?.let { objectMapper.readTree(it).path("publishable").asBoolean(false) } ?: false
+            check(publishable) { "draft is not publishable; rebuild & validate, or force" }
         }
         // activation ends the editing session: drop any editor lock so a re-fork starts clean.
         d.editorClaimBy = null

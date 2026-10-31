@@ -3,7 +3,7 @@ package eu.transittrack.gtfs.export
 import kotlin.test.Test
 
 import assertk.assertThat
-import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
 import assertk.assertions.isTrue
@@ -38,16 +38,16 @@ class GtfsRevisionValidatorTest(
     private var rev: Long? = null
 
     @Test
-    fun `clean feed validates with no errors and persists the report`() {
+    fun `clean feed validates as publishable and persists the report`() {
         val (_, r) = ingestFactory.ingest("schedule-sample")
         rev = r
         val result = validator.validate(r)
-        assertThat(result.errorCount).isEqualTo(0)
+        assertThat(result.publishable).isTrue()
         val persisted = revisions.findById(r).get().lastValidation
         assertThat(persisted).isNotNull()
         val node = json.readTree(persisted!!)
         assertThat(node.path("errorCount").isNumber).isTrue()
-        assertThat(node.path("errorCount").asInt(-1)).isEqualTo(0)
+        assertThat(node.path("publishable").asBoolean(false)).isTrue()
     }
 
     @Test
@@ -57,13 +57,15 @@ class GtfsRevisionValidatorTest(
         val anyTrip = stopTimes.findByRevisionId(r).first().tripId
         val st = stopTimes.findByTripId(r, anyTrip)
         val last = st.last()
-        last.arrivalTime = 0
-        last.departureTime = 0
+        // last stop without times: STM_016 (CRITICAL), an R1 blocker
+        last.arrivalTime = null
+        last.departureTime = null
         stopTimes.save(last)
         val result = validator.validate(r)
         assertThat(result.errorCount).isGreaterThan(0)
+        assertThat(result.publishable).isFalse()
         val node = json.readTree(revisions.findById(r).get().lastValidation!!)
-        assertThat(node.path("errorCount").isNumber).isTrue()
         assertThat(node.path("errorCount").asInt(-1)).isGreaterThan(0)
+        assertThat(node.path("publishable").asBoolean(true)).isFalse()
     }
 }

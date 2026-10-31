@@ -74,7 +74,7 @@ Full behavior: [docs/gtfs.md](gtfs.md).
 | Property | Default | Meaning |
 | --- | --- | --- |
 | `ingest.auto-activate` | `true` | Activate a revision automatically once validation succeeds |
-| `ingest.strict-validation` | `false` | Fail ingestion on validator warnings, not just errors |
+| `ingest.strict-validation` | `false` | Fail ingestion when gtfs-analyzer rates the feed not publishable (R1) |
 | `ingest.batch-size` | `1000` | JDBC batch size for bulk entity inserts |
 | `ingest.temp-dir` | `/tmp` | Scratch directory for downloaded/extracted feed files |
 | `retention.keep-revisions-per-feed` | `5` | Superseded revisions kept per feed before pruning |

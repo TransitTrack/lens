@@ -19,15 +19,17 @@ data class ValidationResult(
     val errorCount: Int,
     val warningCount: Int,
     val notices: List<ValidationNotice>,
+    val publishable: Boolean,
 )
 
 /**
- * Serializes a revision to a temporary GTFS zip, runs the canonical MobilityData validator over it,
- * persists the raw report on `gtfs_revision.last_validation`, and returns a mapped summary.
+ * Serializes a revision to a temporary GTFS zip, runs gtfs-analyzer over it, persists a summary on
+ * `gtfs_revision.last_validation`, and returns it. `publishable` (the analyzer's R1 verdict) is what
+ * gates draft activation.
  *
  * This never throws for validation *findings* — an archive full of errors still returns a
- * [ValidationResult]. It only propagates [eu.transittrack.gtfs.validate.GtfsValidationException] when
- * the validator itself fails to run (a system error), which callers treat as a failed job.
+ * [ValidationResult]. A fatal analyzer result is reported the same way: one `ERROR` notice and
+ * `publishable = false`.
  */
 @Service
 class GtfsRevisionValidator(
@@ -48,19 +50,21 @@ class GtfsRevisionValidator(
                     errorCount = report.errorCount.toInt(),
                     warningCount = report.warningCount.toInt(),
                     notices = report.issues.map { ValidationNotice(it.severity.name, it.rule, it.sample) },
+                    publishable = report.publishable,
                 )
-            // Persist the NORMALISED summary ({"errorCount":N,"warningCount":M,"notices":[...]}),
-            // not report.toJson() (which is {"issues":[...]} — errorCount is a computed getter that
-            // never serialises, so DraftService.activate's `path("errorCount")` guard would be inert).
+            // Persist the NORMALISED summary ({"errorCount":N,"warningCount":M,"notices":[...],
+            // "publishable":B}) — DraftService.activate reads `publishable` from it and the web
+            // app's draft pages read the rest.
             revisions.findById(revisionId).ifPresent {
                 it.lastValidation = json.writeValueAsString(result)
                 revisions.save(it)
             }
             log.info(
-                "validated revision {} — {} error(s), {} warning(s)",
+                "validated revision {} — {} error(s), {} warning(s), publishable={}",
                 revisionId,
                 report.errorCount,
                 report.warningCount,
+                report.publishable,
             )
             return result
         } finally {

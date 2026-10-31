@@ -15,9 +15,11 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThanOrEqualTo
 import assertk.assertions.isNotNull
-import assertk.assertions.startsWith
+import assertk.assertions.isNull
+import assertk.assertions.isTrue
 
 /** Plain JUnit (no Spring context, no database): exercises [GtfsFeedLoader] against the checked-in GTFS fixture folders zipped on the fly. */
 class GtfsFeedValidatorTest {
@@ -48,34 +50,76 @@ class GtfsFeedValidatorTest {
     }
 
     @Test
-    fun `flags foreign key violations in the dangling-refs fixture`() {
-        val (zip, work) = zipFixture("dangling-refs")
+    fun `flags referential errors in the dangling-refs fixture`() {
+        val (zip, _) = zipFixture("dangling-refs")
 
         val report = validator.load(zip)
 
-        val fk = report.issues.find { it.rule == "foreign_key_violation" }
+        val fk = report.issues.find { it.rule == "TRP_002" }
         assertThat(fk).isNotNull()
         assertThat(fk!!.severity).isEqualTo(Severity.ERROR)
         assertThat(fk.count).isGreaterThanOrEqualTo(1)
         assertThat(report.errorCount).isGreaterThanOrEqualTo(1L)
+        assertThat(report.publishable).isFalse()
     }
 
     @Test
     fun `minimal-valid fixture produces no errors`() {
-        val (zip, work) = zipFixture("minimal-valid")
+        val (zip, _) = zipFixture("minimal-valid")
 
         val report = validator.load(zip)
 
         assertThat(report.errorCount).isEqualTo(0L)
+        assertThat(report.publishable).isTrue()
     }
 
     @Test
     fun `report round-trips through toJson`() {
-        val (zip, work) = zipFixture("minimal-valid")
+        val (zip, _) = zipFixture("dangling-refs")
+        val report = validator.load(zip)
 
-        val json = validator.load(zip).toJson()
+        val json = report.toJson()
 
-        assertThat(json).startsWith("{")
-        assertThat(json).contains("\"issues\"")
+        assertThat(json).contains("\"format\":2")
+        val decoded = LoadValidationReport.fromJson(json)
+        assertThat(decoded).isNotNull()
+        assertThat(decoded!!.issues).isEqualTo(report.issues)
+        assertThat(decoded.publishable).isEqualTo(report.publishable)
+    }
+
+    @Test
+    fun `missing required file is PARTIAL with stop_times unavailable`() {
+        val (zip, _) = zipFixture("missing-required-file")
+
+        val report = validator.load(zip)
+
+        assertThat(report.fatal).isNull()
+        assertThat(report.unavailableFiles).isEqualTo(listOf("stop_times.txt"))
+        assertThat(report.publishable).isFalse()
+    }
+
+    @Test
+    fun `non-zip input is fatal`() {
+        val work = Files.createTempDirectory("gfv-fatal-").also { workDirs.add(it) }
+        val zip = work.resolve("feed.zip").also { Files.writeString(it, "not a zip") }
+
+        val report = validator.load(zip)
+
+        assertThat(report.fatal).isNotNull()
+        assertThat(report.issues.single().severity).isEqualTo(Severity.ERROR)
+        assertThat(report.errorCount).isEqualTo(1L)
+        assertThat(report.publishable).isFalse()
+    }
+
+    @Test
+    fun `old format json is not decoded`() {
+        assertThat(LoadValidationReport.fromJson("""{"issues":[]}""")).isNull()
+    }
+
+    @Test
+    fun `undecodable format 2 json yields null instead of throwing`() {
+        assertThat(LoadValidationReport.fromJson("""{"format":2,"analyzer":{"version":"x"}}""")).isNull()
+        assertThat(LoadValidationReport.fromJson("""[1,2]""")).isNull()
+        assertThat(LoadValidationReport.fromJson("""{"format":"two"}""")).isNull()
     }
 }

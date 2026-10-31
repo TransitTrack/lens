@@ -1,5 +1,7 @@
 package eu.transittrack.gtfs.ingest
 
+import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.test.Test
@@ -22,6 +24,8 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.GtfsProperties
+import eu.transittrack.gtfs.download.DownloadedFeed
+import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -38,6 +42,7 @@ import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
+import eu.transittrack.gtfs.validate.LoadValidationReport
 import eu.transittrack.schedule.derive.ScheduleWriter
 import eu.transittrack.support.PostgresPerMethodTest
 
@@ -90,23 +95,26 @@ class IngestionServiceTest(
         return f
     }
 
-    private fun service(fixture: String) =
-        IngestionService(
-            FixtureDownloader(fixture),
-            revisionService,
-            writer,
-            feeds,
-            feedService,
-            props,
-            shapes,
-            validator,
-            SyncTaskExecutor(),
-            org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
-            eu.transittrack.gtfs.support
-                .derivationService(revisionService, revisions),
-            eu.transittrack.gtfs.support
-                .postProcessors(),
-        )
+    private fun service(
+        fixture: String,
+        strict: Boolean = false,
+        downloader: FeedDownloader = FixtureDownloader(fixture),
+    ) = IngestionService(
+        downloader,
+        revisionService,
+        writer,
+        feeds,
+        feedService,
+        if (strict) GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)) else props,
+        shapes,
+        validator,
+        SyncTaskExecutor(),
+        org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
+        eu.transittrack.gtfs.support
+            .derivationService(revisionService, revisions),
+        eu.transittrack.gtfs.support
+            .postProcessors(),
+    )
 
     @AfterEach
     fun cleanup() {
@@ -142,6 +150,7 @@ class IngestionServiceTest(
         val loaded = revisions.findById(rev.id!!).get()
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.errorMessage).isNotNull().contains("1 error")
+        assertThat(loaded.validationReport).isNotNull().contains("ARC_004")
         assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
     }
 
@@ -150,7 +159,9 @@ class IngestionServiceTest(
         feed()
         val rev = service("malformed-csv").ingestBlocking("f")
 
-        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
+        val loaded = revisions.findById(rev.id!!).get()
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(loaded.validationReport).isNotNull().contains("ARC_013")
         assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
     }
 
@@ -179,34 +190,67 @@ class IngestionServiceTest(
 
         val loaded = revisions.findById(rev.id!!).get()
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
-        assertThat(loaded.validationReport).isNotNull().contains("foreign_key_violation")
+        assertThat(loaded.validationReport).isNotNull().contains("TRP_002")
+        assertThat(LoadValidationReport.fromJson(loaded.validationReport!!)).isNotNull()
     }
 
     @Test
-    fun `strict mode fails on referential errors`() {
+    fun `strict mode fails when not publishable`() {
         feed()
-        val strict =
-            IngestionService(
-                FixtureDownloader("dangling-refs"),
-                revisionService,
-                writer,
-                feeds,
-                feedService,
-                GtfsProperties(ingest = GtfsProperties.Ingest(strictValidation = true)),
-                shapes,
-                validator,
-                SyncTaskExecutor(),
-                org.mockito.kotlin.mock<org.springframework.context.ApplicationEventPublisher>(),
-                eu.transittrack.gtfs.support
-                    .derivationService(revisionService, revisions),
-                eu.transittrack.gtfs.support
-                    .postProcessors(),
-            )
-        val rev = strict.ingestBlocking("f")
+        val rev = service("dangling-refs", strict = true).ingestBlocking("f")
 
         assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
         assertThat(stopTimes.findByRevisionId(rev.id!!)).isEmpty()
+    }
+
+    @Test
+    fun `strict mode activates a publishable feed`() {
+        feed()
+        val rev = service("minimal-valid", strict = true).ingestBlocking("f")
+
+        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+    }
+
+    @Test
+    fun `non-zip download fails with fatal report`() {
+        feed()
+        val notAZip =
+            object : FeedDownloader {
+                override fun download(
+                    url: String,
+                    into: Path,
+                ): DownloadedFeed {
+                    Files.writeString(into, "not a zip")
+                    return DownloadedFeed(into, "sha-not-a-zip", Files.size(into))
+                }
+            }
+        val rev = service("unused", downloader = notAZip).ingestBlocking("f")
+
+        val loaded = revisions.findById(rev.id!!).get()
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(loaded.validationReport).isNotNull().contains("Fatal")
+        assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
+    }
+
+    @Test
+    fun `required file with every row skipped fails the revision`() {
+        feed()
+        val rev = service("stops-all-missing-id").ingestBlocking("f")
+
+        val loaded = revisions.findById(rev.id!!).get()
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(loaded.errorMessage).isNotNull().contains("stops.txt")
+    }
+
+    @Test
+    fun `row missing a required key is skipped`() {
+        feed()
+        val rev = service("stop-missing-id").ingestBlocking("f")
+
+        val loaded = revisions.findById(rev.id!!).get()
+        assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(loaded.rowCounts["gtfs_stop"]).isEqualTo(2L)
     }
 
     @Test

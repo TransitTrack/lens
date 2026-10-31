@@ -1,15 +1,5 @@
 package eu.transittrack.gtfs.parse.mapper
 
-import org.mobilitydata.gtfsvalidator.table.GtfsAgency
-import org.mobilitydata.gtfsvalidator.table.GtfsCalendar
-import org.mobilitydata.gtfsvalidator.table.GtfsCalendarDate
-import org.mobilitydata.gtfsvalidator.table.GtfsFeedInfo
-import org.mobilitydata.gtfsvalidator.table.GtfsRoute
-import org.mobilitydata.gtfsvalidator.table.GtfsShape
-import org.mobilitydata.gtfsvalidator.table.GtfsStop
-import org.mobilitydata.gtfsvalidator.table.GtfsStopTime
-import org.mobilitydata.gtfsvalidator.table.GtfsTrip
-
 import eu.transittrack.gtfs.model.Agency
 import eu.transittrack.gtfs.model.Calendar
 import eu.transittrack.gtfs.model.CalendarDate
@@ -19,163 +9,169 @@ import eu.transittrack.gtfs.model.ShapePoint
 import eu.transittrack.gtfs.model.Stop
 import eu.transittrack.gtfs.model.StopTime
 import eu.transittrack.gtfs.model.Trip
+import eu.transittrack.gtfs.parse.MissingRequiredFieldException
+import eu.transittrack.gtfs.parse.row.AgencyRow
+import eu.transittrack.gtfs.parse.row.CalendarDateRow
+import eu.transittrack.gtfs.parse.row.CalendarRow
+import eu.transittrack.gtfs.parse.row.FeedInfoRow
+import eu.transittrack.gtfs.parse.row.RouteRow
+import eu.transittrack.gtfs.parse.row.ShapeRow
+import eu.transittrack.gtfs.parse.row.StopRow
+import eu.transittrack.gtfs.parse.row.StopTimeRow
+import eu.transittrack.gtfs.parse.row.TripRow
 
 fun mapAgency(
     rev: Long,
-    r: GtfsAgency,
+    r: AgencyRow,
 ) = Agency(
     revisionId = rev,
-    agencyId = r.agencyId().takeIf { r.hasAgencyId() },
-    agencyName = r.agencyName().takeIf { r.hasAgencyName() },
-    agencyUrl = r.agencyUrl().takeIf { r.hasAgencyUrl() },
-    agencyTimezone = r.agencyTimezone().takeIf { r.hasAgencyTimezone() },
-    agencyLang = r.agencyLang().takeIf { r.hasAgencyLang() },
-    agencyPhone = r.agencyPhone().takeIf { r.hasAgencyPhone() },
-    agencyFareUrl = r.agencyFareUrl().takeIf { r.hasAgencyFareUrl() },
-    agencyEmail = r.agencyEmail().takeIf { r.hasAgencyEmail() },
+    agencyId = r.agencyId,
+    agencyName = r.agencyName,
+    agencyUrl = r.agencyUrl,
+    agencyTimezone = r.agencyTimezone,
+    agencyLang = r.agencyLang,
+    agencyPhone = r.agencyPhone,
+    agencyFareUrl = r.agencyFareUrl,
+    agencyEmail = r.agencyEmail,
 )
 
 fun mapStop(
     rev: Long,
-    r: GtfsStop,
+    r: StopRow,
 ) = Stop(
     revisionId = rev,
-    stopId = r.stopId().takeIf { r.hasStopId() } ?: error("stops.txt row missing stop_id"),
-    stopCode = r.stopCode().takeIf { r.hasStopCode() },
-    stopName = r.stopName().takeIf { r.hasStopName() },
-    ttsStopName = r.ttsStopName().takeIf { r.hasTtsStopName() },
-    stopDesc = r.stopDesc().takeIf { r.hasStopDesc() },
-    stopLat = r.stopLat().takeIf { r.hasStopLat() },
-    stopLon = r.stopLon().takeIf { r.hasStopLon() },
-    zoneId = r.zoneId().takeIf { r.hasZoneId() },
-    stopUrl = r.stopUrl().takeIf { r.hasStopUrl() },
-    locationType = r.locationTypeValue().takeIf { r.hasLocationType() },
-    parentStation = r.parentStation().takeIf { r.hasParentStation() },
-    stopTimezone = r.stopTimezone().takeIf { r.hasStopTimezone() },
-    wheelchairBoarding = r.wheelchairBoardingValue().takeIf { r.hasWheelchairBoarding() },
-    levelId = r.levelId().takeIf { r.hasLevelId() },
-    platformCode = r.platformCode().takeIf { r.hasPlatformCode() },
+    stopId = r.stopId ?: throw MissingRequiredFieldException("stops.txt", r.line, "stop_id"),
+    stopCode = r.stopCode,
+    stopName = r.stopName,
+    ttsStopName = r.ttsStopName,
+    stopDesc = r.stopDesc,
+    stopLat = r.stopLat,
+    stopLon = r.stopLon,
+    zoneId = r.zoneId,
+    stopUrl = r.stopUrl,
+    locationType = r.locationType,
+    parentStation = r.parentStation,
+    stopTimezone = r.stopTimezone,
+    wheelchairBoarding = r.wheelchairBoarding,
+    levelId = r.levelId,
+    platformCode = r.platformCode,
 )
 
 fun mapRoute(
     rev: Long,
-    r: GtfsRoute,
+    r: RouteRow,
 ) = Route(
     revisionId = rev,
-    routeId = r.routeId().takeIf { r.hasRouteId() } ?: error("routes.txt row missing route_id"),
-    agencyId = r.agencyId().takeIf { r.hasAgencyId() },
-    routeShortName = r.routeShortName().takeIf { r.hasRouteShortName() },
-    routeLongName = r.routeLongName().takeIf { r.hasRouteLongName() },
-    routeDesc = r.routeDesc().takeIf { r.hasRouteDesc() },
-    routeType = r.routeTypeValue().takeIf { r.hasRouteType() },
-    routeUrl = r.routeUrl().takeIf { r.hasRouteUrl() },
-    routeColor = r.routeColor().takeIf { r.hasRouteColor() }.toHex(),
-    routeTextColor = r.routeTextColor().takeIf { r.hasRouteTextColor() }.toHex(),
-    routeSortOrder = r.routeSortOrder().takeIf { r.hasRouteSortOrder() },
-    continuousPickup = r.continuousPickupValue().takeIf { r.hasContinuousPickup() },
-    continuousDropOff = r.continuousDropOffValue().takeIf { r.hasContinuousDropOff() },
-    networkId = r.networkId().takeIf { r.hasNetworkId() },
+    routeId = r.routeId ?: throw MissingRequiredFieldException("routes.txt", r.line, "route_id"),
+    agencyId = r.agencyId,
+    routeShortName = r.routeShortName,
+    routeLongName = r.routeLongName,
+    routeDesc = r.routeDesc,
+    routeType = r.routeType,
+    routeUrl = r.routeUrl,
+    routeColor = r.routeColor,
+    routeTextColor = r.routeTextColor,
+    routeSortOrder = r.routeSortOrder,
+    continuousPickup = r.continuousPickup,
+    continuousDropOff = r.continuousDropOff,
+    networkId = r.networkId,
 )
 
 fun mapTrip(
     rev: Long,
-    r: GtfsTrip,
+    r: TripRow,
 ) = Trip(
     revisionId = rev,
-    routeId = r.routeId().takeIf { r.hasRouteId() } ?: error("trips.txt row missing route_id"),
-    serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("trips.txt row missing service_id"),
-    tripId = r.tripId().takeIf { r.hasTripId() } ?: error("trips.txt row missing trip_id"),
-    tripHeadsign = r.tripHeadsign().takeIf { r.hasTripHeadsign() },
-    tripShortName = r.tripShortName().takeIf { r.hasTripShortName() },
-    directionId = r.directionIdValue().takeIf { r.hasDirectionId() },
-    blockId = r.blockId().takeIf { r.hasBlockId() },
-    shapeId = r.shapeId().takeIf { r.hasShapeId() },
-    wheelchairAccessible = r.wheelchairAccessibleValue().takeIf { r.hasWheelchairAccessible() },
-    bikesAllowed = r.bikesAllowedValue().takeIf { r.hasBikesAllowed() },
+    routeId = r.routeId ?: throw MissingRequiredFieldException("trips.txt", r.line, "route_id"),
+    serviceId = r.serviceId ?: throw MissingRequiredFieldException("trips.txt", r.line, "service_id"),
+    tripId = r.tripId ?: throw MissingRequiredFieldException("trips.txt", r.line, "trip_id"),
+    tripHeadsign = r.tripHeadsign,
+    tripShortName = r.tripShortName,
+    directionId = r.directionId,
+    blockId = r.blockId,
+    shapeId = r.shapeId,
+    wheelchairAccessible = r.wheelchairAccessible,
+    bikesAllowed = r.bikesAllowed,
 )
 
 fun mapStopTime(
     rev: Long,
-    r: GtfsStopTime,
+    r: StopTimeRow,
 ) = StopTime(
     revisionId = rev,
-    tripId = r.tripId().takeIf { r.hasTripId() } ?: error("stop_times.txt row missing trip_id"),
-    stopSequence = r.stopSequence().takeIf { r.hasStopSequence() } ?: error("stop_times.txt row missing stop_sequence"),
-    stopId = r.stopId().takeIf { r.hasStopId() },
-    arrivalTime = r.arrivalTime().takeIf { r.hasArrivalTime() }.toSeconds(),
-    departureTime = r.departureTime().takeIf { r.hasDepartureTime() }.toSeconds(),
-    locationGroupId = r.locationGroupId().takeIf { r.hasLocationGroupId() },
-    locationId = r.locationId().takeIf { r.hasLocationId() },
-    stopHeadsign = r.stopHeadsign().takeIf { r.hasStopHeadsign() },
-    startPickupDropOffWindow = r.startPickupDropOffWindow().takeIf { r.hasStartPickupDropOffWindow() }.toSeconds(),
-    endPickupDropOffWindow = r.endPickupDropOffWindow().takeIf { r.hasEndPickupDropOffWindow() }.toSeconds(),
-    pickupType = r.pickupTypeValue().takeIf { r.hasPickupType() },
-    dropOffType = r.dropOffTypeValue().takeIf { r.hasDropOffType() },
-    continuousPickup = r.continuousPickupValue().takeIf { r.hasContinuousPickup() },
-    continuousDropOff = r.continuousDropOffValue().takeIf { r.hasContinuousDropOff() },
-    shapeDistTraveled = r.shapeDistTraveled().takeIf { r.hasShapeDistTraveled() },
-    timepoint = r.timepointValue().takeIf { r.hasTimepoint() },
-    pickupBookingRuleId = r.pickupBookingRuleId().takeIf { r.hasPickupBookingRuleId() },
-    dropOffBookingRuleId = r.dropOffBookingRuleId().takeIf { r.hasDropOffBookingRuleId() },
+    tripId = r.tripId ?: throw MissingRequiredFieldException("stop_times.txt", r.line, "trip_id"),
+    stopSequence = r.stopSequence ?: throw MissingRequiredFieldException("stop_times.txt", r.line, "stop_sequence"),
+    stopId = r.stopId,
+    arrivalTime = r.arrivalTime,
+    departureTime = r.departureTime,
+    locationGroupId = r.locationGroupId,
+    locationId = r.locationId,
+    stopHeadsign = r.stopHeadsign,
+    startPickupDropOffWindow = r.startPickupDropOffWindow,
+    endPickupDropOffWindow = r.endPickupDropOffWindow,
+    pickupType = r.pickupType,
+    dropOffType = r.dropOffType,
+    continuousPickup = r.continuousPickup,
+    continuousDropOff = r.continuousDropOff,
+    shapeDistTraveled = r.shapeDistTraveled,
+    timepoint = r.timepoint,
+    pickupBookingRuleId = r.pickupBookingRuleId,
+    dropOffBookingRuleId = r.dropOffBookingRuleId,
 )
 
-private fun calendarDay(
-    has: Boolean,
-    value: Int,
-): Boolean? = value.takeIf { has }?.let { it == 1 }
+private fun calendarDay(value: Int?): Boolean? = value?.let { it == 1 }
 
 fun mapCalendar(
     rev: Long,
-    r: GtfsCalendar,
+    r: CalendarRow,
 ) = Calendar(
     revisionId = rev,
-    serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("calendar.txt row missing service_id"),
-    monday = calendarDay(r.hasMonday(), r.mondayValue()),
-    tuesday = calendarDay(r.hasTuesday(), r.tuesdayValue()),
-    wednesday = calendarDay(r.hasWednesday(), r.wednesdayValue()),
-    thursday = calendarDay(r.hasThursday(), r.thursdayValue()),
-    friday = calendarDay(r.hasFriday(), r.fridayValue()),
-    saturday = calendarDay(r.hasSaturday(), r.saturdayValue()),
-    sunday = calendarDay(r.hasSunday(), r.sundayValue()),
-    startDate = r.startDate().takeIf { r.hasStartDate() }.toLocalDate(),
-    endDate = r.endDate().takeIf { r.hasEndDate() }.toLocalDate(),
+    serviceId = r.serviceId ?: throw MissingRequiredFieldException("calendar.txt", r.line, "service_id"),
+    monday = calendarDay(r.monday),
+    tuesday = calendarDay(r.tuesday),
+    wednesday = calendarDay(r.wednesday),
+    thursday = calendarDay(r.thursday),
+    friday = calendarDay(r.friday),
+    saturday = calendarDay(r.saturday),
+    sunday = calendarDay(r.sunday),
+    startDate = r.startDate,
+    endDate = r.endDate,
 )
 
 fun mapCalendarDate(
     rev: Long,
-    r: GtfsCalendarDate,
+    r: CalendarDateRow,
 ) = CalendarDate(
     revisionId = rev,
-    serviceId = r.serviceId().takeIf { r.hasServiceId() } ?: error("calendar_dates.txt row missing service_id"),
-    date = r.date().takeIf { r.hasDate() }.toLocalDate() ?: error("calendar_dates.txt row missing date"),
-    exceptionType = r.exceptionTypeValue().takeIf { r.hasExceptionType() },
+    serviceId = r.serviceId ?: throw MissingRequiredFieldException("calendar_dates.txt", r.line, "service_id"),
+    date = r.date ?: throw MissingRequiredFieldException("calendar_dates.txt", r.line, "date"),
+    exceptionType = r.exceptionType,
 )
 
 fun mapFeedInfo(
     rev: Long,
-    r: GtfsFeedInfo,
+    r: FeedInfoRow,
 ) = FeedInfo(
     revisionId = rev,
-    feedPublisherName = r.feedPublisherName().takeIf { r.hasFeedPublisherName() },
-    feedPublisherUrl = r.feedPublisherUrl().takeIf { r.hasFeedPublisherUrl() },
-    feedLang = r.feedLang().takeIf { r.hasFeedLang() }.toLanguageTagOrNull(),
-    defaultLang = r.defaultLang().takeIf { r.hasDefaultLang() }.toLanguageTagOrNull(),
-    feedStartDate = r.feedStartDate().takeIf { r.hasFeedStartDate() }.toLocalDate(),
-    feedEndDate = r.feedEndDate().takeIf { r.hasFeedEndDate() }.toLocalDate(),
-    feedVersion = r.feedVersion().takeIf { r.hasFeedVersion() },
-    feedContactEmail = r.feedContactEmail().takeIf { r.hasFeedContactEmail() },
-    feedContactUrl = r.feedContactUrl().takeIf { r.hasFeedContactUrl() },
+    feedPublisherName = r.feedPublisherName,
+    feedPublisherUrl = r.feedPublisherUrl,
+    feedLang = r.feedLang,
+    defaultLang = r.defaultLang,
+    feedStartDate = r.feedStartDate,
+    feedEndDate = r.feedEndDate,
+    feedVersion = r.feedVersion,
+    feedContactEmail = r.feedContactEmail,
+    feedContactUrl = r.feedContactUrl,
 )
 
 fun mapShapePoint(
     rev: Long,
-    r: GtfsShape,
+    r: ShapeRow,
 ) = ShapePoint(
     revisionId = rev,
-    shapeId = r.shapeId().takeIf { r.hasShapeId() } ?: error("shapes.txt row missing shape_id"),
-    shapePtLat = r.shapePtLat().takeIf { r.hasShapePtLat() },
-    shapePtLon = r.shapePtLon().takeIf { r.hasShapePtLon() },
-    shapePtSequence =
-        r.shapePtSequence().takeIf { r.hasShapePtSequence() } ?: error("shapes.txt row missing shape_pt_sequence"),
-    shapeDistTraveled = r.shapeDistTraveled().takeIf { r.hasShapeDistTraveled() },
+    shapeId = r.shapeId ?: throw MissingRequiredFieldException("shapes.txt", r.line, "shape_id"),
+    shapePtLat = r.shapePtLat,
+    shapePtLon = r.shapePtLon,
+    shapePtSequence = r.shapePtSequence ?: throw MissingRequiredFieldException("shapes.txt", r.line, "shape_pt_sequence"),
+    shapeDistTraveled = r.shapeDistTraveled,
 )

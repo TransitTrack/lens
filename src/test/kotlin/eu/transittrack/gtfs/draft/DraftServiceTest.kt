@@ -277,17 +277,43 @@ class DraftServiceTest(
     }
 
     @Test
-    fun `activate is blocked when lastValidation reports errors, but force overrides`() {
+    fun `activate is blocked when lastValidation is not publishable, but force overrides`() {
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
         revisions.findById(draft.id!!).get().let {
             it.derivationStale = false
-            it.lastValidation = """{"errorCount":3,"warningCount":0,"notices":[]}"""
+            it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[],"publishable":false}"""
             revisions.save(it)
         }
         assertFailure { drafts.activate(draft.id!!, "nobody", force = false) }.isInstanceOf(IllegalStateException::class)
         assertThat(drafts.activate(draft.id!!, "nobody", force = true).status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+    }
+
+    @Test
+    fun `activate is allowed when publishable even with errors`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        revisions.findById(draft.id!!).get().let {
+            it.derivationStale = false
+            it.lastValidation = """{"errorCount":2,"warningCount":0,"notices":[],"publishable":true}"""
+            revisions.save(it)
+        }
+        assertThat(drafts.activate(draft.id!!, "nobody", force = false).status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+    }
+
+    @Test
+    fun `activate is blocked when lastValidation predates publishable`() {
+        val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
+        cleanupRevs += activeRev
+        val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
+        revisions.findById(draft.id!!).get().let {
+            it.derivationStale = false
+            it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[]}"""
+            revisions.save(it)
+        }
+        assertFailure { drafts.activate(draft.id!!, "nobody", force = false) }.isInstanceOf(IllegalStateException::class)
     }
 
     @Test
@@ -297,7 +323,7 @@ class DraftServiceTest(
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
         revisions.findById(draft.id!!).get().let {
             it.derivationStale = false
-            it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[]}"""
+            it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[],"publishable":true}"""
             it.deriving = true
             revisions.save(it)
         }
