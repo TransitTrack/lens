@@ -1,8 +1,18 @@
 package eu.transittrack.gtfs.read
 
-import org.springframework.jdbc.core.JdbcTemplate
+import java.sql.Date
+import java.time.LocalDate
+
+import org.jetbrains.exposed.v1.core.Column
+import org.jetbrains.exposed.v1.core.JsonColumnMarker
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.postgresql.util.PGobject
 import org.springframework.stereotype.Service
 
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.model.RevisionScopedTable
 import eu.transittrack.gtfs.store.GtfsTables
 
 /**
@@ -11,13 +21,14 @@ import eu.transittrack.gtfs.store.GtfsTables
  *
  * The table is chosen from the schema `GtfsTable` enum, whose values are the GTFS *file* names
  * (`FARE_PRODUCTS`); the physical tables are the pluralised, un-prefixed form (`fare_products`);
- * [TABLE_BY_ENUM] bridges the two. The resulting name is a validated member of [GtfsTables.ALL], so
- * the `select *` string interpolation is safe (no user text reaches the SQL).
+ * [TABLE_BY_ENUM] bridges the two. The table is looked up among [GtfsTables.ALL], so no user text
+ * reaches the SQL. Values keep the types the JDBC driver returned for raw rows (smallint as
+ * `Int`, `date` as `java.sql.Date`, `jsonb` as `PGobject`), see [rawValue].
  */
 @Service
+@ExposedBridge
 class GtfsRecordsService(
     private val resolver: RevisionResolver,
-    private val jdbc: JdbcTemplate,
 ) {
     fun records(
         feedCode: String,
@@ -25,10 +36,45 @@ class GtfsRecordsService(
         revisionId: String?,
     ): List<Map<String, Any?>> {
         val table = TABLE_BY_ENUM[tableEnum] ?: throw IllegalArgumentException("unknown table '$tableEnum'")
-        require(GtfsTables.ALL.any { it.tableName == table }) { "unknown table '$tableEnum'" }
+        val exposed = GtfsTables.ALL.firstOrNull { it.tableName == table } ?: throw IllegalArgumentException("unknown table '$tableEnum'")
         val rev = resolver.resolve(feedCode, revisionId)
-        return jdbc.queryForList("select * from $table where revision_id = ?", rev)
+        return exposed.selectAll().where { exposed.revisionId eq rev }.map { toMap(exposed, it) }
     }
+
+    private fun toMap(
+        table: RevisionScopedTable<*>,
+        row: ResultRow,
+    ): Map<String, Any?> {
+        val out = LinkedHashMap<String, Any?>()
+        for (col in table.columns) out[col.name] = rawValue(col, row[col])
+        return out
+    }
+
+    // Exposed's typed columns narrow what the driver's getObject returned; undo that.
+    private fun rawValue(
+        col: Column<*>,
+        value: Any?,
+    ): Any? =
+        when {
+            value is Short -> {
+                value.toInt()
+            }
+
+            value is LocalDate -> {
+                Date.valueOf(value)
+            }
+
+            value is String && col.columnType is JsonColumnMarker -> {
+                PGobject().apply {
+                    type = if ((col.columnType as JsonColumnMarker).usesBinaryFormat) "jsonb" else "json"
+                    this.value = value
+                }
+            }
+
+            else -> {
+                value
+            }
+        }
 
     companion object {
         /** Schema `GtfsTable` enum value -> physical table name. */

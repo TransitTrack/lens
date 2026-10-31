@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Import
 import eu.transittrack.db.ExposedExceptionTranslator
 import eu.transittrack.db.bridge.ExposedBridgeConfig
 import eu.transittrack.gtfs.draft.DraftEditRepository
+import eu.transittrack.gtfs.draft.DraftRowCopier
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.AgencyRepository
 import eu.transittrack.gtfs.model.AreaRepository
@@ -53,6 +54,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
     GtfsFeedRepository::class,
     GtfsRevisionRepository::class,
     DraftEditRepository::class,
+    DraftRowCopier::class,
     AgencyRepository::class,
     AreaRepository::class,
     AttributionRepository::class,

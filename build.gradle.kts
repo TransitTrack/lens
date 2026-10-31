@@ -81,7 +81,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
 
-    runtimeOnly("org.postgresql:postgresql")
+    implementation("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
     // runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:$bootuiVersion")

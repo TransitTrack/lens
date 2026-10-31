@@ -1,7 +1,6 @@
 package eu.transittrack.gtfs.draft
 
 import java.time.Instant
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -11,7 +10,6 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEqualTo
 import assertk.assertions.isNotNull
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
@@ -28,14 +26,12 @@ import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
 class DraftRowCopierTest(
-    @Autowired val dataSource: DataSource,
+    @Autowired val copier: DraftRowCopier,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val stops: StopRepository,
     @Autowired val stopTimes: StopTimeRepository,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
-
     private fun revWith(
         feedId: Long,
         status: GtfsRevisionStatus,
@@ -70,7 +66,7 @@ class DraftRowCopierTest(
         )
 
         val draft = revWith(feed.id!!, GtfsRevisionStatus.DRAFT)
-        val counts = DraftRowCopier(jdbc).copyRawTables(base.id!!, draft.id!!)
+        val counts = copier.copyRawTables(base.id!!, draft.id!!)
 
         assertThat(counts["stops"]).isEqualTo(1L)
         assertThat(counts["stop_times"]).isEqualTo(1L)
