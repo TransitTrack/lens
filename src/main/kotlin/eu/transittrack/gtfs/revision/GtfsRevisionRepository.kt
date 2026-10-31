@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
@@ -33,7 +34,7 @@ class GtfsRevisionRepository {
 
     /**
      * Row-locking read for the draft-edit template: `DraftEditService.guard` takes a
-     * `PESSIMISTIC_WRITE` lock on the draft row (`select ... for update`) so concurrent
+     * `PESSIMISTIC_WRITE` lock on the draft row (`select ... for no key update`) so concurrent
      * `apply`/`undo`/`redo` on one draft serialize, turning the `version` check into a true
      * compare-and-swap (-> `StaleDraftException`). Deliberately not an optimistic version column on
      * the table's writers: that would impose optimistic locking on every other writer of
@@ -43,7 +44,7 @@ class GtfsRevisionRepository {
         GtfsRevisionTable
             .selectAll()
             .where { GtfsRevisionTable.id eq id }
-            .forUpdate()
+            .forUpdate(ForUpdateOption.PostgreSQL.ForNoKeyUpdate)
             .singleOrNull()
             ?.let(GtfsRevisionTable::read)
 

@@ -149,6 +149,4 @@ class DraftEditRepository {
         }
         return row
     }
-
-    fun findAll(): List<DraftEdit> = DraftEditTable.selectAll().map(DraftEditTable::read)
 }
