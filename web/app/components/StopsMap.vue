@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useMapStyle } from '~/composables/useMapStyle'
+import { hideBasemapLabels, useMapStyle } from '~/composables/useMapStyle'
 import { boundsOf } from '~/utils/vehicleDetail'
 import { extentToBounds } from '~/utils/mapBounds'
 import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
@@ -19,6 +19,17 @@ const mapStyle = useMapStyle()
 const map = useMglMap(MAP_ID)
 const tools = useMapTools()
 const visibleLayers = reactive({ stops: true })
+const hideStreetNames = () => hideBasemapLabels(map.map)
+watch(
+  () => map.isLoaded,
+  (loaded) => {
+    if (!loaded) return
+    hideStreetNames()
+    map.map?.on('style.load', hideStreetNames)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => map.map?.off('style.load', hideStreetNames))
 
 // Capture the agency extent once. `useFeedExtent` hands back a fresh object on
 // every Apollo tick; binding it live would make <MglMap>'s bounds watcher snap

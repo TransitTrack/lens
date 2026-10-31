@@ -3,7 +3,7 @@ import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge } from '../utils/adherence'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
-import { useMapStyle } from '../composables/useMapStyle'
+import { hideBasemapLabels, useMapStyle } from '../composables/useMapStyle'
 import { useFeedGeometry } from '../composables/useFeedGeometry'
 import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
@@ -59,6 +59,17 @@ const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#00000
 // and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
 // before that silently no-op).
 const map = useMglMap(MAP_ID)
+const hideStreetNames = () => hideBasemapLabels(map.map)
+watch(
+  () => map.isLoaded,
+  (loaded) => {
+    if (!loaded) return
+    hideStreetNames()
+    map.map?.on('style.load', hideStreetNames)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => map.map?.off('style.load', hideStreetNames))
 const tools = useMapTools()
 
 // The route/stop network is a large, decorative underlay (a whole agency's

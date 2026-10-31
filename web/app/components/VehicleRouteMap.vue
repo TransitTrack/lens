@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
-import {useMapStyle} from '../composables/useMapStyle'
+import {hideBasemapLabels, useMapStyle} from '../composables/useMapStyle'
 import {boundsOf} from '../utils/vehicleDetail'
 import {extentToBounds} from '../utils/mapBounds'
 import type {LngLatBoundsExtent} from '../composables/useFeedExtent'
@@ -29,6 +29,7 @@ const mapStyle = useMapStyle()
 const map = useMglMap(MAP_ID)
 const tools = useMapTools()
 const visibleLayers = reactive({ routeLine: true, stops: true, trail: true, vehicle: true })
+const hideStreetNames = () => hideBasemapLabels(map.map)
 const routeColorMode = ref<'official' | 'distinct'>('official')
 const displayRouteColor = computed(() =>
   routeColorMode.value === 'distinct' ? '#2563eb' : props.routeColor,
@@ -43,7 +44,19 @@ onMounted(() => {
   resizeObserver = new ResizeObserver(() => map.map?.resize())
   if (mapContainer.value) resizeObserver.observe(mapContainer.value)
 })
-onBeforeUnmount(() => resizeObserver?.disconnect())
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  map.map?.off('style.load', hideStreetNames)
+})
+watch(
+  () => map.isLoaded,
+  (loaded) => {
+    if (!loaded) return
+    hideStreetNames()
+    map.map?.on('style.load', hideStreetNames)
+  },
+  { immediate: true },
+)
 
 // Capture the agency extent once — see StopsMap for why binding it live yanks
 // the view on every poll.
