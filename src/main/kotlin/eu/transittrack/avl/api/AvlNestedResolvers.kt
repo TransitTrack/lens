@@ -3,10 +3,10 @@ package eu.transittrack.avl.api
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.avl.read.dto.AvlReportMatchDto
 import eu.transittrack.avl.read.dto.VehicleDto
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
 import eu.transittrack.gtfs.api.dto.StopDto
 import eu.transittrack.gtfs.api.dto.TripDto
 import eu.transittrack.gtfs.model.StopRepository

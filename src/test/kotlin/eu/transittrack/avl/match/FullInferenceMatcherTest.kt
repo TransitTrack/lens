@@ -7,6 +7,7 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNotEqualTo
 import assertk.assertions.isTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -161,6 +162,115 @@ class FullInferenceMatcherTest(
         val m = outcome as MatchOutcome.Matched
         assertThat(m.tripRowId).isEqualTo(trip.id)
         assertThat(m.distanceAlongTripM > 0.4 * len).isTrue()
+    }
+
+    private fun at(
+        hour: Int,
+        minute: Int,
+    ) = LocalDate
+        .of(2026, 9, 7)
+        .atTime(hour, minute)
+        .atZone(factory.open(avlFeed)!!.zone)
+        .toInstant()
+
+    @Test
+    fun `vehicle still at the first stop long after departure drops the trip it never started`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val start = ctx.patternGeometry(trip.tripPatternId!!)!!.line.pointAt(0.0)
+
+        // T1 leaves S1 at 08:00; at 08:15 the vehicle is still standing there.
+        val outcome = matcher.match(report(start.lat, start.lon, at(8, 15)), prevOnTrip(trip.id!!, 0.0), ctx)
+
+        assertThat((outcome as? MatchOutcome.Matched)?.tripRowId).isNotEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle at the first stop shortly after departure keeps the trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val start = ctx.patternGeometry(trip.tripPatternId!!)!!.line.pointAt(0.0)
+
+        val outcome = matcher.match(report(start.lat, start.lon, at(8, 5)), prevOnTrip(trip.id!!, 0.0), ctx)
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle that left the first stop late stays on its trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val p = geom.line.pointAt(0.3 * geom.line.lengthM)
+
+        val outcome = matcher.match(report(p.lat, p.lon, at(8, 20)), prevOnTrip(trip.id!!, 0.2 * geom.line.lengthM), ctx)
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle at the first stop well before departure isn't matched to that trip yet`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val start = ctx.patternGeometry(trip.tripPatternId!!)!!.line.pointAt(0.0)
+
+        // T1 leaves S1 at 08:00; 15 minutes before is outside the 10-minute lead.
+        val outcome = matcher.match(report(start.lat, start.lon, at(7, 45)), prev = null, ctx)
+
+        assertThat((outcome as? MatchOutcome.Matched)?.tripRowId).isNotEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle at the first stop shortly before departure is matched to that trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val start = ctx.patternGeometry(trip.tripPatternId!!)!!.line.pointAt(0.0)
+
+        val outcome = matcher.match(report(start.lat, start.lon, at(7, 52)), prev = null, ctx)
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle still standing at the terminus after the trip ended drops the finished trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val end = geom.line.pointAt(geom.line.lengthM)
+
+        // T1 reaches S4 at 08:30; at 08:45 the vehicle already there on T1 is still standing at S4.
+        val outcome = matcher.match(report(end.lat, end.lon, at(8, 45)), prevOnTrip(trip.id!!, geom.line.lengthM), ctx)
+
+        assertThat((outcome as? MatchOutcome.Matched)?.tripRowId).isNotEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle found at the terminus after the trip ended isn't put on the finished trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val end = geom.line.pointAt(geom.line.lengthM)
+
+        val outcome = matcher.match(report(end.lat, end.lon, at(8, 45)), prev = null, ctx)
+
+        assertThat((outcome as? MatchOutcome.Matched)?.tripRowId).isNotEqualTo(trip.id)
+    }
+
+    @Test
+    fun `vehicle arriving late at the terminus still matches its trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val end = geom.line.pointAt(geom.line.lengthM)
+
+        // Running T1 15 minutes late: the arrival at S4 itself must still count.
+        val outcome = matcher.match(report(end.lat, end.lon, at(8, 45)), prevOnTrip(trip.id!!, 0.9 * geom.line.lengthM), ctx)
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(trip.id)
     }
 
     @Test

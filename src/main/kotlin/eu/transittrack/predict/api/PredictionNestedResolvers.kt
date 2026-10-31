@@ -3,8 +3,8 @@ package eu.transittrack.predict.api
 import org.springframework.graphql.data.method.annotation.SchemaMapping
 import org.springframework.stereotype.Controller
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.gtfs.api.dto.StopDto
 import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.predict.read.dto.StopPredictionDto

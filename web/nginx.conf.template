@@ -32,6 +32,16 @@ server {
         proxy_http_version 1.1;
     }
 
+    # Docs → Live configuration reads the backend's resolved `transittrack.*`
+    # properties. Only this one read-only Actuator endpoint is proxied.
+    location = /actuator/configprops {
+        proxy_pass ${BACKEND_URL}/actuator/configprops;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_http_version 1.1;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

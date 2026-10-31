@@ -12,8 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
@@ -34,10 +34,12 @@ class PredictionRetentionScheduler(
 
     data class PruneCounts(
         val predictions: Int,
+        val checkpoints: Int,
         val accuracy: Int,
         val crossings: Int,
         val orphanObservations: Int,
         val orphanKalman: Int,
+        val frequencyRuns: Int = 0,
     )
 
     @Scheduled(cron = "\${transittrack.predict.retention.sweep-cron}")
@@ -47,8 +49,9 @@ class PredictionRetentionScheduler(
         val result = runCatching { prune(start) }
         result.onSuccess { c ->
             log.info(
-                "predict retention: pruned {} predictions, {} accuracy, {} orphan observations, {} orphan kalman",
-                c.predictions, c.accuracy, c.orphanObservations, c.orphanKalman,
+                "predict retention: pruned {} predictions, {} checkpoints, {} accuracy, {} crossings, " +
+                    "{} orphan observations, {} orphan kalman, {} frequency runs",
+                c.predictions, c.checkpoints, c.accuracy, c.crossings, c.orphanObservations, c.orphanKalman, c.frequencyRuns,
             )
         }
         metrics.scheduledJobFinished(
@@ -56,7 +59,7 @@ class PredictionRetentionScheduler(
             outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
             elapsed = Duration.between(start, Instant.now()),
             items = result.getOrNull()?.let {
-                (it.predictions + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman)
+                (it.predictions + it.checkpoints + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman + it.frequencyRuns)
                     .toLong()
             },
         )
@@ -66,6 +69,11 @@ class PredictionRetentionScheduler(
     fun prune(now: Instant): PruneCounts {
         val predictions = jdbc.update(
             "delete from vehicle_prediction where computed_at < ?",
+            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
+        )
+        // Never scored: the vehicle didn't reach the stop on that trip, or wasn't seen passing it.
+        val checkpoints = jdbc.update(
+            "delete from prediction_checkpoint where computed_at < ?",
             Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
         )
         val accuracy = jdbc.update(
@@ -78,7 +86,11 @@ class PredictionRetentionScheduler(
         )
         val orphanObservations = jdbc.update(orphanSweepSql("travel_time_observation"))
         val orphanKalman = jdbc.update(orphanSweepSql("kalman_travel_time_state"))
-        return PruneCounts(predictions, accuracy, crossings, orphanObservations, orphanKalman)
+        val frequencyRuns = jdbc.update(
+            "delete from prediction_frequency_run where last_report_ts < ?",
+            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
+        )
+        return PruneCounts(predictions, checkpoints, accuracy, crossings, orphanObservations, orphanKalman, frequencyRuns)
     }
 }
 

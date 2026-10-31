@@ -4,7 +4,7 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
-
+application-local.yaml
 .bootui
 .codex
 
@@ -45,5 +45,6 @@ out/
 # Superpowers scratch (brainstorm mockups, SDD ledgers)
 .superpowers/
 docs/superpowers/
+.worktrees/
 
 node_modules

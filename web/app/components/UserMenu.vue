@@ -13,7 +13,7 @@ const { signOut } = useDemoAuth()
 const identityOpen = ref(false)
 const identityInput = ref('')
 
-const avatar = { icon: 'i-lucide-user-round' }
+const avatar = { icon: 'i-lucide-user-round', size: 'sm' }
 const displayName = computed(() => editorName.value?.trim() || 'Operator')
 
 watch(identityOpen, (open) => {
@@ -55,7 +55,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
           label: 'Light',
           icon: 'i-lucide-sun',
           type: 'checkbox',
-          checked: colorMode.value === 'light',
+          checked: colorMode.preference === 'light',
           onSelect(e: Event) {
             e.preventDefault()
             colorMode.preference = 'light'
@@ -65,7 +65,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
           label: 'Dark',
           icon: 'i-lucide-moon',
           type: 'checkbox',
-          checked: colorMode.value === 'dark',
+          checked: colorMode.preference === 'dark',
           onSelect(e: Event) {
             e.preventDefault()
             colorMode.preference = 'dark'
@@ -88,7 +88,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
 <template>
   <UDropdownMenu
     :items="items"
-    :content="{ side: 'top', align: 'start', collisionPadding: 12 }"
+    :content="{ side: 'top', align: 'start', collisionPadding: 6 }"
     :ui="{ content: 'w-60' }"
   >
     <UButton
@@ -105,9 +105,9 @@ const items = computed<DropdownMenuItem[][]>(() => [
       color="neutral"
       variant="ghost"
       block
-      class="h-12 justify-start gap-2.5 px-2.5 data-[state=open]:bg-elevated"
+      class="h-12 justify-start gap-1 px-1 data-[state=open]:bg-elevated"
     >
-      <UAvatar :icon="avatar.icon" size="xs" />
+      <UAvatar :icon="avatar.icon" size="sm" />
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate text-sm font-medium text-highlighted">{{ displayName }}</span>
         <span class="block truncate text-[10px] text-dimmed">Profile &amp; preferences</span>

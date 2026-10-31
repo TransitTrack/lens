@@ -6,6 +6,7 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 
 class CrossingDetectorTest {
     // Production-shaped pattern: stop path 0 is zero-length (ends at the first stop, distance 0),
@@ -50,8 +51,21 @@ class CrossingDetectorTest {
     }
 
     @Test
-    fun `last stop sits at the pattern's end`() {
-        assertThat(passes(2800.0, 3000.0, 40)).containsExactly(StopPass(3, t0.plusSeconds(40)))
+    fun `last stop is reached within its radius of the pattern's end`() {
+        // 2800m -> 3000m in 40s reaches 2970m (3000 - LAST_STOP_RADIUS_M) 34s in.
+        assertThat(passes(2800.0, 3000.0, 40)).containsExactly(StopPass(3, t0.plusSeconds(34)))
+        // A vehicle pulling up short of where the shape ends still reaches it.
+        assertThat(passes(2800.0, 2980.0, 40)).containsExactly(StopPass(3, t0.plusSeconds(37) + java.time.Duration.ofMillis(777)))
+        assertThat(passes(2800.0, 2960.0, 40)).isEmpty()
+    }
+
+    @Test
+    fun `a short last stop path is reached no earlier than its midpoint`() {
+        // Last stop path 2990m -> 3000m: reached at 2995m, not at 2970m before the previous stop.
+        val shortCum = doubleArrayOf(0.0, 0.0, 1000.0, 2990.0)
+        assertThat(stopReachedAtM(3, shortCum, len)).isEqualTo(2995.0)
+        assertThat(detectStopPasses(2980.0, t0, 2992.0, t0.plusSeconds(10), shortCum, len))
+            .containsExactly(StopPass(2, t0.plusSeconds(8) + java.time.Duration.ofMillis(333)))
     }
 
     @Test

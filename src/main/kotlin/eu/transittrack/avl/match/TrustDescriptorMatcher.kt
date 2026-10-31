@@ -89,6 +89,7 @@ class TrustDescriptorMatcher(
                 match.distanceAlongTripM,
                 actualServiceSec,
                 activeTrip.noSchedule == true,
+                activeGeom.line.lengthM,
             )
         val blockPk = ctx.blockTripOf(activeTrip.id)?.blockId
         return MatchOutcome.Matched(

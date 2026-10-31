@@ -7,8 +7,8 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.stereotype.Controller
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.gtfs.api.dto.AddTripInput
 import eu.transittrack.gtfs.api.dto.BulkShiftTripsInput
 import eu.transittrack.gtfs.api.dto.DeleteTripInput

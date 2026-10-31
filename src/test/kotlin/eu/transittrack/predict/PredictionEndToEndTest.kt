@@ -1,7 +1,9 @@
 package eu.transittrack.predict
 
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -23,6 +25,7 @@ import okio.Buffer
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
@@ -31,6 +34,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.graphql.test.tester.HttpGraphQlTester
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -66,10 +70,8 @@ import eu.transittrack.support.PostgresPerClassTest
  * GraphQL. Mirrors the poll/match structure of `eu.transittrack.avl.AvlEndToEndTest`, asserting on
  * predictions instead of just match state.
  *
- * The first poll is deliberately positioned at 25% along the trip's shape, not at its very start:
- * stop-path index 0 is currently unreachable by the matcher for any trip pattern (the horizon
- * starts at the *next* unvisited stop), so a position right at the first stop would never produce
- * a prediction for it. See `docs/predictions.md` "Known limitations".
+ * The first poll is positioned at 25% along the shape so the next report crosses an intermediate
+ * stop within the default reliable GPS interval.
  */
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -107,6 +109,9 @@ class PredictionEndToEndTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
 ) : PostgresPerClassTest() {
+    @MockitoBean
+    lateinit var clock: Clock
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -196,7 +201,8 @@ class PredictionEndToEndTest(
         // Not asserting processBatch()'s raw return count: it claims PENDING reports across every
         // enabled AVL feed (including the config-seeded live feed from application config), not
         // just the one seeded here - see PredictionServiceTest for the same caveat.
-        server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p25, svcTs(5).epochSecond))))
+        server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p25, svcTs(10).epochSecond))))
+        whenever(clock.instant()).thenReturn(svcTs(10))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
         predictionProcessor.processBatch()
@@ -217,6 +223,7 @@ class PredictionEndToEndTest(
 
         // --- poll 2: advanced to 60% along T1, later ts -> crosses a stop ---
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p60, svcTs(12).epochSecond))))
+        whenever(clock.instant()).thenReturn(svcTs(12))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         processor.processBatch()
         predictionProcessor.processBatch()

@@ -9,7 +9,7 @@ import {
   type AvlFeedHealth,
   type NetworkPulseSignal,
 } from '~/utils/networkPulse'
-import type { VehicleStatus } from '~/utils/vehicleFilters'
+import type { VehicleState } from '~/utils/vehicleFilters'
 
 const props = defineProps<{
   vehicles: VehicleRow[]
@@ -26,7 +26,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectVehicle: [vehicleId: string]
-  viewVehicles: [statuses: VehicleStatus[]]
+  viewVehicles: [state: VehicleState | null]
 }>()
 
 const showSkeleton = computed(() => props.loading && props.vehicles.length === 0)
@@ -51,10 +51,10 @@ function iconClass(color: NetworkPulseSignal['color']): string {
   }[color]
 }
 
-function signalStatuses(signal: NetworkPulseSignal): VehicleStatus[] {
-  if (signal.key === 'attention') return ['attention']
-  if (signal.key === 'onTime') return ['ontime']
-  return []
+function signalState(signal: NetworkPulseSignal): VehicleState | null {
+  if (signal.key === 'attention') return 'stale'
+  if (signal.key === 'onTime') return 'ontime'
+  return null
 }
 
 function canViewVehicles(signal: NetworkPulseSignal): boolean {
@@ -164,7 +164,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
                 ? `View ${signal.label.toLocaleLowerCase()} vehicles`
                 : undefined
             "
-            @click="emit('viewVehicles', signalStatuses(signal))"
+            @click="emit('viewVehicles', signalState(signal))"
           >
             <div class="flex flex-col items-center gap-1.5 pt-0.5" aria-hidden="true">
               <UIcon :name="signal.icon" class="size-4" :class="iconClass(signal.color)" />

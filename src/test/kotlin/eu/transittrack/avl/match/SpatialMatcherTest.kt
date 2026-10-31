@@ -44,14 +44,16 @@ class SpatialMatcherTest {
         assertThat(matcher.match(geom, Point(0.005, 0.0), minAlongM = along0 + 10.0)).isNotNull()
     }
 
+    // Three stop paths: the first stop (0.0, 0.0), a mid-pattern stop (0.01, 0.0) and the terminus (0.02, 0.0).
+    private fun threeStops(vararg layover: Boolean) = PatternGeometry(line, doubleArrayOf(0.0, 0.0, line.cumulative[1]), layover)
+
     @Test
     fun `matches a layover stop well beyond maxDeviationM when within its allowable distance`() {
-        // layoverStop[1]: last stop path (ends at (0.02, 0.0)) is a layover. Distance from the
-        // previous stop (0.01, 0.0) is ~1113m, so allowable = max(1.5 x 1113, layoverDistanceM=2000)
-        // = 2000m. This report is ~1113m east of the layover stop — well beyond maxDeviationM (60m)
-        // from the shape but within the 2000m allowable layover radius.
-        val layoverGeom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(false, true))
-        val m = matcher.match(layoverGeom, Point(0.02, 0.01), minAlongM = null)
+        // layoverStop[1]: the mid-pattern stop (0.01, 0.0) is a layover. Distance from the previous
+        // stop (0.0, 0.0) is ~1113m, so allowable = max(1.5 x 1113, layoverDistanceM=50) = 1670m.
+        // This report is ~1113m east of the layover stop — well beyond maxDeviationM (60m) from the
+        // shape but within the 1670m allowable layover radius.
+        val m = matcher.match(threeStops(false, true, false), Point(0.01, 0.01), minAlongM = null)
         assertThat(m).isNotNull()
         assertThat(m!!.stopPathIndex).isEqualTo(1)
         assertThat(m.heading).isNull()
@@ -59,25 +61,44 @@ class SpatialMatcherTest {
 
     @Test
     fun `rejects a layover match beyond its allowable distance`() {
-        val layoverGeom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(false, true))
-        assertThat(matcher.match(layoverGeom, Point(0.02, 0.05), minAlongM = null)).isNull()
+        assertThat(matcher.match(threeStops(false, true, false), Point(0.01, 0.05), minAlongM = null)).isNull()
+    }
+
+    @Test
+    fun `last stop path layover rejects a vehicle parked beyond layoverDistanceM`() {
+        // The terminus is ~1113m past the previous stop, so 1.5x that gap would allow ~1670m. A
+        // vehicle arriving drives the shape, though: ~1113m off it near the terminus it's parked
+        // (e.g. in a depot), not at the terminus, so only layoverDistanceM applies.
+        assertThat(matcher.match(threeStops(false, false, true), Point(0.02, 0.01), minAlongM = null)).isNull()
+    }
+
+    @Test
+    fun `last stop path layover allows a vehicle within layoverDistanceM`() {
+        // ~334m east of the terminus, layoverDistanceM raised to 500m.
+        val wideLayover = SpatialMatcher(AvlProperties(match = AvlProperties.Match(layoverDistanceM = 500.0)))
+        val m = wideLayover.match(threeStops(false, false, true), Point(0.02, 0.003), minAlongM = null)
+        assertThat(m).isNotNull()
+        assertThat(m!!.stopPathIndex).isEqualTo(2)
     }
 
     @Test
     fun `first stop path layover allows deadheading in within layoverDistanceM`() {
         // layoverStop[0]: first stop path (ends at (0.01, 0.0)) is a layover - deadheading in, with
-        // no previous stop to measure from, so allowable = layoverDistanceM (2000m). This report is
-        // ~1113m east of it - well beyond maxDeviationM (60m) from the shape but within that radius.
+        // no previous stop to measure from, so allowable = layoverDistanceM (raised to 500m here).
+        // This report is ~334m east of it - well beyond maxDeviationM (60m) from the shape but within that radius.
+        val wideLayover = SpatialMatcher(AvlProperties(match = AvlProperties.Match(layoverDistanceM = 500.0)))
         val layoverGeom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(true, false))
-        val m = matcher.match(layoverGeom, Point(0.01, 0.01), minAlongM = null)
+        val m = wideLayover.match(layoverGeom, Point(0.01, 0.003), minAlongM = null)
         assertThat(m).isNotNull()
         assertThat(m!!.stopPathIndex).isEqualTo(0)
     }
 
     @Test
-    fun `first stop path layover rejects deadheading in beyond layoverDistanceM`() {
+    fun `first stop path layover rejects a vehicle parked beyond layoverDistanceM`() {
+        // ~111m east of the first stop: past maxDeviationM (60m) and the default layoverDistanceM
+        // (50m) - a vehicle parked off-route near a trip's start (e.g. in a depot) isn't at its first stop.
         val layoverGeom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(true, false))
-        assertThat(matcher.match(layoverGeom, Point(0.02, 0.05), minAlongM = null)).isNull()
+        assertThat(matcher.match(layoverGeom, Point(0.01, 0.001), minAlongM = null)).isNull()
     }
 
     @Test

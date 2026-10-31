@@ -1,40 +1,43 @@
 <script setup lang="ts">
-import {useRoutesQuery} from '../../generated/graphql'
+import type { VehicleRow } from '../composables/useVehiclePolling'
 import {
-  STATUS_OPTIONS,
+  VEHICLE_STATES,
   emptyFilters,
+  routeFacets,
+  stateCounts,
   type VehicleFilterState,
 } from '../utils/vehicleFilters'
 
-const props = defineProps<{ feedCode: string | null }>()
-const model = defineModel<VehicleFilterState>({required: true})
+/**
+ * Compact filter bar for narrow vehicle lists (e.g. beside the Overview map): the same search,
+ * state and route filters as the Vehicles page's [VehicleFacets] column, as dropdowns.
+ */
+const props = defineProps<{ vehicles: VehicleRow[] }>()
+const model = defineModel<VehicleFilterState>({ required: true })
 
-const {result} = useRoutesQuery(
-  () => ({feedCode: props.feedCode ?? ''}),
-  () => ({enabled: !!props.feedCode}),
-)
+const counts = computed(() => stateCounts(props.vehicles, model.value))
 
-const routeItems = computed(() => [
-  {label: 'All routes', value: null},
-  ...[...(result.value?.routes ?? [])]
-    .sort((a, b) =>
-      (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
-        numeric: true,
-      }),
-    )
-    .map((r) => ({
-      label: r.routeShortName ?? r.routeLongName ?? r.routeId,
-      value: r.routeId,
-    })),
+const stateItems = computed(() => [
+  { label: `All · ${counts.value.all}`, value: null },
+  ...VEHICLE_STATES.map((s) => ({
+    label: `${s.label} · ${counts.value[s.value]}`,
+    value: s.value,
+  })),
 ])
 
-const dirty = computed(() =>
-  model.value.query.trim().length > 0 || model.value.routeId != null || model.value.statuses.length > 0,
+const routeItems = computed(() =>
+  routeFacets(props.vehicles, model.value).map((r) => ({
+    label: `${r.label} · ${r.count}`,
+    value: r.routeId,
+  })),
 )
 
-function reset() {
-  model.value = emptyFilters()
-}
+const dirty = computed(
+  () =>
+    model.value.query.trim().length > 0 ||
+    model.value.state != null ||
+    model.value.routeIds.length > 0,
+)
 </script>
 
 <template>
@@ -42,36 +45,38 @@ function reset() {
     <UInput
       :model-value="model.query"
       icon="i-lucide-search"
-      placeholder="Search vehicle, route, destination"
+      placeholder="Search vehicle, route, trip or block"
       class="w-full"
       @update:model-value="model = { ...model, query: $event }"
     />
     <USelectMenu
-      :model-value="model.routeId"
-      :items="routeItems"
+      :model-value="model.state"
+      :items="stateItems"
       value-key="value"
-      placeholder="Route"
-      icon="i-lucide-route"
-      class="w-34"
-      @update:model-value="model = { ...model, routeId: $event }"
+      placeholder="State"
+      icon="i-lucide-filter"
+      :search-input="false"
+      class="w-40"
+      @update:model-value="model = { ...model, state: $event }"
     />
     <USelectMenu
-      :model-value="model.statuses"
-      :items="STATUS_OPTIONS"
+      :model-value="model.routeIds"
+      :items="routeItems"
       value-key="value"
       multiple
-      placeholder="Status"
-      icon="i-lucide-filter"
-      class="w-44"
-      @update:model-value="model = { ...model, statuses: $event }"
+      placeholder="Routes"
+      icon="i-lucide-route"
+      class="w-36"
+      @update:model-value="model = { ...model, routeIds: $event }"
     />
     <UButton
       v-if="dirty"
-      color="error"
-      variant="solid"
+      color="neutral"
+      variant="soft"
       size="sm"
       icon="i-lucide-x"
-      @click="reset"
+      aria-label="Clear filters"
+      @click="model = emptyFilters()"
     />
   </div>
 </template>

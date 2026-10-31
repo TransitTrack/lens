@@ -28,6 +28,22 @@ class PredictPropertiesTest {
         assertThat(p.learn.maxPlausibleTravelTimeSec).isEqualTo(1_800)
         assertThat(p.learn.kalmanMeasurementNoiseSec2).isEqualTo(400.0)
         assertThat(p.retention.predictionHours).isEqualTo(6L)
+        assertThat(p.learn.historyPriorSamples).isEqualTo(5)
+        assertThat(p.learn.outlierMinDeviationSec).isEqualTo(60.0)
+        assertThat(p.learn.outlierMaxRelativeDeviation).isEqualTo(1.0)
+        assertThat(p.accuracy.horizonsSec).isEqualTo(listOf(60, 180, 300, 600, 900, 1_200, 1_800))
+    }
+
+    @Test
+    fun `binds accuracy horizons`() {
+        val p =
+            bind(
+                mapOf(
+                    "transittrack.predict.accuracy.horizons-sec[0]" to "120",
+                    "transittrack.predict.accuracy.horizons-sec[1]" to "600",
+                ),
+            )
+        assertThat(p.accuracy.horizonsSec).isEqualTo(listOf(120, 600))
     }
 
     @Test

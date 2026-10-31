@@ -17,9 +17,9 @@ import okio.Buffer
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.HttpClientProperties
+import eu.transittrack.HttpClientsConfiguration
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
-import eu.transittrack.config.HttpClientsConfiguration
 
 class HttpAvlFeedSourceTest {
     private lateinit var server: MockWebServer

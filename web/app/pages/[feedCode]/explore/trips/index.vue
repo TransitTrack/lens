@@ -123,6 +123,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
 <template>
   <AppPage
     title="Trips"
+    class="scroll"
     description="Scheduled journeys, service coverage, and stop-level timetable detail"
   >
     <template #toolbar>

@@ -8,6 +8,7 @@ import { useRouteDetailQuery } from '~~/generated/graphql'
 import { routeTypeLabel, hexColor, patternLine, patternStopFeatures } from '~/utils/gtfs'
 
 const route = useRoute()
+const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
@@ -52,6 +53,11 @@ const stops = computed(
 const stopList = computed(() =>
   [...(pattern.value?.stopPaths ?? [])].sort((a, b) => a.stopPathIndex - b.stopPathIndex),
 )
+const selectedStopId = ref<string | null>(null)
+
+watch(patternKey, () => {
+  selectedStopId.value = null
+})
 
 const tripsLink = computed(() => {
   const dir = pattern.value?.directionId
@@ -106,14 +112,14 @@ const splitterItems = computed<SplitterItem[]>(() =>
 </script>
 
 <template>
-  <AppPage full-width :title="gtfsRoute?.routeShortName ?? routeId">
+  <AppPage constrain-content :title="gtfsRoute?.routeShortName ?? routeId">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        :to="feedPath('/explore/routes')"
-        aria-label="Back to routes"
+        @click="router.back()"
+        aria-label="Go back"
       />
     </template>
 
@@ -147,9 +153,6 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <div class="text-xs text-muted">
               {{ routeTypeLabel(gtfsRoute?.routeType) }} · {{ patterns.length }} pattern(s)
             </div>
-            <p v-if="gtfsRoute?.routeDesc" class="mt-1 text-xs text-dimmed">
-              {{ gtfsRoute.routeDesc }}
-            </p>
           </div>
 
           <USelectMenu
@@ -217,43 +220,58 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <span class="text-xs text-dimmed">{{ stopList.length }} stops</span>
           </div>
 
-          <ol class="flex flex-col rounded-md border border-default bg-default px-3 py-1">
-            <li
-              v-for="(sp, i) in stopList"
-              :key="sp.stopPathIndex"
-              class="flex items-center gap-2 border-l-2 py-1.5 pl-3 text-sm"
-              :class="sp.scheduleAdherenceStop ? 'border-primary' : 'border-default'"
-            >
-              <span class="w-5 shrink-0 text-right text-xs text-dimmed">{{ i + 1 }}</span>
-              <NuxtLink
-                :to="feedPath(`/explore/stops/${encodeURIComponent(sp.stopId)}`)"
-                class="truncate text-highlighted hover:text-primary"
+          <ol class="rounded-md border border-default bg-default px-2 py-2">
+            <li v-for="(sp, i) in stopList" :key="sp.stopPathIndex" class="relative pl-8">
+              <span
+                class="absolute bottom-0 left-3 top-0 w-px bg-default"
+                :class="i === 0 ? 'top-1/2' : i === stopList.length - 1 ? 'bottom-1/2' : ''"
+                aria-hidden="true"
+              />
+              <button
+                type="button"
+                class="group relative flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-elevated focus-visible:ring-2 focus-visible:ring-primary"
+                :class="
+                  selectedStopId === sp.stopId
+                    ? 'bg-primary/10 text-highlighted'
+                    : 'text-highlighted'
+                "
+                :aria-pressed="selectedStopId === sp.stopId"
+                @click="selectedStopId = sp.stopId"
               >
-                {{ sp.stop?.stopName ?? sp.stopId }}
-              </NuxtLink>
-              <span class="ml-auto flex shrink-0 items-center gap-1">
-                <UIcon
-                  v-if="sp.scheduleAdherenceStop"
-                  name="i-lucide-timer"
-                  class="size-3.5 text-primary"
-                  title="Timepoint"
-                />
-                <UIcon
-                  v-if="sp.layoverStop"
-                  name="i-lucide-pause"
-                  class="size-3.5 text-warning"
-                  title="Layover"
-                />
-                <UIcon
-                  v-if="sp.waitStop"
-                  name="i-lucide-hourglass"
-                  class="size-3.5 text-dimmed"
-                  title="Wait stop"
-                />
-                <span v-if="(sp.typicalDwellTimeSec ?? 0) > 0" class="text-[10px] text-dimmed"
-                  >{{ sp.typicalDwellTimeSec }}s</span
+                <span
+                  class="absolute -left-7 flex size-5 items-center justify-center rounded-full border-2 border-default bg-default text-[10px] font-semibold tabular-nums text-dimmed transition-colors group-hover:border-primary"
+                  :class="
+                    selectedStopId === sp.stopId ? 'border-primary bg-primary text-inverted' : ''
+                  "
+                  >{{ i + 1 }}</span
                 >
-              </span>
+                <span class="min-w-0 flex-1 truncate font-medium">{{
+                  sp.stop?.stopName ?? sp.stopId
+                }}</span>
+                <span class="flex shrink-0 items-center gap-1">
+                  <UIcon
+                    v-if="sp.scheduleAdherenceStop"
+                    name="i-lucide-timer"
+                    class="size-3.5 text-primary"
+                    title="Timepoint"
+                  />
+                  <UIcon
+                    v-if="sp.layoverStop"
+                    name="i-lucide-pause"
+                    class="size-3.5 text-warning"
+                    title="Layover"
+                  />
+                  <UIcon
+                    v-if="sp.waitStop"
+                    name="i-lucide-hourglass"
+                    class="size-3.5 text-dimmed"
+                    title="Wait stop"
+                  />
+                  <span v-if="(sp.typicalDwellTimeSec ?? 0) > 0" class="text-[10px] text-dimmed"
+                    >{{ sp.typicalDwellTimeSec }}s</span
+                  >
+                </span>
+              </button>
             </li>
           </ol>
         </aside>
@@ -264,8 +282,9 @@ const splitterItems = computed<SplitterItem[]>(() =>
             :line="line"
             :stops="stops"
             :vehicle="null"
-            :route-color="routeColor"
+            route-color="#ff0000"
             :extent="extent"
+            :focus-id="selectedStopId"
           />
         </div>
       </template>

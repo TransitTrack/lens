@@ -20,6 +20,7 @@ import {
 } from '~/utils/stopSchedule'
 
 const route = useRoute()
+const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const { client } = useApolloClient()
@@ -176,14 +177,14 @@ const splitterItems = computed<SplitterItem[]>(() =>
 </script>
 
 <template>
-  <AppPage full-width :title="stop?.stopName ?? stopId">
+  <AppPage :title="stop?.stopName ?? stopId">
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        :to="feedPath('/explore/stops')"
-        aria-label="Back to stops"
+        aria-label="Go back"
+        @click="router.back()"
       />
     </template>
     <template v-if="stop?.stopCode || stop?.platformCode" #actions>
@@ -207,7 +208,9 @@ const splitterItems = computed<SplitterItem[]>(() =>
       class="h-full min-h-0 w-full"
     >
       <template #details>
-        <aside class="flex h-full min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+        <aside
+          class="flex h-full min-h-0 w-full flex-1 flex-col gap-4 overflow-y-auto overscroll-contain p-4"
+        >
           <section class="app-frame shrink-0 flex flex-col gap-3 p-3">
             <div class="flex items-start justify-between gap-3">
               <div>
@@ -252,32 +255,32 @@ const splitterItems = computed<SplitterItem[]>(() =>
             </div>
             <div class="p-3">
               <div class="grid grid-cols-2 border border-default">
-              <div class="border-b border-r border-default px-3 py-2">
-                <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
-                <div class="text-xs text-dimmed">routes</div>
-              </div>
-              <div class="border-b border-default px-3 py-2">
-                <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
-                <div class="text-xs text-dimmed">patterns</div>
-              </div>
-              <div class="col-span-2 px-3 py-2">
-                <div class="text-sm font-semibold text-highlighted">
-                  {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
+                <div class="border-b border-r border-default px-3 py-2">
+                  <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
+                  <div class="text-xs text-dimmed">routes</div>
                 </div>
-                <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
+                <div class="border-b border-default px-3 py-2">
+                  <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
+                  <div class="text-xs text-dimmed">patterns</div>
+                </div>
+                <div class="col-span-2 px-3 py-2">
+                  <div class="text-sm font-semibold text-highlighted">
+                    {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
+                  </div>
+                  <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
+                </div>
               </div>
-            </div>
-            <div v-if="routes.length" class="mt-3 flex flex-wrap gap-1">
-              <UBadge
-                v-for="r in routes"
-                :key="r.id"
-                class="cursor-pointer"
-                :style="{ backgroundColor: hexColor(r.color, undefined) }"
-                @click="navigateTo(feedPath(`/explore/routes/${r.id}`))"
-              >
-                {{ r.name }}
-              </UBadge>
-            </div>
+              <div v-if="routes.length" class="mt-3 flex flex-wrap gap-1">
+                <UBadge
+                  v-for="r in routes"
+                  :key="r.id"
+                  class="cursor-pointer"
+                  :style="{ backgroundColor: hexColor(r.color, undefined) }"
+                  @click="navigateTo(feedPath(`/explore/routes/${r.id}`))"
+                >
+                  {{ r.name }}
+                </UBadge>
+              </div>
             </div>
           </section>
 

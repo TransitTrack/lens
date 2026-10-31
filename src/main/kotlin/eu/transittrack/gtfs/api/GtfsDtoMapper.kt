@@ -1,10 +1,9 @@
 package eu.transittrack.gtfs.api
 
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.gtfs.api.dto.FeedDto
 import eu.transittrack.gtfs.api.dto.RevisionDto
 import eu.transittrack.gtfs.api.dto.ValidationNoticeDto
@@ -16,15 +15,13 @@ import eu.transittrack.gtfs.validate.LoadValidationReport
 /**
  * Maps GTFS domain entities to their GraphQL DTOs.
  *
- * The revision's `validationReport` is a raw JSON string; deserializing it into
- * [LoadValidationReport] (a `data class` with no no-arg constructor) requires the Spring-configured
- * [JsonMapper] bean, which Boot 4 wires with `jackson-module-kotlin`.
+ * The revision's `validationReport` is the stored gtfs-analyzer envelope
+ * ([LoadValidationReport.toJson]); reports written before the analyzer don't decode and yield no
+ * summary.
  */
 @Component
 @ConditionalOnRole(Role.API)
-class GtfsDtoMapper(
-    private val jsonMapper: JsonMapper,
-) {
+class GtfsDtoMapper {
     fun toDto(feed: GtfsFeed): FeedDto =
         FeedDto(
             code = feed.code,
@@ -42,8 +39,7 @@ class GtfsDtoMapper(
         feedCode: String,
     ): RevisionDto {
         val summary =
-            revision.validationReport?.let { json ->
-                val report = jsonMapper.readValue(json, LoadValidationReport::class.java)
+            revision.validationReport?.let { LoadValidationReport.fromJson(it) }?.let { report ->
                 ValidationSummaryDto(
                     errorCount = report.errorCount,
                     warningCount = report.warningCount,

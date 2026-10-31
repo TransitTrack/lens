@@ -8,6 +8,7 @@ import { useTripDetailQuery } from '~~/generated/graphql'
 import type { LngLat } from '~/utils/gtfs'
 
 const route = useRoute()
+const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const tripId = computed(() => String(route.params.tripId))
@@ -22,6 +23,11 @@ const trip = computed(() => result.value?.trip ?? null)
 const stopTimes = computed(() =>
   [...(trip.value?.stopTimes ?? [])].sort((a, b) => a.stopSequence - b.stopSequence),
 )
+const selectedStopId = ref<string | null>(null)
+
+watch(tripId, () => {
+  selectedStopId.value = null
+})
 
 const line = computed<LngLat[]>(() => {
   const pts = trip.value?.shape?.points ?? []
@@ -34,30 +40,44 @@ const line = computed<LngLat[]>(() => {
     .map((s) => [s.stop!.stopLon as number, s.stop!.stopLat as number] as LngLat)
 })
 
-const stops = computed(
-  () =>
-    ({
-      type: 'FeatureCollection',
-      features: stopTimes.value
-        .filter((s) => s.stop?.stopLat != null && s.stop?.stopLon != null)
-        .map((s) => ({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [s.stop!.stopLon, s.stop!.stopLat] },
-          properties: { name: s.stop!.stopName ?? s.stop!.stopId, state: 'upcoming' },
-        })),
-    }) as GeoJSON.FeatureCollection,
-)
-
-function hm(t: string | null | undefined): string {
-  return t ? t.slice(0, 5) : '—'
-}
-
 /** derived schedule times keyed by stopPathIndex (= stopSequence - 1) */
 const schedByIndex = computed(() => {
   const m = new Map<number, NonNullable<typeof trip.value>['scheduleTimes'][number]>()
   for (const s of trip.value?.scheduleTimes ?? []) m.set(s.stopPathIndex, s)
   return m
 })
+
+const stops = computed(
+  () =>
+    ({
+      type: 'FeatureCollection',
+      features: stopTimes.value
+        .filter((s) => s.stop?.stopLat != null && s.stop?.stopLon != null)
+        .map((s) => {
+          const schedule = schedByIndex.value.get(s.stopSequence - 1)
+          const arrival = schedule ? secToHm(schedule.arrivalSec ?? null) : hm(s.arrivalTime)
+          const departure = schedule ? secToHm(schedule.departureSec ?? null) : hm(s.departureTime)
+          const times = [arrival, departure].filter((time) => time !== '—')
+          const timeLabel =
+            times.length === 2 && times[0] !== times[1] ? `${times[0]}–${times[1]}` : times[0]
+          const name = s.stop!.stopName ?? s.stop!.stopId
+          return {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [s.stop!.stopLon, s.stop!.stopLat] },
+            properties: {
+              name,
+              label: timeLabel ? `${name}\n${timeLabel}` : name,
+              stopId: s.stop!.stopId,
+              state: 'upcoming',
+            },
+          }
+        }),
+    }) as GeoJSON.FeatureCollection,
+)
+
+function hm(t: string | null | undefined): string {
+  return t ? t.slice(0, 5) : '—'
+}
 
 const runtimeSec = computed(() => {
   const t = trip.value
@@ -104,14 +124,14 @@ const splitterItems = computed<SplitterItem[]>(() =>
 </script>
 
 <template>
-  <AppPage full-width :title="trip?.tripHeadsign ?? tripId">
+  <AppPage :title="trip?.tripHeadsign ?? tripId" constrain-content>
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        :to="feedPath('/explore/trips')"
-        aria-label="Back to trips"
+        aria-label="Go back"
+        @click="router.back()"
       />
     </template>
     <template v-if="trip?.route?.routeShortName" #actions>
@@ -144,10 +164,14 @@ const splitterItems = computed<SplitterItem[]>(() =>
       class="h-full min-h-0 w-full"
     >
       <template #details>
-        <aside class="flex h-full min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4">
+        <aside
+          class="flex h-full min-h-0 w-full flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4"
+        >
           <section class="app-frame shrink-0">
             <header class="border-b border-default px-3 py-2.5">
-              <div class="text-xs font-semibold uppercase tracking-wide text-dimmed">Trip profile</div>
+              <div class="text-xs font-semibold uppercase tracking-wide text-dimmed">
+                Trip profile
+              </div>
               <div class="mt-1 text-xs text-muted">
                 {{ trip?.tripId }} · direction {{ trip?.directionId ?? '?' }} · service
                 {{ trip?.serviceId }}
@@ -224,8 +248,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <table class="w-full text-sm">
               <thead>
                 <tr class="text-left text-xs text-dimmed">
-                  <th class="py-1 pl-2 pr-2 font-medium">#</th>
-                  <th class="py-1 font-medium">Stop</th>
+                  <th class="py-1 pl-2 pr-2 font-medium">Stop</th>
                   <th class="py-1 text-right font-medium">Arr</th>
                   <th class="py-1 pr-2 text-right font-medium">Dep</th>
                 </tr>
@@ -235,16 +258,18 @@ const splitterItems = computed<SplitterItem[]>(() =>
                   v-for="st in stopTimes"
                   :key="st.stopSequence"
                   class="border-t border-default align-top"
+                  :class="st.stop?.stopId === selectedStopId ? 'bg-primary/10' : ''"
                 >
-                  <td class="py-1 pl-2 text-xs text-dimmed">{{ st.stopSequence }}</td>
-                  <td class="py-1">
-                    <NuxtLink
+                  <td class="py-1 pl-2">
+                    <button
                       v-if="st.stop?.stopId"
-                      :to="feedPath(`/explore/stops/${encodeURIComponent(st.stop.stopId)}`)"
-                      class="line-clamp-1 text-highlighted hover:text-primary hover:underline"
+                      type="button"
+                      class="line-clamp-1 text-left text-highlighted hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      :aria-pressed="st.stop.stopId === selectedStopId"
+                      @click="selectedStopId = st.stop.stopId"
                     >
                       {{ st.stop.stopName ?? st.stop.stopId }}
-                    </NuxtLink>
+                    </button>
                     <span v-else class="line-clamp-1 text-highlighted">—</span>
                     <span
                       v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
@@ -293,6 +318,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             :vehicle="null"
             route-color="#ff0000"
             :extent="extent"
+            :focus-id="selectedStopId"
           />
         </div>
       </template>

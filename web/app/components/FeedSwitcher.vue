@@ -53,17 +53,12 @@ function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
 
     <UButton
       v-else
-      color="neutral"
       variant="ghost"
       trailing-icon="i-lucide-chevrons-up-down"
       block
       class="justify-start data-[state=open]:bg-elevated"
       :ui="{ trailingIcon: 'ms-auto text-dimmed' }"
     >
-      <UChip v-if="selectedFeed" :color="dotColor(selectedFeed)" inset>
-        <UIcon name="i-lucide-rss" class="size-4 shrink-0" />
-      </UChip>
-      <UIcon v-else name="i-lucide-rss" class="size-4 shrink-0" />
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate text-sm font-medium text-highlighted">
           {{ selectedFeed?.name ?? 'Select a feed' }}

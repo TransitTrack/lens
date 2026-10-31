@@ -1,0 +1,3 @@
+stop_id,stop_name,stop_lat,stop_lon
+,First,51.10,17.00
+,Second,51.11,17.01

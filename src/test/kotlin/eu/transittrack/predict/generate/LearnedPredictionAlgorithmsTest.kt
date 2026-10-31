@@ -12,6 +12,8 @@ import assertk.assertions.isGreaterThan
 import assertk.assertions.isNull
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -24,6 +26,7 @@ import eu.transittrack.AvlFormat
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.cache.CachedLearningKeyReader
+import eu.transittrack.avl.match.cache.CachedTravelTimesReader
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.gtfs.download.FeedDownloader
@@ -40,6 +43,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeState
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.TravelTimeObservation
 import eu.transittrack.predict.model.TravelTimeObservationRepository
+import eu.transittrack.schedule.model.TravelTimesForStopPath
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.support.PostgresPerClassTest
 
@@ -69,6 +73,7 @@ class LearnedPredictionAlgorithmsTest(
     @Autowired val states: KalmanTravelTimeStateRepository,
     @Autowired val seeds: TravelTimesForStopPathRepository,
     @Autowired val learningKeys: CachedLearningKeyReader,
+    @Autowired val seedReader: CachedTravelTimesReader,
     @Autowired val props: PredictProperties,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
@@ -103,9 +108,9 @@ class LearnedPredictionAlgorithmsTest(
 
     private val serviceDate: LocalDate = LocalDate.of(2026, 9, 7)
 
-    private fun historical() = HistoricalAverageAlgorithm(observations, seeds, learningKeys, props)
+    private fun historical() = HistoricalAverageAlgorithm(observations, seedReader, learningKeys, props)
 
-    private fun kalman() = KalmanAlgorithm(states, seeds, learningKeys, props)
+    private fun kalman() = KalmanAlgorithm(states, seedReader, learningKeys, props)
 
     private fun keyOf(
         ctx: AvlMatchContext,
@@ -198,7 +203,7 @@ class LearnedPredictionAlgorithmsTest(
     }
 
     @Test
-    fun `KalmanAlgorithm falls back to schedule seed with no state and reports null confidence`() {
+    fun `KalmanAlgorithm includes conservative uncertainty for schedule fallback`() {
         val ctx = factory.open(avlFeed)!!
         val horizon = t1Horizon(ctx)
         assertThat(horizon.size).isGreaterThan(0)
@@ -212,7 +217,9 @@ class LearnedPredictionAlgorithmsTest(
         for (idx in listOf(1, 2)) {
             val prediction = predictions.first { it.stopPathIndex == idx }
             assertThat(prediction.predictedArrivalTs).isEqualTo(expected[idx])
-            assertThat(prediction.confidenceSec).isNull()
+            assertThat(prediction.confidenceSec).isEqualTo(
+                sqrt(idx * (props.learn.kalmanInitialVarianceSec2 + props.learn.kalmanMeasurementNoiseSec2)).roundToInt(),
+            )
         }
     }
 
@@ -249,7 +256,15 @@ class LearnedPredictionAlgorithmsTest(
         val prediction = predictions.first { it.stopPathIndex == 3 }
 
         assertThat(prediction.predictedArrivalTs).isEqualTo(tsBeforeTarget.plusSeconds(777L))
-        assertThat(prediction.confidenceSec).isEqualTo(sqrt(64.0).roundToInt())
+        // The estimate's own variance plus the trip-to-trip spread of one vehicle around it.
+        assertThat(prediction.confidenceSec).isEqualTo(
+            sqrt(
+                2 *
+                    (props.learn.kalmanInitialVarianceSec2 + props.learn.kalmanMeasurementNoiseSec2) +
+                    64.0 +
+                    props.learn.kalmanMeasurementNoiseSec2,
+            ).roundToInt(),
+        )
     }
 
     private fun seedTravelSec(
@@ -319,5 +334,62 @@ class LearnedPredictionAlgorithmsTest(
         val arrival2 = predictions.first { it.stopPathIndex == 2 }.predictedArrivalTs!!
 
         assertThat(predictions.first { it.stopPathIndex == 3 }.predictedArrivalTs).isEqualTo(arrival2.plusSeconds(555L))
+    }
+
+    @Test
+    fun `learned dwell and travel share one consistent arrival-to-arrival duration`() {
+        val ctx = factory.open(avlFeed)!!
+        val horizon = t1Horizon(ctx)
+        val patternId = horizon.first().tripPatternId
+        val customSeeds = mock<CachedTravelTimesReader>()
+        whenever(customSeeds.byStopPath(ctx.revisionId, patternId)).thenReturn(
+            (0..3).associateWith { index ->
+                TravelTimesForStopPath(ctx.revisionId, patternId, index, if (index == 0) null else 60, if (index in 1..2) 180 else 0)
+            },
+        )
+        val learned = (1..3).associateWith { mapOf(TravelTimeBucket.OVERALL to LearnedStopToStop(60.0, null, 100)) }
+        val start = fixedStartTs(ctx)
+        val predictions = walkHorizon(horizon, serviceDate, start, ctx, customSeeds, 10) { learned }
+        assertThat(predictions.map { it.predictedArrivalTs }).isEqualTo(listOf(60L, 120L, 180L).map { start.plusSeconds(it) })
+        assertThat(predictions.first().predictedDepartureTs).isEqualTo(start.plusSeconds(105))
+        assertThat(predictions.zipWithNext().all { (a, b) -> !b.predictedArrivalTs!!.isBefore(a.predictedDepartureTs!!) }).isEqualTo(true)
+
+        val onPath2 = walkHorizon(listOf(horizon[1].copy(remainingFraction = 0.5)), serviceDate, start, ctx, customSeeds, 10) { learned }
+        assertThat(onPath2.single().predictedArrivalTs).isEqualTo(start.plusMillis(7500))
+    }
+
+    @Test
+    fun `unlearned legs add uncertainty instead of leaving partially learned journeys overconfident`() {
+        val ctx = factory.open(avlFeed)!!
+        val horizon = t1Horizon(ctx)
+        val learned = mapOf(
+            1 to mapOf(TravelTimeBucket.OVERALL to LearnedStopToStop(60.0, 4.0, 100)),
+            3 to mapOf(TravelTimeBucket.OVERALL to LearnedStopToStop(60.0, 9.0, 100)),
+        )
+        val predictions =
+            walkHorizon(horizon, serviceDate, fixedStartTs(ctx), ctx, seedReader, 10, fallbackVarianceSec2 = 4000.0) { learned }
+        assertThat(predictions.last().confidenceSec).isEqualTo(sqrt(4.0 + 4000.0 + 9.0).roundToInt())
+    }
+
+    @Test
+    fun `old Kalman state has wider uncertainty without silently changing its mean`() {
+        val ctx = factory.open(avlFeed)!!
+        val horizon = t1Horizon(ctx).take(1)
+        val key = keyOf(ctx, horizon.first())
+        val start = fixedStartTs(ctx)
+        val state = KalmanTravelTimeState(
+            gtfsFeedCode = key.gtfsFeedCode, patternKey = key.patternKey, stopPathIndex = 1,
+            dayType = DayType.ALL, timeBand = TimeBand.ALL, estimateSec = 600.0, errorVariance = 64.0, sampleCount = 100, updatedAt = start,
+        )
+        val repository = mock<KalmanTravelTimeStateRepository>()
+        whenever(repository.findByPattern(key.gtfsFeedCode, key.patternKey)).thenReturn(listOf(state))
+        val algorithm = KalmanAlgorithm(repository, seedReader, learningKeys, props)
+        val fresh = algorithm.predict(horizon, serviceDate, null, start, ctx).single()
+        state.updatedAt = start.minusSeconds(6 * 3600)
+        val aged = algorithm.predict(horizon, serviceDate, null, start, ctx).single()
+        assertThat(aged.predictedArrivalTs).isEqualTo(fresh.predictedArrivalTs)
+        val expectedVariance = 64.0 + props.learn.kalmanMeasurementNoiseSec2 + 6 * props.learn.kalmanVarianceGrowthSec2PerHour
+        assertThat(aged.confidenceSec).isEqualTo(sqrt(expectedVariance).roundToInt())
+        assertThat(aged.confidenceSec!!).isGreaterThan(fresh.confidenceSec!!)
     }
 }

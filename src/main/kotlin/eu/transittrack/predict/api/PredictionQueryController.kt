@@ -4,9 +4,11 @@ import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
 
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.predict.read.HeadwayReadService
 import eu.transittrack.predict.read.PredictionReadService
 
@@ -32,7 +34,11 @@ class PredictionQueryController(
         @Argument feedCode: String,
         @Argument algorithm: PredictionAlgorithm?,
         @Argument sinceDays: Int,
-    ) = read.predictionAccuracy(feedCode, algorithm, sinceDays)
+        @Argument routeId: String?,
+        @Argument directionId: Int?,
+        @Argument dayType: DayType?,
+        @Argument timeBand: TimeBand?,
+    ) = read.predictionAccuracy(feedCode, algorithm, sinceDays, routeId, directionId, dayType, timeBand)
 
     @QueryMapping
     fun stopPredictions(

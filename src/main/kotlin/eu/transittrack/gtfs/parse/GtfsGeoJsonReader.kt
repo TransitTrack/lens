@@ -4,7 +4,7 @@ import java.io.InputStream
 
 import tools.jackson.databind.json.JsonMapper
 
-import eu.transittrack.exception.ParseException
+import eu.transittrack.ParseException
 
 data class ParsedLocation(
     val locationId: String,

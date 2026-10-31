@@ -12,7 +12,10 @@ shipped defaults, and `SPRING_PROFILES_ACTIVE` layers additional
 This reference lists every property, its default, and what it controls.
 Subsystem docs ([gtfs.md](gtfs.md), [schedule.md](schedule.md),
 [avl.md](avl.md), [predictions.md](predictions.md)) cover the *behavior* each
-setting tunes in depth; this page is the flat lookup table.
+setting tunes in depth; this page is the flat lookup table. To see the values a
+running backend actually resolved, and whether each came from a file, an
+environment variable or the code default, open **Docs → Live configuration** in
+the web dashboard (backed by the read-only `/actuator/configprops` endpoint).
 
 ---
 
@@ -40,8 +43,7 @@ transittrack:
           poll-interval-sec: 15              # default 15
           assignment-mode: FULL_INFERENCE    # TRUST_DESCRIPTOR | DESCRIPTOR_THEN_INFER | FULL_INFERENCE
           enabled: true                      # default true
-          prediction-algorithm: KALMAN       # HISTORICAL_AVERAGE | KALMAN | SCHEDULE_ADHERENCE
-          prediction-mode: SINGLE            # SINGLE | EVALUATION
+          prediction-algorithms: [ KALMAN, SCHEDULE_ADHERENCE ] # first is the designated read/UI default
           headers:                           # optional outbound request headers
             x-api-key: "…"
 ```
@@ -72,7 +74,7 @@ Full behavior: [docs/gtfs.md](gtfs.md).
 | Property | Default | Meaning |
 | --- | --- | --- |
 | `ingest.auto-activate` | `true` | Activate a revision automatically once validation succeeds |
-| `ingest.strict-validation` | `false` | Fail ingestion on validator warnings, not just errors |
+| `ingest.strict-validation` | `false` | Fail ingestion when gtfs-analyzer rates the feed not publishable (R1) |
 | `ingest.batch-size` | `1000` | JDBC batch size for bulk entity inserts |
 | `ingest.temp-dir` | `/tmp` | Scratch directory for downloaded/extracted feed files |
 | `retention.keep-revisions-per-feed` | `5` | Superseded revisions kept per feed before pruning |
@@ -135,8 +137,11 @@ explicitly if you don't want any AVL beans created at all.
 | `match.backtrack-tolerance-m` | `30.0` | Allowed backward jump along the pattern before rejecting a match |
 | `match.max-deviation-m` | `60.0` | Max point-to-polyline distance accepted as a match |
 | `match.unmatch-after-failures` | `5` | Consecutive-miss threshold before clearing a vehicle's assignment |
-| `match.trip-end-advance-grace-sec` | `120` | Grace window past a trip's scheduled end before it stops being a candidate |
-| `match.candidate-time-slack-sec` | `1800` | ± window around a trip's `[start, end]` for candidacy |
+| `match.trip-end-advance-grace-sec` | `120` | Grace window past a trip's scheduled end during which a vehicle standing at its terminus still counts as on it; after that `TRUST_DESCRIPTOR` advances to the next block trip and `FULL_INFERENCE` drops the finished trip (the arrival itself matches however late) |
+| `match.layover-distance-m` | `50.0` | Off-route allowance at layover stops: `max(1.5x the distance from the previous stop, this)` mid-pattern; alone bounds a trip's first and last stops, so a vehicle parked near a terminus isn't taken for one at it |
+| `match.candidate-lead-sec` | `600` | How long before a trip's scheduled start it becomes a candidate (`FULL_INFERENCE`) |
+| `match.candidate-time-slack-sec` | `1800` | How long after a trip's scheduled end it stays a candidate (`FULL_INFERENCE`) |
+| `match.max-first-stop-lateness-sec` | `600` | A vehicle still at a trip's first stop this long after its departure is dropped from that trip (`FULL_INFERENCE`) |
 | `match.match-interval-ms` | `5000` | `AvlMatchProcessor` per-feed fixed delay |
 | `match.claim-batch-size` | `500` | Max `PENDING` `avl_report` rows claimed per feed per cycle |
 | `match.reassign-hysteresis` | `0.15` | Score margin protecting the incumbent trip from churn (`FULL_INFERENCE`) |
@@ -159,15 +164,30 @@ Full behavior: [docs/predictions.md](predictions.md).
 | `enabled` | `true` | Master switch — `false` means no `PredictionProcessor`/related beans exist |
 | `run.interval-ms` | `5000` | `PredictionProcessor` per-feed fixed delay (independent of `avl.match.match-interval-ms`) |
 | `run.claim-batch-size` | `500` | Max `PENDING` `vehicle_match` rows claimed per feed per cycle |
+| `run.prediction-min-change-sec` | `10` | An open `vehicle_prediction` row whose predicted times moved less than this is not rewritten |
+| `run.prediction-refresh-sec` | `120` | Refresh unchanged rows with newer source evidence; must be in `[0, run.max-source-age-sec)` |
+| `run.max-source-age-sec` | `600` | Old GPS reports still support learning, but cannot create live forecasts; live boards use this same source-age bound |
 | `learn.max-plausible-travel-time-sec` | `1800` | Upper bound on a travel-time observation before it's discarded as noise |
+| `learn.max-reliable-report-gap-sec` | `120` | Largest GPS interval trusted for accuracy labels; learning requires reliable intervals at both endpoints |
 | `learn.kalman-measurement-noise-sec2` | `400.0` | Kalman filter measurement noise variance |
 | `learn.kalman-initial-variance-sec2` | `3600.0` | Kalman filter initial state variance |
+| `learn.kalman-process-noise-sec2` | `25.0` | Drift variance added per learned sample |
+| `learn.kalman-variance-growth-sec2-per-hour` | `400.0` | Additional uncertainty as source evidence ages, in both forecasting and filter updates |
+| `learn.history-window` | `50` | Maximum effective historical-average sample window |
+| `learn.history-prior-samples` | `5` | Weight of the schedule seed before enough observations arrive |
+| `learn.outlier-min-deviation-sec` | `60.0` | Absolute floor on clipping distance from the learned estimate |
+| `learn.outlier-max-relative-deviation` | `1.0` | Relative clipping distance; the larger of this and the absolute floor is used |
+| `learn.min-bucket-samples` | `10` | Samples needed before trusting a bucket instead of its coarser roll-up |
+| `accuracy.horizons-sec` | `[60, 180, 300, 600, 900, 1200, 1800]` | Upper bounds on actual lead from issuance to crossing; algorithms share cohorts |
+| `accuracy.sample-interval-sec` | `60` | Fixed source-report sampling slots, independent of predicted ETAs |
 | `retention.prediction-hours` | `6` | Age-based prune of `vehicle_prediction` |
 | `retention.accuracy-days` | `30` | Age-based prune of `prediction_accuracy` |
+| `retention.raw-crossing-days` | `90` | Age-based prune of raw `avl_stop_crossing` history |
 | `retention.sweep-cron` | `0 15 * * * *` (hourly, minute 15) | `PredictionRetentionScheduler` cadence |
 
-Per-feed `prediction-algorithm` / `prediction-mode` are set in
-`transittrack.feed.feeds[].avl` — see §1.
+Per-feed `prediction-algorithms` is set in `transittrack.feed.feeds[].avl` —
+see §1. The configuration-class master-switch default is `false`; the table
+above reflects the shipped `application.yaml`, which explicitly enables it.
 
 ---
 
@@ -222,7 +242,8 @@ overridden per environment:
 | `spring.datasource.password` | `${POSTGRES_PASSWORD:password}` | DB password — set via `POSTGRES_PASSWORD` env var |
 | `spring.liquibase.enabled` | `true` | Run migrations on startup |
 | `spring.jpa.hibernate.ddl-auto` | `validate` | Never auto-generates schema — Liquibase owns it; this only validates the mapping matches |
-| `management.endpoints.web.exposure.include` | `health,info,prometheus` | Which actuator endpoints are reachable over HTTP |
+| `management.endpoints.web.exposure.include` | `health,info,prometheus,configprops` | Which actuator endpoints are reachable over HTTP |
+| `management.endpoint.configprops.show-values` | `always` | Shows resolved values for the web dashboard's Docs → Live configuration page; `ActuatorConfiguration` still masks credential-named keys and feed request headers whole, and redacts keys/passwords inside URLs |
 | `logging.level.eu.transittrack` | `debug` | Application log level — turn down for production (`info` or `warn`) |
 | `logging.level.root` | `warn` | Framework/library log level |
 

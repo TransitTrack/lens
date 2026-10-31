@@ -8,6 +8,10 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY . .
+# The Docs pages render the repo-root docs/*.md (content.config.ts reads ../docs),
+# which sit outside this build context — pass them in as a named context:
+#   docker build --build-context transittrack-docs=docs -t lens-web:local web/
+COPY --from=transittrack-docs . /docs
 RUN pnpm run generate
 
 FROM nginx:alpine AS runtime

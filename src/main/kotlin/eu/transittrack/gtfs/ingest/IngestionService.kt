@@ -6,7 +6,6 @@ import java.time.Duration
 import java.time.Instant
 import kotlin.io.path.createTempDirectory
 
-import org.mobilitydata.gtfsvalidator.table.GtfsEntity
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.context.ApplicationEvent
@@ -15,6 +14,7 @@ import org.springframework.core.annotation.AnnotationAwareOrderComparator
 import org.springframework.stereotype.Service
 
 import eu.transittrack.GtfsProperties
+import eu.transittrack.ParseException
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -23,9 +23,12 @@ import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.Shape
 import eu.transittrack.gtfs.model.ShapePoint
 import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.parse.GtfsCsv
 import eu.transittrack.gtfs.parse.GtfsFileDef
 import eu.transittrack.gtfs.parse.GtfsFileRegistry
 import eu.transittrack.gtfs.parse.GtfsGeoJsonReader
+import eu.transittrack.gtfs.parse.GtfsZip
+import eu.transittrack.gtfs.parse.MissingRequiredFieldException
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
@@ -52,10 +55,11 @@ class IngestionFinishedEvent(
 ) : ApplicationEvent("ingestion_service")
 
 /**
- * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check -> validate (MobilityData
- * gtfs-validator on the archive; strict mode fails here, before anything is written) -> extract ->
- * required-file check -> parse & bulk-write in registry order -> shape aggregates -> derive dates
- * -> DERIVING (the `eu.transittrack.schedule` model, unless `transittrack.schedule.enabled` is
+ * Orchestrates the GTFS ingestion pipeline: download -> unchanged-check -> validate (gtfs-analyzer
+ * on the archive; the report is stored, then the revision fails on a fatal analyzer error, on a
+ * required file the analyzer couldn't read, or — in strict mode — when the feed isn't publishable)
+ * -> stream each registry file out of the zip & bulk-write in registry order (rows missing a
+ * required key are skipped) -> shape aggregates -> derive dates -> DERIVING (the `eu.transittrack.schedule` model, unless `transittrack.schedule.enabled` is
  * false) -> READY -> (auto-)activate -> prune.
  *
  * [ingest] runs the pipeline on the ingest executor and returns immediately; [ingestBlocking] runs
@@ -187,8 +191,16 @@ class IngestionService(
             revisionService.transition(revisionId, GtfsRevisionStatus.VALIDATING) {
                 it.validationReport = loadReport.toJson()
             }
-            if (!loadReport.loaded || (props.ingest.strictValidation && loadReport.errorCount > 0)) {
-                log.warn("Validation failed! ${loadReport.errorCount} errors found")
+            val missingRequired = loadReport.unavailableFiles.filter { it in GtfsFileRegistry.requiredFiles }
+            val stopReason =
+                when {
+                    loadReport.fatal != null -> "fatal analyzer error: ${loadReport.fatal!!.message}"
+                    missingRequired.isNotEmpty() -> "required file(s) unreadable: $missingRequired"
+                    props.ingest.strictValidation && !loadReport.publishable -> "strict mode: feed is not publishable"
+                    else -> null
+                }
+            if (stopReason != null) {
+                log.warn("Validation failed for ${feed.code} ($stopReason); ${loadReport.errorCount} error(s)")
                 throw GtfsValidationException(loadReport)
             }
 
@@ -196,24 +208,33 @@ class IngestionService(
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING)
 
             val rowCounts = LinkedHashMap<String, Long>()
-            for (def in GtfsFileRegistry.orderedForParsing) {
-                if (!loadReport.hasFile(def.fileName)) {
-                    continue
+            val filesPresent =
+                GtfsZip(zipPath).use { zip ->
+                    for (def in GtfsFileRegistry.orderedForParsing) {
+                        if (def.fileName !in zip.fileNames || def.fileName in loadReport.unavailableFiles) {
+                            continue
+                        }
+
+                        rowCounts[def.entityType] =
+                            when (def.kind) {
+                                GtfsFileDef.Kind.CSV -> loadCsv(revisionId, zip, def)
+                                GtfsFileDef.Kind.SHAPES -> loadShapes(revisionId, zip, def)
+                                GtfsFileDef.Kind.GEOJSON -> loadGeoJson(revisionId, zip)
+                            }
+                        metrics.gtfsRowsWritten(feed.code, def.entityType, rowCounts.getValue(def.entityType))
+                        // Safety net: the reader and the analyzer must agree a required file has rows.
+                        val analyzed = loadReport.analyzedRows(def.fileName)
+                        if (def.required && rowCounts.getValue(def.entityType) == 0L && analyzed > 0) {
+                            throw ParseException("${def.fileName}: analyzer read $analyzed row(s) but none could be loaded")
+                        }
+                    }
+                    GtfsFileRegistry.defs
+                        .map { it.fileName }
+                        .filter { it in zip.fileNames && it !in loadReport.unavailableFiles }
                 }
 
-                val entities = loadReport.getFileContent(def.fileName)
-
-                rowCounts[def.entityType] =
-                    when (def.kind) {
-                        GtfsFileDef.Kind.CSV -> loadCsv(revisionId, entities, def)
-                        GtfsFileDef.Kind.SHAPES -> loadShapes(revisionId, entities, def)
-                        GtfsFileDef.Kind.GEOJSON -> loadGeoJson(revisionId, tempDir)
-                    }
-                metrics.gtfsRowsWritten(feed.code, def.entityType, rowCounts.getValue(def.entityType))
-            }
-
             revisionService.transition(revisionId, GtfsRevisionStatus.PARSING) {
-                it.filesPresent = loadReport.filesPresent
+                it.filesPresent = filesPresent
                 it.rowCounts = rowCounts
             }
 
@@ -269,59 +290,25 @@ class IngestionService(
 
     private fun loadCsv(
         revisionId: Long,
-        entities: List<GtfsEntity>,
+        zip: GtfsZip,
         def: GtfsFileDef,
     ): Long {
         log.info("Loading CSV ${def.entityType} from file ${def.fileName}")
-        val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
-        var total = 0L
-
-        entities
-            .map { row ->
-                def.map(revisionId, row)
-            }.forEach { entity ->
-                batch += entity
-                if (batch.size >= props.ingest.batchSize) {
-                    writer.write(batch)
-                    total += batch.size
-                    batch.clear()
-                }
-            }
-        if (batch.isNotEmpty()) {
-            writer.write(batch)
-            total += batch.size
-        }
-
-        return total
+        return writeRows(revisionId, zip, def)
     }
 
     private fun loadShapes(
         revisionId: Long,
-        entities: List<GtfsEntity>,
+        zip: GtfsZip,
         def: GtfsFileDef,
     ): Long {
         log.info("Loading SHAPES ${def.entityType} from file ${def.fileName}")
-        val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
         val perShape = LinkedHashMap<String, MutableList<ShapePoint>>()
-        var total = 0L
-
-        entities
-            .map { row ->
-                val pt = def.map(revisionId, row) as ShapePoint
+        val total =
+            writeRows(revisionId, zip, def) { entity ->
+                val pt = entity as ShapePoint
                 perShape.getOrPut(pt.shapeId) { mutableListOf() }.add(pt)
-                pt
-            }.forEach { entity ->
-                batch += entity
-                if (batch.size >= props.ingest.batchSize) {
-                    writer.write(batch)
-                    total += batch.size
-                    batch.clear()
-                }
             }
-        if (batch.isNotEmpty()) {
-            writer.write(batch)
-            total += batch.size
-        }
 
         val aggregates =
             perShape.map { (shapeId, pts) ->
@@ -333,14 +320,58 @@ class IngestionService(
         return total
     }
 
+    /**
+     * Streams [def]'s file out of the archive row by row and bulk-writes it in batches. A row missing
+     * a value its table requires is logged and skipped; the analyzer has already reported it.
+     */
+    private fun writeRows(
+        revisionId: Long,
+        zip: GtfsZip,
+        def: GtfsFileDef,
+        onEntity: (RevisionScoped) -> Unit = {},
+    ): Long {
+        val batch = ArrayList<RevisionScoped>(props.ingest.batchSize)
+        var total = 0L
+        var skipped = 0L
+
+        zip.open(def.fileName)!!.use { input ->
+            GtfsCsv.forEachRecord(input, def.fileName) { record ->
+                val entity =
+                    try {
+                        def.map(revisionId, record)
+                    } catch (e: MissingRequiredFieldException) {
+                        log.warn("skipping {}:{} — missing {}", e.fileName, e.line, e.column)
+                        skipped++
+                        return@forEachRecord
+                    }
+                onEntity(entity)
+                batch += entity
+                if (batch.size >= props.ingest.batchSize) {
+                    writer.write(batch)
+                    total += batch.size
+                    batch.clear()
+                }
+            }
+        }
+        if (batch.isNotEmpty()) {
+            writer.write(batch)
+            total += batch.size
+        }
+        if (skipped > 0) {
+            log.warn("Skipped {} row(s) of {} missing required values", skipped, def.fileName)
+        }
+
+        return total
+    }
+
     private fun loadGeoJson(
         revisionId: Long,
-        dir: Path,
+        zip: GtfsZip,
     ): Long {
         log.info("Loading geojson")
         val rows =
-            GtfsArchive
-                .openFile(dir, "locations.geojson")
+            zip
+                .open("locations.geojson")
                 ?.use { GtfsGeoJsonReader.read(it) }
                 ?.map {
                     Location(revisionId, it.locationId, it.stopName, it.stopDesc, it.geometryJson)

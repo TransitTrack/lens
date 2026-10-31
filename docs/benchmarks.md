@@ -107,3 +107,20 @@ things it has to handle:
   observed to invoke it twice; `PipelineBenchmarkEnvironment.start()` is idempotent (an early
   `started` guard) and the feed-table cleanup above also makes a second invocation safe rather than
   failing on a duplicate feed code.
+
+## GTFS validate + parse: MobilityData vs gtfs-analyzer (2026-10-31, one-off)
+
+A one-off measurement taken when `org.mobilitydata.gtfs-validator` was replaced by gtfs-analyzer
+(validation) and the in-house streaming reader (parsing). Not part of the JMH suite. The harness
+validated the archive and mapped every CSV/shapes row to its entity in memory, with no database
+writes, inside the Gradle test JVM (`maxHeapSize = 2g`, Apple Silicon). Feed: Timișoara, 1.8 MB
+zipped / 12.1 MB unzipped (`stop_times.txt` 8.9 MB), 264,582 rows.
+
+| Pipeline | Cold run | Warm runs (best) | Peak Java heap (warm) |
+| --- | --- | --- | --- |
+| MobilityData validator + `GtfsFeedContainer` | 1305 ms | 452 ms | 266–399 MB |
+| gtfs-analyzer + `GtfsZip`/`GtfsCsv` streaming | 849 ms | 364 ms | 104–108 MB |
+
+Peak heap is the sum of the heap pools' peak usage after a forced GC and reset. It does not include
+the Rust engine's native allocations, so the analyzer's real footprint is somewhat higher than the
+heap figure. Both pipelines produced the same row count.

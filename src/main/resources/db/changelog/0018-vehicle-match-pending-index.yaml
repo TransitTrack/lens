@@ -1,0 +1,18 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0018-vehicle-match-pending-index
+      author: transittrack
+      comment: >
+        ix_vehicle_match_prediction_status (feed_id, prediction_status) went away silently with the
+        feed_id column in 0015, leaving PredictionProcessor's claim query (PENDING rows of one feed,
+        oldest first) and the pending-backlog gauge to scan every vehicle_match row of the feed's
+        whole retention window on each cycle. A partial index only holds the PENDING rows, so it
+        stays tiny however long matches are kept, and already serves the claim order.
+      changes:
+        - sql:
+            sql: >
+              create index ix_vehicle_match_pending on vehicle_match (feed_code, ts, vehicle_id)
+              where prediction_status = 0
+      rollback:
+        - sql:
+            sql: drop index if exists ix_vehicle_match_pending

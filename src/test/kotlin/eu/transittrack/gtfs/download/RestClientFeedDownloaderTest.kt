@@ -18,7 +18,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 import org.junit.jupiter.api.io.TempDir
 
-import eu.transittrack.config.HttpClientsConfiguration
+import eu.transittrack.HttpClientsConfiguration
 
 class RestClientFeedDownloaderTest {
     private lateinit var server: MockWebServer

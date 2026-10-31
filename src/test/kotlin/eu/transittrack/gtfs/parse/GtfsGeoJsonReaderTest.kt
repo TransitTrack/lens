@@ -10,7 +10,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 
-import eu.transittrack.exception.ParseException
+import eu.transittrack.ParseException
 
 class GtfsGeoJsonReaderTest {
     private val fc =

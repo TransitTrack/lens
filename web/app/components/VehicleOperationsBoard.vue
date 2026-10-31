@@ -6,10 +6,12 @@ import VehicleFilters from '~/components/VehicleFilters.vue'
 import VehicleList from '~/components/VehicleList.vue'
 import VehicleMap, { type SelectedRouteOverlay } from '~/components/VehicleMap.vue'
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
-import { routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
+import { algorithmsIn, preferredAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
 import { usePollControl } from '~/composables/usePollControl'
-import { useVehicleDetailQuery } from '~~/generated/graphql'
+import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
+import { useFeeds } from '~/composables/useFeeds'
+import { useAgenciesDetailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
 const props = defineProps<{
   title?: string
@@ -38,10 +40,30 @@ const attentionVehicles = computed(
 )
 
 const { intervalMs } = usePollControl()
+const { showTripDetails } = useVehicleListPrefs()
+const { feedPath, selectedFeed } = useFeeds()
 
 const { result: selectedVehicleResult } = useVehicleDetailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
-  () => ({ enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value }),
+  () => ({
+    enabled: !!props.feedCode && !!selectedVehicleId.value,
+    pollInterval: intervalMs.value,
+  }),
+)
+
+const { result: agenciesResult } = useAgenciesDetailQuery(
+  () => ({ feedCode: props.feedCode ?? '' }),
+  () => ({ enabled: !!props.feedCode }),
+)
+const agencyTimezone = computed(
+  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
+)
+
+const selectedPredictionAlgorithm = computed(() =>
+  preferredAlgorithm(
+    algorithmsIn(selectedVehicleResult.value?.vehiclePredictions ?? []),
+    selectedFeed.value?.predictionAlgorithms ?? [],
+  ),
 )
 
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
@@ -51,13 +73,37 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
   return {
     vehicleId: vehicle.vehicleId,
     line: routeLine(vehicle),
-    stops: stopFeatureCollection(vehicle),
+    stops: stopFeatureCollection(
+      vehicle,
+      selectedVehicleResult.value?.vehiclePredictions ?? [],
+      selectedPredictionAlgorithm.value,
+      agencyTimezone.value,
+    ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
   }
 })
 
 function selectVehicle(vehicleId: string) {
   selectedVehicleId.value = vehicleId
+}
+
+function viewTripDetails(tripId: string) {
+  navigateTo(feedPath(`/explore/trips/${encodeURIComponent(tripId)}`))
+}
+
+function viewBlockDetails(block: { blockId: string; serviceId: string }) {
+  navigateTo({
+    path: feedPath(`/explore/blocks/${encodeURIComponent(block.blockId)}`),
+    query: { service: block.serviceId },
+  })
+}
+
+function viewRouteDetails(routeId: string) {
+  navigateTo(feedPath(`/explore/routes/${encodeURIComponent(routeId)}`))
+}
+
+function viewVehicleDetails(vehicleId: string) {
+  navigateTo(feedPath(`/vehicles/${encodeURIComponent(vehicleId)}`))
 }
 
 // Side-by-side on desktop; stacked (directory above map) on narrow viewports.
@@ -114,31 +160,20 @@ const splitterItems = computed<SplitterItem[]>(() => [
           </div>
         </div>
 
-        <div
-          class="mt-3 flex flex-wrap justify-between gap-x-3 gap-y-1.5 text-xs text-muted"
-          aria-label="Fleet summary"
-        >
-          <span
-            ><strong class="font-semibold text-highlighted">{{ vehicles.length }}</strong>
-            reporting</span
+        <div class="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Fleet summary">
+          <UBadge color="neutral" variant="subtle" size="sm"
+            >{{ vehicles.length }} reporting</UBadge
           >
-          <span
-            ><strong class="font-semibold text-success">{{ matchedVehicles }}</strong> matched</span
-          >
-          <span v-if="attentionVehicles"
-            ><strong class="font-semibold text-warning">{{ attentionVehicles }}</strong> need
-            attention</span
+          <UBadge color="success" variant="subtle" size="sm">{{ matchedVehicles }} matched</UBadge>
+          <UBadge v-if="attentionVehicles" color="warning" variant="subtle" size="sm"
+            >{{ attentionVehicles }} need attention</UBadge
           >
 
-          <div class="flex-1 justify-end">
-            <span class="rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
-              {{ filteredVehicles.length.toLocaleString() }} shown
-            </span>
-          </div>
+          <USwitch v-model="showTripDetails" class="ml-auto" size="xs" label="Trip & block" />
         </div>
 
-        <div class="mt-3">
-          <VehicleFilters v-model="filters" :feed-code="feedCode" />
+        <div class="mt-2">
+          <VehicleFilters v-model="filters" :vehicles="vehicles" />
         </div>
       </header>
 
@@ -185,8 +220,11 @@ const splitterItems = computed<SplitterItem[]>(() => [
         :feed-code="feedCode"
         :selected-vehicle-id="selectedVehicleId"
         :selected-route="selectedRoute"
-        selection-action-label="Highlight route"
         @select="selectVehicle"
+        @view-trip="viewTripDetails"
+        @view-block="viewBlockDetails"
+        @view-route="viewRouteDetails"
+        @view-vehicle="viewVehicleDetails"
       />
     </template>
 

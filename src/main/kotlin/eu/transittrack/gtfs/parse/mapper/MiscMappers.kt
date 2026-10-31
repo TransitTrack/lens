@@ -1,75 +1,71 @@
 package eu.transittrack.gtfs.parse.mapper
 
-import org.mobilitydata.gtfsvalidator.table.GtfsAttribution
-import org.mobilitydata.gtfsvalidator.table.GtfsFrequency
-import org.mobilitydata.gtfsvalidator.table.GtfsTransfer
-import org.mobilitydata.gtfsvalidator.table.GtfsTranslation
-
 import eu.transittrack.gtfs.model.Attribution
 import eu.transittrack.gtfs.model.Frequency
 import eu.transittrack.gtfs.model.Transfer
 import eu.transittrack.gtfs.model.Translation
+import eu.transittrack.gtfs.parse.MissingRequiredFieldException
+import eu.transittrack.gtfs.parse.row.AttributionRow
+import eu.transittrack.gtfs.parse.row.FrequencyRow
+import eu.transittrack.gtfs.parse.row.TransferRow
+import eu.transittrack.gtfs.parse.row.TranslationRow
 
 fun mapFrequency(
     rev: Long,
-    r: GtfsFrequency,
+    r: FrequencyRow,
 ) = Frequency(
     revisionId = rev,
-    tripId = r.tripId().takeIf { r.hasTripId() } ?: error("frequencies.txt row missing trip_id"),
-    startTime = r.startTime().takeIf { r.hasStartTime() }.toSeconds() ?: error(
-        "frequencies.txt row missing start_time",
-    ),
-    endTime = r.endTime().takeIf { r.hasEndTime() }.toSeconds(),
-    headwaySecs = r.headwaySecs().takeIf { r.hasHeadwaySecs() },
-    exactTimes = r.exactTimesValue().takeIf { r.hasExactTimes() },
+    tripId = r.tripId ?: throw MissingRequiredFieldException("frequencies.txt", r.line, "trip_id"),
+    startTime = r.startTime ?: throw MissingRequiredFieldException("frequencies.txt", r.line, "start_time"),
+    endTime = r.endTime,
+    headwaySecs = r.headwaySecs,
+    exactTimes = r.exactTimes,
 )
 
 fun mapTransfer(
     rev: Long,
-    r: GtfsTransfer,
+    r: TransferRow,
 ) = Transfer(
     revisionId = rev,
-    fromStopId = r.fromStopId().takeIf { r.hasFromStopId() },
-    toStopId = r.toStopId().takeIf { r.hasToStopId() },
-    fromRouteId = r.fromRouteId().takeIf { r.hasFromRouteId() },
-    toRouteId = r.toRouteId().takeIf { r.hasToRouteId() },
-    fromTripId = r.fromTripId().takeIf { r.hasFromTripId() },
-    toTripId = r.toTripId().takeIf { r.hasToTripId() },
-    transferType = r.transferTypeValue().takeIf { r.hasTransferType() },
-    minTransferTime = r.minTransferTime().takeIf { r.hasMinTransferTime() },
+    fromStopId = r.fromStopId,
+    toStopId = r.toStopId,
+    fromRouteId = r.fromRouteId,
+    toRouteId = r.toRouteId,
+    fromTripId = r.fromTripId,
+    toTripId = r.toTripId,
+    transferType = r.transferType,
+    minTransferTime = r.minTransferTime,
 )
 
 fun mapTranslation(
     rev: Long,
-    r: GtfsTranslation,
+    r: TranslationRow,
 ) = Translation(
     revisionId = rev,
-    tableName = r.tableName().takeIf { r.hasTableName() } ?: error("translations.txt row missing table_name"),
-    fieldName = r.fieldName().takeIf { r.hasFieldName() } ?: error("translations.txt row missing field_name"),
-    language =
-        r.language().takeIf { r.hasLanguage() }.toLanguageTagOrNull() ?: error("translations.txt row missing language"),
-    translation = r.translation().takeIf { r.hasTranslation() },
-    recordId = r.recordId().takeIf { r.hasRecordId() },
-    recordSubId = r.recordSubId().takeIf { r.hasRecordSubId() },
-    fieldValue = r.fieldValue().takeIf { r.hasFieldValue() },
+    tableName = r.tableName ?: throw MissingRequiredFieldException("translations.txt", r.line, "table_name"),
+    fieldName = r.fieldName ?: throw MissingRequiredFieldException("translations.txt", r.line, "field_name"),
+    language = r.language ?: throw MissingRequiredFieldException("translations.txt", r.line, "language"),
+    translation = r.translation,
+    recordId = r.recordId,
+    recordSubId = r.recordSubId,
+    fieldValue = r.fieldValue,
 )
 
 fun mapAttribution(
     rev: Long,
-    r: GtfsAttribution,
+    r: AttributionRow,
 ) = Attribution(
     revisionId = rev,
-    attributionId = r.attributionId().takeIf { r.hasAttributionId() },
-    agencyId = r.agencyId().takeIf { r.hasAgencyId() },
-    routeId = r.routeId().takeIf { r.hasRouteId() },
-    tripId = r.tripId().takeIf { r.hasTripId() },
-    organizationName =
-        r.organizationName().takeIf { r.hasOrganizationName() }
-            ?: error("attributions.txt row missing organization_name"),
-    isProducer = r.isProducerValue().takeIf { r.hasIsProducer() },
-    isOperator = r.isOperatorValue().takeIf { r.hasIsOperator() },
-    isAuthority = r.isAuthorityValue().takeIf { r.hasIsAuthority() },
-    attributionUrl = r.attributionUrl().takeIf { r.hasAttributionUrl() },
-    attributionEmail = r.attributionEmail().takeIf { r.hasAttributionEmail() },
-    attributionPhone = r.attributionPhone().takeIf { r.hasAttributionPhone() },
+    attributionId = r.attributionId,
+    agencyId = r.agencyId,
+    routeId = r.routeId,
+    tripId = r.tripId,
+    organizationName = r.organizationName
+        ?: throw MissingRequiredFieldException("attributions.txt", r.line, "organization_name"),
+    isProducer = r.isProducer,
+    isOperator = r.isOperator,
+    isAuthority = r.isAuthority,
+    attributionUrl = r.attributionUrl,
+    attributionEmail = r.attributionEmail,
+    attributionPhone = r.attributionPhone,
 )

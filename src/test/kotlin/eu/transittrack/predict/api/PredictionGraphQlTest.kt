@@ -1,9 +1,11 @@
 package eu.transittrack.predict.api
 
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -15,6 +17,7 @@ import assertk.assertions.isNotNull
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
@@ -23,6 +26,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.graphql.test.tester.HttpGraphQlTester
+import org.springframework.test.context.bean.override.mockito.MockReset
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -82,6 +87,9 @@ class PredictionGraphQlTest(
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
 ) : PostgresPerClassTest() {
+    @MockitoBean(reset = MockReset.NONE)
+    lateinit var clock: Clock
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -131,6 +139,7 @@ class PredictionGraphQlTest(
             p: Point,
             at: Instant,
         ) {
+            whenever(clock.instant()).thenReturn(at)
             reports.save(
                 AvlReportRow(
                     feedCode = feed.code, vehicleId = "bus-1", vehicleLabel = null, ts = at,
@@ -199,9 +208,7 @@ class PredictionGraphQlTest(
         val warsaw = ZoneId.of("Europe/Warsaw")
         val expected =
             prediction
-                .computedAt
-                .atZone(warsaw)
-                .toLocalDate()
+                .serviceDate!!
                 .atTime(LocalTime.ofSecondOfDay(schedule.arrivalSec!!.toLong()))
                 .atZone(warsaw)
                 .toInstant()
@@ -259,8 +266,11 @@ class PredictionGraphQlTest(
     fun `predictionAccuracy summarizes samples after a crossing`() {
         val rows =
             tester
-                .document("""{ predictionAccuracy(feedCode:"a") { algorithm sampleCount } }""")
-                .execute()
+                .document(
+                    """{ predictionAccuracy(feedCode:"a") {
+                         algorithm sampleCount meanAbsErrorSec byHorizon { horizonSec sampleCount meanAbsErrorSec }
+                       } }""",
+                ).execute()
                 .path("predictionAccuracy")
                 .entityList(Map::class.java)
                 .get()
@@ -268,5 +278,25 @@ class PredictionGraphQlTest(
         assertThat(rows).isNotEmpty()
         val sampleCount = (rows.first()["sampleCount"] as Number).toInt()
         assertThat(sampleCount).isGreaterThanOrEqualTo(1)
+        @Suppress("UNCHECKED_CAST")
+        val byHorizon = rows.first()["byHorizon"] as List<Map<String, Any>>
+        assertThat(byHorizon).isNotEmpty()
+        assertThat(byHorizon.sumOf { (it["sampleCount"] as Number).toInt() }).isEqualTo(sampleCount)
+    }
+
+    @Test
+    fun `predictionAccuracy binds contextual filters and exposes coverage and quantiles`() {
+        val rows = tester
+            .document(
+                """{ predictionAccuracy(feedCode:"a", routeId:"RA", directionId:0, dayType:WEEKDAY, timeBand:MORNING_PEAK) {
+                 eligibleCount predictionCoverage pairedSampleCount p90AbsErrorSec p95AbsErrorSec confidenceSampleCount
+               } }""",
+            ).execute()
+            .path("predictionAccuracy")
+            .entityList(Map::class.java)
+            .get()
+        assertThat(rows).isNotEmpty()
+        assertThat((rows.first()["predictionCoverage"] as Number).toDouble()).isEqualTo(1.0)
+        assertThat(rows.first()["p95AbsErrorSec"]).isNotNull()
     }
 }

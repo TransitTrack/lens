@@ -39,8 +39,11 @@ data class AvlProperties(
          * during a scheduled layover (e.g. parked at a depot). The exemption isn't unconditional
          * though: the vehicle must be within `max(1.5x the distance from the previous stop, this)`
          * of the layover stop, mirroring transitclock's `SpatialMatcher.withinAllowableDistanceOfLayover`.
+         * A trip's first and last stops (its termini) are bounded by this alone: kept small so
+         * vehicles parked near a terminus (e.g. in a depot) aren't taken for ones waiting to depart
+         * or just arrived.
          */
-        val layoverDistanceM: Double = 2_000.0,
+        val layoverDistanceM: Double = 50.0,
         /**
          * Polling cycles with no usable match for a vehicle before it is considered unmatched
          * (`vehicle_state.matched = false`) and its trip/block assignment is dropped. Until this
@@ -58,8 +61,23 @@ data class AvlProperties(
         val silentStaleCycles: Int = 3,
         val silentUnmatchCycles: Int = 5,
         val silentUnmatchMinSec: Int = 60,
+        /**
+         * How long past a trip's scheduled end a vehicle standing at its terminus still counts as
+         * on it. After that, trusted-descriptor matching advances it to the next block trip, and
+         * full inference stops offering the finished trip (the arrival itself matches however late).
+         */
         val tripEndAdvanceGraceSec: Int = 120,
+        /** Full inference only: how long before a trip's scheduled start it becomes a candidate. */
+        val candidateLeadSec: Int = 600,
+        /** Full inference only: how long after a trip's scheduled end it stays a candidate. */
         val candidateTimeSlackSec: Int = 1_800,
+        /**
+         * Full inference only: a vehicle still standing at a trip's first stop more than this long
+         * after the trip's scheduled departure isn't running it - it's parked or laying over - so
+         * that trip is dropped from its candidates. Once it actually leaves, it matches as usual,
+         * however late.
+         */
+        val maxFirstStopLatenessSec: Int = 600,
         val matchIntervalMs: Long = 5_000,
         val claimBatchSize: Int = 500,
         val reassignHysteresis: Double = 0.15,

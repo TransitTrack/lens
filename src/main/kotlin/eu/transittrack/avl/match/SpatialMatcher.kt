@@ -60,10 +60,12 @@ class SpatialMatcher(
 
     /**
      * Closest layover stop path the report is within its allowable distance of, or `null` if none.
-     * The first stop path of a pattern (deadheading in) has no previous stop to measure from, so its
-     * allowable distance is plain `layoverDistanceM`. For any other layover, allowable =
-     * `max(1.5x the distance from the previous stop, layoverDistanceM)`. Heading is irrelevant at a
-     * layover — the vehicle is free to roam — so it's left `null`.
+     * A pattern's first and last stop paths (its termini) allow plain `layoverDistanceM`: a vehicle
+     * departing or arriving drives the shape, so one off it near a terminus is parked (e.g. in a
+     * depot), not at the stop — and the first stop has no previous stop to measure from anyway. For
+     * a mid-pattern layover, allowable = `max(1.5x the distance from the previous stop,
+     * layoverDistanceM)`. Heading is irrelevant at a layover — the vehicle is free to roam — so it's
+     * left `null`.
      */
     private fun nearestAllowableLayover(
         geom: PatternGeometry,
@@ -80,7 +82,7 @@ class SpatialMatcher(
             val layoverLoc = geom.endOfPath(i)
             val distanceToLayoverM = report.distance(layoverLoc)
             val allowableM =
-                if (i == 0) {
+                if (i == 0 || i == geom.layoverStop.lastIndex) {
                     cfg.layoverDistanceM
                 } else {
                     val distanceBtwnStopsM = layoverLoc.distance(geom.endOfPath(i - 1))

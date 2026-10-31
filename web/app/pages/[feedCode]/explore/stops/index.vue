@@ -114,7 +114,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
 
 <template>
   <AppPage
-    full-width
+    constrain-content
     title="Stops"
     description="Search the network and inspect each stop in context"
   >
@@ -122,7 +122,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       <ExploreToolbar />
     </template>
 
-    <div class="grid grid-cols-2 border-b border-default sm:grid-cols-4">
+    <div class="grid shrink-0 grid-cols-2 border-b border-default sm:grid-cols-4">
       <div
         v-for="s in stats"
         :key="s.label"
@@ -139,11 +139,13 @@ const splitterItems = computed<SplitterItem[]>(() =>
       id="stops-browser-splitter"
       :orientation="splitterOrientation"
       :items="splitterItems"
-      class="h-full min-h-0 w-full"
+      class="min-h-0 w-full flex-1"
     >
       <template #directory>
-        <aside class="flex h-full w-full flex-col gap-3 bg-elevated/20 p-3">
-          <div class="flex flex-col gap-2">
+        <aside
+          class="flex h-full min-h-0 w-full flex-1 flex-col gap-3 overflow-hidden bg-elevated/20 p-3"
+        >
+          <div class="flex shrink-0 flex-col gap-2">
             <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-highlighted">Stop directory</span>
               <span class="text-xs text-dimmed">{{ rows.length.toLocaleString() }} shown</span>
@@ -155,7 +157,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             />
           </div>
           <div
-            class="flex items-center justify-between border-y border-default py-2 text-xs text-dimmed"
+            class="flex shrink-0 items-center justify-between border-y border-default py-2 text-xs text-dimmed"
           >
             <span>{{ inAgency.length.toLocaleString() }} stops in this view</span>
             <UButton
@@ -199,7 +201,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
           <div
             class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
           >
-            Select a stop on the map or in the directory
+            Select a stop, or choose a cluster to zoom in
           </div>
           <StopsMap
             :stops="stopFeatures"

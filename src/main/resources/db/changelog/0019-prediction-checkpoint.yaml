@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0019-prediction-checkpoint
+      author: transittrack
+      comment: >
+        Accuracy used to be scored only against a stop's latest prediction, refreshed on every match
+        until the vehicle got there - so it measured predictions made one AVL report (seconds) before
+        arrival, which every algorithm gets nearly right. prediction_checkpoint keeps, per stop and
+        algorithm, the first prediction made inside each lead-time horizon (e.g. ~5 min before the
+        predicted arrival); each one is scored once the vehicle passes the stop and then deleted.
+      changes:
+        - createSequence: { sequenceName: prediction_checkpoint_seq, startValue: 1, incrementBy: 50 }
+        - createTable:
+            tableName: prediction_checkpoint
+            columns:
+              - column: { name: id, type: BIGINT, defaultValueComputed: "nextval('prediction_checkpoint_seq')", constraints: { primaryKey: true, nullable: false } }
+              - column: { name: feed_code, type: VARCHAR(64), constraints: { nullable: false, foreignKeyName: fk_prediction_checkpoint_feed, references: "avl_feed(code)", deleteCascade: true } }
+              - column: { name: vehicle_id, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: trip_row_id, type: BIGINT, constraints: { nullable: false } }
+              - column: { name: stop_path_index, type: INT, constraints: { nullable: false } }
+              - column: { name: algorithm, type: SMALLINT, constraints: { nullable: false } }
+              - column: { name: horizon_sec, type: INT, constraints: { nullable: false } }
+              - column: { name: predicted_ts, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: computed_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: prediction_checkpoint
+            columnNames: "feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, horizon_sec"
+            constraintName: uq_prediction_checkpoint_key
+        - createIndex:
+            indexName: ix_prediction_checkpoint_computed
+            tableName: prediction_checkpoint
+            columns: [ { column: { name: computed_at } } ]
+
+  - changeSet:
+      id: 0019-prediction-accuracy-horizon
+      author: transittrack
+      comment: >
+        Each accuracy row now records which lead-time horizon it was sampled at and when its
+        prediction was made. Rows written before this change keep both null: they were all scored
+        against the latest prediction and are left out of the per-horizon summaries.
+      changes:
+        - addColumn:
+            tableName: prediction_accuracy
+            columns:
+              - column: { name: horizon_sec, type: INT }
+              - column: { name: predicted_at, type: "TIMESTAMP WITH TIME ZONE" }

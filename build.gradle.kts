@@ -37,11 +37,8 @@ sourceSets {
 
 val graphqlJavaExtendedScalarsVersion = project.property("graphqlJavaExtendedScalarsVersion") as String
 val okhttpVersion = project.property("okhttpVersion") as String
-val gtfsValidatorVersion = project.property("gtfsValidatorVersion") as String
-val gsonVersion = project.property("gsonVersion") as String
-val floggerVersion = project.property("floggerVersion") as String
+val gtfsAnalyzerVersion = project.property("gtfsAnalyzerVersion") as String
 val guavaVersion = project.property("guavaVersion") as String
-val classgraphVersion = project.property("classgraphVersion") as String
 val bootuiVersion = project.property("bootuiVersion") as String
 val mockitoKotlinVersion = project.property("mockitoKotlinVersion") as String
 val assertkVersion = project.property("assertkVersion") as String
@@ -59,6 +56,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
     implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
+    implementation("io.github.transittrack:gtfs-analyzer:$gtfsAnalyzerVersion")
     modules {
         // Explicitly exclude jackson if you want to completely move away
         module("org.springframework.boot:spring-boot-starter-json") {
@@ -71,19 +69,12 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
-
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-main:$gtfsValidatorVersion")
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-model:$gtfsValidatorVersion")
-    implementation("org.mobilitydata.gtfs-validator:gtfs-validator-core:$gtfsValidatorVersion")
-    implementation("com.google.code.gson:gson:$gsonVersion")
-    implementation("com.google.flogger:flogger-slf4j-backend:$floggerVersion")
     implementation("com.google.guava:guava:$guavaVersion")
-    implementation("io.github.classgraph:classgraph:$classgraphVersion")
 
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
     // developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:$bootuiVersion")
+    // runtimeOnly("com.julien-dubois.bootui:bootui-spring-boot-starter:$bootuiVersion")
 
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
@@ -380,4 +371,8 @@ tasks.withType<KotlinCompile>().configureEach {
 
 tasks.withType<JavaCompile>().configureEach {
     dependsOn("spotlessApply")
+}
+
+tasks.withType<JavaExec> {
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }

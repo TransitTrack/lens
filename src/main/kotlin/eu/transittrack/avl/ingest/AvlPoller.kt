@@ -8,11 +8,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler
 

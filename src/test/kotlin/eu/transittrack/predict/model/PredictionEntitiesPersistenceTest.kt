@@ -90,7 +90,7 @@ class PredictionEntitiesPersistenceTest(
         assertThat(ordered.first().stopPathIndex).isEqualTo(1)
         assertThat(ordered.last().stopPathIndex).isEqualTo(3)
 
-        val byPattern = predictions.findByPatternStopAlgorithm(4L, 1, PredictionAlgorithm.KALMAN)
+        val byPattern = predictions.findByPatternStopAlgorithm("feed-1", 4L, 1, PredictionAlgorithm.KALMAN)
         assertThat(byPattern).hasSize(1)
     }
 

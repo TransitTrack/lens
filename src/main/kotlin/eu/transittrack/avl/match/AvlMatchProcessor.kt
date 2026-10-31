@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 import eu.transittrack.AvlAssignmentMode
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.ingest.AvlWriter
 import eu.transittrack.avl.ingest.VehicleStateUpsert
@@ -23,8 +25,6 @@ import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.bearingDegrees
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
 import eu.transittrack.haversineMeters
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler

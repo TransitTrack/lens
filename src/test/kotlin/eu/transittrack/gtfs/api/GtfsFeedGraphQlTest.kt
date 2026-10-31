@@ -3,6 +3,9 @@ package eu.transittrack.gtfs.api
 import java.time.Instant
 import kotlin.test.Test
 
+import io.github.transittrack.gtfsanalyzer.EngineResult
+import io.github.transittrack.gtfsanalyzer.FatalCode
+import io.github.transittrack.gtfsanalyzer.FatalError
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
@@ -19,6 +22,8 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
+import eu.transittrack.gtfs.validate.GtfsValidationFinding
+import eu.transittrack.gtfs.validate.LoadValidationReport
 
 @GraphQlTest
 @Import(
@@ -111,24 +116,49 @@ class GtfsFeedGraphQlTest(
                 id = 5
                 rowCounts = mapOf("stop" to 12L, "trip" to 3L)
                 validationReport =
-                    """{"issues":[{"rule":"r1","severity":"ERROR","count":2,"sample":"s"},""" +
-                    """{"rule":"r2","severity":"WARNING","count":4,"sample":"s"}]}"""
+                    LoadValidationReport(
+                        EngineResult.Fatal(FatalError(FatalCode.ZipUnreadable, "bad zip")),
+                        listOf(GtfsValidationFinding(GtfsValidationFinding.Severity.WARNING, "custom", "hmm")),
+                    ).toJson()
             }
         whenever(revisionService.findOrNull(5L)).thenReturn(revision)
         whenever(feedService.codeOf(1L)).thenReturn(feed.code)
         tester
             .document(
-                "{ revision(id:\"5\"){ rowCounts validationSummary { errorCount warningCount } } }",
+                "{ revision(id:\"5\"){ rowCounts validationSummary { errorCount warningCount notices { rule sample } } } }",
             ).execute()
             .path("revision.rowCounts.stop")
             .entity(Long::class.java)
             .isEqualTo(12L)
             .path("revision.validationSummary.errorCount")
             .entity(Long::class.java)
-            .isEqualTo(2L)
+            .isEqualTo(1L)
             .path("revision.validationSummary.warningCount")
             .entity(Long::class.java)
-            .isEqualTo(4L)
+            .isEqualTo(1L)
+            .path("revision.validationSummary.notices[0].rule")
+            .entity(String::class.java)
+            .isEqualTo("ZipUnreadable")
+            .path("revision.validationSummary.notices[0].sample")
+            .entity(String::class.java)
+            .isEqualTo("bad zip")
+    }
+
+    @Test
+    fun `old-format report yields null summary`() {
+        val feed = feed()
+        val revision =
+            GtfsRevision(feedId = 1, status = GtfsRevisionStatus.READY, sourceUrl = "u").apply {
+                id = 6
+                validationReport = """{"issues":[{"rule":"x","severity":"ERROR","count":1,"sample":""}]}"""
+            }
+        whenever(revisionService.findOrNull(6L)).thenReturn(revision)
+        whenever(feedService.codeOf(1L)).thenReturn(feed.code)
+        tester
+            .document("{ revision(id:\"6\"){ validationSummary { errorCount } } }")
+            .execute()
+            .path("revision.validationSummary")
+            .valueIsNull()
     }
 
     @Test

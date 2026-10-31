@@ -3,7 +3,7 @@ import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge } from '../utils/adherence'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
-import { useMapStyle } from '../composables/useMapStyle'
+import { hideBasemapLabels, useMapStyle } from '../composables/useMapStyle'
 import { useFeedGeometry } from '../composables/useFeedGeometry'
 import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
@@ -28,18 +28,21 @@ const props = withDefaults(
     selectedRoute?: SelectedRouteOverlay | null
     /** Vehicle currently being inspected; the map enters focused mode when set. */
     selectedVehicleId?: string | null
-    /** Label for the marker-popup action. */
-    selectionActionLabel?: string
   }>(),
   {
     extent: null,
     feedCode: null,
     selectedRoute: null,
     selectedVehicleId: null,
-    selectionActionLabel: 'Open details',
   },
 )
-const emit = defineEmits<{ (e: 'select', vehicleId: string): void }>()
+const emit = defineEmits<{
+  select: [vehicleId: string]
+  viewTrip: [tripId: string]
+  viewBlock: [block: { blockId: string; serviceId: string }]
+  viewRoute: [routeId: string]
+  viewVehicle: [vehicleId: string]
+}>()
 
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
@@ -56,6 +59,18 @@ const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#00000
 // and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
 // before that silently no-op).
 const map = useMglMap(MAP_ID)
+const hideStreetNames = () => hideBasemapLabels(map.map)
+watch(
+  () => map.isLoaded,
+  (loaded) => {
+    if (!loaded) return
+    hideStreetNames()
+    map.map?.on('style.load', hideStreetNames)
+  },
+  { immediate: true },
+)
+onBeforeUnmount(() => map.map?.off('style.load', hideStreetNames))
+const tools = useMapTools()
 
 // The route/stop network is a large, decorative underlay (a whole agency's
 // shapes can be tens of thousands of coordinate points) behind the live
@@ -71,6 +86,7 @@ const visibleLayers = reactive({
   selectedTripStops: true,
   vehicle: true,
 })
+const routeColorMode = ref<'official' | 'distinct'>('official')
 let networkArmed = false
 watch(
   () => map.isLoaded,
@@ -129,6 +145,25 @@ const activeVehicleDetail = computed(() => {
   return vehicle?.vehicleId === activeVehicleId.value ? vehicle : null
 })
 
+const activeTripId = computed(
+  () => activeVehicleDetail.value?.trip?.tripId ?? activeVehicle.value?.trip?.tripId ?? null,
+)
+const activeBlockId = computed(
+  () => activeVehicleDetail.value?.block?.blockId ?? activeVehicle.value?.block?.blockId ?? null,
+)
+const activeServiceId = computed(
+  () =>
+    activeVehicleDetail.value?.block?.serviceId ?? activeVehicle.value?.block?.serviceId ?? null,
+)
+const activeRouteId = computed(
+  () => activeVehicleDetail.value?.trip?.routeId ?? activeVehicle.value?.trip?.routeId ?? null,
+)
+
+function handleViewBlock() {
+  if (activeBlockId.value && activeServiceId.value)
+    emit('viewBlock', { blockId: activeBlockId.value, serviceId: activeServiceId.value })
+}
+
 const { result: activeVehicleTrailResult } = useAvlTrailQuery(
   () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '', limit: 2 }),
   () => ({ enabled: !!props.feedCode && !!activeVehicleId.value, pollInterval: intervalMs.value }),
@@ -160,6 +195,13 @@ const activeSpeed = computed(() => {
   if (reportedMps != null) return { mps: reportedMps, estimated: false }
   return estimatedSpeedMps.value == null ? null : { mps: estimatedSpeedMps.value, estimated: true }
 })
+
+// Same convention as the vehicle-detail page's "GPS offset": the perpendicular
+// gap between the raw report and the matched-shape snap. Only matched
+// vehicles carry a snappedPosition.
+const activeGpsOffsetM = computed(() =>
+  haversineM(activeVehicleDetail.value?.position, activeVehicleDetail.value?.snappedPosition),
+)
 
 const activeTripProgress = computed(() => {
   const vehicle = activeVehicleDetail.value
@@ -300,7 +342,7 @@ function badge(v: VehicleRow) {
 type VehicleState = 'stale' | 'stopped' | 'matched' | 'unmatched'
 
 const STOPPED_SPEED_MPS = 0.5
-const STOPPED_DISTANCE_M = 25
+const STOPPED_DISTANCE_M = 10
 
 function stateFor(v: VehicleRow): VehicleState {
   if (v.stale) return 'stale'
@@ -325,9 +367,7 @@ const STATE_COLORS: Record<VehicleState, string> = {
 const vehiclesGeoJson = computed<GeoJSON.FeatureCollection>(() => ({
   type: 'FeatureCollection',
   features: props.vehicles
-    .filter(
-      (v) => v.position && (!props.selectedVehicleId || v.vehicleId === props.selectedVehicleId),
-    )
+    .filter((v) => v.position)
     .map((v) => {
       const hasBearing = v.bearing != null && Number.isFinite(v.bearing)
       return {
@@ -371,7 +411,24 @@ function fitSelectedRoute() {
   )
 }
 
-watch([selectedRouteKey, () => map.isLoaded], fitSelectedRoute, { immediate: true })
+// Set by onVehicleClick just before it emits 'select' for a vehicle clicked
+// directly on the map — that vehicle is already on screen, so the resulting
+// selectedRoute update shouldn't also fly the camera to its bounds. A
+// list-driven selection (no matching flag) still gets the fit, since the
+// vehicle may not be visible yet.
+let suppressFitForVehicleId: string | null = null
+
+watch(
+  [selectedRouteKey, () => map.isLoaded],
+  () => {
+    if (props.selectedRoute?.vehicleId === suppressFitForVehicleId) {
+      suppressFitForVehicleId = null
+      return
+    }
+    fitSelectedRoute()
+  },
+  { immediate: true },
+)
 
 function placeStopsAboveSelectedRoute() {
   const instance = map.map
@@ -381,6 +438,8 @@ function placeStopsAboveSelectedRoute() {
   // Placing stops immediately below the vehicle icons keeps them above both
   // selected-route layers without relying on a not-yet-registered `before` target.
   instance.moveLayer('selected-vehicle-stops-circles', 'vehicles-icons')
+  if (instance.getLayer('selected-vehicle-stops-labels'))
+    instance.moveLayer('selected-vehicle-stops-labels', 'vehicles-icons')
 }
 
 function placeFeedNetworkBelowSelectedRoute() {
@@ -395,10 +454,21 @@ function placeFeedNetworkBelowSelectedRoute() {
     'feed-network-routes-casing',
     'feed-network-routes-line',
     'feed-network-routes-hit',
+    'feed-network-stop-clusters',
+    'feed-network-stop-cluster-counts',
     'feed-network-stops-circles',
   ]) {
     if (instance.getLayer(layerId)) instance.moveLayer(layerId, target)
   }
+}
+
+async function expandNetworkStopCluster(cluster: { id: number; center: LngLat }) {
+  const instance = map.map
+  const source = instance?.getSource('feed-network-stops')
+  if (!instance || source?.type !== 'geojson') return
+
+  const zoom = await source.getClusterExpansionZoom(cluster.id)
+  instance.easeTo({ center: cluster.center, zoom, duration: 500 })
 }
 
 watch(
@@ -542,9 +612,35 @@ watch(markerContrastColor, (contrastColor) => {
 })
 
 function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }[] }) {
+  if (tools.activeTool.value) return
   const id = e.features?.[0]?.properties?.vehicleId
-  if (typeof id === 'string') activeVehicleId.value = id
+  if (typeof id !== 'string') return
+  activeVehicleId.value = id
+  // Opening a vehicle's popup is the only "select" gesture now — it
+  // highlights the vehicle in the list and draws its route immediately,
+  // no separate "Highlight route" step. The vehicle is already visible (you
+  // just clicked it), so unlike a list-driven selection this shouldn't also
+  // fly the camera to the route's bounds.
+  suppressFitForVehicleId = id
+  emit('select', id)
 }
+
+function onMapClick(e: {
+  event?: { lngLat?: { lng: number; lat: number }; originalEvent?: MouseEvent }
+}) {
+  const lngLat = e.event?.lngLat
+  if (!lngLat) return
+  if (tools.onMapClick([lngLat.lng, lngLat.lat], e.event?.originalEvent?.detail === 2))
+    activeVehicleId.value = null
+}
+
+watch(
+  () => tools.activeTool.value,
+  (active) => {
+    const canvas = map.map?.getCanvas()
+    if (canvas) canvas.style.cursor = active ? 'crosshair' : ''
+  },
+)
 </script>
 
 <template>
@@ -556,8 +652,9 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
       :bounds="initialBounds"
       :attribution-control="false"
       :fit-bounds-options="{ padding: 40, animate: true }"
+      @map:click="onMapClick"
     >
-      <MglNavigationControl />
+      <!-- <MglNavigationControl /> -->
 
       <MglPopup
         v-if="activeVehicle"
@@ -565,8 +662,8 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         :coordinates="[activeVehicle.position.lon, activeVehicle.position.lat]"
         :close-on-click="true"
         :close-button="false"
-        :close-on-move="true"
-        :offset="14"
+        :anchor="'bottom'"
+        :offset="6"
         max-width="22rem"
         class-name="vehicle-operation-popup"
         @close="activeVehicleId = null"
@@ -708,6 +805,18 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
                     >
                   </dd>
                 </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-muted">From route</dt>
+                  <dd class="text-right font-semibold tabular-nums text-highlighted">
+                    {{
+                      activeGpsOffsetM == null
+                        ? '—'
+                        : activeGpsOffsetM <= 15
+                          ? 'on route'
+                          : units.distance(activeGpsOffsetM)
+                    }}
+                  </dd>
+                </div>
               </dl>
             </section>
 
@@ -744,13 +853,51 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
             <span v-if="activeVehicle.stale" class="text-warning">stale</span>
           </div>
 
-          <UButton
-            color="primary"
-            trailing-icon="i-lucide-arrow-right"
-            block
-            :label="selectionActionLabel"
-            @click="emit('select', activeVehicle.vehicleId)"
-          />
+          <div class="flex flex-col gap-1.5">
+            <UFieldGroup class="w-full">
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-milestone"
+                label="View trip"
+                :disabled="!activeTripId"
+                @click="activeTripId && emit('viewTrip', activeTripId)"
+              />
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-layers"
+                label="View block"
+                :disabled="!activeBlockId || !activeServiceId"
+                @click="handleViewBlock"
+              />
+            </UFieldGroup>
+            <UFieldGroup class="w-full">
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-route"
+                label="View route"
+                :disabled="!activeRouteId"
+                @click="activeRouteId && emit('viewRoute', activeRouteId)"
+              />
+              <UButton
+                class="flex-1 justify-center"
+                color="neutral"
+                variant="subtle"
+                size="sm"
+                icon="i-lucide-bus"
+                label="View vehicle"
+                @click="emit('viewVehicle', activeVehicle.vehicleId)"
+              />
+            </UFieldGroup>
+          </div>
         </div>
       </MglPopup>
 
@@ -764,8 +911,9 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         :stops="networkStops"
         :show-routes="visibleLayers.networkRoutes"
         :show-stops="visibleLayers.networkStops"
+        :route-color-mode="routeColorMode"
         before="vehicles-icons"
-        dim
+        @cluster-click="expandNetworkStopCluster"
       />
 
       <MglGeoJsonSource
@@ -809,7 +957,7 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
           before="vehicles-icons"
           :layout="{ visibility: visibleLayers.selectedTripStops ? 'visible' : 'none' }"
           :paint="{
-            'circle-radius': ['match', ['get', 'state'], 'current', 9, 6],
+            'circle-radius': ['match', ['get', 'state'], 'current', 6, 4],
             'circle-color': [
               'match',
               ['get', 'state'],
@@ -819,8 +967,29 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
               selectedRoute?.routeColor ?? '#2563eb',
               '#475569',
             ],
-            'circle-stroke-width': ['match', ['get', 'state'], 'current', 3, 2],
+            'circle-stroke-width': ['match', ['get', 'state'], 'current', 2, 1.5],
             'circle-stroke-color': '#ffffff',
+          }"
+        />
+        <MglSymbolLayer
+          layer-id="selected-vehicle-stops-labels"
+          before="vehicles-icons"
+          :minzoom="12"
+          :layout="{
+            'text-field': ['coalesce', ['get', 'label'], ['get', 'name']],
+            'text-size': 10,
+            'text-font': ['noto_sans_regular'],
+            'text-anchor': 'left',
+            'text-offset': [1, 0],
+            'text-max-width': 8,
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+            visibility: visibleLayers.selectedTripStops ? 'visible' : 'none',
+          }"
+          :paint="{
+            'text-color': '#1e293b',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1.2,
           }"
         />
       </MglGeoJsonSource>
@@ -845,6 +1014,9 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
                 iconId('unmatched', false),
               ],
             ],
+            // Draw the selected vehicle last so it stays on top of the rest of the fleet.
+            'symbol-sort-key': ['case', ['get', 'selected'], 1, 0],
+            'icon-size': ['case', ['get', 'selected'], 1.45, 1],
             'icon-rotate': ['get', 'bearing'],
             'icon-rotation-alignment': 'map',
             'icon-allow-overlap': true,
@@ -855,40 +1027,69 @@ function onVehicleClick(e: { features?: { properties?: Record<string, unknown> }
         />
         <!-- This must be declared after its `before` target. vue-maplibre-gl
              adds child layers in declaration order once the source is ready. -->
+        <!-- A solid white backing disc so the colored ring above reads clearly
+             against any basemap color, not just light ones. -->
+        <MglCircleLayer
+          layer-id="selected-vehicle-halo-backing"
+          before="vehicles-icons"
+          :filter="['==', ['get', 'selected'], true]"
+          :layout="{ visibility: visibleLayers.vehicle ? 'visible' : 'none' }"
+          :paint="{
+            'circle-radius': 27,
+            'circle-color': '#ff0000',
+            'circle-opacity': 0.85,
+          }"
+        />
         <MglCircleLayer
           layer-id="selected-vehicle-halo"
           before="vehicles-icons"
           :filter="['==', ['get', 'selected'], true]"
           :layout="{ visibility: visibleLayers.vehicle ? 'visible' : 'none' }"
           :paint="{
-            'circle-radius': 18,
+            'circle-radius': 24,
             'circle-color': selectedRoute?.routeColor ?? '#2563eb',
-            'circle-opacity': 0.2,
-            'circle-stroke-width': 3,
+            'circle-opacity': 0.3,
+            'circle-stroke-width': 4,
             'circle-stroke-color': selectedRoute?.routeColor ?? '#2563eb',
-            'circle-stroke-opacity': 0.95,
+            'circle-stroke-opacity': 1,
           }"
         />
       </MglGeoJsonSource>
+
+      <MapToolLayers :map-id="MAP_ID" :tools="tools" />
     </MglMap>
 
     <VehicleMapLegend class="absolute bottom-10 right-2" />
 
-    <div class="absolute right-14 top-3 flex items-center gap-2">
-      <UPopover>
-        <UButton color="neutral" variant="subtle" icon="i-lucide-layers-3" />
-        <template #content>
-          <div class="w-52 space-y-2.5 p-3">
-            <p class="text-xs font-semibold tracking-wide text-muted uppercase">Map layers</p>
-            <UCheckbox v-model="visibleLayers.networkRoutes" label="Network routes" />
-            <UCheckbox v-model="visibleLayers.networkStops" label="Network stops" />
-            <UCheckbox v-model="visibleLayers.selectedTripLine" label="Selected trip line" />
-            <UCheckbox v-model="visibleLayers.selectedTripStops" label="Selected trip stops" />
-            <UCheckbox v-model="visibleLayers.vehicle" label="Vehicle marker" />
-          </div>
-        </template>
-      </UPopover>
-      <UButton color="neutral" variant="subtle" icon="i-lucide-scan" @click="fit" />
-    </div>
+    <MapToolbox
+      :tools="tools"
+      route-colors-available
+      :route-color-mode="routeColorMode"
+      :layers="[
+        { id: 'networkRoutes', label: 'Network routes', enabled: visibleLayers.networkRoutes },
+        { id: 'networkStops', label: 'Network stops', enabled: visibleLayers.networkStops },
+        {
+          id: 'selectedTripLine',
+          label: 'Selected trip line',
+          enabled: visibleLayers.selectedTripLine,
+        },
+        {
+          id: 'selectedTripStops',
+          label: 'Selected trip stops',
+          enabled: visibleLayers.selectedTripStops,
+        },
+        { id: 'vehicle', label: 'Vehicle marker', enabled: visibleLayers.vehicle },
+      ]"
+      @update:layer="
+        ({ id, enabled }) => {
+          if (id === 'networkRoutes') visibleLayers.networkRoutes = enabled
+          if (id === 'networkStops') visibleLayers.networkStops = enabled
+          if (id === 'selectedTripLine') visibleLayers.selectedTripLine = enabled
+          if (id === 'selectedTripStops') visibleLayers.selectedTripStops = enabled
+          if (id === 'vehicle') visibleLayers.vehicle = enabled
+        }
+      "
+      @update:route-color-mode="routeColorMode = $event"
+    />
   </div>
 </template>

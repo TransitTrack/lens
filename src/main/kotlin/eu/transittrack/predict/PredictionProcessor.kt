@@ -10,6 +10,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.MatchOutcome
@@ -19,8 +21,6 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.PredictionStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
-import eu.transittrack.config.ConditionalOnRole
-import eu.transittrack.config.Role
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler
 import eu.transittrack.util.observability.TransitTrackMetrics

@@ -113,25 +113,35 @@ Non-terminal: `PENDING`, `DOWNLOADING`, `PARSING`, `VALIDATING`, `DERIVING`, `RE
 2. **Unchanged check** — if the SHA-256 equals the feed's current `ACTIVE`
    revision's `content_sha256`, the revision is set to `UNCHANGED` and the
    pipeline stops (no rows written).
-3. **Unzip & required-file check** — extract the archive to a temp dir. Fails if
-   any of `agency.txt`, `stops.txt`, `routes.txt`, `trips.txt`, `stop_times.txt`,
-   and (`calendar.txt` or `calendar_dates.txt`) is missing. (`files_present` is
-   persisted later, on the `VALIDATING` transition.)
+3. **Validate** — the archive is validated by
+   gtfs-analyzer (`io.github.transittrack:gtfs-analyzer`, via `GtfsFeedLoader`;
+   a Rust engine bundled as a native library), plus any registered `GtfsValidator`
+   extensions. The analyzer's full result — every notice with file / line /
+   field, the R1–R9 reports (R1 = publishable verdict and blockers), feed
+   metrics — is stored in `validation_report` as a versioned envelope
+   (`{"format": 2, "analyzer": {...}, "extensionFindings": [...]}`) and
+   summarised as `validationSummary` (analyzer CRITICAL/HIGH → errors,
+   MEDIUM/LOW → warnings, INFO not counted). The revision then goes to `FAILED`,
+   with nothing written, when:
+   - the analyzer returns a fatal error (unreadable zip, …);
+   - a required file (`agency.txt`, `stops.txt`, `routes.txt`, `trips.txt`,
+     `stop_times.txt`) is missing or unparseable (the analyzer reports it as
+     `PARTIAL` with that file unavailable);
+   - `strict-validation = true` and R1 says the feed is not publishable.
 4. **Parse & write** — `GtfsFileRegistry` is iterated in dependency order; each
-   present, registered file is streamed by `GtfsCsvReader`, mapped to typed
-   entities, and batched (`ingest.batch-size`, default 1000) through
-   `RevisionWriter`. `locations.geojson` is read by `GtfsGeoJsonReader`;
-   `shapes.txt` also accumulates per-`shape_id` aggregate rows. Files in the
-   archive that are not part of the GTFS Schedule spec are ignored (they still
-   appear in `filesPresent`). `row_counts` is populated, keyed by physical table
-   name (`gtfs_agency`, `gtfs_stop`, …).
-5. **Validate** — revision-scoped referential checks (orphan `route_id`,
-   `service_id`, `trip_id`, `stop_id`, `shape_id`, `agency_id`,
-   `parent_station`, fare/area/network/pathway refs, …). Counts and samples go
-   to `validation_report`.
-   - `strict-validation = true` → any error → `FAILED`.
-   - `strict-validation = false` (default) → errors recorded as a report,
-     ingest proceeds.
+   present, registered file is streamed row by row straight out of the zip
+   (`GtfsZip` + `GtfsCsv`, never fully in memory), read into its typed row class,
+   mapped to an entity, and batched (`ingest.batch-size`, default 1000) through
+   `RevisionWriter`. Values that don't parse are stored as `null` (the analyzer
+   has already reported them); a row missing a value its table requires (e.g.
+   `stop_id`) is logged and skipped. Optional files the analyzer couldn't read
+   are skipped. `locations.geojson` is read by `GtfsGeoJsonReader`; `shapes.txt`
+   also accumulates per-`shape_id` aggregate rows. Files in the archive that are
+   not part of the GTFS Schedule spec are ignored. `files_present` lists the
+   registry files that were read; `row_counts` is keyed by physical table name
+   (`gtfs_agency`, `gtfs_stop`, …).
+5. **Write totals** — `files_present` and `row_counts` are persisted on the
+   revision.
 6. **Derive dates** — `feed_start_date` / `feed_end_date` from `feed_info.txt`
    if present, else min/max over `calendar` and `calendar_dates`.
 7. **Derive schedule model** — when `transittrack.schedule.enabled`, the revision
@@ -186,10 +196,13 @@ feed; `auto-activate` can additionally be overridden per feed.
   `READY` and an operator must call `activateRevision` to make it live. Feed-level
   `autoActivate` (config key `auto-activate`, or the mutation input field) wins
   over the global value.
-- **`strict-validation`** (default `false`) — when true, any referential
-  validation error fails the revision. When false, validation still runs and its
-  findings are stored in `validation_report` / exposed as `validationSummary`,
-  but the ingest proceeds to activation.
+- **`strict-validation`** (default `false`) — when true, a feed that
+  gtfs-analyzer's R1 report rates as not publishable fails the revision. When
+  false, validation still runs and its report is stored in `validation_report` /
+  exposed as `validationSummary`, but the ingest proceeds to activation. Fatal
+  analyzer errors and unreadable required files fail the revision either way.
+  Draft activation uses the same verdict: a draft can only be activated (without
+  `force`) when its last validation is publishable.
 
 ---
 

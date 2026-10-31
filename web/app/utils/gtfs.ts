@@ -176,7 +176,7 @@ export function patternStopFeatures(stopPaths: StopPathLike[]) {
           type: 'Point' as const,
           coordinates: [p.stop!.stopLon as number, p.stop!.stopLat as number] as LngLat,
         },
-        properties: {name: p.stop!.stopName ?? p.stopId, state: 'upcoming'},
+        properties: {name: p.stop!.stopName ?? p.stopId, stopId: p.stopId, state: 'upcoming'},
       })),
   }
 }

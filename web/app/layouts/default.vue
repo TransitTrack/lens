@@ -8,6 +8,7 @@ import SidebarUtilities from '~/components/SidebarUtilities.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
+import { docSearchItems, type DocSearchSection } from '~/utils/docs'
 import { useFeedReadinessQuery } from '~~/generated/graphql'
 
 useFeedAlerts()
@@ -154,12 +155,19 @@ const WORK: NavLeaf[] = [
   { label: 'Optimization', icon: 'i-lucide-sparkles', path: '/optimize' },
 ]
 
+const DOCS: NavLeaf[] = [{ label: 'Docs', icon: 'i-lucide-book-open', path: '/docs' }]
+
 function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
+  // A leaf nested under a sibling's path (/docs/live-config under /docs) takes
+  // the highlight from that sibling.
+  const isActive = (l: NavLeaf) =>
+    underPath(feedPath(l.path)) &&
+    !leaves.some((o) => o.path.startsWith(`${l.path}/`) && underPath(feedPath(o.path)))
   return leaves.map((l) => ({
     label: l.label,
     icon: l.icon,
     to: feedPath(l.path),
-    active: underPath(feedPath(l.path)),
+    active: isActive(l),
     slot: 'leaf',
   }))
 }
@@ -181,8 +189,8 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     slot: 'group',
   },
   {
-    label: 'Schedule',
-    icon: 'i-lucide-database',
+    label: 'GTFS',
+    icon: 'i-lucide-playing-cards-fan',
     defaultOpen: SCHEDULE.some((l) => underPath(feedPath(l.path))),
     active: SCHEDULE.some((l) => underPath(feedPath(l.path))),
     children: toItems(SCHEDULE),
@@ -208,11 +216,32 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
 
 const navigationItems = computed(() => (feedIsBlocked.value ? [] : primaryNav.value))
 
+// Docs sit apart from the feed's pages, pinned to the bottom of the sidebar.
+const docsNav = computed<NavigationMenuItem[]>(() =>
+  feedIsBlocked.value ? [] : toItems(DOCS).map((item) => ({ ...item, slot: undefined })),
+)
+
+// Docs sections join ⌘K search. The index lives in the content collection's
+// WASM SQLite, so it's only loaded the first time the palette opens.
+const docSections = ref<DocSearchSection[]>([])
+watch(searchOpen, async (open) => {
+  if (!open || docSections.value.length) return
+  try {
+    docSections.value = await queryCollectionSearchSections('docs')
+  } catch {
+    // search still works for pages and feeds
+  }
+})
+// `content` is searched for docs items only (others don't have the field)
+const searchFuse = { fuseOptions: { keys: ['content'] } }
+
 const groups = computed(() => [
   {
     id: 'links',
     label: 'Go to',
-    items: feedIsBlocked.value ? [] : primaryNav.value.flatMap((i) => i.children ?? [i]),
+    items: feedIsBlocked.value
+      ? []
+      : [...primaryNav.value.flatMap((i) => i.children ?? [i]), ...docsNav.value],
   },
   {
     id: 'feeds',
@@ -225,38 +254,38 @@ const groups = computed(() => [
       to: `/${f.code}`,
     })),
   },
+  {
+    id: 'docs',
+    label: 'Docs',
+    items: feedIsBlocked.value ? [] : docSearchItems(docSections.value, feedPath('/docs')),
+    // only once something is typed — otherwise every docs section lists on open
+    postFilter: (term: string, items: unknown[]) => (term ? items : []),
+  },
 ])
 </script>
 
 <template>
   <UDashboardGroup>
     <UDashboardSidebar
-      collapsible
-      resizable
+      collapsed
       :ui="{
-        header:
-          'h-auto! min-h-(--ui-header-height) shrink-0 flex items-center px-1.5 py-1.5',
+        header: 'h-auto! min-h-(--ui-header-height) shrink-0 flex items-center px-1.5 py-1.5',
       }"
     >
-      <template #header="{ collapsed }">
-        <div class="flex w-full flex-col gap-1.5">
-          <SidebarUtilities :collapsed="collapsed" />
-          <div class="flex items-center gap-1">
-            <FeedSwitcher class="min-w-0 flex-1" :collapsed="collapsed" />
-            <UDashboardSidebarCollapse side="left" size="xs" square />
-          </div>
-        </div>
+      <template #header>
+        <NuxtLink
+          :to="feedPath()"
+          class="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-elevated mx-auto"
+          aria-label="TransitTrack overview"
+        >
+          <span
+            class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary"
+          >
+            <UIcon name="i-lucide-route" class="size-4" />
+          </span>
+        </NuxtLink>
       </template>
-
       <template #default="{ collapsed }">
-        <UDashboardSearchButton
-          :collapsed="collapsed"
-          variant="subtle"
-          @click="searchOpen = true"
-        />
-
-        <USeparator class="my-1" />
-
         <UNavigationMenu
           :items="navigationItems"
           orientation="vertical"
@@ -310,20 +339,52 @@ const groups = computed(() => [
             </ul>
           </template>
         </UNavigationMenu>
-      </template>
 
-      <template #footer="{ collapsed }">
-        <div class="w-full border-t border-default px-1.5 py-1.5">
-          <UserMenu :collapsed="collapsed" />
-        </div>
+        <UNavigationMenu
+          :items="docsNav"
+          orientation="vertical"
+          :collapsed="collapsed"
+          :tooltip="collapsed"
+          :highlight="true"
+          class="mt-auto"
+          :ui="{ link: 'py-2 font-medium' }"
+        />
       </template>
     </UDashboardSidebar>
 
     <UDashboardPanel :ui="{ body: 'p-0 gap-0 sm:p-0 sm:gap-0' }">
       <template #header>
-        <UDashboardNavbar toggle class="lg:hidden">
+        <UDashboardNavbar
+          toggle
+          class="h-12 px-3 sm:px-5"
+          :ui="{
+            center: 'hidden min-w-0 flex-1 items-center justify-center px-6 lg:flex',
+            title: 'min-w-0',
+          }"
+        >
+          <template #title>
+            <div class="w-64" />
+          </template>
+
+          <UButton
+            color="neutral"
+            variant="soft"
+            class="w-full max-w-lg mx-auto justify-start gap-2.5 text-left font-normal text-muted"
+            aria-label="Search TransitTrack"
+            @click="searchOpen = true"
+          >
+            <UIcon name="i-lucide-search" class="size-4 shrink-0" />
+            <span class="flex-1 truncate">Search routes, stops, trips, and docs…</span>
+            <span class="flex shrink-0 items-center gap-1 text-dimmed">
+              <UKbd value="meta" />
+              <UKbd value="K" />
+            </span>
+          </UButton>
+
           <template #right>
+            <FeedSwitcher class="hidden w-56 xl:flex" />
             <NotificationsButton :count="unhealthyFeedCount || undefined" />
+            <UserMenu collapsed />
           </template>
         </UDashboardNavbar>
       </template>
@@ -348,7 +409,7 @@ const groups = computed(() => [
       </template>
     </UDashboardPanel>
 
-    <UDashboardSearch v-model:open="searchOpen" :groups="groups" />
+    <UDashboardSearch v-model:open="searchOpen" :groups="groups" :fuse="searchFuse" />
     <NotificationsSlideover />
   </UDashboardGroup>
 </template>
