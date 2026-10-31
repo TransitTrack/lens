@@ -54,8 +54,8 @@ class DraftJobServiceTest(
 
         assertThat(job.state).isEqualTo(DraftJob.State.SUCCEEDED)
         assertThat(job.phase).isEqualTo(DraftJob.Phase.DONE)
-        assertThat(revisions.findById(draft.id!!).get().derivationStale).isEqualTo(false)
-        assertThat(revisions.findById(draft.id!!).get().lastValidation).isNotNull()
+        assertThat(revisions.findById(draft.id!!)!!.derivationStale).isEqualTo(false)
+        assertThat(revisions.findById(draft.id!!)!!.lastValidation).isNotNull()
     }
 
     @Test
@@ -64,7 +64,7 @@ class DraftJobServiceTest(
         clean += base
         val draft = drafts.fork(feedCode, null, "J", "alice")
         clean += draft.id!!
-        revisions.findById(draft.id!!).get().let {
+        revisions.findById(draft.id!!)!!.let {
             it.deriving = true
             revisions.save(it)
         }

@@ -61,10 +61,10 @@ class DraftLifecycleEndToEndTest(
         drafts.discard(draft.id!!, "alice")
         cleanup.remove(draft.id!!)
 
-        assertThat(revisions.findById(draft.id!!).isPresent).isEqualTo(false)
+        assertThat(revisions.findById(draft.id!!) != null).isEqualTo(false)
         assertThat(stopTimes.findByRevisionId(draft.id!!)).isEmpty()
 
         // active revision still intact
-        assertThat(revisions.findById(activeRev).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(activeRev)!!.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
     }
 }

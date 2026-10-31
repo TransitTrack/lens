@@ -42,6 +42,13 @@ class SchemaDriftTest(
          * Exact statements that are known, accepted differences between the Exposed model and the
          * Liquibase schema. Every entry needs a comment saying why it is safe to ignore.
          */
-        val IGNORED: Set<String> = setOf()
+        val IGNORED: Set<String> =
+            setOf(
+                // Liquibase (0012) dropped these ids' identity and set `default nextval('<table>_seq')`, which
+                // Exposed reports as drift because it cannot model that default. Inserts name the sequence
+                // explicitly (`autoIncrement(Sequence)`), so the DB-side default is never relied on from Exposed.
+                "ALTER TABLE gtfs_feed ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE gtfs_revision ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+            )
     }
 }

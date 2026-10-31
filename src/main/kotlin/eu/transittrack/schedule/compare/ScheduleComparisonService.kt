@@ -27,8 +27,8 @@ class ScheduleComparisonService(
         directionId: Int? = null,
         serviceId: String? = null,
     ): ScheduleComparison {
-        val from = revisions.findById(fromRevisionId).orElseThrow { IllegalArgumentException("no revision $fromRevisionId") }
-        val to = revisions.findById(toRevisionId).orElseThrow { IllegalArgumentException("no revision $toRevisionId") }
+        val from = revisions.findById(fromRevisionId) ?: throw IllegalArgumentException("no revision $fromRevisionId")
+        val to = revisions.findById(toRevisionId) ?: throw IllegalArgumentException("no revision $toRevisionId")
         require(from.feedId == to.feedId) {
             "revisions $fromRevisionId and $toRevisionId belong to different feeds"
         }

@@ -69,14 +69,14 @@ class DraftJobService(
                     log.warn("rebuild job {} for draft {} failed", job.id, draftId, t)
                     job.state = DraftJob.State.FAILED
                     job.error = t.message ?: t.javaClass.simpleName
-                    revisions.findById(draftId).ifPresent {
+                    revisions.findById(draftId)?.let {
                         it.derivationStale = true
                         revisions.save(it)
                     }
                     if (t !is Exception) throw t
                 } finally {
                     // Belt-and-suspenders with rederive's own clear: the slot is owned by the job.
-                    revisions.findById(draftId).ifPresent {
+                    revisions.findById(draftId)?.let {
                         if (it.deriving) {
                             it.deriving = false
                             revisions.save(it)
@@ -88,7 +88,7 @@ class DraftJobService(
             // execute() itself threw (RejectedExecutionException during shutdown) — the task body's
             // finally never ran, so release the claim here.
             log.warn("rebuild job {} for draft {} could not be dispatched", job.id, draftId, e)
-            revisions.findById(draftId).ifPresent {
+            revisions.findById(draftId)?.let {
                 it.deriving = false
                 revisions.save(it)
             }

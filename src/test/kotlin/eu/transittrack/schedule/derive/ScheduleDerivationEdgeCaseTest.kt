@@ -443,7 +443,7 @@ class ScheduleDerivationEdgeCaseTest(
     fun `a failing derivation in the pipeline fails the revision and leaves no derived rows`() {
         ingest("schedule-broken-times", deriveDuringPipeline = true)
 
-        val loaded = revisions.findById(rev).get()
+        val loaded = revisions.findById(rev)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.errorMessage).isNotNull().contains("trip X1")
 
@@ -532,7 +532,7 @@ class ScheduleDerivationEdgeCaseTest(
             )
         rev = ingestion.ingestBlocking("edge").id!!
 
-        assertThat(revisions.findById(rev).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(revisions.findById(rev)!!.status).isEqualTo(GtfsRevisionStatus.FAILED)
         // schedule rows must not survive on a FAILED revision
         assertThat(rowCount("trip_patterns")).isEqualTo(0)
     }

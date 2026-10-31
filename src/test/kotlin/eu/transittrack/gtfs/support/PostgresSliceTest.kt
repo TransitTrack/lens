@@ -2,6 +2,7 @@ package eu.transittrack.gtfs.support
 
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase
+import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -21,4 +22,5 @@ import org.springframework.transaction.annotation.Transactional
 @DataJpaTest(properties = ["spring.liquibase.enabled=true"])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
+@Import(ExposedSliceConfig::class)
 annotation class PostgresSliceTest

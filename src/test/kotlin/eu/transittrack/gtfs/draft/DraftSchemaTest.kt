@@ -38,7 +38,7 @@ class DraftSchemaTest(
                 createdBy = "alice"
             },
         )
-        val loaded = revisions.findById(saved.id!!).get()
+        val loaded = revisions.findById(saved.id!!)!!
         assertThat(loaded.kind).isEqualTo(DraftKind.DRAFT)
         assertThat(loaded.label).isEqualTo("Summer 2027")
         assertThat(loaded.derivationStale).isEqualTo(true)

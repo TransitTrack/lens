@@ -1,100 +1,166 @@
 package eu.transittrack.gtfs.revision
 
-import jakarta.persistence.LockModeType
+import java.time.Instant
 
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Lock
-import org.springframework.data.jpa.repository.Modifying
-import org.springframework.data.jpa.repository.Query
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNotNull
+import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
-import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.draft.DraftKind
 
 @Repository
-interface GtfsRevisionRepository : JpaRepository<GtfsRevision, Long> {
+@ExposedBridge
+class GtfsRevisionRepository {
+    fun findById(id: Long): GtfsRevision? =
+        GtfsRevisionTable
+            .selectAll()
+            .where { GtfsRevisionTable.id eq id }
+            .singleOrNull()
+            ?.let(GtfsRevisionTable::read)
+
     /**
      * Row-locking read for the draft-edit template: `DraftEditService.guard` takes a
-     * `PESSIMISTIC_WRITE` lock on the draft row so concurrent `apply`/`undo`/`redo` on one draft
-     * serialize, turning the `version` check into a true compare-and-swap (→ `StaleDraftException`).
-     * Deliberately not `@Version` on the entity — that would impose optimistic locking on every
-     * other writer of `gtfs_revision` (ingestion, revision lifecycle, AVL).
+     * `PESSIMISTIC_WRITE` lock on the draft row (`select ... for update`) so concurrent
+     * `apply`/`undo`/`redo` on one draft serialize, turning the `version` check into a true
+     * compare-and-swap (-> `StaleDraftException`). Deliberately not an optimistic version column on
+     * the table's writers: that would impose optimistic locking on every other writer of
+     * `gtfs_revision` (ingestion, revision lifecycle, AVL).
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from GtfsRevision r where r.id = :id")
-    fun findByIdForUpdate(id: Long): GtfsRevision?
+    fun findByIdForUpdate(id: Long): GtfsRevision? =
+        GtfsRevisionTable
+            .selectAll()
+            .where { GtfsRevisionTable.id eq id }
+            .forUpdate()
+            .singleOrNull()
+            ?.let(GtfsRevisionTable::read)
 
-    @Query("select r from GtfsRevision r where r.feedId = :feedId and r.status = :status")
     fun findByFeedAndStatus(
         feedId: Long,
         status: GtfsRevisionStatus,
-    ): GtfsRevision?
+    ): GtfsRevision? =
+        GtfsRevisionTable
+            .selectAll()
+            .where { (GtfsRevisionTable.feedId eq feedId) and (GtfsRevisionTable.status eq status) }
+            .singleOrNull()
+            ?.let(GtfsRevisionTable::read)
 
-    @Query("select r from GtfsRevision r where r.feedId = :feedId order by r.createdAt desc")
-    fun findByFeedNewestFirst(feedId: Long): List<GtfsRevision>
+    fun findByFeedNewestFirst(feedId: Long): List<GtfsRevision> =
+        GtfsRevisionTable
+            .selectAll()
+            .where { GtfsRevisionTable.feedId eq feedId }
+            .orderBy(GtfsRevisionTable.createdAt, SortOrder.DESC)
+            .map(GtfsRevisionTable::read)
 
-    @Query(
-        "select case when count(r) > 0 then true else false end " +
-            "from GtfsRevision r where r.feedId = :feedId and r.status in :statuses",
-    )
     fun existsByFeedAndStatusIn(
         feedId: Long,
         statuses: Collection<GtfsRevisionStatus>,
-    ): Boolean
+    ): Boolean =
+        !GtfsRevisionTable
+            .selectAll()
+            .where { (GtfsRevisionTable.feedId eq feedId) and (GtfsRevisionTable.status inList statuses) }
+            .limit(1)
+            .empty()
 
-    @Query("select r from GtfsRevision r where r.status = :status")
-    fun findByStatus(status: GtfsRevisionStatus): List<GtfsRevision>
+    fun findByStatus(status: GtfsRevisionStatus): List<GtfsRevision> =
+        GtfsRevisionTable
+            .selectAll()
+            .where { GtfsRevisionTable.status eq status }
+            .map(GtfsRevisionTable::read)
 
-    @Query("select r from GtfsRevision r where r.kind = :kind and r.status = :status")
     fun findByKindAndStatus(
         kind: DraftKind,
         status: GtfsRevisionStatus,
-    ): List<GtfsRevision>
+    ): List<GtfsRevision> =
+        GtfsRevisionTable
+            .selectAll()
+            .where { (GtfsRevisionTable.kind eq kind) and (GtfsRevisionTable.status eq status) }
+            .map(GtfsRevisionTable::read)
 
     /** Revision ids that some DRAFT revision was forked from — prune must not delete these. */
-    @Query(
-        "select distinct r.baseRevisionId from GtfsRevision r " +
-            "where r.kind = eu.transittrack.gtfs.draft.DraftKind.DRAFT and r.baseRevisionId is not null",
-    )
-    fun findBaseRevisionIdsReferencedByDrafts(): List<Long>
+    fun findBaseRevisionIdsReferencedByDrafts(): List<Long> =
+        GtfsRevisionTable
+            .select(GtfsRevisionTable.baseRevisionId)
+            .where { (GtfsRevisionTable.kind eq DraftKind.DRAFT) and GtfsRevisionTable.baseRevisionId.isNotNull() }
+            .withDistinct()
+            .mapNotNull { it[GtfsRevisionTable.baseRevisionId] }
+
+    /** Inserts when [row] has no id, else updates it in place; returns [row] with its id set. */
+    fun save(row: GtfsRevision): GtfsRevision {
+        val id = row.id
+        if (id == null) {
+            row.id = GtfsRevisionTable.insert { GtfsRevisionTable.bind(it, row) }[GtfsRevisionTable.id]
+        } else {
+            GtfsRevisionTable.update({ GtfsRevisionTable.id eq id }) { GtfsRevisionTable.bind(it, row) }
+        }
+        return row
+    }
+
+    fun count(): Long = GtfsRevisionTable.selectAll().count()
+
+    fun delete(row: GtfsRevision) {
+        val id = row.id ?: return
+        deleteById(id)
+    }
+
+    fun deleteById(id: Long) {
+        GtfsRevisionTable.deleteWhere { GtfsRevisionTable.id eq id }
+    }
 
     /**
      * Atomically claim the editor lock: sets the holder only when the lock is free, expired, already
      * held by [who], or [takeOver] is set. Returns the affected-row count (1 = claimed, 0 = locked).
      */
-    @Modifying(clearAutomatically = true)
-    @Query(
-        value =
-            "update gtfs_revision set editor_claim_by = :who, editor_claim_expires_at = :exp " +
-                "where id = :id and (:takeOver = true or editor_claim_by is null " +
-                "or editor_claim_by = :who or editor_claim_expires_at < :now)",
-        nativeQuery = true,
-    )
     fun tryClaimEditor(
         id: Long,
         who: String,
-        exp: java.time.Instant,
-        now: java.time.Instant,
+        exp: Instant,
+        now: Instant,
         takeOver: Boolean,
-    ): Int
+    ): Int {
+        val claimable: Op<Boolean> =
+            if (takeOver) {
+                Op.TRUE
+            } else {
+                GtfsRevisionTable.editorClaimBy.isNull() or
+                    (GtfsRevisionTable.editorClaimBy eq who) or
+                    (GtfsRevisionTable.editorClaimExpiresAt less now)
+            }
+        return GtfsRevisionTable.update({ (GtfsRevisionTable.id eq id) and claimable }) {
+            it[editorClaimBy] = who
+            it[editorClaimExpiresAt] = exp
+        }
+    }
 
     /**
      * Atomically claim the rebuild slot: flips `deriving` false -> true for [id] only when it is
      * currently free. Returns 1 when claimed, 0 when a rebuild is already in flight. Replaces the
      * former read-check-then-save, which was a TOCTOU across separate transactions.
      */
-    @Modifying(clearAutomatically = true)
-    @Transactional
-    @Query("update GtfsRevision r set r.deriving = true where r.id = :id and r.deriving = false")
-    fun tryClaimRebuild(id: Long): Int
+    fun tryClaimRebuild(id: Long): Int =
+        GtfsRevisionTable.update({ (GtfsRevisionTable.id eq id) and (GtfsRevisionTable.deriving eq false) }) {
+            it[deriving] = true
+        }
 
     /**
      * Clears any `deriving = true` left over from a rebuild that never completed (JVM killed
      * mid-run). Safe to call only at startup, when the in-memory job registry guarantees no rebuild
      * is legitimately in flight. Returns the number of rows cleared.
      */
-    @Modifying(clearAutomatically = true)
-    @Transactional
-    @Query("update GtfsRevision r set r.deriving = false where r.deriving = true")
-    fun clearDanglingDeriving(): Int
+    fun clearDanglingDeriving(): Int =
+        GtfsRevisionTable.update({ GtfsRevisionTable.deriving eq true }) {
+            it[deriving] = false
+        }
 }

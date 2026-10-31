@@ -52,9 +52,8 @@ class DraftService(
         val base =
             when {
                 baseRevisionId != null -> {
-                    revisions.findById(baseRevisionId).orElseThrow {
-                        IllegalArgumentException("no revision $baseRevisionId")
-                    }
+                    revisions.findById(baseRevisionId)
+                        ?: throw IllegalArgumentException("no revision $baseRevisionId")
                 }
 
                 else -> {
@@ -67,7 +66,7 @@ class DraftService(
         }
 
         var draft =
-            revisions.saveAndFlush(
+            revisions.save(
                 GtfsRevision(
                     feedId = feed.id!!,
                     status = GtfsRevisionStatus.DRAFT,
@@ -103,7 +102,7 @@ class DraftService(
     }
 
     fun get(draftId: Long): GtfsRevision {
-        val r = revisions.findById(draftId).orElseThrow { IllegalArgumentException("no draft $draftId") }
+        val r = revisions.findById(draftId) ?: throw IllegalArgumentException("no draft $draftId")
         if (r.kind != DraftKind.DRAFT) {
             throw IllegalArgumentException("revision $draftId is not a draft")
         }

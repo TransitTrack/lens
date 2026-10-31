@@ -118,7 +118,7 @@ class ScheduleDerivationFailureTest(
         val boom = mock<IngestionPostProcessor>()
         whenever(boom.postProcess(org.mockito.kotlin.any())).doThrow(RuntimeException("boom"))
         val rev = ingestion(boom, ScheduleProperties(enabled = true)).ingestBlocking("sf")
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.errorMessage).isNotNull().contains("boom")
     }
@@ -128,7 +128,7 @@ class ScheduleDerivationFailureTest(
         feed()
         val never = mock<IngestionPostProcessor>()
         val rev = ingestion(never, ScheduleProperties(enabled = false)).ingestBlocking("sf")
-        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(rev.id!!)!!.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         org.mockito.kotlin
             .verify(never, org.mockito.kotlin.never())
             .postProcess(org.mockito.kotlin.any())

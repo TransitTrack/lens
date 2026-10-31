@@ -54,7 +54,7 @@ class TimeEditOpsTest(
         return draft.id!!
     }
 
-    private fun version(draftId: Long): Long = revisions.findById(draftId).orElseThrow().version
+    private fun version(draftId: Long): Long = revisions.findById(draftId)!!.version
 
     /** A trip with at least 3 stops, plus the row at seq index 2 (the 3rd stop). */
     private fun pickTrip(draftId: Long): Pair<String, StopTime> {

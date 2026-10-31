@@ -149,7 +149,7 @@ class DraftServiceTest(
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
         drafts.claimEditor(draft.id!!, "alice")
         drafts.activate(draft.id!!, "alice", force = true)
-        assertThat(revisions.findById(draft.id!!).get().editorClaimBy).isEqualTo(null)
+        assertThat(revisions.findById(draft.id!!)!!.editorClaimBy).isEqualTo(null)
     }
 
     @Test
@@ -195,7 +195,7 @@ class DraftServiceTest(
         val draft = drafts.fork(feedCode, null, null, null)
         val id = draft.id!!
         drafts.discard(id, "nobody")
-        assertThat(revisions.findById(id).isPresent).isEqualTo(false)
+        assertThat(revisions.findById(id) != null).isEqualTo(false)
         assertThat(stops.findByRevisionId(id)).isEmpty()
     }
 
@@ -211,7 +211,7 @@ class DraftServiceTest(
             .isInstanceOf(eu.transittrack.gtfs.draft.edit.LockNotHeldException::class)
 
         drafts.discard(id, "alice")
-        assertThat(revisions.findById(id).isPresent).isEqualTo(false)
+        assertThat(revisions.findById(id) != null).isEqualTo(false)
     }
 
     @Test
@@ -221,7 +221,7 @@ class DraftServiceTest(
         val draft = drafts.fork(feedCode, null, null, null)
         val id = draft.id!!
         drafts.discard(id, "anyone")
-        assertThat(revisions.findById(id).isPresent).isEqualTo(false)
+        assertThat(revisions.findById(id) != null).isEqualTo(false)
     }
 
     @Test
@@ -281,7 +281,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        revisions.findById(draft.id!!).get().let {
+        revisions.findById(draft.id!!)!!.let {
             it.derivationStale = false
             it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[],"publishable":false}"""
             revisions.save(it)
@@ -295,7 +295,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        revisions.findById(draft.id!!).get().let {
+        revisions.findById(draft.id!!)!!.let {
             it.derivationStale = false
             it.lastValidation = """{"errorCount":2,"warningCount":0,"notices":[],"publishable":true}"""
             revisions.save(it)
@@ -308,7 +308,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        revisions.findById(draft.id!!).get().let {
+        revisions.findById(draft.id!!)!!.let {
             it.derivationStale = false
             it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[]}"""
             revisions.save(it)
@@ -321,7 +321,7 @@ class DraftServiceTest(
         val (feedCode, activeRev) = ingestFactory.ingest("minimal-valid")
         cleanupRevs += activeRev
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
-        revisions.findById(draft.id!!).get().let {
+        revisions.findById(draft.id!!)!!.let {
             it.derivationStale = false
             it.lastValidation = """{"errorCount":0,"warningCount":0,"notices":[],"publishable":true}"""
             it.deriving = true
@@ -337,6 +337,6 @@ class DraftServiceTest(
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }
         val activated = drafts.activate(draft.id!!, "nobody", force = true)
         assertThat(activated.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
-        assertThat(revisions.findById(activeRev).get().status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
+        assertThat(revisions.findById(activeRev)!!.status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
     }
 }

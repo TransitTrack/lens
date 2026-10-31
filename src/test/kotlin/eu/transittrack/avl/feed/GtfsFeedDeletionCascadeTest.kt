@@ -99,7 +99,7 @@ class GtfsFeedDeletionCascadeTest(
 
         feedService.delete("w")
 
-        assertThat(revisionRepo.findById(revision.id!!).orElse(null)).isNull()
+        assertThat(revisionRepo.findById(revision.id!!)).isNull()
         assertThat(avlFeedRepo.findByCode("w")).isNull()
         assertThat(vehicleStateRepo.findByFeedCode(avlFeed.code)).isEmpty()
     }

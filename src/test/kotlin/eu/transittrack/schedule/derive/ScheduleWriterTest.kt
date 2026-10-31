@@ -72,7 +72,7 @@ class ScheduleWriterTest(
     @AfterEach
     fun cleanup() {
         writer.deleteForRevision(rev)
-        revisions.findById(rev).ifPresent { revisions.delete(it) }
+        revisions.findById(rev)?.let { revisions.delete(it) }
         feeds.deleteById(feedId)
     }
 

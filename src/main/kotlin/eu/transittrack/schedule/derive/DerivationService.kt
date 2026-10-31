@@ -80,7 +80,7 @@ class DerivationService(
             context?.let { runCatching { it.close(revisionId) } }
         }
 
-        revisions.findById(revisionId).ifPresent {
+        revisions.findById(revisionId)?.let {
             if (it.derivationStale || it.deriving) {
                 it.derivationStale = false
                 it.deriving = false

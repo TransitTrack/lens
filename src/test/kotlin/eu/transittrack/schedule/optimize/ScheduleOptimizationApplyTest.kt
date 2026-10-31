@@ -310,7 +310,7 @@ class ScheduleOptimizationApplyTest(
 
         // Simulate a newer GTFS import superseding the run's frozen revision: flip `base` to
         // SUPERSEDED and introduce a fresh ACTIVE revision for the same feed.
-        val baseRevision = revisions.findById(base).orElseThrow()
+        val baseRevision = revisions.findById(base)!!
         baseRevision.status = GtfsRevisionStatus.SUPERSEDED
         revisions.save(baseRevision)
         val newerActive =

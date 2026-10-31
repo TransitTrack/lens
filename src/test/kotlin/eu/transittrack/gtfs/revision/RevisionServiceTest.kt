@@ -71,7 +71,7 @@ class RevisionServiceTest(
             for (r in revisions.findByFeedNewestFirst(feedId)) {
                 writer.deleteAllForRevision(r.id!!)
             }
-            revisions.deleteAllInBatch(revisions.findByFeedNewestFirst(feedId))
+            revisions.findByFeedNewestFirst(feedId).forEach(revisions::delete)
             feeds.deleteById(feedId)
         }
     }
@@ -85,8 +85,8 @@ class RevisionServiceTest(
         val r2 = svc.createPending(f, "u")
         svc.transition(r2.id!!, GtfsRevisionStatus.READY)
         svc.activate(r2.id!!)
-        assertThat(revisions.findById(r1.id!!).get().status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
-        assertThat(revisions.findById(r2.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(r1.id!!)!!.status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
+        assertThat(revisions.findById(r2.id!!)!!.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         assertThat(svc.activeRevisionId(f)).isEqualTo(r2.id)
     }
 
@@ -102,7 +102,7 @@ class RevisionServiceTest(
             r.id!!
         }
         svc.prune(f, keep = 2)
-        assertThat(revisions.findById(active.id!!).isPresent).isTrue()
+        assertThat(revisions.findById(active.id!!) != null).isTrue()
         assertThat(
             revisions.findByFeedNewestFirst(f).count { it.status == GtfsRevisionStatus.SUPERSEDED },
         ).isEqualTo(2)
@@ -127,7 +127,7 @@ class RevisionServiceTest(
             svc.transition(r.id!!, GtfsRevisionStatus.SUPERSEDED)
         }
         svc.prune(f, keep = 2)
-        assertThat(revisions.findById(base.id!!).isPresent).isTrue()
+        assertThat(revisions.findById(base.id!!) != null).isTrue()
     }
 
     @Test
@@ -150,7 +150,7 @@ class RevisionServiceTest(
             ),
         )
         svc.deriveDates(r.id!!)
-        val loaded = revisions.findById(r.id!!).get()
+        val loaded = revisions.findById(r.id!!)!!
         assertThat(loaded.feedStartDate).isEqualTo(LocalDate.of(2026, 3, 1))
         assertThat(loaded.feedEndDate).isEqualTo(LocalDate.of(2026, 9, 30))
     }
@@ -161,8 +161,8 @@ class RevisionServiceTest(
         val r = svc.createPending(f, "u")
         calendars.save(Calendar(r.id!!, "WK", true, null, null, null, null, null, null, null, null))
         svc.fail(r.id!!, "boom")
-        assertThat(revisions.findById(r.id!!).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
-        assertThat(revisions.findById(r.id!!).get().errorMessage).isEqualTo("boom")
+        assertThat(revisions.findById(r.id!!)!!.status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(revisions.findById(r.id!!)!!.errorMessage).isEqualTo("boom")
         assertThat(calendars.findByRevisionId(r.id!!)).isEmpty()
     }
 }

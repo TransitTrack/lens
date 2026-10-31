@@ -11,11 +11,24 @@ import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Modifying
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
-import org.springframework.transaction.annotation.Transactional
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.Sequence
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.javatime.timestamp
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.json.jsonb
+import org.springframework.stereotype.Repository
+
+import eu.transittrack.db.RowTable
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.revision.GtfsRevisionTable
 
 @Entity
 @Table(name = "draft_edit")
@@ -35,40 +48,107 @@ class DraftEdit(
     var id: Long? = null
 }
 
-interface DraftEditRepository : JpaRepository<DraftEdit, Long> {
-    @Query("select e from DraftEdit e where e.revisionId = :revisionId order by e.seq asc")
-    fun findByRevision(
-        @Param("revisionId") revisionId: Long,
-    ): List<DraftEdit>
+object DraftEditTable : RowTable<DraftEdit>("draft_edit") {
+    val id = long("id").autoIncrement(Sequence("draft_edit_seq", startWith = 1, incrementBy = 50))
+    val revisionId =
+        long("revision_id").references(
+            GtfsRevisionTable.id,
+            onDelete = ReferenceOption.CASCADE,
+            onUpdate = ReferenceOption.NO_ACTION,
+            fkName = "fk_draft_edit_revision",
+        )
+    val seq = integer("seq")
+    val op = text("op")
+    val summary = text("summary")
+    val forward = jsonb<String>("forward", { it }, { it })
+    val inverse = jsonb<String>("inverse", { it }, { it })
+    val appliedAt = timestamp("applied_at")
+    val undone = bool("undone").default(false)
+
+    override val primaryKey = PrimaryKey(id, name = "draft_edit_pkey")
+
+    init {
+        uniqueIndex("uq_draft_edit_revision_seq", revisionId, seq)
+    }
+
+    override fun read(row: ResultRow) =
+        DraftEdit(
+            revisionId = row[revisionId],
+            seq = row[seq],
+            op = row[op],
+            summary = row[summary],
+            forward = row[forward],
+            inverse = row[inverse],
+            appliedAt = row[appliedAt],
+            undone = row[undone],
+        ).also { it.id = row[id] }
+
+    override fun bind(
+        s: UpdateBuilder<*>,
+        row: DraftEdit,
+    ) {
+        s[revisionId] = row.revisionId
+        s[seq] = row.seq
+        s[op] = row.op
+        s[summary] = row.summary
+        s[forward] = row.forward
+        s[inverse] = row.inverse
+        s[appliedAt] = row.appliedAt
+        s[undone] = row.undone
+    }
+}
+
+@Repository
+@ExposedBridge
+class DraftEditRepository {
+    fun findByRevision(revisionId: Long): List<DraftEdit> =
+        DraftEditTable
+            .selectAll()
+            .where { DraftEditTable.revisionId eq revisionId }
+            .orderBy(DraftEditTable.seq, SortOrder.ASC)
+            .map(DraftEditTable::read)
 
     /** The most recently applied (not undone) edit for a revision — the one `undo` would revert. */
-    @Query("select e from DraftEdit e where e.revisionId = :revisionId and e.undone = false order by e.seq desc limit 1")
-    fun findLastApplied(
-        @Param("revisionId") revisionId: Long,
-    ): DraftEdit?
+    fun findLastApplied(revisionId: Long): DraftEdit? =
+        DraftEditTable
+            .selectAll()
+            .where { (DraftEditTable.revisionId eq revisionId) and (DraftEditTable.undone eq false) }
+            .orderBy(DraftEditTable.seq, SortOrder.DESC)
+            .limit(1)
+            .singleOrNull()
+            ?.let(DraftEditTable::read)
 
     /** The earliest undone edit for a revision — the one `redo` would reapply. */
-    @Query("select e from DraftEdit e where e.revisionId = :revisionId and e.undone = true order by e.seq asc limit 1")
-    fun findNextRedo(
-        @Param("revisionId") revisionId: Long,
-    ): DraftEdit?
+    fun findNextRedo(revisionId: Long): DraftEdit? =
+        DraftEditTable
+            .selectAll()
+            .where { (DraftEditTable.revisionId eq revisionId) and (DraftEditTable.undone eq true) }
+            .orderBy(DraftEditTable.seq, SortOrder.ASC)
+            .limit(1)
+            .singleOrNull()
+            ?.let(DraftEditTable::read)
 
-    @Query("select count(e) from DraftEdit e where e.revisionId = :revisionId")
-    fun countByRevision(
-        @Param("revisionId") revisionId: Long,
-    ): Long
+    fun countByRevision(revisionId: Long): Long =
+        DraftEditTable
+            .selectAll()
+            .where { DraftEditTable.revisionId eq revisionId }
+            .count()
 
-    @Modifying
-    @Transactional
-    @Query("delete from DraftEdit e where e.revisionId = :revisionId and e.undone = true")
-    fun deleteUndone(
-        @Param("revisionId") revisionId: Long,
-    ): Int
+    fun deleteUndone(revisionId: Long): Int =
+        DraftEditTable.deleteWhere { (DraftEditTable.revisionId eq revisionId) and (DraftEditTable.undone eq true) }
 
-    @Modifying
-    @Transactional
-    @Query("delete from DraftEdit e where e.revisionId = :revisionId")
-    fun deleteForRevision(
-        @Param("revisionId") revisionId: Long,
-    ): Int
+    fun deleteForRevision(revisionId: Long): Int = DraftEditTable.deleteWhere { DraftEditTable.revisionId eq revisionId }
+
+    /** Inserts when [row] has no id, else updates it in place; returns [row] with its id set. */
+    fun save(row: DraftEdit): DraftEdit {
+        val id = row.id
+        if (id == null) {
+            row.id = DraftEditTable.insert { DraftEditTable.bind(it, row) }[DraftEditTable.id]
+        } else {
+            DraftEditTable.update({ DraftEditTable.id eq id }) { DraftEditTable.bind(it, row) }
+        }
+        return row
+    }
+
+    fun findAll(): List<DraftEdit> = DraftEditTable.selectAll().map(DraftEditTable::read)
 }

@@ -57,7 +57,7 @@ class BulkShiftOpTest(
         derivation.rederive(draftId)
     }
 
-    private fun version(draftId: Long): Long = revisions.findById(draftId).orElseThrow().version
+    private fun version(draftId: Long): Long = revisions.findById(draftId)!!.version
 
     private fun minDeparture(
         draftId: Long,

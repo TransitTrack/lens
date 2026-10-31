@@ -158,7 +158,7 @@ class DraftEditIntegrationTest(
 
         // --- rederive the draft ---
         derivationService.rederive(id)
-        assertThat(revisions.findById(id).get().derivationStale).isEqualTo(false)
+        assertThat(revisions.findById(id)!!.derivationStale).isEqualTo(false)
 
         // added trip is now a derived trip (has a pattern)
         val addedTrip = trips.findByTripId(id, addedTripId)!!
@@ -173,7 +173,7 @@ class DraftEditIntegrationTest(
 
         // --- undo the entire chain (four edits) ---
         repeat(4) {
-            val v = revisions.findById(id).get().version
+            val v = revisions.findById(id)!!.version
             svc.undo(id, "alice", v)
         }
 
@@ -186,7 +186,7 @@ class DraftEditIntegrationTest(
 
         // --- redo the first two edits (shift, then dwell) ---
         repeat(2) {
-            val v = revisions.findById(id).get().version
+            val v = revisions.findById(id)!!.version
             svc.redo(id, "alice", v)
         }
         assertThat(arrivalsOf(id, "T1")).isEqualTo(listOf(28920, 29520, 30120, 30720))

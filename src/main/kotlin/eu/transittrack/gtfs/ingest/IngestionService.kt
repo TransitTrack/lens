@@ -120,7 +120,7 @@ class IngestionService(
 
     fun runPipeline(revisionId: Long) {
         val feedId = revisionService.revision(revisionId).feedId
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId) ?: throw NoSuchElementException("no feed $feedId")
         val tempDir = createTempDirectory(tempRoot(), "gtfs-$revisionId-")
         val zipPath = tempDir.resolve("feed.zip")
         val startedAt = Instant.now()

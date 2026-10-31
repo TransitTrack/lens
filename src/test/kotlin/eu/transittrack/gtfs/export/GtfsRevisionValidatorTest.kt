@@ -43,7 +43,7 @@ class GtfsRevisionValidatorTest(
         rev = r
         val result = validator.validate(r)
         assertThat(result.publishable).isTrue()
-        val persisted = revisions.findById(r).get().lastValidation
+        val persisted = revisions.findById(r)!!.lastValidation
         assertThat(persisted).isNotNull()
         val node = json.readTree(persisted!!)
         assertThat(node.path("errorCount").isNumber).isTrue()
@@ -64,7 +64,7 @@ class GtfsRevisionValidatorTest(
         val result = validator.validate(r)
         assertThat(result.errorCount).isGreaterThan(0)
         assertThat(result.publishable).isFalse()
-        val node = json.readTree(revisions.findById(r).get().lastValidation!!)
+        val node = json.readTree(revisions.findById(r)!!.lastValidation!!)
         assertThat(node.path("errorCount").asInt(-1)).isGreaterThan(0)
         assertThat(node.path("publishable").asBoolean(true)).isFalse()
     }

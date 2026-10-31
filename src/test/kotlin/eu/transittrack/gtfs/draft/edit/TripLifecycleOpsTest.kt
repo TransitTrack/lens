@@ -51,7 +51,7 @@ class TripLifecycleOpsTest(
         return draft.id!!
     }
 
-    private fun version(draftId: Long): Long = revisions.findById(draftId).orElseThrow().version
+    private fun version(draftId: Long): Long = revisions.findById(draftId)!!.version
 
     private fun pickTripWithStops(draftId: Long): Trip {
         val tid =

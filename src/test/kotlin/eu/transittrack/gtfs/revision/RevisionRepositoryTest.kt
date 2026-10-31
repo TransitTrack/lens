@@ -60,12 +60,12 @@ class RevisionRepositoryTest(
         // Data JPA repository methods are @Transactional(REQUIRED) internally), so `save` above
         // already committed and this `findById` opens a fresh session — no explicit flush/detach
         // needed to force a real SELECT and exercise the jsonb -> List/Map deserialization path.
-        val loaded = revisions.findById(r.id!!).get()
+        val loaded = revisions.findById(r.id!!)!!
         assertThat(loaded.filesPresent).isEqualTo(listOf("agency.txt"))
         assertThat(loaded.rowCounts).key("gtfs_agency").isEqualTo(1L)
 
         assertFailure {
-            revisions.saveAndFlush(newRev(f.id!!, GtfsRevisionStatus.ACTIVE))
+            revisions.save(newRev(f.id!!, GtfsRevisionStatus.ACTIVE))
         }.isInstanceOf<DataIntegrityViolationException>()
     }
 

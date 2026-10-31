@@ -196,7 +196,7 @@ class ScheduleOptimizationService(
             "only PENDING recommendations can be applied"
         }
 
-        val revision = revisions.findById(run.revisionId).orElse(null)
+        val revision = revisions.findById(run.revisionId)
         checkNotNull(revision) { "run $runId's frozen revision ${run.revisionId} no longer exists" }
         val feed = feeds.findByCode(run.feedCode) ?: throw IllegalStateException("feed ${run.feedCode} no longer exists")
         check(revision.feedId == feed.id) { "run $runId's frozen revision no longer belongs to its feed" }
@@ -228,14 +228,7 @@ class ScheduleOptimizationService(
         }
 
         val draft = draftService.fork(feed.code, run.revisionId, label, editor)
-        val lock = draftService.claimEditor(draft.id!!, editor)
-        // claimEditor commits its lock via a bulk UPDATE (see GtfsRevisionRepository.tryClaimEditor),
-        // which does not refresh Hibernate's already-managed `draft` instance from this same
-        // transaction's persistence context. DraftEditService.applyBatch's guard re-reads this same
-        // managed row (identity map), so it would otherwise see the pre-claim, unlocked state and
-        // reject with LockNotHeldException. Sync the in-memory fields to what was just committed.
-        draft.editorClaimBy = lock.editor
-        draft.editorClaimExpiresAt = lock.expiresAt
+        draftService.claimEditor(draft.id!!, editor)
         val updated = draftEditService.applyBatch(draft.id!!, editor, draft.version, ops)
 
         selected.forEach { it.status = OptimizationRecommendationStatus.APPLIED }

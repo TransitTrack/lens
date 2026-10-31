@@ -54,7 +54,7 @@ class ScheduleComparisonServiceTest(
         return base to draft.id!!
     }
 
-    private fun version(draftId: Long): Long = revisions.findById(draftId).orElseThrow().version
+    private fun version(draftId: Long): Long = revisions.findById(draftId)!!.version
 
     private fun aTripId(revisionId: Long): String = stopTimes.findByRevisionId(revisionId).first().tripId
 
@@ -112,7 +112,7 @@ class ScheduleComparisonServiceTest(
     @Test
     fun `comparing revisions from different feeds is rejected`() {
         val (base, _) = forkDraft()
-        val baseRevision = revisions.findById(base).orElseThrow()
+        val baseRevision = revisions.findById(base)!!
         val otherFeed =
             feedService.register(
                 FeedInput("schedule-sample-other-${System.nanoTime()}", "OTHER", null, "http://x/g.zip", null),
@@ -182,7 +182,7 @@ class ScheduleComparisonServiceTest(
     fun `headway summaries are populated once both sides are rebuilt`() {
         val (base, draftId) = forkDraft()
         derivation.rederive(draftId)
-        val fresh = revisions.findById(draftId).orElseThrow()
+        val fresh = revisions.findById(draftId)!!
         assertThat(fresh.derivationStale).isEqualTo(false)
 
         val cmp = comparisonService.compare(base, draftId)

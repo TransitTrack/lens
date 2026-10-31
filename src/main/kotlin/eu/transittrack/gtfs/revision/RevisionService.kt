@@ -34,7 +34,7 @@ class RevisionService(
         feedId: Long,
         sourceUrl: String,
     ): GtfsRevision =
-        revisions.saveAndFlush(
+        revisions.save(
             GtfsRevision(
                 feedId = feedId,
                 status = GtfsRevisionStatus.PENDING,
@@ -122,7 +122,7 @@ class RevisionService(
                     current.supersededAt = Instant.now()
                     // Flush the demotion before the promotion so the "one ACTIVE per feed"
                     // partial unique index never sees two ACTIVE rows mid-transaction.
-                    revisions.saveAndFlush(current)
+                    revisions.save(current)
                 }
             }
         r.status = GtfsRevisionStatus.ACTIVE
@@ -195,9 +195,9 @@ class RevisionService(
 
     fun hasInProgress(feedId: Long): Boolean = revisions.existsByFeedAndStatusIn(feedId, GtfsRevisionStatus.NON_TERMINAL_IN_PROGRESS)
 
-    fun revision(id: Long): GtfsRevision = revisions.findById(id).orElseThrow()
+    fun revision(id: Long): GtfsRevision = revisions.findById(id) ?: throw NoSuchElementException("no revision $id")
 
-    fun findOrNull(id: Long): GtfsRevision? = revisions.findById(id).orElse(null)
+    fun findOrNull(id: Long): GtfsRevision? = revisions.findById(id)
 
     fun revisionsForFeed(feedId: Long): List<GtfsRevision> = revisions.findByFeedNewestFirst(feedId)
 }

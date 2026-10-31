@@ -43,7 +43,7 @@ class CalendarEditOpsTest(
         return draft.id!!
     }
 
-    private fun version(draftId: Long): Long = revisions.findById(draftId).orElseThrow().version
+    private fun version(draftId: Long): Long = revisions.findById(draftId)!!.version
 
     @Test
     fun `SetCalendarOp creates a new service then undo removes it`() {

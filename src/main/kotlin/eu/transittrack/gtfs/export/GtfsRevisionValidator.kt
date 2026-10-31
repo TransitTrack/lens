@@ -55,7 +55,7 @@ class GtfsRevisionValidator(
             // Persist the NORMALISED summary ({"errorCount":N,"warningCount":M,"notices":[...],
             // "publishable":B}) — DraftService.activate reads `publishable` from it and the web
             // app's draft pages read the rest.
-            revisions.findById(revisionId).ifPresent {
+            revisions.findById(revisionId)?.let {
                 it.lastValidation = json.writeValueAsString(result)
                 revisions.save(it)
             }

@@ -84,7 +84,7 @@ class StatelessSessionRevisionWriterTest(
     fun cleanup() {
         writer.deleteAllForRevision(rev1)
         writer.deleteAllForRevision(rev2)
-        revisions.deleteAllById(listOf(rev1, rev2))
+        listOf(rev1, rev2).forEach(revisions::deleteById)
         feeds.deleteById(feedId)
     }
 

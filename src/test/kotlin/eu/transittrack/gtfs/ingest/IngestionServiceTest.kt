@@ -121,7 +121,7 @@ class IngestionServiceTest(
         for (feedId in createdFeeds) {
             val revs = revisions.findByFeedNewestFirst(feedId)
             for (r in revs) writer.deleteAllForRevision(r.id!!)
-            revisions.deleteAllInBatch(revs)
+            revs.forEach(revisions::delete)
             feeds.deleteById(feedId)
         }
         createdFeeds.clear()
@@ -132,7 +132,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("minimal-valid").ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         assertThat(routes.findByRevisionId(rev.id!!)).hasSize(1)
         assertThat(stopTimes.findByTripId(rev.id!!, "T1")).hasSize(2)
@@ -147,7 +147,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("missing-required-file").ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.errorMessage).isNotNull().contains("1 error")
         assertThat(loaded.validationReport).isNotNull().contains("ARC_004")
@@ -159,7 +159,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("malformed-csv").ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.validationReport).isNotNull().contains("ARC_013")
         assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
@@ -172,7 +172,7 @@ class IngestionServiceTest(
         svc.ingestBlocking("f")
         val second = svc.ingestBlocking("f")
 
-        assertThat(revisions.findById(second.id!!).get().status).isEqualTo(GtfsRevisionStatus.UNCHANGED)
+        assertThat(revisions.findById(second.id!!)!!.status).isEqualTo(GtfsRevisionStatus.UNCHANGED)
     }
 
     @Test
@@ -188,7 +188,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("dangling-refs").ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         assertThat(loaded.validationReport).isNotNull().contains("TRP_002")
         assertThat(LoadValidationReport.fromJson(loaded.validationReport!!)).isNotNull()
@@ -199,7 +199,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("dangling-refs", strict = true).ingestBlocking("f")
 
-        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.FAILED)
+        assertThat(revisions.findById(rev.id!!)!!.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
         assertThat(stopTimes.findByRevisionId(rev.id!!)).isEmpty()
     }
@@ -209,7 +209,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("minimal-valid", strict = true).ingestBlocking("f")
 
-        assertThat(revisions.findById(rev.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(rev.id!!)!!.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
     }
 
     @Test
@@ -227,7 +227,7 @@ class IngestionServiceTest(
             }
         val rev = service("unused", downloader = notAZip).ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.validationReport).isNotNull().contains("Fatal")
         assertThat(routes.findByRevisionId(rev.id!!)).isEmpty()
@@ -238,7 +238,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("stops-all-missing-id").ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.errorMessage).isNotNull().contains("stops.txt")
     }
@@ -248,7 +248,7 @@ class IngestionServiceTest(
         feed()
         val rev = service("stop-missing-id").ingestBlocking("f")
 
-        val loaded = revisions.findById(rev.id!!).get()
+        val loaded = revisions.findById(rev.id!!)!!
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
         assertThat(loaded.rowCounts["gtfs_stop"]).isEqualTo(2L)
     }
@@ -259,10 +259,10 @@ class IngestionServiceTest(
         val first = service("minimal-valid").ingestBlocking("f")
         val second = service("minimal-valid-v2").ingestBlocking("f")
 
-        assertThat(revisions.findById(first.id!!).get().status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
-        assertThat(revisions.findById(second.id!!).get().status).isEqualTo(GtfsRevisionStatus.ACTIVE)
-        assertThat(revisions.findById(first.id!!).isPresent).isTrue()
-        assertThat(revisions.findById(second.id!!).isPresent).isTrue()
+        assertThat(revisions.findById(first.id!!)!!.status).isEqualTo(GtfsRevisionStatus.SUPERSEDED)
+        assertThat(revisions.findById(second.id!!)!!.status).isEqualTo(GtfsRevisionStatus.ACTIVE)
+        assertThat(revisions.findById(first.id!!) != null).isTrue()
+        assertThat(revisions.findById(second.id!!) != null).isTrue()
         assertThat(routes.findByRevisionId(second.id!!)).hasSize(2)
     }
 }

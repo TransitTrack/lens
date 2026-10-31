@@ -178,7 +178,7 @@ class OptimizationEndToEndTest(
         }
         assertThat(job.state).isEqualTo(DraftJob.State.SUCCEEDED)
 
-        val rebuilt = revisions.findById(applied.id!!).orElseThrow()
+        val rebuilt = revisions.findById(applied.id!!)!!
         assertThat(rebuilt.derivationStale).isFalse()
         assertThat(rebuilt.lastValidation).isNotNull()
 

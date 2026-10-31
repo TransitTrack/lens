@@ -59,7 +59,7 @@ class DerivationServiceTest(
 
         assertThat(patterns.findByRevisionId(rev).size).isEqualTo(patternsAfterIngest)
         assertThat(scheduleTimes.findByRevisionId(rev).size).isEqualTo(timesAfterIngest)
-        assertThat(revisions.findById(rev).get().derivationStale).isEqualTo(false)
+        assertThat(revisions.findById(rev)!!.derivationStale).isEqualTo(false)
     }
 
     /**
