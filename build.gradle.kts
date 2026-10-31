@@ -48,6 +48,7 @@ val assertkVersion = project.property("assertkVersion") as String
 val protobufVersion = project.property("protobufVersion") as String
 val shedlockVersion = project.property("shedlockVersion") as String
 val kotlinxBenchmarkVersion = project.property("kotlinxBenchmarkVersion") as String
+val exposedVersion = project.property("exposedVersion") as String
 
 dependencies {
     implementation(project(":extension-api"))
@@ -58,6 +59,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
+    implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
     implementation("io.github.transittrack:gtfs-analyzer:$gtfsAnalyzerVersion")
     modules {
@@ -73,6 +75,11 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
     implementation("com.google.guava:guava:$guavaVersion")
+
+    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
 
     runtimeOnly("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
@@ -90,6 +97,8 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.willowtreeapps.assertk:assertk:$assertkVersion")
+    testImplementation("org.jetbrains.exposed:exposed-migration-core:$exposedVersion")
+    testImplementation("org.jetbrains.exposed:exposed-migration-jdbc:$exposedVersion")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
