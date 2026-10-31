@@ -2,9 +2,9 @@ package eu.transittrack.schedule.model
 
 import org.springframework.data.jpa.repository.Query
 
-import eu.transittrack.gtfs.model.RevisionScopedRepository
+import eu.transittrack.gtfs.model.JpaRevisionScopedRepository
 
-interface TripPatternRepository : RevisionScopedRepository<TripPattern, Long> {
+interface TripPatternRepository : JpaRevisionScopedRepository<TripPattern, Long> {
     @Query("select p from TripPattern p where p.revisionId = :revisionId and p.routeId = :routeId")
     fun findByRouteId(
         revisionId: Long,
@@ -18,7 +18,7 @@ interface TripPatternRepository : RevisionScopedRepository<TripPattern, Long> {
     ): TripPattern?
 }
 
-interface StopPathRepository : RevisionScopedRepository<StopPath, Long> {
+interface StopPathRepository : JpaRevisionScopedRepository<StopPath, Long> {
     @Query(
         "select sp from StopPath sp " +
             "where sp.revisionId = :revisionId and sp.tripPatternId = :tripPatternId order by sp.stopPathIndex",
@@ -35,7 +35,7 @@ interface StopPathRepository : RevisionScopedRepository<StopPath, Long> {
     ): List<StopPath>
 }
 
-interface ScheduleTimeRepository : RevisionScopedRepository<ScheduleTime, Long> {
+interface ScheduleTimeRepository : JpaRevisionScopedRepository<ScheduleTime, Long> {
     @Query(
         "select st from ScheduleTime st " +
             "where st.revisionId = :revisionId and st.tripId = :tripId order by st.stopPathIndex",
@@ -79,7 +79,7 @@ data class ServiceStopTime(
     val serviceId: String,
 )
 
-interface BlockRepository : RevisionScopedRepository<Block, Long> {
+interface BlockRepository : JpaRevisionScopedRepository<Block, Long> {
     @Query("select b from Block b where b.revisionId = :revisionId and b.blockId = :blockId")
     fun findByBlockId(
         revisionId: Long,
@@ -103,7 +103,7 @@ interface BlockRepository : RevisionScopedRepository<Block, Long> {
     ): List<Block>
 }
 
-interface BlockTripRepository : RevisionScopedRepository<BlockTrip, Long> {
+interface BlockTripRepository : JpaRevisionScopedRepository<BlockTrip, Long> {
     @Query(
         "select bt from BlockTrip bt " +
             "where bt.revisionId = :revisionId and bt.blockId = :blockId order by bt.listIndex",

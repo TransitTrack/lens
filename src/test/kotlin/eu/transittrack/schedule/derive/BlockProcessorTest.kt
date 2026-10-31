@@ -27,8 +27,8 @@ import eu.transittrack.gtfs.model.StopRepository
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.store.ExposedRevisionWriter
 import eu.transittrack.gtfs.store.RevisionWriter
-import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
@@ -39,7 +39,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 @PostgresSliceTest
 @AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
-@Import(StatelessSessionRevisionWriter::class, ScheduleWriter::class, DerivedGtfsWriter::class)
+@Import(ExposedRevisionWriter::class, ScheduleWriter::class, DerivedGtfsWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class BlockProcessorTest(
     @Autowired val feeds: GtfsFeedRepository,

@@ -141,7 +141,7 @@ class StopPassageDerivationService(
 
         val tripCache = mutableMapOf<Long, Trip?>()
 
-        fun tripFor(tripRowId: Long): Trip? = tripCache.getOrPut(tripRowId) { trips.findById(tripRowId).orElse(null) }
+        fun tripFor(tripRowId: Long): Trip? = tripCache.getOrPut(tripRowId) { trips.findById(tripRowId) }
 
         data class ResolvedMatch(
             val match: VehicleMatch,

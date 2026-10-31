@@ -35,7 +35,7 @@ class AvlNestedResolvers(
     fun trip(v: VehicleDto): TripDto? {
         val rev = v.revisionId ?: return null
         val id = v.tripRowId ?: return null
-        return trips.findById(id).orElse(null)?.let { TripDto.of(it, rev, v.gtfsFeedCode) }
+        return trips.findById(id)?.let { TripDto.of(it, rev, v.gtfsFeedCode) }
     }
 
     @SchemaMapping(typeName = "Vehicle")
@@ -62,8 +62,7 @@ class AvlNestedResolvers(
     }
 
     @SchemaMapping(typeName = "AvlReportMatch")
-    fun trip(m: AvlReportMatchDto): TripDto? =
-        trips.findById(m.tripRowId).orElse(null)?.let { TripDto.of(it, m.revisionId, m.gtfsFeedCode) }
+    fun trip(m: AvlReportMatchDto): TripDto? = trips.findById(m.tripRowId)?.let { TripDto.of(it, m.revisionId, m.gtfsFeedCode) }
 
     @SchemaMapping(typeName = "AvlReportMatch")
     fun block(m: AvlReportMatchDto): BlockDto? {

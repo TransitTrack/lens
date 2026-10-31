@@ -107,5 +107,19 @@ class Extent {
 
         /** Union of [extents]; empty ones are ignored. */
         fun ofExtents(extents: Iterable<Extent>): Extent = Extent().apply { extents.forEach(::add) }
+
+        /** The extent with exactly these bounds, as stored (e.g. read back from its columns). */
+        fun of(
+            minLat: Double,
+            maxLat: Double,
+            minLon: Double,
+            maxLon: Double,
+        ): Extent =
+            Extent().apply {
+                this.minLat = minLat
+                this.maxLat = maxLat
+                this.minLon = minLon
+                this.maxLon = maxLon
+            }
     }
 }

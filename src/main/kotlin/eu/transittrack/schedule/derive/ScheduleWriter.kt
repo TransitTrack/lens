@@ -17,7 +17,7 @@ data class StopPathLayoverUpdate(
 /**
  * Bulk write path for the derived schedule model, backed by a Hibernate
  * [org.hibernate.StatelessSession] (no persistence context; JDBC-batched). Mirrors
- * [eu.transittrack.gtfs.store.StatelessSessionRevisionWriter].
+ * the former Hibernate stateless-session `RevisionWriter`.
  */
 @Component
 @ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")

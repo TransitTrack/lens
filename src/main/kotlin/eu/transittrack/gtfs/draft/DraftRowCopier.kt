@@ -17,7 +17,7 @@ object DraftRawTables {
             "trip_patterns",
         )
 
-    val NAMES: List<String> = GtfsTables.ALL.filterNot { it in DERIVED }
+    val NAMES: List<String> = GtfsTables.ALL.map { it.tableName }.filterNot { it in DERIVED }
 
     /**
      * Columns on `trips` owned by schedule derivation (written by `DerivedGtfsWriter`, cleared by

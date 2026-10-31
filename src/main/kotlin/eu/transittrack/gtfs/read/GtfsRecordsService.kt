@@ -25,7 +25,7 @@ class GtfsRecordsService(
         revisionId: String?,
     ): List<Map<String, Any?>> {
         val table = TABLE_BY_ENUM[tableEnum] ?: throw IllegalArgumentException("unknown table '$tableEnum'")
-        require(table in GtfsTables.ALL) { "unknown table '$tableEnum'" }
+        require(GtfsTables.ALL.any { it.tableName == table }) { "unknown table '$tableEnum'" }
         val rev = resolver.resolve(feedCode, revisionId)
         return jdbc.queryForList("select * from $table where revision_id = ?", rev)
     }

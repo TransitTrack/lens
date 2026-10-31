@@ -52,8 +52,8 @@ import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
+import eu.transittrack.gtfs.store.ExposedRevisionWriter
 import eu.transittrack.gtfs.store.RevisionWriter
-import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.support.noOpEventPublisher
@@ -76,7 +76,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 @AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
 @Import(
-    StatelessSessionRevisionWriter::class,
+    ExposedRevisionWriter::class,
     RevisionService::class,
     GtfsFeedService::class,
     ScheduleWriter::class,

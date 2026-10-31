@@ -60,10 +60,10 @@ class DraftRowCopierTest(
             )
         val base = revWith(feed.id!!, GtfsRevisionStatus.ACTIVE)
         val s =
-            stops.saveAndFlush(
+            stops.save(
                 Stop(base.id!!, "S1", null, "First", null, null, 45.0, 21.0, null, null, null, null, null, null, null, null),
             )
-        stopTimes.saveAndFlush(
+        stopTimes.save(
             StopTime(
                 base.id!!, "T1", 1, "S1", 21600, 21600, null, null, null, null, null, null, null, null, null, null, null, null, null,
             ),
@@ -83,7 +83,7 @@ class DraftRowCopierTest(
 
         val copy = copiedStops[0]
         copy.stopName = "Changed"
-        stops.saveAndFlush(copy)
+        stops.save(copy)
 
         val baseStop = stops.findByStopId(base.id!!, "S1")
         assertThat(baseStop).isNotNull()

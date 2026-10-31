@@ -111,7 +111,7 @@ class ScheduleNestedResolvers(
 
     @SchemaMapping(typeName = "BlockTrip")
     fun trip(bt: BlockTripDto): TripDto? =
-        trips.findById(bt.tripId).orElse(null)?.let {
+        trips.findById(bt.tripId)?.let {
             TripDto.of(it, bt.revisionId, bt.feedCode)
         }
 

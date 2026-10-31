@@ -18,7 +18,7 @@ class CachedTripReader(
     fun byRowId(
         revisionId: Long,
         tripRowId: Long,
-    ): Trip? = trips.findById(tripRowId).orElse(null)
+    ): Trip? = trips.findById(tripRowId)
 
     @Cacheable(AvlCaches.TRIP_BY_GTFS_ID, key = "#revisionId + ':' + #gtfsTripId")
     fun byGtfsId(

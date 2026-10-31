@@ -2,9 +2,9 @@ package eu.transittrack.schedule.model
 
 import org.springframework.data.jpa.repository.Query
 
-import eu.transittrack.gtfs.model.RevisionScopedRepository
+import eu.transittrack.gtfs.model.JpaRevisionScopedRepository
 
-interface TravelTimesForStopPathRepository : RevisionScopedRepository<TravelTimesForStopPath, Long> {
+interface TravelTimesForStopPathRepository : JpaRevisionScopedRepository<TravelTimesForStopPath, Long> {
     @Query(
         "select t from TravelTimesForStopPath t " +
             "where t.revisionId = :revisionId and t.tripPatternId = :tripPatternId order by t.stopPathIndex",

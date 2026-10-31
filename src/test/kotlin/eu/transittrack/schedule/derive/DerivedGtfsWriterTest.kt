@@ -10,15 +10,15 @@ import org.springframework.context.annotation.Import
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.store.ExposedRevisionWriter
 import eu.transittrack.gtfs.store.RevisionWriter
-import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.schedule.model.TripPattern
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
-@Import(StatelessSessionRevisionWriter::class, DerivedGtfsWriter::class, ScheduleWriter::class)
+@Import(ExposedRevisionWriter::class, DerivedGtfsWriter::class, ScheduleWriter::class)
 class DerivedGtfsWriterTest(
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,

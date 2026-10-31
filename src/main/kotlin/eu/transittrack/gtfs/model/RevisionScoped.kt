@@ -7,12 +7,27 @@ import jakarta.persistence.Id
 import jakarta.persistence.MappedSuperclass
 import jakarta.persistence.SequenceGenerator
 
-import com.google.common.reflect.TypeToken
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.Sequence
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.NoRepositoryBean
 import org.springframework.transaction.annotation.Transactional
+
+import eu.transittrack.Extent
+import eu.transittrack.db.RowTable
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.revision.GtfsRevisionTable
 
 /**
  * Base class for all revision-scoped GTFS entities.
@@ -36,11 +51,124 @@ abstract class RevisionScoped(
 }
 
 /**
- * Shared query surface for every [RevisionScoped] entity. Queries use JPQL with the SpEL
- * `#{#entityName}` placeholder so one declaration serves all concrete repositories.
+ * Base table for every [RevisionScoped] row type: the `id` drawn from `gtfs_entity_seq` and the
+ * `revision_id` FK to `gtfs_revision` (cascading delete, named [revisionFkName]). [rowClass] is the
+ * row type this table stores, so generic writers can route a row to its table by runtime class.
+ */
+abstract class RevisionScopedTable<R : RevisionScoped>(
+    name: String,
+    val rowClass: Class<R>,
+    revisionFkName: String,
+) : RowTable<R>(name) {
+    val id = long("id").autoIncrement(Sequence("gtfs_entity_seq", startWith = 1, incrementBy = 500))
+    val revisionId =
+        long("revision_id").references(
+            GtfsRevisionTable.id,
+            onDelete = ReferenceOption.CASCADE,
+            onUpdate = ReferenceOption.NO_ACTION,
+            fkName = revisionFkName,
+        )
+
+    override val primaryKey = PrimaryKey(id, name = "${name}_pkey")
+
+    /** Sets [RevisionScoped.id] (not a constructor parameter) on a row built by [read]. */
+    protected fun <T : R> T.withId(row: ResultRow): T = also { it.id = row[this@RevisionScopedTable.id] }
+}
+
+/**
+ * The four nullable bounding-box columns an [Extent] is flattened into (JPA's `@Embedded`
+ * mapping): no extent is stored as four NULLs and read back as `null`.
+ */
+class ExtentColumns(
+    table: Table,
+) {
+    val minLat = with(table) { double("min_lat").nullable() }
+    val minLon = with(table) { double("min_lon").nullable() }
+    val maxLat = with(table) { double("max_lat").nullable() }
+    val maxLon = with(table) { double("max_lon").nullable() }
+
+    fun read(row: ResultRow): Extent? {
+        val bounds = listOf(row[minLat], row[maxLat], row[minLon], row[maxLon])
+        if (bounds.all { it == null }) return null
+        val (mnLat, mxLat, mnLon, mxLon) = bounds.map { it ?: Double.NaN }
+        return Extent.of(minLat = mnLat, maxLat = mxLat, minLon = mnLon, maxLon = mxLon)
+    }
+
+    fun bind(
+        s: UpdateBuilder<*>,
+        e: Extent?,
+    ) {
+        s[minLat] = e?.minLat
+        s[minLon] = e?.minLon
+        s[maxLat] = e?.maxLat
+        s[maxLon] = e?.maxLon
+    }
+}
+
+/**
+ * Shared query surface for every [RevisionScoped] table. Concrete repositories extend it with their
+ * own explicit queries.
+ *
+ * Annotated [ExposedBridge] itself (and every member `open`): the bridge aspect only matches
+ * methods declared in an annotated class, and a CGLIB proxy cannot route final members to the
+ * target.
+ */
+@ExposedBridge
+open class RevisionScopedRepository<R : RevisionScoped>(
+    open val table: RevisionScopedTable<R>,
+) {
+    open fun findByRevisionId(revisionId: Long): List<R> =
+        table
+            .selectAll()
+            .where { table.revisionId eq revisionId }
+            .map(table::read)
+
+    open fun deleteByRevisionId(revisionId: Long): Int = table.deleteWhere { table.revisionId eq revisionId }
+
+    open fun findById(id: Long): R? =
+        table
+            .selectAll()
+            .where { table.id eq id }
+            .singleOrNull()
+            ?.let(table::read)
+
+    open fun findAllById(ids: Iterable<Long>): List<R> =
+        table
+            .selectAll()
+            .where { table.id inList ids.toList() }
+            .map(table::read)
+
+    /** Inserts when [row] has no id, else updates it in place; returns [row] with its id set. */
+    open fun save(row: R): R {
+        val id = row.id
+        if (id == null) {
+            row.id = table.insert { table.bind(it, row) }[table.id]
+        } else {
+            table.update({ table.id eq id }) { table.bind(it, row) }
+        }
+        return row
+    }
+
+    open fun saveAll(rows: Iterable<R>): List<R> = rows.map(::save)
+
+    open fun delete(row: R) {
+        val id = row.id ?: return
+        table.deleteWhere { table.id eq id }
+    }
+
+    open fun deleteAll(rows: Iterable<R>) {
+        val ids = rows.mapNotNull { it.id }
+        if (ids.isEmpty()) return
+        table.deleteWhere { table.id inList ids }
+    }
+}
+
+/**
+ * Interim: the Spring Data base for the derived schedule repositories, which are still JPA until
+ * they are ported to Exposed. Deleted with them.
  */
 @NoRepositoryBean
-interface RevisionScopedRepository<E : RevisionScoped, ID : Any> : JpaRepository<E, ID> {
+interface JpaRevisionScopedRepository<E : RevisionScoped, ID : Any> : JpaRepository<E, ID> {
     @Query("select e from #{#entityName} e where e.revisionId = :revisionId")
     fun findByRevisionId(revisionId: Long): List<E>
 
@@ -48,19 +176,4 @@ interface RevisionScopedRepository<E : RevisionScoped, ID : Any> : JpaRepository
     @Transactional
     @Query("delete from #{#entityName} e where e.revisionId = :revisionId")
     fun deleteByRevisionId(revisionId: Long): Int
-
-    fun getManagedType(): Class<E> {
-        // 1. Capture the runtime class of the concrete subclass (e.g., AgencyRepository)
-        val contextToken = TypeToken.of(javaClass)
-
-        // 2. Resolve the concrete type bound to the BaseRepository class declaration
-        val superTypeToken = contextToken.getSupertype(RevisionScopedRepository::class.java)
-
-        // 3. Resolve the type parameter E
-        val entityType = superTypeToken.resolveType(RevisionScopedRepository::class.java.typeParameters[0])
-
-        // 4. Safely cast and return the raw java class
-        @Suppress("UNCHECKED_CAST")
-        return entityType.rawType as Class<E>
-    }
 }

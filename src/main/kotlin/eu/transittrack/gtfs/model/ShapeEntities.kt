@@ -4,7 +4,14 @@ import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
 
-import org.springframework.data.jpa.repository.Query
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.springframework.stereotype.Repository
+
+import eu.transittrack.db.bridge.ExposedBridge
 
 /**
  * Typed JPA entities for GTFS `shapes.txt`.
@@ -35,21 +42,88 @@ class ShapePoint(
     var shapeDistTraveled: Double?,
 ) : RevisionScoped(revisionId)
 
-interface ShapeRepository : RevisionScopedRepository<Shape, Long> {
-    @Query("select s from Shape s where s.revisionId = :revisionId and s.shapeId = :shapeId")
-    fun findByShapeId(
-        revisionId: Long,
-        shapeId: String,
-    ): Shape?
+object ShapeTable : RevisionScopedTable<Shape>("shapes", Shape::class.java, "fk_shape_rev") {
+    val shapeId = varchar("shape_id", 255)
+    val pointCount = integer("point_count")
+    val lengthM = double("length_m").nullable()
+
+    init {
+        uniqueIndex("uq_shape_rev_id", revisionId, shapeId)
+    }
+
+    override fun read(row: ResultRow) =
+        Shape(revisionId = row[revisionId], shapeId = row[shapeId], pointCount = row[pointCount], lengthM = row[lengthM]).withId(row)
+
+    override fun bind(
+        s: UpdateBuilder<*>,
+        row: Shape,
+    ) {
+        s[revisionId] = row.revisionId
+        s[shapeId] = row.shapeId
+        s[pointCount] = row.pointCount
+        s[lengthM] = row.lengthM
+    }
 }
 
-interface ShapePointRepository : RevisionScopedRepository<ShapePoint, Long> {
-    @Query(
-        "select p from ShapePoint p " +
-            "where p.revisionId = :revisionId and p.shapeId = :shapeId order by p.shapePtSequence",
-    )
+object ShapePointTable : RevisionScopedTable<ShapePoint>("shape_points", ShapePoint::class.java, "fk_shapept_rev") {
+    val shapeId = varchar("shape_id", 255)
+    val shapePtLat = double("shape_pt_lat").nullable()
+    val shapePtLon = double("shape_pt_lon").nullable()
+    val shapePtSequence = integer("shape_pt_sequence")
+    val shapeDistTraveled = double("shape_dist_traveled").nullable()
+
+    init {
+        uniqueIndex("uq_shapept_rev_id_seq", revisionId, shapeId, shapePtSequence)
+        index("ix_shapept_rev_shape_seq", false, revisionId, shapeId, shapePtSequence)
+    }
+
+    override fun read(row: ResultRow) =
+        ShapePoint(
+            revisionId = row[revisionId],
+            shapeId = row[shapeId],
+            shapePtLat = row[shapePtLat],
+            shapePtLon = row[shapePtLon],
+            shapePtSequence = row[shapePtSequence],
+            shapeDistTraveled = row[shapeDistTraveled],
+        ).withId(row)
+
+    override fun bind(
+        s: UpdateBuilder<*>,
+        row: ShapePoint,
+    ) {
+        s[revisionId] = row.revisionId
+        s[shapeId] = row.shapeId
+        s[shapePtLat] = row.shapePtLat
+        s[shapePtLon] = row.shapePtLon
+        s[shapePtSequence] = row.shapePtSequence
+        s[shapeDistTraveled] = row.shapeDistTraveled
+    }
+}
+
+@Repository
+@ExposedBridge
+class ShapeRepository : RevisionScopedRepository<Shape>(ShapeTable) {
     fun findByShapeId(
         revisionId: Long,
         shapeId: String,
-    ): List<ShapePoint>
+    ): Shape? =
+        ShapeTable
+            .selectAll()
+            .where { (ShapeTable.revisionId eq revisionId) and (ShapeTable.shapeId eq shapeId) }
+            .singleOrNull()
+            ?.let(ShapeTable::read)
+}
+
+@Repository
+@ExposedBridge
+class ShapePointRepository : RevisionScopedRepository<ShapePoint>(ShapePointTable) {
+    fun findByShapeId(
+        revisionId: Long,
+        shapeId: String,
+    ): List<ShapePoint> =
+        ShapePointTable
+            .selectAll()
+            .where { (ShapePointTable.revisionId eq revisionId) and (ShapePointTable.shapeId eq shapeId) }
+            .orderBy(ShapePointTable.shapePtSequence)
+            .map(ShapePointTable::read)
 }

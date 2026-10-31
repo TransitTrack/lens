@@ -107,7 +107,6 @@ internal object StopTimeSnapshot {
         rows: JsonNode,
     ) {
         ctx.stopTimes.findByTripId(ctx.revisionId, tripId).let(ctx.stopTimes::deleteAll)
-        ctx.stopTimes.flush()
         rows.forEach { node -> ctx.stopTimes.save(fromNode(ctx, node)) }
     }
 

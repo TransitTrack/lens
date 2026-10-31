@@ -22,18 +22,18 @@ import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.Calendar
 import eu.transittrack.gtfs.model.CalendarRepository
+import eu.transittrack.gtfs.store.ExposedRevisionWriter
 import eu.transittrack.gtfs.store.RevisionWriter
-import eu.transittrack.gtfs.store.StatelessSessionRevisionWriter
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
- * [RevisionWriter.deleteAllForRevision] commits through its own stateless-session transaction on a separate connection, so — like [StatelessSessionRevisionWriter]'s own test — this must NOT run inside the `@DataJpaTest` rollback transaction, or the writer
+ * [RevisionWriter.deleteAllForRevision] commits in a transaction of its own on a separate connection, so — like [ExposedRevisionWriter]'s own test — this must NOT run inside the `@DataJpaTest` rollback transaction, or the writer
  * would never see the seeded rows. Hence `NOT_SUPPORTED` + explicit cleanup.
  */
 @PostgresSliceTest
 @EnableConfigurationProperties(GtfsProperties::class)
-@Import(StatelessSessionRevisionWriter::class, RevisionService::class)
+@Import(ExposedRevisionWriter::class, RevisionService::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class RevisionServiceTest(
     @Autowired val svc: RevisionService,
