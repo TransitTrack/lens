@@ -124,3 +124,56 @@ zipped / 12.1 MB unzipped (`stop_times.txt` 8.9 MB), 264,582 rows.
 Peak heap is the sum of the heap pools' peak usage after a forced GC and reset. It does not include
 the Rust engine's native allocations, so the analyzer's real footprint is somewhat higher than the
 heap figure. Both pipelines produced the same row count.
+
+## Exposed migration baseline
+
+Pre-migration numbers (JPA/Hibernate + JdbcTemplate persistence), recorded so the Exposed port can
+be compared like for like. Commit: `4c6c8f6` (`main`, branch `feature/exposed-migration` before any
+persistence change). Run with `./gradlew baselineBenchmark` on a local macOS dev machine; re-run the
+same task after the port and compare.
+
+**Settings:** 2 warmup iterations, 5 measurement iterations, 2 JVM forks (so 10 samples per
+benchmark), JMH `gc` profiler, all three benchmark classes, `vehicleCount` in {400, 4000},
+`Mode.SingleShotTime`, ms/op.
+
+**kotlinx-benchmark 0.5.0 deviation:** the plugin's `advanced(...)` supports `jvmForks` but has no
+`jvmProfiler` option, and the `@Fork(1)` annotations are overridden by `jvmForks`. To get the `gc`
+profiler (`gc.alloc.rate.norm`), `build.gradle.kts` registers the `baseline` configuration
+(warmups/iterations/`jvmForks = 2`) and then re-points the generated `benchmarkBaselineBenchmark`
+task at JMH's own `org.openjdk.jmh.Main` with `-f 2 -wi 2 -i 5 -prof gc -rf json`. Use
+`-PbaselineInclude=<regex>` to run a subset. Output:
+`build/reports/benchmarks/baseline/<timestamp>/benchmark.json`.
+
+| Benchmark | vehicleCount | Score (ms/op) | gc.alloc.rate.norm (MiB/op) |
+|---|---|---|---|
+| AvlIngestBenchmark.ingest | 400 | 43.7 ± 7.8 | 3.75 ± 1.28 |
+| AvlIngestBenchmark.ingest | 4000 | 352.8 ± 15.8 | 32.85 ± 1.26 |
+| AvlMatchBenchmark.match | 400 | 85.5 ± 9.5 | 22.46 ± 1.04 |
+| AvlMatchBenchmark.match | 4000 | 176.4 ± 14.1 | 72.22 ± 1.07 |
+| PredictionBenchmark.predict | 400 | 123.8 ± 19.1 | 32.47 ± 1.00 |
+| PredictionBenchmark.predict | 4000 | 285.0 ± 88.7 | 96.72 ± 1.02 |
+
+(Score ± error is the JMH 99.9% confidence interval over the 10 samples.)
+
+### Live app steady state (informational)
+
+Local profile against `docker compose` Postgres, polling the `stpt` feed (plus the other
+configured local feeds), `/actuator/prometheus` sampled every 60 s for 10 minutes starting about 90 s
+after boot. `jvm_gc_live_data_size_bytes` is live heap after GC; `process_cpu_usage` is the JVM's
+CPU fraction. The `jvm_memory_used_bytes{area="heap"}` sum was not captured (label-order mistake
+in the sampling script), so only post-GC live data and CPU are recorded.
+
+| Time | Live data after GC (MiB) | process_cpu_usage |
+|---|---|---|
+| 23:24:02 | 208.3 | 0.0009 |
+| 23:25:03 | 215.2 | 0.0014 |
+| 23:26:03 | 215.2 | 0.0014 |
+| 23:27:03 | 215.2 | 0.0012 |
+| 23:28:03 | 193.7 | 0.0009 |
+| 23:29:03 | 193.7 | 0.0010 |
+| 23:30:03 | 193.7 | 0.0009 |
+| 23:31:03 | 193.7 | 0.0009 |
+| 23:32:03 | 193.7 | 0.0007 |
+| 23:33:03 | 144.9 | 0.0008 |
+
+The live-data gauge only updates on a major GC, hence the repeated values.

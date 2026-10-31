@@ -1,3 +1,6 @@
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
@@ -129,6 +132,13 @@ benchmark {
             param("vehicleCount", "400")
             warmups = 0
             iterations = 1
+        }
+        // `./gradlew baselineBenchmark` - the fixed-settings run used to compare persistence
+        // implementations (pre/post Exposed migration). See docs/benchmarks.md.
+        register("baseline") {
+            warmups = 2
+            iterations = 5
+            advanced("jvmForks", 2)
         }
     }
 }
@@ -375,4 +385,29 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<JavaExec> {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+}
+
+// kotlinx-benchmark 0.5.0 has no profiler option, but the baseline needs JMH's `gc` profiler
+// (gc.alloc.rate.norm). So the baseline task launches JMH's own Main on the plugin-generated
+// classpath with the same settings as the "baseline" configuration above.
+// Override the benchmark filter with -PbaselineInclude=<regex> (e.g. for a quick sanity check).
+tasks.matching { it.name == "benchmarkBaselineBenchmark" }.configureEach {
+    this as JavaExec
+    val include = providers.gradleProperty("baselineInclude").orElse(".*")
+    val outDir = layout.buildDirectory.dir("reports/benchmarks/baseline")
+    doFirst {
+        val dir = outDir
+            .get()
+            .asFile
+            .resolve(
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy.MM.dd-HH.mm.ss")),
+            ).also { it.mkdirs() }
+        mainClass.set("org.openjdk.jmh.Main")
+        setArgs(
+            listOf(
+                include.get(), "-f", "2", "-wi", "2", "-i", "5", "-prof", "gc",
+                "-rf", "json", "-rff", dir.resolve("benchmark.json").absolutePath,
+            ),
+        )
+    }
 }
