@@ -3,8 +3,6 @@ package eu.transittrack.avl.ingest
 import java.time.Instant
 
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
-import org.jetbrains.exposed.v1.jdbc.batchInsert
-import org.jetbrains.exposed.v1.jdbc.batchUpsert
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
@@ -15,6 +13,8 @@ import eu.transittrack.avl.model.AvlReportTable
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchTable
 import eu.transittrack.avl.model.VehicleStateTable
+import eu.transittrack.db.batchInsertWithoutResults
+import eu.transittrack.db.batchUpsertWithoutResults
 
 data class VehicleStateUpsert(
     val feedCode: String,
@@ -56,13 +56,13 @@ class AvlWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun insertReports(rows: List<AvlReportRow>) {
         if (rows.isEmpty()) return
-        AvlReportTable.batchInsert(rows, shouldReturnGeneratedValues = false) { AvlReportTable.bind(this, it) }
+        AvlReportTable.batchInsertWithoutResults(rows) { AvlReportTable.bind(this, it) }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun insertMatches(matches: List<VehicleMatch>) {
         if (matches.isEmpty()) return
-        VehicleMatchTable.batchInsert(matches, shouldReturnGeneratedValues = false) { VehicleMatchTable.bind(this, it) }
+        VehicleMatchTable.batchInsertWithoutResults(matches) { VehicleMatchTable.bind(this, it) }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -77,12 +77,7 @@ class AvlWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertStates(states: List<VehicleStateUpsert>) {
         if (states.isEmpty()) return
-        VehicleStateTable.batchUpsert(
-            states,
-            VehicleStateTable.feedCode,
-            VehicleStateTable.vehicleId,
-            shouldReturnGeneratedValues = false,
-        ) { bind(this, it) }
+        VehicleStateTable.batchUpsertWithoutResults(states, VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(this, it) }
     }
 
     /** Every column but `id`, which the insert takes from `vehicle_state_seq` and an update leaves alone. */

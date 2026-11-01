@@ -41,8 +41,6 @@ import org.jetbrains.exposed.v1.core.statements.buildStatement
 import org.jetbrains.exposed.v1.core.statements.insertValue
 import org.jetbrains.exposed.v1.core.stringParam
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
-import org.jetbrains.exposed.v1.jdbc.batchInsert
-import org.jetbrains.exposed.v1.jdbc.batchUpsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -54,6 +52,8 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.EpochSecondsBetween
 import eu.transittrack.db.InsertSelectOnConflictDoNothing
+import eu.transittrack.db.batchInsertWithoutResults
+import eu.transittrack.db.batchUpsertWithoutResults
 import eu.transittrack.db.execBatch
 import eu.transittrack.predict.learn.KalmanState
 import eu.transittrack.predict.learn.LearningKey
@@ -275,7 +275,7 @@ class PredictionWriter {
     ) {
         if (rows.isEmpty()) return
         val t = TravelTimeObservationTable
-        t.batchUpsert(
+        t.batchUpsertWithoutResults(
             rows.entries.sortedWith(BUCKET_ORDER),
             t.gtfsFeedCode, t.patternKey, t.stopPathIndex, t.dayType, t.timeBand,
             onUpdate = {
@@ -283,7 +283,6 @@ class PredictionWriter {
                 it[t.meanSec] = insertValue(t.meanSec)
                 it[t.updatedAt] = greatestOfStoredAndInserted(t.updatedAt)
             },
-            shouldReturnGeneratedValues = false,
         ) { (b, state) ->
             setBucketKey(t, key, b)
             this[t.sampleCount] = state.sampleCount
@@ -299,7 +298,7 @@ class PredictionWriter {
     ) {
         if (rows.isEmpty()) return
         val t = KalmanTravelTimeStateTable
-        t.batchUpsert(
+        t.batchUpsertWithoutResults(
             rows.entries.sortedWith(BUCKET_ORDER),
             t.gtfsFeedCode, t.patternKey, t.stopPathIndex, t.dayType, t.timeBand,
             onUpdate = {
@@ -308,7 +307,6 @@ class PredictionWriter {
                 it[t.sampleCount] = insertValue(t.sampleCount)
                 it[t.updatedAt] = greatestOfStoredAndInserted(t.updatedAt)
             },
-            shouldReturnGeneratedValues = false,
         ) { (b, state) ->
             setBucketKey(t, key, b)
             this[t.estimateSec] = state.estimateSec
@@ -345,7 +343,7 @@ class PredictionWriter {
             GreaterEqOp(AbsFunction(EpochSecondsBetween(column, insertValue(column))), intParam(minChangeSec))
 
         fun appearedOrVanished(column: Column<Instant?>) = NeqOp(column.isNull(), insertValue(column).isNull())
-        t.batchUpsert(
+        t.batchUpsertWithoutResults(
             rows,
             t.feedCode, t.vehicleId, t.tripRowId, t.stopPathIndex, t.algorithm,
             onUpdate = {
@@ -380,7 +378,6 @@ class PredictionWriter {
                             )
                     )
             },
-            shouldReturnGeneratedValues = false,
         ) { p ->
             this[t.feedCode] = p.feedCode
             this[t.vehicleId] = p.vehicleId
@@ -562,12 +559,12 @@ class PredictionWriter {
 
     fun insertAccuracy(rows: List<PredictionAccuracy>) {
         if (rows.isEmpty()) return
-        PredictionAccuracyTable.batchInsert(rows, shouldReturnGeneratedValues = false) { PredictionAccuracyTable.bind(this, it) }
+        PredictionAccuracyTable.batchInsertWithoutResults(rows) { PredictionAccuracyTable.bind(this, it) }
     }
 
     fun insertCrossings(crossings: List<AvlStopCrossing>) {
         if (crossings.isEmpty()) return
-        AvlStopCrossingTable.batchInsert(crossings, shouldReturnGeneratedValues = false) { AvlStopCrossingTable.bind(this, it) }
+        AvlStopCrossingTable.batchInsertWithoutResults(crossings) { AvlStopCrossingTable.bind(this, it) }
     }
 
     private companion object {
