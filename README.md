@@ -115,6 +115,7 @@ metrics up in a cluster instead.
 | [docs/schedule.md](docs/schedule.md) | Derived schedule model: patterns, stop paths, blocks, schedule times |
 | [docs/avl.md](docs/avl.md) | AVL ingestion, trip matching, GraphQL read API |
 | [docs/predictions.md](docs/predictions.md) | Prediction generation, travel-time learning, accuracy tracking |
+| [docs/database.md](docs/database.md) | Exposed + Liquibase: changeset generator, drift test, raw SQL allowlist, transaction rules |
 | [docs/deployment.md](docs/deployment.md) | Docker image, Kubernetes roles, Helm chart, scaling |
 | [docs/configuration.md](docs/configuration.md) | Full `transittrack.*` property reference |
 | [docs/benchmarks.md](docs/benchmarks.md) | Ingest/match/predict load benchmarks (kotlinx-benchmark) |

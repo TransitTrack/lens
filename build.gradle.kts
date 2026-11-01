@@ -35,6 +35,11 @@ sourceSets {
         kotlin.srcDir("src/benchmark/kotlin")
         resources.srcDir("src/benchmark/resources")
     }
+    // Developer tooling, not shipped: `./gradlew generateChangeset` (see docs/database.md). Its own
+    // source set keeps Testcontainers and Exposed's migration modules off the application classpath.
+    create("migrationTool") {
+        kotlin.srcDir("src/migrationTool/kotlin")
+    }
 }
 
 val graphqlJavaExtendedScalarsVersion = project.property("graphqlJavaExtendedScalarsVersion") as String
@@ -112,6 +117,13 @@ dependencies {
     testImplementation("net.javacrumbs.shedlock:shedlock-core:$shedlockVersion")
 
     "benchmarkImplementation"("org.jetbrains.kotlinx:kotlinx-benchmark-runtime:$kotlinxBenchmarkVersion")
+
+    "migrationToolImplementation"(platform("org.jetbrains.exposed:exposed-bom:$exposedVersion"))
+    "migrationToolImplementation"("org.jetbrains.exposed:exposed-migration-core")
+    "migrationToolImplementation"("org.jetbrains.exposed:exposed-migration-jdbc")
+    "migrationToolImplementation"("org.liquibase:liquibase-core")
+    "migrationToolImplementation"("org.testcontainers:testcontainers-postgresql")
+    "migrationToolRuntimeOnly"("org.postgresql:postgresql")
 }
 
 kotlin {
@@ -121,6 +133,10 @@ kotlin {
         val benchmarkCompilation = compilations.getByName("benchmark")
         benchmarkCompilation.associateWith(mainCompilation)
         benchmarkCompilation.associateWith(testCompilation)
+        val migrationToolCompilation = compilations.getByName("migrationTool")
+        migrationToolCompilation.associateWith(mainCompilation)
+        // The tests exercise the changeset YAML writer that lives in the tool's source set.
+        testCompilation.associateWith(migrationToolCompilation)
     }
 }
 
@@ -148,6 +164,24 @@ benchmark {
             iterations = 5
             advanced("jvmForks", 2)
         }
+    }
+}
+
+// `./gradlew generateChangeset -Pname=<kebab-name>`: diffs the Exposed table objects against a
+// Liquibase-migrated throwaway Postgres and writes the missing DDL as the next numbered changeset.
+tasks.register<JavaExec>("generateChangeset") {
+    group = "database"
+    description = "Writes a Liquibase changeset for the DDL the Exposed table objects still need."
+    val migrationTool = sourceSets["migrationTool"]
+    classpath = migrationTool.runtimeClasspath + sourceSets["main"].runtimeClasspath
+    mainClass.set("eu.transittrack.migration.GenerateChangesetKt")
+    workingDir = projectDir
+    val changesetName = providers.gradleProperty("name")
+    doFirst {
+        if (!changesetName.isPresent) {
+            throw GradleException("Missing -Pname: run ./gradlew generateChangeset -Pname=<kebab-name>")
+        }
+        args(changesetName.get())
     }
 }
 
