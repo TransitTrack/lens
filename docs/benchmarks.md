@@ -233,7 +233,8 @@ predict 55.95 / 185.84 MiB/op (400 / 4000). The fixes, each measured on the whol
   26.64 / 119.93 → 17.04 / 61.60, predict 55.73 / 192.03 → 44.82 / 128.81 MiB/op.
 - `f46894b` perf(db): `SameSqlBatch` (`execBatch`) rendered every statement's SQL to compare them,
   which was the largest allocation in `PredictionWriter.insertCheckpoints`. It now renders the first
-  statement only and checks the parameter types. Predict 400 / 4000: 44.82 / 128.81 → 39.71 / 115.16 MiB/op.
+  statement only and always checks the parameter types. The full same-SQL comparison now runs only with
+  JVM assertions enabled, as in tests (`a3fd225`). Predict 400 / 4000: 44.82 / 128.81 → 39.71 / 115.16 MiB/op.
 
 **Still regressed (allocation only):** ingest/4000 by about 5 MiB/op, predict by about 6 MiB/op (400)
 and 17 MiB/op (4000). A JFR TLAB profile puts what remains in Exposed's per-statement model rather than
