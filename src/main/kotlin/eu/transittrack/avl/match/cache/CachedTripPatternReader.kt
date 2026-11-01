@@ -15,5 +15,5 @@ class CachedTripPatternReader(
     fun byId(
         revisionId: Long,
         tripPatternId: Long,
-    ): TripPattern? = patterns.findById(tripPatternId).orElse(null)
+    ): TripPattern? = patterns.findById(tripPatternId)
 }

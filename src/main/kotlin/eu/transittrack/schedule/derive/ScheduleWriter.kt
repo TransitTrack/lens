@@ -1,12 +1,23 @@
 package eu.transittrack.schedule.derive
 
-import jakarta.persistence.EntityManagerFactory
-
-import org.hibernate.SessionFactory
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.batchInsert
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScoped
+import eu.transittrack.gtfs.model.RevisionScopedTable
+import eu.transittrack.schedule.model.Block
+import eu.transittrack.schedule.model.ScheduleTables
+import eu.transittrack.schedule.model.StopPath
+import eu.transittrack.schedule.model.StopPathTable
+import eu.transittrack.schedule.model.TripPattern
+import eu.transittrack.schedule.model.TripPatternTable
 
 data class StopPathLayoverUpdate(
     val stopPathId: Long,
@@ -15,90 +26,98 @@ data class StopPathLayoverUpdate(
 )
 
 /**
- * Bulk write path for the derived schedule model, backed by a Hibernate
- * [org.hibernate.StatelessSession] (no persistence context; JDBC-batched). Mirrors
- * the former Hibernate stateless-session `RevisionWriter`.
+ * Bulk write path for the derived schedule model ([ScheduleTables]), JDBC-batched.
+ *
+ * Every public method commits in its own transaction (`REQUIRES_NEW`), as the Hibernate stateless
+ * session it replaced did: derivation runs with no caller transaction, and `DraftService`'s
+ * discard / revert-to-fork rely on [deleteForRevision] standing even when they roll back.
  */
 @Component
 @ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
-class ScheduleWriter(
-    emf: EntityManagerFactory,
-) {
-    private val sessionFactory: SessionFactory = emf.unwrap(SessionFactory::class.java)
+@ExposedBridge
+class ScheduleWriter {
+    private val registry: Map<Class<out RevisionScoped>, RevisionScopedTable<*>> = ScheduleTables.ALL.associateBy { it.rowClass }
+    private val byName: Map<String, RevisionScopedTable<*>> = ScheduleTables.ALL.associateBy { it.tableName }
 
+    /**
+     * Inserts [rows], grouped by type in first-seen order. Rows whose ids derivation reads back
+     * ([ID_READ_BACK]) get them set; the rest are inserted without returning keys.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun write(rows: List<RevisionScoped>) {
         if (rows.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for (row in rows) session.insert(row)
-        }
+        val groups =
+            rows.groupBy { it.javaClass }.map { (type, items) ->
+                (registry[type] ?: throw IllegalStateException("No table registered for ${type.name}")) to items
+            }
+        for ((table, items) in groups) insert(table, items)
     }
 
+    private fun <R : RevisionScoped> insert(
+        table: RevisionScopedTable<R>,
+        items: List<RevisionScoped>,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        val rows = items as List<R>
+        val readBack = table.rowClass in ID_READ_BACK
+        val inserted = table.batchInsert(rows, shouldReturnGeneratedValues = readBack) { table.bind(this, it) }
+        if (!readBack) return
+        check(inserted.size == rows.size) { "${table.tableName}: ${inserted.size} keys returned for ${rows.size} rows" }
+        rows.zip(inserted).forEach { (row, result) -> row.id = result[table.id] }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun deleteForRevision(revisionId: Long) = deleteTables(revisionId, *DELETE_ORDER.toTypedArray())
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun deleteTables(
         revisionId: Long,
         vararg tables: String,
     ) {
         if (tables.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for (table in tables) {
-                session
-                    .createNativeMutationQuery("delete from $table where revision_id = :r")
-                    .setParameter("r", revisionId)
-                    .executeUpdate()
-            }
+        val targets = tables.map { byName[it] ?: throw IllegalArgumentException("not a derived schedule table: $it") }
+        for (table in targets) {
+            table.deleteWhere { table.revisionId eq revisionId }
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyStopPathLayover(updates: List<StopPathLayoverUpdate>) {
         if (updates.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for (u in updates) {
-                session
-                    .createNativeMutationQuery(
-                        "update stop_path set layover_stop = :lo, break_time_sec = :bt where id = :id",
-                    ).setParameter("lo", u.layoverStop)
-                    .setParameter("bt", u.breakTimeSec)
-                    .setParameter("id", u.stopPathId)
-                    .executeUpdate()
+        for (u in updates) {
+            StopPathTable.update({ StopPathTable.id eq u.stopPathId }) {
+                it[layoverStop] = u.layoverStop
+                it[breakTimeSec] = u.breakTimeSec
             }
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun resetStopPathLayover(revisionId: Long) {
-        sessionFactory.inStatelessTransaction { session ->
-            session
-                .createNativeMutationQuery(
-                    "update stop_path set layover_stop = (stop_path_index = 0), break_time_sec = null where revision_id = :r",
-                ).setParameter("r", revisionId)
-                .executeUpdate()
+        StopPathTable.update({ StopPathTable.revisionId eq revisionId }) {
+            it[layoverStop] = StopPathTable.stopPathIndex eq 0
+            it[breakTimeSec] = null
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun resetTripPatternTripCount(revisionId: Long) {
-        sessionFactory.inStatelessTransaction { session ->
-            session
-                .createNativeMutationQuery("update trip_patterns set trip_count = 0 where revision_id = :r")
-                .setParameter("r", revisionId)
-                .executeUpdate()
-        }
+        TripPatternTable.update({ TripPatternTable.revisionId eq revisionId }) { it[tripCount] = 0 }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyTripPatternTripCount(counts: Map<Long, Int>) {
         if (counts.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for ((id, tc) in counts) {
-                session
-                    .createNativeMutationQuery("update trip_patterns set trip_count = :tc where id = :id")
-                    .setParameter("tc", tc)
-                    .setParameter("id", id)
-                    .executeUpdate()
-            }
+        for ((id, tc) in counts) {
+            TripPatternTable.update({ TripPatternTable.id eq id }) { it[tripCount] = tc }
         }
     }
 
     companion object {
         val DELETE_ORDER =
             listOf("schedule_time", "block_trip", "travel_times_for_stop_path", "stop_path", "block", "trip_patterns")
+
+        /** Row types whose generated ids derivation reads after [write] (to key child rows and caches). */
+        private val ID_READ_BACK: Set<Class<out RevisionScoped>> = setOf(TripPattern::class.java, StopPath::class.java, Block::class.java)
     }
 }

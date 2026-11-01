@@ -64,13 +64,13 @@ class ScheduleNestedResolvers(
     @SchemaMapping(typeName = "Trip")
     fun pattern(t: TripDto): TripPatternDto? =
         t.tripPatternId
-            ?.let { patterns.findById(it).orElse(null) }
+            ?.let { patterns.findById(it) }
             ?.let { TripPatternDto.of(it, t.revisionId, t.feedCode) }
 
     @SchemaMapping(typeName = "Trip")
     fun block(t: TripDto): BlockDto? {
         val bt = blockTrips.findByTripId(t.revisionId, t.id) ?: return null
-        return blocks.findById(bt.blockId).orElse(null)?.let {
+        return blocks.findById(bt.blockId)?.let {
             BlockDto.of(it, t.revisionId, t.feedCode)
         }
     }

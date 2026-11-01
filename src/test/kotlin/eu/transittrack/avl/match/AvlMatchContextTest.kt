@@ -90,7 +90,7 @@ class AvlMatchContextTest(
         val ctx = factory.open(avlFeed)!!
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!
         assertThat(trip.tripPatternId).isNotNull()
-        val pattern = patterns.findById(trip.tripPatternId!!).orElseThrow()
+        val pattern = patterns.findById(trip.tripPatternId!!)!!
         val geom = ctx.patternGeometry(trip.tripPatternId!!)
         assertThat(geom).isNotNull()
         assertThat(geom!!.line.lengthM).isGreaterThan(0.0)

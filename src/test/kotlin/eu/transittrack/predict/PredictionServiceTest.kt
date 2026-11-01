@@ -234,7 +234,7 @@ class PredictionServiceTest(
 
         // One sample - stop path 2, driven from ~08:10 on a Monday - lands in its weekday morning-peak
         // bucket and in both roll-ups, keyed by the pattern's stable key rather than its row id.
-        val patternKey = tripPatterns.findById(patternId).orElseThrow().patternKey
+        val patternKey = tripPatterns.findById(patternId)!!.patternKey
         val learned = travelTimeObservations.findAll()
         assertThat(learned.all { it.gtfsFeedCode == "g" && it.patternKey == patternKey && it.stopPathIndex == 2 }).isTrue()
         assertThat(learned.map { TravelTimeBucket(it.dayType, it.timeBand) }.toSet()).isEqualTo(

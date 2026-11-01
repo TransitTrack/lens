@@ -11,6 +11,7 @@ import jakarta.persistence.Table
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Repository
 import eu.transittrack.Extent
 import eu.transittrack.Point
 import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.schedule.model.TripPatternTable
 
 /**
  * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes, trips, stop_times,
@@ -413,7 +415,14 @@ object TripTable : RevisionScopedTable<Trip>("trips", Trip::class.java, "fk_trip
     val shapeId = varchar("shape_id", 255).nullable()
     val wheelchairAccessible = short("wheelchair_accessible").nullable()
     val bikesAllowed = short("bikes_allowed").nullable()
-    val tripPatternId = long("trip_pattern_id").nullable()
+    val tripPatternId =
+        long("trip_pattern_id")
+            .references(
+                TripPatternTable.id,
+                onDelete = ReferenceOption.SET_NULL,
+                onUpdate = ReferenceOption.NO_ACTION,
+                fkName = "fk_trip_trip_pattern",
+            ).nullable()
     val startTimeSec = integer("start_time_sec").nullable()
     val endTimeSec = integer("end_time_sec").nullable()
     val frequencyBased = bool("frequency_based").nullable()

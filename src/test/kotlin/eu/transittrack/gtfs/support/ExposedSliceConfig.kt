@@ -42,6 +42,12 @@ import eu.transittrack.gtfs.model.TransferRepository
 import eu.transittrack.gtfs.model.TranslationRepository
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.schedule.model.BlockRepository
+import eu.transittrack.schedule.model.BlockTripRepository
+import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.StopPathRepository
+import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
+import eu.transittrack.schedule.model.TripPatternRepository
 
 /**
  * The Exposed repositories (and the JPA bridge they run through) for `@DataJpaTest` slices, which
@@ -88,5 +94,11 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
     TransferRepository::class,
     TranslationRepository::class,
     TripRepository::class,
+    TripPatternRepository::class,
+    StopPathRepository::class,
+    ScheduleTimeRepository::class,
+    BlockRepository::class,
+    BlockTripRepository::class,
+    TravelTimesForStopPathRepository::class,
 )
 class ExposedSliceConfig

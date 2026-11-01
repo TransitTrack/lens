@@ -1,12 +1,28 @@
 package eu.transittrack.schedule.derive
 
-import jakarta.persistence.EntityManagerFactory
-
-import org.hibernate.SessionFactory
+import org.jetbrains.exposed.v1.core.Coalesce
+import org.jetbrains.exposed.v1.core.CustomFunction
+import org.jetbrains.exposed.v1.core.Expression
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.VarCharColumnType
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.stringLiteral
+import org.jetbrains.exposed.v1.core.stringParam
+import org.jetbrains.exposed.v1.core.trim
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Extent
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.model.AgencyTable
+import eu.transittrack.gtfs.model.ExtentColumns
+import eu.transittrack.gtfs.model.RevisionScopedTable
+import eu.transittrack.gtfs.model.RouteTable
+import eu.transittrack.gtfs.model.TripTable
 
 data class TripDerivation(
     val tripRowId: Long,
@@ -27,107 +43,82 @@ data class TripDerivation(
  *
  * Kept separate from [ScheduleWriter], which owns the derived tables and whose `deleteForRevision`
  * must not touch GTFS tables.
+ *
+ * Every public method commits in its own transaction (`REQUIRES_NEW`), as the Hibernate stateless
+ * session it replaced did.
  */
 @Component
 @ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
-class DerivedGtfsWriter(
-    emf: EntityManagerFactory,
-) {
-    private val sessionFactory: SessionFactory = emf.unwrap(SessionFactory::class.java)
-
+@ExposedBridge
+class DerivedGtfsWriter {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyRouteExtents(
         revisionId: Long,
         byRouteId: Map<String, Extent>,
-    ) = applyExtents("routes", "route_id", revisionId, byRouteId)
+    ) = applyExtents(RouteTable, RouteTable.extent, { RouteTable.routeId eq it }, revisionId, byRouteId)
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyAgencyExtents(
         revisionId: Long,
         byAgencyId: Map<String, Extent>,
-    ) = applyExtents("agencies", "agency_id", revisionId, byAgencyId)
+    ) = applyExtents(AgencyTable, AgencyTable.extent, { AgencyTable.agencyId eq it }, revisionId, byAgencyId)
 
     private fun applyExtents(
-        table: String,
-        keyCol: String,
+        table: RevisionScopedTable<*>,
+        extent: ExtentColumns,
+        keyIs: (String) -> Op<Boolean>,
         revisionId: Long,
         byKey: Map<String, Extent>,
     ) {
         val entries = byKey.filterValues { !it.isEmpty }
         if (entries.isEmpty()) return
-        sessionFactory
-            .inStatelessTransaction { session ->
-                for ((key, e) in entries) {
-                    session
-                        .createNativeMutationQuery(
-                            """update $table set min_lat = :mnla, min_lon = :mnlo, max_lat = :mxla, max_lon = :mxlo where revision_id = :r and $keyCol = :k""",
-                        ).setParameter("mnla", e.minLat)
-                        .setParameter("mnlo", e.minLon)
-                        .setParameter("mxla", e.maxLat)
-                        .setParameter("mxlo", e.maxLon)
-                        .setParameter("r", revisionId)
-                        .setParameter("k", key)
-                        .executeUpdate()
-                }
-            }
+        for ((key, e) in entries) {
+            table.update({ (table.revisionId eq revisionId) and keyIs(key) }) { extent.bind(it, e) }
+        }
     }
 
     /**
-     * Back-fills the derived schedule columns on `trips`. Runs one `UPDATE` per row within a single
-     * stateless-session transaction (Hibernate does not batch native mutation queries — same idiom
-     * as [applyRouteExtents]). Each row is matched by its global PK `id`, additionally guarded by
+     * Back-fills the derived schedule columns on `trips`, one `UPDATE` per row (as the stateless
+     * session did). Each row is matched by its global PK `id`, additionally guarded by
      * `revision_id` so a stale [revisionId] can never touch another revision's rows.
      */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyTripDerivation(
         revisionId: Long,
         updates: List<TripDerivation>,
     ) {
         if (updates.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session ->
-            for (u in updates) {
-                session
-                    .createNativeMutationQuery(
-                        """
-                        update trips
-                           set trip_pattern_id = :tpid, start_time_sec = :st, end_time_sec = :et,
-                               frequency_based = :fb, no_schedule = :ns,
-                               trip_headsign = coalesce(nullif(trim(trip_headsign), ''), :hs)
-                         where id = :id and revision_id = :r
-                        """.trimIndent(),
-                    ).setParameter("r", revisionId)
-                    .setParameter("tpid", u.tripPatternId)
-                    .setParameter("st", u.startTimeSec)
-                    .setParameter("et", u.endTimeSec)
-                    .setParameter("fb", u.frequencyBased)
-                    .setParameter("ns", u.noSchedule)
-                    .setParameter("hs", u.resolvedHeadsign)
-                    .setParameter("id", u.tripRowId)
-                    .executeUpdate()
+        for (u in updates) {
+            TripTable.update({ (TripTable.id eq u.tripRowId) and (TripTable.revisionId eq revisionId) }) {
+                it[tripPatternId] = u.tripPatternId
+                it[startTimeSec] = u.startTimeSec
+                it[endTimeSec] = u.endTimeSec
+                it[frequencyBased] = u.frequencyBased
+                it[noSchedule] = u.noSchedule
+                // coalesce(nullif(trim(trip_headsign), ''), :hs)
+                it[tripHeadsign] = Coalesce(blankToNull(tripHeadsign.trim()), stringParam(u.resolvedHeadsign))
             }
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun clearTripDerivation(revisionId: Long) {
-        sessionFactory.inStatelessTransaction { session ->
-            session
-                .createNativeMutationQuery(
-                    """
-                    update trips set trip_pattern_id = null, start_time_sec = null, end_time_sec = null,
-                           frequency_based = null, no_schedule = null
-                     where revision_id = :r
-                    """.trimIndent(),
-                ).setParameter("r", revisionId)
-                .executeUpdate()
+        TripTable.update({ TripTable.revisionId eq revisionId }) {
+            it[tripPatternId] = null
+            it[startTimeSec] = null
+            it[endTimeSec] = null
+            it[frequencyBased] = null
+            it[noSchedule] = null
         }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun clearExtents(revisionId: Long) {
-        sessionFactory.inStatelessTransaction { session ->
-            for (t in listOf("routes", "agencies")) {
-                session
-                    .createNativeMutationQuery(
-                        "update $t set min_lat = null, min_lon = null, max_lat = null, max_lon = null where revision_id = :r",
-                    ).setParameter("r", revisionId)
-                    .executeUpdate()
-            }
-        }
+        RouteTable.update({ RouteTable.revisionId eq revisionId }) { RouteTable.extent.bind(it, null) }
+        AgencyTable.update({ AgencyTable.revisionId eq revisionId }) { AgencyTable.extent.bind(it, null) }
     }
+
+    /** `nullif(value, '')`: Exposed has no `NULLIF` expression, so it is declared as a function. */
+    private fun blankToNull(value: Expression<out String?>) =
+        CustomFunction<String?>("NULLIF", VarCharColumnType(500), value, stringLiteral(""))
 }

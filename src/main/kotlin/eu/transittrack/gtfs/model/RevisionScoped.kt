@@ -18,11 +18,6 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Modifying
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.NoRepositoryBean
-import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Extent
 import eu.transittrack.db.RowTable
@@ -161,19 +156,4 @@ open class RevisionScopedRepository<R : RevisionScoped>(
         if (ids.isEmpty()) return
         table.deleteWhere { table.id inList ids }
     }
-}
-
-/**
- * Interim: the Spring Data base for the derived schedule repositories, which are still JPA until
- * they are ported to Exposed. Deleted with them.
- */
-@NoRepositoryBean
-interface JpaRevisionScopedRepository<E : RevisionScoped, ID : Any> : JpaRepository<E, ID> {
-    @Query("select e from #{#entityName} e where e.revisionId = :revisionId")
-    fun findByRevisionId(revisionId: Long): List<E>
-
-    @Modifying(clearAutomatically = true)
-    @Transactional
-    @Query("delete from #{#entityName} e where e.revisionId = :revisionId")
-    fun deleteByRevisionId(revisionId: Long): Int
 }

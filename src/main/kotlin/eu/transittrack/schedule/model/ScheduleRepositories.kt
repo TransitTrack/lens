@@ -1,75 +1,110 @@
 package eu.transittrack.schedule.model
 
-import org.springframework.data.jpa.repository.Query
+import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.springframework.stereotype.Repository
 
-import eu.transittrack.gtfs.model.JpaRevisionScopedRepository
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.model.RevisionScopedRepository
+import eu.transittrack.gtfs.model.TripTable
 
-interface TripPatternRepository : JpaRevisionScopedRepository<TripPattern, Long> {
-    @Query("select p from TripPattern p where p.revisionId = :revisionId and p.routeId = :routeId")
+@Repository
+@ExposedBridge
+class TripPatternRepository : RevisionScopedRepository<TripPattern>(TripPatternTable) {
     fun findByRouteId(
         revisionId: Long,
         routeId: String,
-    ): List<TripPattern>
+    ): List<TripPattern> =
+        TripPatternTable
+            .selectAll()
+            .where { (TripPatternTable.revisionId eq revisionId) and (TripPatternTable.routeId eq routeId) }
+            .map(TripPatternTable::read)
 
-    @Query("select p from TripPattern p where p.revisionId = :revisionId and p.patternKey = :patternKey")
     fun findByPatternKey(
         revisionId: Long,
         patternKey: String,
-    ): TripPattern?
+    ): TripPattern? =
+        TripPatternTable
+            .selectAll()
+            .where { (TripPatternTable.revisionId eq revisionId) and (TripPatternTable.patternKey eq patternKey) }
+            .singleOrNull()
+            ?.let(TripPatternTable::read)
 }
 
-interface StopPathRepository : JpaRevisionScopedRepository<StopPath, Long> {
-    @Query(
-        "select sp from StopPath sp " +
-            "where sp.revisionId = :revisionId and sp.tripPatternId = :tripPatternId order by sp.stopPathIndex",
-    )
+@Repository
+@ExposedBridge
+class StopPathRepository : RevisionScopedRepository<StopPath>(StopPathTable) {
     fun findByTripPatternOrdered(
         revisionId: Long,
         tripPatternId: Long,
-    ): List<StopPath>
+    ): List<StopPath> =
+        StopPathTable
+            .selectAll()
+            .where { (StopPathTable.revisionId eq revisionId) and (StopPathTable.tripPatternId eq tripPatternId) }
+            .orderBy(StopPathTable.stopPathIndex)
+            .map(StopPathTable::read)
 
-    @Query("select sp from StopPath sp where sp.revisionId = :revisionId and sp.stopId = :stopId")
     fun findByStopId(
         revisionId: Long,
         stopId: String,
-    ): List<StopPath>
+    ): List<StopPath> =
+        StopPathTable
+            .selectAll()
+            .where { (StopPathTable.revisionId eq revisionId) and (StopPathTable.stopId eq stopId) }
+            .map(StopPathTable::read)
 }
 
-interface ScheduleTimeRepository : JpaRevisionScopedRepository<ScheduleTime, Long> {
-    @Query(
-        "select st from ScheduleTime st " +
-            "where st.revisionId = :revisionId and st.tripId = :tripId order by st.stopPathIndex",
-    )
+@Repository
+@ExposedBridge
+class ScheduleTimeRepository : RevisionScopedRepository<ScheduleTime>(ScheduleTimeTable) {
     fun findByTripOrdered(
         revisionId: Long,
         tripId: Long,
-    ): List<ScheduleTime>
+    ): List<ScheduleTime> =
+        ScheduleTimeTable
+            .selectAll()
+            .where { (ScheduleTimeTable.revisionId eq revisionId) and (ScheduleTimeTable.tripId eq tripId) }
+            .orderBy(ScheduleTimeTable.stopPathIndex)
+            .map(ScheduleTimeTable::read)
 
-    @Query(
-        "select st from ScheduleTime st " +
-            "where st.revisionId = :revisionId and st.tripId in :tripIds and st.stopPathIndex in :stopPathIndexes",
-    )
     fun findByTripsAtStopPaths(
         revisionId: Long,
         tripIds: Collection<Long>,
         stopPathIndexes: Collection<Int>,
-    ): List<ScheduleTime>
+    ): List<ScheduleTime> =
+        ScheduleTimeTable
+            .selectAll()
+            .where {
+                (ScheduleTimeTable.revisionId eq revisionId) and
+                    (ScheduleTimeTable.tripId inList tripIds) and
+                    (ScheduleTimeTable.stopPathIndex inList stopPathIndexes)
+            }.map(ScheduleTimeTable::read)
 
     /**
      * Every clock-time trip's scheduled time at one stop path of a pattern, with its service.
      * Frequency-based trips are left out: their times are offsets from whenever a run starts.
      */
-    @Query(
-        "select new eu.transittrack.schedule.model.ServiceStopTime(st.arrivalSec, st.departureSec, t.serviceId) " +
-            "from ScheduleTime st join Trip t on t.id = st.tripId " +
-            "where st.revisionId = :revisionId and t.tripPatternId = :tripPatternId and st.stopPathIndex = :stopPathIndex " +
-            "and (t.frequencyBased is null or t.frequencyBased = false)",
-    )
     fun findTimedAtStopPath(
         revisionId: Long,
         tripPatternId: Long,
         stopPathIndex: Int,
-    ): List<ServiceStopTime>
+    ): List<ServiceStopTime> =
+        ScheduleTimeTable
+            .join(TripTable, JoinType.INNER, onColumn = TripTable.id, otherColumn = ScheduleTimeTable.tripId)
+            .select(ScheduleTimeTable.arrivalSec, ScheduleTimeTable.departureSec, TripTable.serviceId)
+            .where {
+                (ScheduleTimeTable.revisionId eq revisionId) and
+                    (TripTable.tripPatternId eq tripPatternId) and
+                    (ScheduleTimeTable.stopPathIndex eq stopPathIndex) and
+                    (TripTable.frequencyBased.isNull() or (TripTable.frequencyBased eq false))
+            }.map { ServiceStopTime(it[ScheduleTimeTable.arrivalSec], it[ScheduleTimeTable.departureSec], it[TripTable.serviceId]) }
 }
 
 /** A trip's scheduled time at a stop (service-day seconds), with the service it runs on. */
@@ -79,52 +114,69 @@ data class ServiceStopTime(
     val serviceId: String,
 )
 
-interface BlockRepository : JpaRevisionScopedRepository<Block, Long> {
-    @Query("select b from Block b where b.revisionId = :revisionId and b.blockId = :blockId")
+@Repository
+@ExposedBridge
+class BlockRepository : RevisionScopedRepository<Block>(BlockTable) {
     fun findByBlockId(
         revisionId: Long,
         blockId: String,
-    ): List<Block>
+    ): List<Block> =
+        BlockTable
+            .selectAll()
+            .where { (BlockTable.revisionId eq revisionId) and (BlockTable.blockId eq blockId) }
+            .map(BlockTable::read)
 
-    @Query(
-        "select b from Block b " +
-            "where b.revisionId = :revisionId and b.blockId = :blockId and b.serviceId = :serviceId",
-    )
     fun findByBlockAndService(
         revisionId: Long,
         blockId: String,
         serviceId: String,
-    ): Block?
+    ): Block? =
+        BlockTable
+            .selectAll()
+            .where { (BlockTable.revisionId eq revisionId) and (BlockTable.blockId eq blockId) and (BlockTable.serviceId eq serviceId) }
+            .singleOrNull()
+            ?.let(BlockTable::read)
 
-    @Query("select b from Block b where b.revisionId = :revisionId and b.serviceId in :serviceIds")
     fun findByServices(
         revisionId: Long,
         serviceIds: Collection<String>,
-    ): List<Block>
+    ): List<Block> =
+        BlockTable
+            .selectAll()
+            .where { (BlockTable.revisionId eq revisionId) and (BlockTable.serviceId inList serviceIds) }
+            .map(BlockTable::read)
 }
 
-interface BlockTripRepository : JpaRevisionScopedRepository<BlockTrip, Long> {
-    @Query(
-        "select bt from BlockTrip bt " +
-            "where bt.revisionId = :revisionId and bt.blockId = :blockId order by bt.listIndex",
-    )
+@Repository
+@ExposedBridge
+class BlockTripRepository : RevisionScopedRepository<BlockTrip>(BlockTripTable) {
     fun findByBlockIdOrdered(
         revisionId: Long,
         blockId: Long,
-    ): List<BlockTrip>
+    ): List<BlockTrip> =
+        BlockTripTable
+            .selectAll()
+            .where { (BlockTripTable.revisionId eq revisionId) and (BlockTripTable.blockId eq blockId) }
+            .orderBy(BlockTripTable.listIndex)
+            .map(BlockTripTable::read)
 
-    @Query(
-        "select bt from BlockTrip bt " +
-            "where bt.revisionId = :revisionId and bt.blockId in :blockIds order by bt.blockId, bt.listIndex",
-    )
     fun findByBlockIdsOrdered(
         revisionId: Long,
         blockIds: List<Long>,
-    ): List<BlockTrip>
+    ): List<BlockTrip> =
+        BlockTripTable
+            .selectAll()
+            .where { (BlockTripTable.revisionId eq revisionId) and (BlockTripTable.blockId inList blockIds) }
+            .orderBy(BlockTripTable.blockId to SortOrder.ASC, BlockTripTable.listIndex to SortOrder.ASC)
+            .map(BlockTripTable::read)
 
-    @Query("select bt from BlockTrip bt where bt.revisionId = :revisionId and bt.tripId = :tripId")
     fun findByTripId(
         revisionId: Long,
         tripId: Long,
-    ): BlockTrip?
+    ): BlockTrip? =
+        BlockTripTable
+            .selectAll()
+            .where { (BlockTripTable.revisionId eq revisionId) and (BlockTripTable.tripId eq tripId) }
+            .singleOrNull()
+            ?.let(BlockTripTable::read)
 }

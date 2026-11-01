@@ -79,7 +79,7 @@ class TravelTimesProcessorTest(
         val tp = patterns.findByRouteId(rev, "R").single()
         val tt = travelTimes.findByTripPatternOrdered(rev, tp.id!!)
         assertThat(tt.map { it.travelTimeSec }).isEqualTo(listOf<Int?>(null, 600))
-        assertThat(patterns.findById(tp.id!!).get().tripCount).isEqualTo(1)
+        assertThat(patterns.findById(tp.id!!)!!.tripCount).isEqualTo(1)
     }
 
     @Test
@@ -94,6 +94,6 @@ class TravelTimesProcessorTest(
         stage3().onIngestionFailure(rev)
 
         assertThat(travelTimes.findByTripPatternOrdered(rev, tp.id!!)).isEqualTo(emptyList())
-        assertThat(patterns.findById(tp.id!!).get().tripCount).isEqualTo(0)
+        assertThat(patterns.findById(tp.id!!)!!.tripCount).isEqualTo(0)
     }
 }

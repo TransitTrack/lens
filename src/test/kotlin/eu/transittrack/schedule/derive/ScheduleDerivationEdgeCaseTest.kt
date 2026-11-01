@@ -287,7 +287,7 @@ class ScheduleDerivationEdgeCaseTest(
         runAllStages(rev)
 
         val e3 = trips.findByTripId(rev, "E3")!!
-        val pattern = patterns.findById(e3.tripPatternId!!).get()
+        val pattern = patterns.findById(e3.tripPatternId!!)!!
         assertThat(pattern.shapeId).isNull()
 
         val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
@@ -306,7 +306,7 @@ class ScheduleDerivationEdgeCaseTest(
         runAllStages(rev)
 
         val e6 = trips.findByTripId(rev, "E6")!!
-        val pattern = patterns.findById(e6.tripPatternId!!).get()
+        val pattern = patterns.findById(e6.tripPatternId!!)!!
         assertThat(pattern.shapeId).isEqualTo("SHP_OUT")
 
         val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
@@ -362,7 +362,7 @@ class ScheduleDerivationEdgeCaseTest(
         runAllStages(rev)
 
         val t1 = trips.findByTripId(rev, "T1")!!
-        val pattern = patterns.findById(t1.tripPatternId!!).get()
+        val pattern = patterns.findById(t1.tripPatternId!!)!!
         // stop_times visits S1,S2,S2,S3 -> the consecutive S2 dup is removed.
         assertThat(pattern.stopCount).isEqualTo(3)
         assertThat(stopPaths.findByTripPatternOrdered(rev, pattern.id!!).map { it.stopId })
@@ -376,7 +376,7 @@ class ScheduleDerivationEdgeCaseTest(
 
         val t1 = trips.findByTripId(rev, "T1")!!
         assertThat(t1.tripHeadsign).isEqualTo("Loop")
-        assertThat(patterns.findById(t1.tripPatternId!!).get().headsign).isEqualTo("Loop")
+        assertThat(patterns.findById(t1.tripPatternId!!)!!.headsign).isEqualTo("Loop")
     }
 
     @Test

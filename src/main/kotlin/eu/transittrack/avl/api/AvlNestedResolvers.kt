@@ -42,14 +42,14 @@ class AvlNestedResolvers(
     fun block(v: VehicleDto): BlockDto? {
         val rev = v.revisionId ?: return null
         val pk = v.blockPk ?: return null
-        return blocks.findById(pk).orElse(null)?.let { BlockDto.of(it, rev, v.gtfsFeedCode) }
+        return blocks.findById(pk)?.let { BlockDto.of(it, rev, v.gtfsFeedCode) }
     }
 
     @SchemaMapping(typeName = "Vehicle")
     fun pattern(v: VehicleDto): TripPatternDto? {
         val rev = v.revisionId ?: return null
         val pid = v.tripPatternId ?: return null
-        return patterns.findById(pid).orElse(null)?.let { TripPatternDto.of(it, rev, v.gtfsFeedCode) }
+        return patterns.findById(pid)?.let { TripPatternDto.of(it, rev, v.gtfsFeedCode) }
     }
 
     @SchemaMapping(typeName = "Vehicle")
@@ -67,6 +67,6 @@ class AvlNestedResolvers(
     @SchemaMapping(typeName = "AvlReportMatch")
     fun block(m: AvlReportMatchDto): BlockDto? {
         val pk = m.blockPk ?: return null
-        return blocks.findById(pk).orElse(null)?.let { BlockDto.of(it, m.revisionId, m.gtfsFeedCode) }
+        return blocks.findById(pk)?.let { BlockDto.of(it, m.revisionId, m.gtfsFeedCode) }
     }
 }
