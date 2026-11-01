@@ -54,8 +54,8 @@ function pct(sec: number): number {
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        @click="router.back()"
         aria-label="Go back"
+        @click="router.back()"
       />
     </template>
 

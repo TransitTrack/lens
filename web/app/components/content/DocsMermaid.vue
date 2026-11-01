@@ -37,12 +37,13 @@ watch(() => [props.code, colorMode.value], render, { immediate: true })
     class="my-5 overflow-x-auto rounded-md border border-muted bg-muted px-4 py-3 text-sm"
     >{{ code }}</pre>
   <USkeleton v-else-if="!svg" class="my-5 h-48 w-full" />
-  <!-- eslint-disable-next-line vue/no-v-html -- mermaid output, securityLevel: strict, from our own docs -->
+  <!-- eslint-disable vue/no-v-html -- mermaid output, securityLevel: strict, from our own docs -->
   <figure
     v-else
     class="docs-mermaid my-5 overflow-x-auto rounded-md border border-muted bg-default p-4"
     v-html="svg"
   />
+  <!-- eslint-enable vue/no-v-html -->
 </template>
 
 <style scoped>

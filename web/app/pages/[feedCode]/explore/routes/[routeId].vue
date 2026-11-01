@@ -5,7 +5,7 @@ import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useRouteDetailQuery } from '~~/generated/graphql'
-import { routeTypeLabel, hexColor, patternLine, patternStopFeatures } from '~/utils/gtfs'
+import { routeTypeLabel, patternLine, patternStopFeatures } from '~/utils/gtfs'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,7 +20,6 @@ const { result, loading, error } = useRouteDetailQuery(
 
 const gtfsRoute = computed(() => result.value?.route ?? null)
 const patterns = computed(() => result.value?.tripPatterns ?? [])
-const routeColor = computed(() => hexColor(gtfsRoute.value?.routeColor, '#3b82f6'))
 
 const patternKey = ref<string | undefined>()
 watch(
@@ -118,8 +117,8 @@ const splitterItems = computed<SplitterItem[]>(() =>
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        @click="router.back()"
         aria-label="Go back"
+        @click="router.back()"
       />
     </template>
 
@@ -279,10 +278,10 @@ const splitterItems = computed<SplitterItem[]>(() =>
       <template #map>
         <div class="relative h-full min-w-0">
           <VehicleRouteMap
+            route-color="#ff0000"
             :line="line"
             :stops="stops"
             :vehicle="null"
-            route-color="#ff0000"
             :extent="extent"
             :focus-id="selectedStopId"
           />
