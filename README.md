@@ -121,3 +121,4 @@ metrics up in a cluster instead.
 | [docs/ci.md](docs/ci.md) | GitHub Actions: lint, tests, vulnerability scans, benchmarks, image/chart publishing |
 | [extension-api/README.md](extension-api/README.md) | Extension points: AVL decoders, GTFS validators, vehicle matchers, prediction strategies |
 | [web/README.md](web/README.md) | The Nuxt/Vue vehicle dashboard |
+| [tools/legacy-migration/README.md](tools/legacy-migration/README.md) | Migrating a TheTransitClock (Transitime) database: GTFS export, learned travel-time seeding |
