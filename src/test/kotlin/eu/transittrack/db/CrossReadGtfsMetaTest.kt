@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.transaction.PlatformTransactionManager
@@ -26,20 +27,23 @@ import eu.transittrack.gtfs.feed.GtfsFeedTable
 import eu.transittrack.gtfs.revision.GtfsRevision
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
+import eu.transittrack.support.DstTimeZoneExtension
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Interim: while JPA entities and Exposed tables describe the same rows, each must read what the
- * other wrote. Deleted with the JPA entities.
+ * other wrote, at the current time and at an instant inside a DST fall-back hour. Deleted with the
+ * JPA entities.
  */
 @SpringBootTest
+@ExtendWith(DstTimeZoneExtension::class)
 class CrossReadGtfsMetaTest(
     @Autowired val em: EntityManager,
     @Autowired val txManager: PlatformTransactionManager,
     @Autowired val exposedDatabase: org.jetbrains.exposed.v1.jdbc.Database,
 ) : PostgresPerMethodTest() {
     // Postgres keeps microseconds; the JVM clock may hand out nanoseconds.
-    private val t0: Instant = Instant.now().truncatedTo(ChronoUnit.MICROS)
+    private var t0: Instant = Instant.now().truncatedTo(ChronoUnit.MICROS)
 
     private fun feed() =
         GtfsFeed(
@@ -161,7 +165,16 @@ class CrossReadGtfsMetaTest(
     }
 
     @Test
-    fun feedRevisionDraftRoundTrip() {
+    fun feedRevisionDraftRoundTrip() = roundTrip()
+
+    /** Every timestamp of the three rows falls inside the fall-back hour (t0 .. t0 + 7s). */
+    @Test
+    fun feedRevisionDraftRoundTripInDstFallBackHour() {
+        t0 = DstTimeZoneExtension.DST_FALL_BACK
+        roundTrip()
+    }
+
+    private fun roundTrip() {
         // JPA writes, Exposed reads.
         val f = feed()
         val r = revision(0)

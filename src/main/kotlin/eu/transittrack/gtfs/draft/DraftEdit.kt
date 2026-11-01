@@ -18,7 +18,6 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
-import org.jetbrains.exposed.v1.javatime.timestamp
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -62,7 +61,7 @@ object DraftEditTable : RowTable<DraftEdit>("draft_edit") {
     val summary = text("summary")
     val forward = jsonb<String>("forward", { it }, { it })
     val inverse = jsonb<String>("inverse", { it }, { it })
-    val appliedAt = timestamp("applied_at")
+    val appliedAt = timestampTz("applied_at")
     val undone = bool("undone").default(false)
 
     override val primaryKey = PrimaryKey(id, name = "draft_edit_pkey")

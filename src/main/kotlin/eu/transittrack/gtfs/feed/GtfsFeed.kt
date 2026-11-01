@@ -14,7 +14,6 @@ import jakarta.persistence.Table
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
-import org.jetbrains.exposed.v1.javatime.timestamp
 
 import eu.transittrack.db.RowTable
 
@@ -48,9 +47,9 @@ object GtfsFeedTable : RowTable<GtfsFeed>("gtfs_feed") {
     val enabled = bool("enabled").default(true)
     val autoActivate = bool("auto_activate").nullable()
     val feedSource = enumerationByName<FeedSource>("source", 16)
-    val lastIngestAt = timestamp("last_ingest_at").nullable()
-    val createdAt = timestamp("created_at")
-    val updatedAt = timestamp("updated_at")
+    val lastIngestAt = timestampTz("last_ingest_at").nullable()
+    val createdAt = timestampTz("created_at")
+    val updatedAt = timestampTz("updated_at")
 
     override val primaryKey = PrimaryKey(id, name = "gtfs_feed_pkey")
 

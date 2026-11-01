@@ -71,7 +71,10 @@ class AvlWriter {
         VehicleStateTable.upsert(VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(it, s) }
     }
 
-    /** Applied in list order (one statement per row in a JDBC batch), so a later upsert for the same vehicle wins. */
+    /**
+     * Applied in list order (one statement per row in a JDBC batch), so a later upsert for the same vehicle wins.
+     * Last-wins for a key repeated within one batch relies on pgjdbc sending separate statements (`reWriteBatchedInserts` off).
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertStates(states: List<VehicleStateUpsert>) {
         if (states.isEmpty()) return

@@ -17,6 +17,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -41,6 +42,7 @@ import eu.transittrack.avl.model.VehicleMatchTable
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateTable
 import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.support.DstTimeZoneExtension
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
@@ -48,9 +50,10 @@ import eu.transittrack.support.PostgresPerMethodTest
  * other wrote, field by field. Samples cover every [MatchStatus], [PredictionStatus],
  * [AvlFeedSourceKind], [AvlFormat] and [AvlAssignmentMode] value (all ordinal- or name-mapped), a
  * fully populated row and one with every nullable column null, and an instant inside a DST fall-back
- * hour. Deleted with the JPA entities.
+ * hour (with the JVM zone pinned to one that has DST). Deleted with the JPA entities.
  */
 @SpringBootTest
+@ExtendWith(DstTimeZoneExtension::class)
 class CrossReadAvlTest(
     @Autowired val em: EntityManager,
     @Autowired val txManager: PlatformTransactionManager,
@@ -165,8 +168,7 @@ class CrossReadAvlTest(
     companion object {
         private val T0 = Instant.parse("2026-09-01T00:00:00.123456Z")
 
-        /** Inside Europe's 2026 fall-back hour (local wall time occurs twice). */
-        private val DST_OVERLAP = Instant.parse("2026-10-25T01:30:00.654321Z")
+        private val DST_OVERLAP = DstTimeZoneExtension.DST_FALL_BACK
 
         private fun feed(
             code: String,

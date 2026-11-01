@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.extension.ExtendWith
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -31,14 +32,16 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
 import eu.transittrack.schedule.optimize.model.OptimizationRunState
 import eu.transittrack.schedule.optimize.model.OptimizationRunTable
+import eu.transittrack.support.DstTimeZoneExtension
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * Interim: while JPA entities and Exposed tables describe the same optimization rows, each must read
- * what the other wrote, field by field (fully populated and all-nullable-null samples). Deleted with
- * the JPA entities.
+ * what the other wrote, field by field (fully populated, all-nullable-null and DST fall-back-hour
+ * samples). Deleted with the JPA entities.
  */
 @SpringBootTest
+@ExtendWith(DstTimeZoneExtension::class)
 class CrossReadOptimizationTest(
     @Autowired val em: EntityManager,
     @Autowired val txManager: PlatformTransactionManager,
@@ -173,6 +176,17 @@ class CrossReadOptimizationTest(
                     },
                 ),
                 Arguments.of("OptimizationRun (nulls)", { k: String -> run("f-$k") }),
+                Arguments.of(
+                    "OptimizationRun (DST fall-back hour)",
+                    { k: String ->
+                        val t = DstTimeZoneExtension.DST_FALL_BACK
+                        OptimizationRunRow(
+                            feedCode = "f-$k", revisionId = 42, observedFrom = t, observedTo = t.plusSeconds(1),
+                            minimumSamples = 1, state = OptimizationRunState.SUCCEEDED, startedAt = t.plusSeconds(2),
+                            completedAt = t.plusSeconds(3), createdAt = t.plusSeconds(4),
+                        )
+                    },
+                ),
             )
 
         @JvmStatic

@@ -20,7 +20,6 @@ import org.jetbrains.exposed.v1.core.Sequence
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.javatime.date
-import org.jetbrains.exposed.v1.javatime.timestamp
 import org.jetbrains.exposed.v1.json.jsonb
 import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.json.JsonMapper
@@ -89,9 +88,9 @@ object GtfsRevisionTable : RowTable<GtfsRevision>("gtfs_revision") {
     val feedEndDate = date("feed_end_date").nullable()
     val validationReport = jsonb<String>("validation_report", { it }, { it }).nullable()
     val errorMessage = text("error_message").nullable()
-    val createdAt = timestamp("created_at")
-    val activatedAt = timestamp("activated_at").nullable()
-    val supersededAt = timestamp("superseded_at").nullable()
+    val createdAt = timestampTz("created_at")
+    val activatedAt = timestampTz("activated_at").nullable()
+    val supersededAt = timestampTz("superseded_at").nullable()
     val kind = enumerationByName<DraftKind>("kind", 16).default(DraftKind.IMPORT)
     val baseRevisionId =
         long("base_revision_id")
@@ -102,7 +101,7 @@ object GtfsRevisionTable : RowTable<GtfsRevision>("gtfs_revision") {
     val deriving = bool("deriving").default(false)
     val lastValidation = jsonb<String>("last_validation", { it }, { it }).nullable()
     val editorClaimBy = text("editor_claim_by").nullable()
-    val editorClaimExpiresAt = timestamp("editor_claim_expires_at").nullable()
+    val editorClaimExpiresAt = timestampTz("editor_claim_expires_at").nullable()
     val version = long("version").default(0)
     val createdBy = text("created_by").nullable()
 

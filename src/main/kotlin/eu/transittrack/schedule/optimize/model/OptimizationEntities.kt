@@ -24,7 +24,6 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
-import org.jetbrains.exposed.v1.javatime.timestamp
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -82,14 +81,14 @@ object OptimizationRunTable : RowTable<OptimizationRunRow>("schedule_optimizatio
     val directionId = integer("direction_id").nullable()
     val windowFromSec = integer("window_from_sec").nullable()
     val windowToSec = integer("window_to_sec").nullable()
-    val observedFrom = timestamp("observed_from")
-    val observedTo = timestamp("observed_to")
+    val observedFrom = timestampTz("observed_from")
+    val observedTo = timestampTz("observed_to")
     val minimumSamples = integer("minimum_samples")
     val state = enumerationByName<OptimizationRunState>("state", 16)
-    val startedAt = timestamp("started_at").nullable()
-    val completedAt = timestamp("completed_at").nullable()
+    val startedAt = timestampTz("started_at").nullable()
+    val completedAt = timestampTz("completed_at").nullable()
     val error = text("error").nullable()
-    val createdAt = timestamp("created_at")
+    val createdAt = timestampTz("created_at")
 
     override val primaryKey = PrimaryKey(id, name = "schedule_optimization_run_pkey")
 
