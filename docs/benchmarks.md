@@ -177,3 +177,102 @@ in the sampling script), so only post-GC live data and CPU are recorded.
 | 23:33:03 | 144.9 | 0.0008 |
 
 The live-data gauge only updates on a major GC, hence the repeated values.
+
+## Exposed migration: after
+
+Post-migration numbers, recorded to check the Exposed port against the baseline above. Commit:
+`f46894b` (`feature/exposed-migration`, Exposed 1.6.0, with the three fixes listed below). Same task
+and settings as the baseline: `./gradlew baselineBenchmark`, 2 warmups, 5 iterations, 2 forks,
+`-prof gc`.
+
+**Environment:** Apple M4 Pro (14 cores, 48 GB), macOS 27.2, Temurin JDK 25 (`25+36-LTS`),
+Testcontainers `postgres:18-alpine` on OrbStack (Docker 29.8.2). All runs used isolated `git worktree`
+checkouts: `f46894b` for "after" and `d97f6e5` for the baseline re-run. `d97f6e5` has the same
+application code as `4c6c8f6` and only adds the `baselineBenchmark` task.
+
+**Same-session baseline.** The fixture's trips run at 00:00, 06:00, 12:00 and 18:00 UTC. How much
+matching and prediction work a run does therefore depends on the wall-clock time it runs at. On one
+afternoon the same post-migration code measured both 634 and 149 ms/op for `predict`/400, half an
+hour apart. Each "after" run was therefore paired with a run of the pre-migration code
+in the same session, minutes apart. Verdicts are against that paired run. The
+2026-10-31 numbers are kept for reference. A verdict of regressed or improved means the means differ by
+more than the sum of both error margins (99.9% CI). Times are in ms/op and allocation
+(`gc.alloc.rate.norm`) is in MiB/op. Both are lower-is-better.
+
+| Benchmark | vehicleCount | Baseline 2026-10-31 (time · alloc) | Baseline re-run, paired (time · alloc) | After `f46894b` (time · alloc) | Time | Alloc |
+|---|---|---|---|---|---|---|
+| AvlIngestBenchmark.ingest | 400 | 43.7 ± 7.8 · 3.75 ± 1.28 | 44.3 ± 13.3 · 3.76 ± 1.29 | 14.9 ± 2.7 · 4.44 ± 0.70 | improved | parity |
+| AvlIngestBenchmark.ingest | 4000 | 352.8 ± 15.8 · 32.85 ± 1.26 | 357.2 ± 15.8 · 32.84 ± 1.27 | 73.5 ± 5.5 · 37.59 ± 0.95 | improved | **regressed** (+14%) |
+| AvlMatchBenchmark.match | 400 | 85.5 ± 9.5 · 22.46 ± 1.04 | 84.2 ± 12.4 · 22.54 ± 1.09 | 54.4 ± 8.5 · 17.28 ± 0.45 | improved | improved |
+| AvlMatchBenchmark.match | 4000 | 176.4 ± 14.1 · 72.22 ± 1.07 | 179.0 ± 11.6 · 72.31 ± 1.22 | 87.4 ± 17.5 · 63.08 ± 1.38 | improved | improved |
+| PredictionBenchmark.predict | 400 | 123.8 ± 19.1 · 32.47 ± 1.00 | 185.7 ± 40.9 · 33.12 ± 1.04 * | 184.5 ± 27.2 · 39.59 ± 0.98 * | parity | **regressed** (+20%) |
+| PredictionBenchmark.predict | 4000 | 285.0 ± 88.7 · 96.72 ± 1.02 | 445.7 ± 177.3 · 98.37 ± 1.00 * | 425.7 ± 54.8 · 115.35 ± 1.31 * | parity | **regressed** (+17%) |
+
+\* The prediction rows come from an interleaved re-run of `PredictionBenchmark` alone (after, base,
+after, starting 17:03 UTC). In the full paired run two minutes earlier, `predict` read 137.2 ± 18.2 → 190.6 ± 28.9
+(400) and 282.8 ± 28.3 → 425.3 ± 54.9 (4000) ms/op. That looked like a time regression, but the
+interleaved run put the pre-migration code at 185.7 and 445.7 ms/op as well. The
+second "after" run in the interleave read 217.0 ± 47.9 and 436.6 ± 54.8 ms/op, again parity.
+Allocation was stable across all of these runs.
+
+The port as first measured (`ea265c7`, paired run, 2026-11-01 13:10 UTC) had times at parity or
+better everywhere, but every allocation figure had regressed: ingest 8.88 / 87.90, match 27.08 / 115.35,
+predict 55.95 / 185.84 MiB/op (400 / 4000). The fixes, each measured on the whole suite
+(time stayed at parity in each step):
+
+- `57a8de9` perf(db): the exception-translation aspect was ordered ahead of Spring's
+  `ExposeInvocationInterceptor`. Every `@Transactional` call created and swallowed an
+  `IllegalStateException` while matching the pointcut (JFR: about 2,300 throwables/s in `predict`,
+  against about 5/s before the port). Time and allocation stayed within noise, apart from a small
+  allocation drop at ingest/4000 (87.90 → 85.13 MiB/op).
+- `96c39c3` perf(db): Exposed's `batchInsert`/`batchUpsert` build a `ResultRow` for every written row
+  even with `shouldReturnGeneratedValues = false`, and walk the arguments three times (JFR TLAB
+  profile: `InsertBlockingExecutable.processResults` was about 38% of ingest's allocation). The AVL and
+  prediction writers now use `batchInsertWithoutResults`/`batchUpsertWithoutResults`
+  (`db/BatchWrites.kt`). Results at 400 / 4000: ingest 8.77 / 85.13 → 4.45 / 38.69, match
+  26.64 / 119.93 → 17.04 / 61.60, predict 55.73 / 192.03 → 44.82 / 128.81 MiB/op.
+- `f46894b` perf(db): `SameSqlBatch` (`execBatch`) rendered every statement's SQL to compare them,
+  which was the largest allocation in `PredictionWriter.insertCheckpoints`. It now renders the first
+  statement only and checks the parameter types. Predict 400 / 4000: 44.82 / 128.81 → 39.71 / 115.16 MiB/op.
+
+**Still regressed (allocation only):** ingest/4000 by about 5 MiB/op, predict by about 6 MiB/op (400)
+and 17 MiB/op (4000). A JFR TLAB profile puts what remains in Exposed's per-statement model rather than
+in anything this codebase does twice:
+- ingest: `BatchInsertStatement` copies a map per row (`addBatch`, `valuesAndClientDefaults`, the
+  argument pairs and a `QueryBuilder` per row).
+- predict: `insertCheckpoints` builds and renders a full insert-select DSL tree per candidate, where
+  the old code reused one SQL string. `findById` and `findPreviousForVehicle` render their SQL twice per
+  call (once for the text, once to collect the arguments) and build a `ResultRow` map per row.
+
+Closing those gaps would need statement-level SQL caching or binding rows past Exposed's statement
+classes. That goes beyond fixing what the port duplicated, so it was not done here.
+
+### Live app steady state (informational)
+
+Same procedure as the baseline: `bootRun` with the `local` profile at `f46894b`, against the
+`docker compose` Postgres, polling `stpt` and the other configured local feeds. `/actuator/prometheus`
+was sampled every 60 s for 10 minutes starting about 90 s after boot. Heap used is the sum of
+`jvm_memory_used_bytes{area="heap"}` over the heap pools. The baseline script missed that figure.
+The heap-used sum was lost again in this run: the pools' `id` label contains spaces (`"G1 Eden
+Space"`), so the sampling script parsed the wrong field. Live data after GC and CPU are recorded,
+the same two figures as the baseline. `stpt` was matching about 75-79 vehicles per run while the
+samples were taken (2026-11-01, about 19:07-19:17 local time; the baseline was sampled at 23:24-23:33,
+so the live load differs).
+
+| Time | Live data after GC (MiB) | process_cpu_usage |
+|---|---|---|
+| 19:07:30 | 131.2 | 0.0003 |
+| 19:08:31 | 141.8 | 0.0004 |
+| 19:09:31 | 111.0 | 0.0003 |
+| 19:10:31 | 103.3 | 0.0237 |
+| 19:11:31 | 103.3 | 0.0014 |
+| 19:12:31 | 101.4 | 0.0005 |
+| 19:13:31 | 70.2 | 0.0006 |
+| 19:14:31 | 70.2 | 0.0003 |
+| 19:15:31 | 71.5 | 0.0004 |
+| 19:16:31 | 69.2 | 0.0003 |
+
+Live data after GC settled at about 70 MiB, against 145-215 MiB before the port. Mean CPU across the
+samples was about 0.003, against about 0.001 at baseline. Without the 19:10 sample, which landed on
+a silent-vehicle sweep and a match run, the mean is about 0.0005. The load differed and each side is
+a single short run, so these figures are a rough indication, not a measurement.
