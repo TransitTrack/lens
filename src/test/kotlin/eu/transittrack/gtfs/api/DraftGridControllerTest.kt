@@ -1,21 +1,29 @@
 package eu.transittrack.gtfs.api
 
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.count
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
+import eu.transittrack.gtfs.model.StopTimeTable
+import eu.transittrack.gtfs.model.TripTable
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
@@ -33,9 +41,8 @@ class DraftGridControllerTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired dataSource: DataSource,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
     private val cleanupRevs = mutableListOf<Long>()
 
     @Test
@@ -47,19 +54,21 @@ class DraftGridControllerTest(
         val revId = draft.id!!
 
         val routeId =
-            jdbc.queryForObject(
-                "select route_id from trips where revision_id = ? group by route_id order by count(*) desc limit 1",
-                String::class.java,
-                revId,
-            )!!
+            transaction(db) {
+                val tripCount = TripTable.id.count()
+                TripTable
+                    .select(TripTable.routeId, tripCount)
+                    .where { TripTable.revisionId eq revId }
+                    .groupBy(TripTable.routeId)
+                    .orderBy(tripCount, SortOrder.DESC)
+                    .limit(1)
+                    .single()[TripTable.routeId]
+            }
 
         val expectedTripCount =
-            jdbc.queryForObject(
-                "select count(*) from trips where revision_id = ? and route_id = ?",
-                Long::class.java,
-                revId,
-                routeId,
-            )!!
+            transaction(db) {
+                TripTable.selectAll().where { (TripTable.revisionId eq revId) and (TripTable.routeId eq routeId) }.count()
+            }
 
         val grid = controller.draftGrid(revId.toString(), routeId, null, null)
 
@@ -72,22 +81,23 @@ class DraftGridControllerTest(
 
         val knownTripId = grid.trips.first().tripId
         val expectedCells =
-            jdbc.queryForList(
-                "select stop_sequence, arrival_time, departure_time from stop_times " +
-                    "where revision_id = ? and trip_id = ? order by stop_sequence",
-                revId,
-                knownTripId,
-            )
+            transaction(db) {
+                StopTimeTable
+                    .selectAll()
+                    .where { (StopTimeTable.revisionId eq revId) and (StopTimeTable.tripId eq knownTripId) }
+                    .orderBy(StopTimeTable.stopSequence)
+                    .toList()
+            }
         val actual = grid.trips.first { it.tripId == knownTripId }.cells
         assertThat(actual.size).isEqualTo(expectedCells.size)
         expectedCells.forEachIndexed { i, row ->
-            assertThat(actual[i].stopSequence).isEqualTo((row["stop_sequence"] as Number).toInt())
-            assertThat(actual[i].arrivalSec).isEqualTo((row["arrival_time"] as Number?)?.toInt())
-            assertThat(actual[i].departureSec).isEqualTo((row["departure_time"] as Number?)?.toInt())
+            assertThat(actual[i].stopSequence).isEqualTo(row[StopTimeTable.stopSequence])
+            assertThat(actual[i].arrivalSec).isEqualTo(row[StopTimeTable.arrivalTime])
+            assertThat(actual[i].departureSec).isEqualTo(row[StopTimeTable.departureTime])
         }
 
         val firstDep = grid.trips.first { it.tripId == knownTripId }.firstDepartureSec
-        if (expectedCells.any { it["departure_time"] != null }) {
+        if (expectedCells.any { it[StopTimeTable.departureTime] != null }) {
             assertThat(firstDep).isNotNull()
         }
     }

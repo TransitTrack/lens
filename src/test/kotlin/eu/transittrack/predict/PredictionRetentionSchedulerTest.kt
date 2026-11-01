@@ -1,24 +1,43 @@
 package eu.transittrack.predict
 
-import java.sql.Timestamp
 import java.time.Instant
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
+import org.jetbrains.exposed.v1.core.Column
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
+import eu.transittrack.predict.model.AvlStopCrossingTable
+import eu.transittrack.predict.model.KalmanTravelTimeStateTable
+import eu.transittrack.predict.model.PredictionAccuracyTable
+import eu.transittrack.predict.model.PredictionCheckpointTable
+import eu.transittrack.predict.model.PredictionFrequencyRunTable
+import eu.transittrack.predict.model.TravelTimeObservationTable
+import eu.transittrack.predict.model.VehiclePredictionTable
+import eu.transittrack.schedule.model.TripPatternTable
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.insertAvlFeed
+import eu.transittrack.support.insertGtfsFeed
+import eu.transittrack.support.insertGtfsRevision
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 @PostgresSliceTest
 class PredictionRetentionSchedulerTest(
-    @Autowired val jdbc: JdbcTemplate,
+    @Autowired val db: Database,
     @Autowired val retention: PredictionRetentionRepository,
 ) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-05T12:00:00Z")
@@ -28,107 +47,125 @@ class PredictionRetentionSchedulerTest(
     fun seed() {
         scheduler = PredictionRetentionScheduler(retention, PredictProperties(), TransitTrackMetrics.forTests())
 
-        jdbc.update(
-            "insert into gtfs_feed (id, code, name, url, enabled, source, created_at, updated_at) " +
-                "values (1, 'g', 'G', 'x', true, 'CONFIG', now(), now())",
-        )
-        jdbc.update(
-            "insert into gtfs_revision (id, feed_id, status, source_url, created_at) " +
-                "values (1, 1, 'ACTIVE', 'x', now())",
-        )
-        jdbc.update(
-            "insert into trip_patterns (id, revision_id, pattern_key, route_id, stop_count, trip_count) " +
-                "values (100, 1, 'k', 'r', 1, 1)",
-        )
-        jdbc.update(
-            "insert into avl_feed (id, code, name, gtfs_feed_code, url, format, poll_interval_sec, " +
-                "assignment_mode, enabled, source, prediction_algorithms, created_at, updated_at) " +
-                "values (1, 'f1', 'F1', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', '[\"SCHEDULE_ADHERENCE\"]', now(), now())",
-        )
+        db.insertGtfsFeed(1, "g")
+        db.insertGtfsRevision(1, 1)
+        db.insertAvlFeed(1, "f1", name = "F1", gtfsFeedCode = "g")
 
-        // Learned rows are keyed by (gtfs feed code, pattern_key): one surviving (the pattern still
-        // exists in a stored revision of feed g), one whose key no revision has any more, and one
-        // with the right key but under another feed - both orphans.
-        for ((feedCode, patternKey) in listOf("g" to "k", "g" to "gone", "other" to "k")) {
-            jdbc.update(
-                "insert into travel_time_observation " +
-                    "(gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band, sample_count, mean_sec, updated_at) " +
-                    "values (?, ?, 0, 3, 5, 1, 30.0, ?)",
-                feedCode, patternKey, Timestamp.from(now),
+        transaction(db) {
+            TripPatternTable.insert {
+                it[id] = 100L
+                it[revisionId] = 1L
+                it[patternKey] = "k"
+                it[routeId] = "r"
+                it[stopCount] = 1
+                it[tripCount] = 1
+            }
+
+            // Learned rows are keyed by (gtfs feed code, pattern_key): one surviving (the pattern still
+            // exists in a stored revision of feed g), one whose key no revision has any more, and one
+            // with the right key but under another feed - both orphans.
+            for ((feedCode, patternKey) in listOf("g" to "k", "g" to "gone", "other" to "k")) {
+                TravelTimeObservationTable.insert {
+                    it[gtfsFeedCode] = feedCode
+                    it[TravelTimeObservationTable.patternKey] = patternKey
+                    it[stopPathIndex] = 0
+                    it[dayType] = DayType.ALL
+                    it[timeBand] = TimeBand.ALL
+                    it[sampleCount] = 1L
+                    it[meanSec] = 30.0
+                    it[updatedAt] = now
+                }
+                KalmanTravelTimeStateTable.insert {
+                    it[gtfsFeedCode] = feedCode
+                    it[KalmanTravelTimeStateTable.patternKey] = patternKey
+                    it[stopPathIndex] = 0
+                    it[dayType] = DayType.ALL
+                    it[timeBand] = TimeBand.ALL
+                    it[estimateSec] = 30.0
+                    it[errorVariance] = 5.0
+                    it[sampleCount] = 1L
+                    it[updatedAt] = now
+                }
+            }
+
+            // vehicle_prediction: one old (deleted), one young (kept)
+            for ((vehicle, tripRow, age) in listOf(Triple("v1", 1L, 10L), Triple("v2", 2L, 1L))) {
+                VehiclePredictionTable.insert {
+                    it[feedCode] = "f1"
+                    it[vehicleId] = vehicle
+                    it[tripRowId] = tripRow
+                    it[tripPatternId] = 100L
+                    it[stopPathIndex] = 0
+                    it[algorithm] = PredictionAlgorithm.SCHEDULE_ADHERENCE
+                    it[computedAt] = now.minus(age, ChronoUnit.HOURS)
+                }
+            }
+
+            // prediction_checkpoint: one never scored within a prediction's lifetime (deleted), one young (kept)
+            for ((vehicle, age) in listOf("v1" to 10L, "v2" to 1L)) {
+                val ts = now.minus(age, ChronoUnit.HOURS)
+                PredictionCheckpointTable.insert {
+                    it[feedCode] = "f1"
+                    it[vehicleId] = vehicle
+                    it[tripRowId] = 1L
+                    it[stopPathIndex] = 0
+                    it[algorithm] = PredictionAlgorithm.SCHEDULE_ADHERENCE
+                    it[sampleSlot] = ts
+                    it[predictedTs] = ts
+                    it[computedAt] = ts
+                    it[producedAt] = ts
+                }
+                PredictionFrequencyRunTable.insert {
+                    it[feedCode] = "f1"
+                    it[vehicleId] = vehicle
+                    it[tripRowId] = 1L
+                    it[serviceDate] = LocalDate.of(2026, 9, 5)
+                    it[runStartedAt] = ts
+                    it[lastReportTs] = ts
+                }
+            }
+
+            // prediction_accuracy: one old (deleted), one young (kept)
+            for (
+            (vehicle, tripRow, ts) in
+            listOf(
+                Triple("v1", 1L, now.minus(40, ChronoUnit.DAYS)),
+                Triple("v2", 2L, now.minus(1, ChronoUnit.DAYS)),
             )
-            jdbc.update(
-                "insert into kalman_travel_time_state " +
-                    "(gtfs_feed_code, pattern_key, stop_path_index, day_type, time_band, " +
-                    "estimate_sec, error_variance, sample_count, updated_at) " +
-                    "values (?, ?, 0, 3, 5, 30.0, 5.0, 1, ?)",
-                feedCode, patternKey, Timestamp.from(now),
-            )
+            ) {
+                PredictionAccuracyTable.insert {
+                    it[feedCode] = "f1"
+                    it[vehicleId] = vehicle
+                    it[tripRowId] = tripRow
+                    it[stopPathIndex] = 0
+                    it[algorithm] = PredictionAlgorithm.SCHEDULE_ADHERENCE
+                    it[predictedTs] = ts
+                    it[actualTs] = ts
+                    it[errorSec] = 10
+                    it[absErrorSec] = 10
+                    it[createdAt] = ts
+                }
+            }
+
+            for ((vehicle, tripRow, age) in listOf(Triple("v1", 1L, 100L), Triple("v2", 2L, 1L))) {
+                AvlStopCrossingTable.insert {
+                    it[feedCode] = "f1"
+                    it[vehicleId] = vehicle
+                    it[tripRowId] = tripRow
+                    it[tripPatternId] = 100L
+                    it[stopPathIndex] = 0
+                    it[observedAt] = now.minus(age, ChronoUnit.DAYS)
+                    it[observedTravelTimeSec] = 30.0
+                    it[revisionId] = 1L
+                }
+            }
         }
-
-        // vehicle_prediction: one old (deleted), one young (kept)
-        jdbc.update(
-            "insert into vehicle_prediction " +
-                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, algorithm, computed_at) " +
-                "values ('f1', 'v1', 1, 100, 0, 0, ?)",
-            Timestamp.from(now.minus(10, ChronoUnit.HOURS)),
-        )
-        jdbc.update(
-            "insert into vehicle_prediction " +
-                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, algorithm, computed_at) " +
-                "values ('f1', 'v2', 2, 100, 0, 0, ?)",
-            Timestamp.from(now.minus(1, ChronoUnit.HOURS)),
-        )
-
-        // prediction_checkpoint: one never scored within a prediction's lifetime (deleted), one young (kept)
-        for ((vehicleId, age) in listOf("v1" to 10L, "v2" to 1L)) {
-            val ts = Timestamp.from(now.minus(age, ChronoUnit.HOURS))
-            jdbc.update(
-                "insert into prediction_checkpoint " +
-                    "(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
-                    "sample_slot, predicted_ts, computed_at, produced_at) " +
-                    "values ('f1', ?, 1, 0, 0, ?, ?, ?, ?)",
-                vehicleId, ts, ts, ts, ts,
-            )
-            jdbc.update(
-                "insert into prediction_frequency_run (feed_code, vehicle_id, trip_row_id, service_date, run_started_at, last_report_ts) " +
-                    "values ('f1', ?, 1, date '2026-09-05', ?, ?)",
-                vehicleId, ts, ts,
-            )
-        }
-
-        // prediction_accuracy: one old (deleted), one young (kept)
-        val oldAccuracyTs = Timestamp.from(now.minus(40, ChronoUnit.DAYS))
-        jdbc.update(
-            "insert into prediction_accuracy " +
-                "(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
-                "predicted_ts, actual_ts, error_sec, abs_error_sec, created_at) " +
-                "values ('f1', 'v1', 1, 0, 0, ?, ?, 10, 10, ?)",
-            oldAccuracyTs, oldAccuracyTs, oldAccuracyTs,
-        )
-        val youngAccuracyTs = Timestamp.from(now.minus(1, ChronoUnit.DAYS))
-        jdbc.update(
-            "insert into prediction_accuracy " +
-                "(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, " +
-                "predicted_ts, actual_ts, error_sec, abs_error_sec, created_at) " +
-                "values ('f1', 'v2', 2, 0, 0, ?, ?, 10, 10, ?)",
-            youngAccuracyTs, youngAccuracyTs, youngAccuracyTs,
-        )
-
-        jdbc.update(
-            "insert into avl_stop_crossing " +
-                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
-                "observed_travel_time_sec, revision_id) " +
-                "values ('f1', 'v1', 1, 100, 0, ?, 30.0, 1)",
-            Timestamp.from(now.minus(100, ChronoUnit.DAYS)),
-        )
-        jdbc.update(
-            "insert into avl_stop_crossing " +
-                "(feed_code, vehicle_id, trip_row_id, trip_pattern_id, stop_path_index, observed_at, " +
-                "observed_travel_time_sec, revision_id) " +
-                "values ('f1', 'v2', 2, 100, 0, ?, 30.0, 1)",
-            Timestamp.from(now.minus(1, ChronoUnit.DAYS)),
-        )
     }
+
+    private fun vehicleIds(
+        table: Table,
+        vehicleId: Column<String>,
+    ): List<String> = transaction(db) { table.select(vehicleId).map { it[vehicleId] } }
 
     @Test
     fun `prunes aged rows and sweeps orphan learner rows, keeping real-pattern and young rows`() {
@@ -142,25 +179,33 @@ class PredictionRetentionSchedulerTest(
         )
 
         assertThat(
-            jdbc.queryForList("select gtfs_feed_code || '/' || pattern_key from travel_time_observation", String::class.java),
+            transaction(db) {
+                TravelTimeObservationTable.selectAll().map {
+                    "${it[TravelTimeObservationTable.gtfsFeedCode]}/${it[TravelTimeObservationTable.patternKey]}"
+                }
+            },
         ).containsExactly("g/k")
         assertThat(
-            jdbc.queryForList("select gtfs_feed_code || '/' || pattern_key from kalman_travel_time_state", String::class.java),
+            transaction(db) {
+                KalmanTravelTimeStateTable.selectAll().map {
+                    "${it[KalmanTravelTimeStateTable.gtfsFeedCode]}/${it[KalmanTravelTimeStateTable.patternKey]}"
+                }
+            },
         ).containsExactly("g/k")
         assertThat(
-            jdbc.queryForList("select vehicle_id from vehicle_prediction", String::class.java),
+            vehicleIds(VehiclePredictionTable, VehiclePredictionTable.vehicleId),
         ).containsExactly("v2")
         assertThat(
-            jdbc.queryForList("select vehicle_id from prediction_frequency_run", String::class.java),
+            vehicleIds(PredictionFrequencyRunTable, PredictionFrequencyRunTable.vehicleId),
         ).containsExactly("v2")
         assertThat(
-            jdbc.queryForList("select vehicle_id from prediction_checkpoint", String::class.java),
+            vehicleIds(PredictionCheckpointTable, PredictionCheckpointTable.vehicleId),
         ).containsExactly("v2")
         assertThat(
-            jdbc.queryForList("select vehicle_id from prediction_accuracy", String::class.java),
+            vehicleIds(PredictionAccuracyTable, PredictionAccuracyTable.vehicleId),
         ).containsExactly("v2")
         assertThat(
-            jdbc.queryForList("select vehicle_id from avl_stop_crossing", String::class.java),
+            vehicleIds(AvlStopCrossingTable, AvlStopCrossingTable.vehicleId),
         ).containsExactly("v2")
     }
 }

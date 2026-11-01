@@ -1,6 +1,5 @@
 package eu.transittrack.gtfs.draft.edit
 
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -11,7 +10,6 @@ import org.junit.jupiter.api.TestMethodOrder
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
@@ -40,9 +38,7 @@ class TimeEditOpsTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
-    @Autowired dataSource: DataSource,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
 
     private fun forkDraft(): Long {

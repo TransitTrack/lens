@@ -5,7 +5,10 @@ import java.time.Instant
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isTrue
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -17,6 +20,7 @@ import eu.transittrack.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.avl.model.AvlFeedTable
 import eu.transittrack.support.DstTimeZoneExtension
 import eu.transittrack.support.PostgresPerMethodTest
 
@@ -36,14 +40,15 @@ class TimestampTzTest(
         feeds.save(feed(lastPollAt = instant))
 
         assertThat(feeds.findByCode("dst")!!.lastPollAt).isEqualTo(instant)
+        // The instant is a bound parameter, so the comparison runs in the database on the exact stored value.
         val storedExactly =
             transaction(db) {
-                exec("select last_poll_at = timestamptz '$instant' from avl_feed where code = 'dst'") { rs ->
-                    rs.next()
-                    rs.getBoolean(1)
-                }
+                AvlFeedTable
+                    .selectAll()
+                    .where { (AvlFeedTable.code eq "dst") and (AvlFeedTable.lastPollAt eq instant) }
+                    .count() == 1L
             }
-        assertThat(storedExactly == true, name = "stored as $instant").isTrue()
+        assertThat(storedExactly, name = "stored as $instant").isTrue()
     }
 
     private fun feed(lastPollAt: Instant) =

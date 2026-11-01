@@ -40,8 +40,8 @@ class ExposedRevisionWriter : RevisionWriter {
     }
 
     /**
-     * Commits on its own, independent of any caller transaction — as the stateless session it
-     * replaces did: callers such as `DraftService.revertToFork` rely on the wipe standing even when
+     * Commits on its own, independent of any caller transaction: callers such as
+     * `DraftService.revertToFork` rely on the wipe standing even when
      * they roll back.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)

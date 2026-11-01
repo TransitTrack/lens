@@ -1,5 +1,6 @@
 package eu.transittrack.support
 
+import org.jetbrains.exposed.v1.exceptions.ExposedSQLException
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
@@ -38,15 +39,25 @@ abstract class PostgresContainerSupport {
 
     protected fun truncateAllTables() {
         if (tableNames.isEmpty()) return
-        transaction(database) {
-            // Other cached contexts' schedulers keep querying these tables; a deadlock with one of
-            // them is transient, so retry it rather than fail the test.
-            maxAttempts = 3
-            exec("truncate table ${tableNames.joinToString(", ")} restart identity cascade")
+        // Other cached contexts' schedulers keep querying these tables; a deadlock or serialization
+        // failure against one of them is transient, so retry exactly those (not any other error).
+        repeat(MAX_TRUNCATE_ATTEMPTS) { attempt ->
+            try {
+                transaction(database) {
+                    maxAttempts = 1
+                    exec("truncate table ${tableNames.joinToString(", ")} restart identity cascade")
+                }
+                return
+            } catch (e: ExposedSQLException) {
+                val transient = e.sqlState == "40P01" || e.sqlState == "40001"
+                if (!transient || attempt == MAX_TRUNCATE_ATTEMPTS - 1) throw e
+            }
         }
     }
 
     companion object {
+        private const val MAX_TRUNCATE_ATTEMPTS = 3
+
         @JvmStatic
         @DynamicPropertySource
         fun postgresProperties(registry: DynamicPropertyRegistry) {

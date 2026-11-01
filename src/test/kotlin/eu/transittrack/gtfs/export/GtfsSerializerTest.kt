@@ -3,7 +3,6 @@ package eu.transittrack.gtfs.export
 import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.util.zip.ZipInputStream
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -11,20 +10,28 @@ import assertk.assertions.contains
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.model.CalendarDateRepository
 import eu.transittrack.gtfs.model.CalendarRepository
+import eu.transittrack.gtfs.model.CalendarTable
 import eu.transittrack.gtfs.model.ShapePointRepository
 import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTable
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.gtfs.store.GtfsTables
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.support.PostgresPerMethodTest
@@ -51,9 +58,8 @@ class GtfsSerializerTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired dataSource: DataSource,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
 
     private fun entry(
@@ -81,18 +87,8 @@ class GtfsSerializerTest(
         assertThat(baseCalendars).isGreaterThan(0)
         assertThat(baseShapePoints).isGreaterThan(0)
 
-        val s1NameBase =
-            jdbc.queryForObject(
-                "select stop_name from stops where revision_id = ? and stop_id = 'S1'",
-                String::class.java,
-                base,
-            )
-        val wkStartBase =
-            jdbc.queryForObject(
-                "select start_date from calendars where revision_id = ? and service_id = 'WK'",
-                java.sql.Date::class.java,
-                base,
-            )
+        val s1NameBase = s1Name(base)
+        val wkStartBase = wkStartDate(base)
         assertThat(s1NameBase).isNotNull()
 
         val zip = Files.createTempFile("export", ".zip")
@@ -108,20 +104,8 @@ class GtfsSerializerTest(
         assertThat(calendarDates.findByRevisionId(reIngested).size).isEqualTo(baseCalendarDates)
         assertThat(shapePoints.findByRevisionId(reIngested).size).isEqualTo(baseShapePoints)
 
-        assertThat(
-            jdbc.queryForObject(
-                "select stop_name from stops where revision_id = ? and stop_id = 'S1'",
-                String::class.java,
-                reIngested,
-            ),
-        ).isEqualTo(s1NameBase)
-        assertThat(
-            jdbc.queryForObject(
-                "select start_date from calendars where revision_id = ? and service_id = 'WK'",
-                java.sql.Date::class.java,
-                reIngested,
-            ),
-        ).isEqualTo(wkStartBase)
+        assertThat(s1Name(reIngested)).isEqualTo(s1NameBase)
+        assertThat(wkStartDate(reIngested)).isEqualTo(wkStartBase)
     }
 
     @Test
@@ -154,7 +138,26 @@ class GtfsSerializerTest(
     private fun count(
         table: String,
         revisionId: Long,
-    ): Long = jdbc.queryForObject("select count(*) from $table where revision_id = ?", Long::class.java, revisionId) ?: 0L
+    ): Long {
+        val t = GtfsTables.ALL.single { it.tableName == table }
+        return transaction(db) { t.selectAll().where { t.revisionId eq revisionId }.count() }
+    }
+
+    private fun s1Name(revisionId: Long): String? =
+        transaction(db) {
+            StopTable
+                .selectAll()
+                .where { (StopTable.revisionId eq revisionId) and (StopTable.stopId eq "S1") }
+                .single()[StopTable.stopName]
+        }
+
+    private fun wkStartDate(revisionId: Long) =
+        transaction(db) {
+            CalendarTable
+                .selectAll()
+                .where { (CalendarTable.revisionId eq revisionId) and (CalendarTable.serviceId eq "WK") }
+                .single()[CalendarTable.startDate]
+        }
 
     @Test
     fun `csv output has the exact GTFS header and RFC-4180 quotes special characters`() {
@@ -162,11 +165,9 @@ class GtfsSerializerTest(
         clean += base
 
         // S1 stop_name gets a comma AND a double-quote — must be emitted as "a, ""b""".
-        jdbc.update(
-            "update stops set stop_name = ? where revision_id = ? and stop_id = 'S1'",
-            "a, \"b\"",
-            base,
-        )
+        transaction(db) {
+            StopTable.update({ (StopTable.revisionId eq base) and (StopTable.stopId eq "S1") }) { it[stopName] = "a, \"b\"" }
+        }
 
         val bytes = ByteArrayOutputStream().also { serializer.serialize(base, it) }.toByteArray()
         val stopsCsv = entry(bytes, "stops.txt")

@@ -1,6 +1,5 @@
 package eu.transittrack.avl.match
 
-import java.sql.Timestamp
 import java.time.Instant
 import kotlin.test.Test
 
@@ -9,20 +8,32 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.jdbc.core.JdbcTemplate
 
+import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlFeedRepository
+import eu.transittrack.avl.model.AvlFeedTable
+import eu.transittrack.avl.model.AvlReportTable
+import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.avl.model.VehicleStateTable
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.insertAvlFeed
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 @PostgresSliceTest
 class AvlSilentVehicleSweeperTest(
-    @Autowired val jdbc: JdbcTemplate,
+    @Autowired val db: Database,
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val feeds: AvlFeedRepository,
 ) : PostgresPerMethodTest() {
@@ -30,14 +41,13 @@ class AvlSilentVehicleSweeperTest(
     private val sweeper = AvlSilentVehicleSweeper(vehicleStates, feeds, AvlProperties(), TransitTrackMetrics.forTests())
 
     /** poll_interval_sec = 15 → stale at max(45, 60) = 60s, unmatch at max(75, 60) = 75s. */
-    private fun secondsAgo(s: Long) = Timestamp.from(now.minusSeconds(s))
+    private fun secondsAgo(s: Long): Instant = now.minusSeconds(s)
 
     @BeforeEach
     fun seed() {
-        jdbc.update(
-            "insert into avl_feed (id, code, name, gtfs_feed_code, url, format, poll_interval_sec, " +
-                "assignment_mode, enabled, source, created_at, updated_at) " +
-                "values (1, 'a', 'A', 'g', 'x', 0, 15, 2, true, 'CONFIG', now(), now())",
+        db.insertAvlFeed(
+            1, "a", name = "A", url = "x", pollIntervalSec = 15,
+            assignmentMode = AvlAssignmentMode.FULL_INFERENCE,
         )
     }
 
@@ -53,21 +63,38 @@ class AvlSilentVehicleSweeperTest(
         stale: Boolean = false,
         stateUpdatedSecondsAgo: Long = reportSecondsAgo,
     ) {
-        jdbc.update(
-            "insert into avl_report (feed_code, vehicle_id, ts, lat, lon, match_status, created_at) " +
-                "values ('a', ?, ?, 44.0, 26.0, 1, ?)",
-            vehicleId, secondsAgo(reportSecondsAgo), secondsAgo(reportSecondsAgo),
-        )
-        jdbc.update(
-            "insert into vehicle_state (feed_code, vehicle_id, report_ts, lat, lon, matched, stale, " +
-                "consecutive_failures, revision_id, trip_row_id, block_pk, trip_pattern_id, " +
-                "stop_path_index, distance_along_trip_m, updated_at) " +
-                "values ('a', ?, ?, 44.0, 26.0, true, ?, 0, 7, 8, 9, 10, 2, 123.0, ?)",
-            vehicleId, secondsAgo(reportSecondsAgo), stale, secondsAgo(stateUpdatedSecondsAgo),
-        )
+        transaction(db) {
+            AvlReportTable.insert {
+                it[feedCode] = "a"
+                it[AvlReportTable.vehicleId] = vehicleId
+                it[ts] = secondsAgo(reportSecondsAgo)
+                it[lat] = 44.0
+                it[lon] = 26.0
+                it[matchStatus] = MatchStatus.MATCHED
+                it[createdAt] = secondsAgo(reportSecondsAgo)
+            }
+            VehicleStateTable.insert {
+                it[feedCode] = "a"
+                it[VehicleStateTable.vehicleId] = vehicleId
+                it[reportTs] = secondsAgo(reportSecondsAgo)
+                it[lat] = 44.0
+                it[lon] = 26.0
+                it[matched] = true
+                it[VehicleStateTable.stale] = stale
+                it[consecutiveFailures] = 0
+                it[revisionId] = 7L
+                it[tripRowId] = 8L
+                it[blockPk] = 9L
+                it[tripPatternId] = 10L
+                it[stopPathIndex] = 2
+                it[distanceAlongTripM] = 123.0
+                it[updatedAt] = secondsAgo(stateUpdatedSecondsAgo)
+            }
+        }
     }
 
-    private fun state(vehicleId: String) = jdbc.queryForMap("select * from vehicle_state where vehicle_id = ?", vehicleId)
+    private fun state(vehicleId: String): ResultRow =
+        transaction(db) { VehicleStateTable.selectAll().where { VehicleStateTable.vehicleId eq vehicleId }.single() }
 
     @Test
     fun `a vehicle reporting within the stale window is untouched`() {
@@ -76,9 +103,9 @@ class AvlSilentVehicleSweeperTest(
         assertThat(sweeper.sweep(now)).isEqualTo(AvlSilentVehicleSweeper.SweepCounts(staled = 0, unmatched = 0))
 
         val s = state("fresh")
-        assertThat(s["matched"] as Boolean).isTrue()
-        assertThat(s["stale"] as Boolean).isFalse()
-        assertThat(s["trip_row_id"]).isEqualTo(8L)
+        assertThat(s[VehicleStateTable.matched]).isTrue()
+        assertThat(s[VehicleStateTable.stale]).isFalse()
+        assertThat(s[VehicleStateTable.tripRowId]).isEqualTo(8L)
     }
 
     @Test
@@ -88,10 +115,10 @@ class AvlSilentVehicleSweeperTest(
         assertThat(sweeper.sweep(now)).isEqualTo(AvlSilentVehicleSweeper.SweepCounts(staled = 1, unmatched = 0))
 
         val s = state("stale-only")
-        assertThat(s["matched"] as Boolean).isTrue()
-        assertThat(s["stale"] as Boolean).isTrue()
-        assertThat(s["trip_row_id"]).isEqualTo(8L)
-        assertThat(s["revision_id"]).isEqualTo(7L)
+        assertThat(s[VehicleStateTable.matched]).isTrue()
+        assertThat(s[VehicleStateTable.stale]).isTrue()
+        assertThat(s[VehicleStateTable.tripRowId]).isEqualTo(8L)
+        assertThat(s[VehicleStateTable.revisionId]).isEqualTo(7L)
     }
 
     @Test
@@ -101,24 +128,24 @@ class AvlSilentVehicleSweeperTest(
         assertThat(sweeper.sweep(now)).isEqualTo(AvlSilentVehicleSweeper.SweepCounts(staled = 0, unmatched = 1))
 
         val s = state("gone")
-        assertThat(s["matched"] as Boolean).isFalse()
-        assertThat(s["stale"] as Boolean).isTrue()
-        assertThat(s["revision_id"]).isNull()
-        assertThat(s["trip_row_id"]).isNull()
-        assertThat(s["block_pk"]).isNull()
-        assertThat(s["trip_pattern_id"]).isNull()
-        assertThat(s["stop_path_index"]).isNull()
-        assertThat(s["distance_along_trip_m"]).isNull()
+        assertThat(s[VehicleStateTable.matched]).isFalse()
+        assertThat(s[VehicleStateTable.stale]).isTrue()
+        assertThat(s[VehicleStateTable.revisionId]).isNull()
+        assertThat(s[VehicleStateTable.tripRowId]).isNull()
+        assertThat(s[VehicleStateTable.blockPk]).isNull()
+        assertThat(s[VehicleStateTable.tripPatternId]).isNull()
+        assertThat(s[VehicleStateTable.stopPathIndex]).isNull()
+        assertThat(s[VehicleStateTable.distanceAlongTripM]).isNull()
     }
 
     @Test
     fun `the minimum-seconds floor overrides a tiny poll interval`() {
-        jdbc.update("update avl_feed set poll_interval_sec = 2 where id = 1")
+        transaction(db) { AvlFeedTable.update({ AvlFeedTable.id eq 1L }) { it[pollIntervalSec] = 2 } }
         // 2s * 5 cycles = 10s, but the 60s floor applies → 40s ago is still fresh.
         insertMatchedState("tiny-poll", reportSecondsAgo = 40)
 
         assertThat(sweeper.sweep(now)).isEqualTo(AvlSilentVehicleSweeper.SweepCounts(staled = 0, unmatched = 0))
-        assertThat(state("tiny-poll")["matched"] as Boolean).isTrue()
+        assertThat(state("tiny-poll")[VehicleStateTable.matched]).isTrue()
     }
 
     @Test
@@ -139,8 +166,8 @@ class AvlSilentVehicleSweeperTest(
         assertThat(sweeper.sweep(now)).isEqualTo(AvlSilentVehicleSweeper.SweepCounts(staled = 0, unmatched = 0))
 
         val s = state("backlogged")
-        assertThat(s["matched"] as Boolean).isTrue()
-        assertThat(s["stale"] as Boolean).isFalse()
-        assertThat(s["trip_row_id"]).isEqualTo(8L)
+        assertThat(s[VehicleStateTable.matched]).isTrue()
+        assertThat(s[VehicleStateTable.stale]).isFalse()
+        assertThat(s[VehicleStateTable.tripRowId]).isEqualTo(8L)
     }
 }

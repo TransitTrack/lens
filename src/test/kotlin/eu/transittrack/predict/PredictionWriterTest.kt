@@ -14,15 +14,18 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 import org.jetbrains.exposed.v1.core.Transaction
+import org.jetbrains.exposed.v1.core.VarCharColumnType
 import org.jetbrains.exposed.v1.core.statements.StatementContext
 import org.jetbrains.exposed.v1.core.statements.StatementInterceptor
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -44,11 +47,14 @@ import eu.transittrack.predict.learn.updateKalman
 import eu.transittrack.predict.learn.updateRunningAverage
 import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.AvlStopCrossingRepository
+import eu.transittrack.predict.model.AvlStopCrossingTable
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.PredictionCheckpointTable
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.predict.model.VehiclePredictionTable
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
@@ -68,7 +74,6 @@ class PredictionWriterTest(
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val feeds: AvlFeedRepository,
-    @Autowired val jdbc: JdbcTemplate,
     @Autowired val txManager: PlatformTransactionManager,
     @Autowired val exposedDatabase: Database,
 ) : PostgresPerMethodTest() {
@@ -91,8 +96,10 @@ class PredictionWriterTest(
 
     @AfterEach
     fun cleanup() {
-        jdbc.update("delete from prediction_checkpoint")
-        jdbc.update("delete from avl_stop_crossing")
+        transaction(exposedDatabase) {
+            PredictionCheckpointTable.deleteAll()
+            AvlStopCrossingTable.deleteAll()
+        }
         predictions.deleteAll()
         accuracies.deleteAll()
         observations.deleteAll()
@@ -403,12 +410,7 @@ class PredictionWriterTest(
                 assertThat(firstRead.await(10, TimeUnit.SECONDS)).isEqualTo(true)
                 val second = pool.submit { learn(700.0, false) }
                 try {
-                    assertThat(
-                        jdbc.queryForObject(
-                            "select pg_try_advisory_xact_lock(hashtext(?), hashtext(?))",
-                            Boolean::class.java, "transittrack.predict.learn:${key.gtfsFeedCode}", key.patternKey,
-                        ),
-                    ).isEqualTo(false)
+                    assertThat(tryLearnLock()).isEqualTo(false)
                 } finally {
                     releaseFirst.countDown()
                 }
@@ -557,7 +559,7 @@ class PredictionWriterTest(
         fun stored() = predictions.findAll().single()
 
         writer.inTransaction { upsert(prediction(arrival).copy(computedAt = t0, confidenceSec = 30)) }
-        jdbc.update("update vehicle_prediction set actual_report_gap_sec = 12")
+        transaction(exposedDatabase) { VehiclePredictionTable.update { it[actualReportGapSec] = 12 } }
 
         // Within the threshold: rejected, nothing about the row changes.
         writer.inTransaction { upsert(prediction(arrival.plusSeconds(9)).copy(computedAt = t0.plusSeconds(30), confidenceSec = 45)) }
@@ -650,8 +652,23 @@ class PredictionWriterTest(
             )
         writer.inTransaction { writer.insertCheckpoints(candidates, staleBefore = t0.minusSeconds(3_600)) }
         writer.inTransaction { writer.insertCheckpoints(candidates, staleBefore = t0.minusSeconds(3_600)) }
-        assertThat(jdbc.queryForObject("select count(*) from prediction_checkpoint", Int::class.java)).isEqualTo(3)
+        assertThat(transaction(exposedDatabase) { PredictionCheckpointTable.selectAll().count() }).isEqualTo(3L)
     }
+
+    /**
+     * Probes the learn advisory lock for [key] from a fresh transaction (its own connection): false
+     * while another transaction holds it. Raw SQL: the DSL has no advisory-lock functions.
+     */
+    private fun tryLearnLock(): Boolean =
+        transaction(exposedDatabase) {
+            exec(
+                "select pg_try_advisory_xact_lock(hashtext(?), hashtext(?))",
+                listOf(VarCharColumnType() to "transittrack.predict.learn:${key.gtfsFeedCode}", VarCharColumnType() to key.patternKey),
+            ) { rs ->
+                rs.next()
+                rs.getBoolean(1)
+            }
+        }!!
 
     private class CallerFailed : RuntimeException()
 
@@ -684,11 +701,6 @@ class PredictionWriterTest(
             }
         }.isInstanceOf(CallerFailed::class)
         assertThat(predictions.findAll()).isEmpty()
-        assertThat(
-            jdbc.queryForObject(
-                "select pg_try_advisory_xact_lock(hashtext(?), hashtext(?))",
-                Boolean::class.java, "transittrack.predict.learn:${key.gtfsFeedCode}", key.patternKey,
-            ),
-        ).isEqualTo(true)
+        assertThat(tryLearnLock()).isEqualTo(true)
     }
 }

@@ -1,6 +1,5 @@
 package eu.transittrack.gtfs.draft
 
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertFailure
@@ -11,20 +10,30 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isInstanceOf
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.isNotNull
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.StopRepository
+import eu.transittrack.gtfs.model.StopTable
+import eu.transittrack.gtfs.model.TripTable
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.ScheduleWriter
+import eu.transittrack.schedule.model.TripPatternTable
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
@@ -44,25 +53,39 @@ class DraftServiceTest(
     @Autowired val editRepo: DraftEditRepository,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired dataSource: DataSource,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
     private val cleanupRevs = mutableListOf<Long>()
 
     private fun stopIds(revisionId: Long): Set<Long> =
-        jdbc.queryForList("select id from stops where revision_id = ?", Long::class.java, revisionId).filterNotNull().toSet()
+        transaction(db) {
+            StopTable
+                .select(StopTable.id)
+                .where { StopTable.revisionId eq revisionId }
+                .map { it[StopTable.id] }
+                .toSet()
+        }
+
+    private fun patternCount(revisionId: Long): Long =
+        transaction(db) { TripPatternTable.selectAll().where { TripPatternTable.revisionId eq revisionId }.count() }
+
+    private fun stopName(
+        revisionId: Long,
+        gtfsStopId: String,
+    ): String? =
+        transaction(db) {
+            StopTable
+                .selectAll()
+                .where { (StopTable.revisionId eq revisionId) and (StopTable.stopId eq gtfsStopId) }
+                .single()[StopTable.stopName]
+        }
 
     @Test
     fun `fork copies the active revision and isolates it`() {
         val (feedCode, activeRev) = ingestFactory.ingest("schedule-sample")
         cleanupRevs += activeRev
         val baseStops = stops.findByRevisionId(activeRev).size
-        val basePatterns =
-            jdbc.queryForObject(
-                "select count(*) from trip_patterns where revision_id = ?",
-                Long::class.java,
-                activeRev,
-            )!!
+        val basePatterns = patternCount(activeRev)
         assertThat(basePatterns).isGreaterThan(0L)
 
         val draft = drafts.fork(feedCode, null, "Proposal A", "alice")
@@ -82,33 +105,24 @@ class DraftServiceTest(
         assertThat(baseIds.intersect(draftIds)).isEqualTo(emptySet<Long>())
 
         // mutating a draft row does not touch the corresponding base row.
-        val draftStop = jdbc.queryForMap("select id, stop_id from stops where revision_id = ? order by id limit 1", draft.id!!)
-        val draftStopId = draftStop["id"] as Long
-        val gtfsStopId = draftStop["stop_id"] as String
-        val baseNameBefore =
-            jdbc.queryForObject(
-                "select stop_name from stops where revision_id = ? and stop_id = ?",
-                String::class.java,
-                activeRev,
-                gtfsStopId,
-            )
-        jdbc.update("update stops set stop_name = ? where id = ?", "MUTATED-IN-DRAFT", draftStopId)
-        val baseNameAfter =
-            jdbc.queryForObject(
-                "select stop_name from stops where revision_id = ? and stop_id = ?",
-                String::class.java,
-                activeRev,
-                gtfsStopId,
-            )
+        val draftStop =
+            transaction(db) {
+                StopTable
+                    .selectAll()
+                    .where { StopTable.revisionId eq draft.id!! }
+                    .orderBy(StopTable.id)
+                    .limit(1)
+                    .single()
+            }
+        val draftStopId = draftStop[StopTable.id]
+        val gtfsStopId = draftStop[StopTable.stopId]
+        val baseNameBefore = stopName(activeRev, gtfsStopId)
+        transaction(db) { StopTable.update({ StopTable.id eq draftStopId }) { it[stopName] = "MUTATED-IN-DRAFT" } }
+        val baseNameAfter = stopName(activeRev, gtfsStopId)
         assertThat(baseNameAfter).isEqualTo(baseNameBefore)
 
         // derived tables are NOT copied — the draft must be re-derived.
-        val draftPatterns =
-            jdbc.queryForObject(
-                "select count(*) from trip_patterns where revision_id = ?",
-                Long::class.java,
-                draft.id!!,
-            )
+        val draftPatterns = patternCount(draft.id!!)
         assertThat(draftPatterns).isEqualTo(0L)
     }
 
@@ -118,13 +132,11 @@ class DraftServiceTest(
         cleanupRevs += activeRev
 
         fun derivedTrips(rev: Long) =
-            jdbc.queryForObject(
-                "select count(*) from trips where revision_id = ? and trip_pattern_id is not null",
-                Long::class.java,
-                rev,
-            )!!
+            transaction(db) {
+                TripTable.selectAll().where { (TripTable.revisionId eq rev) and TripTable.tripPatternId.isNotNull() }.count()
+            }
 
-        fun allTrips(rev: Long) = jdbc.queryForObject("select count(*) from trips where revision_id = ?", Long::class.java, rev)!!
+        fun allTrips(rev: Long) = transaction(db) { TripTable.selectAll().where { TripTable.revisionId eq rev }.count() }
         assertThat(derivedTrips(activeRev)).isGreaterThan(0L)
 
         val draft = drafts.fork(feedCode, null, null, null).also { cleanupRevs += it.id!! }

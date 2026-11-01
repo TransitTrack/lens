@@ -10,10 +10,14 @@ import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import net.javacrumbs.shedlock.core.LockProvider
 import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.javatime.timestampWithTimeZone
 import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.Application
 import eu.transittrack.support.PostgresPerMethodTest
@@ -22,7 +26,6 @@ import eu.transittrack.util.concurrency.FeedLockCoordinator
 @SpringBootTest(classes = [Application::class])
 class FeedLockCoordinatorTest(
     @Autowired val database: Database,
-    @Autowired val jdbcTemplate: JdbcTemplate,
 ) : PostgresPerMethodTest() {
     // Two independent ExposedLockProvider instances sharing one Database stand in for
     // two pods contending over the same shedlock table rows.
@@ -109,10 +112,14 @@ class FeedLockCoordinatorTest(
         assertThat(b.reconcileOwnership(setOf("a", "b"))).isEqualTo(setOf("a", "b"))
     }
 
-    private fun lockUntil(name: String) =
-        jdbcTemplate.queryForObject(
-            "select lock_until from shedlock where name = ?",
-            Instant::class.java,
-            name,
-        )!!
+    /** ShedLock's own table, read-only here: the application keeps no table object for it. */
+    private object ShedLockTable : Table("shedlock") {
+        val name = varchar("name", 64)
+        val lockUntil = timestampWithTimeZone("lock_until")
+    }
+
+    private fun lockUntil(name: String): Instant =
+        transaction(database) {
+            ShedLockTable.selectAll().where { ShedLockTable.name eq name }.single()[ShedLockTable.lockUntil]
+        }.toInstant()
 }

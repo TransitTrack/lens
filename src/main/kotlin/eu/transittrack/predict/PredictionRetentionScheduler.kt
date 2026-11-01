@@ -102,8 +102,8 @@ class PredictionRetentionScheduler(
 }
 
 /**
- * The retention deletes of [PredictionRetentionScheduler], one bridged call (and so, outside a
- * Spring transaction, one transaction) each.
+ * The retention deletes of [PredictionRetentionScheduler], one repository call each. Each call is
+ * `@Transactional` (REQUIRED), so outside a Spring transaction every delete is a transaction of its own.
  */
 @Repository
 @Transactional

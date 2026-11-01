@@ -11,6 +11,10 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNull
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
@@ -22,7 +26,6 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
 import eu.transittrack.AvlAssignmentMode
@@ -49,6 +52,7 @@ import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeState
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.PredictionCheckpointTable
 import eu.transittrack.predict.model.TravelTimeObservation
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePrediction
@@ -78,7 +82,7 @@ class PredictionCorrectnessTest(
     @Autowired val observations: TravelTimeObservationRepository,
     @Autowired val states: KalmanTravelTimeStateRepository,
     @Autowired val accuracy: PredictionAccuracyRepository,
-    @Autowired val jdbc: JdbcTemplate,
+    @Autowired val db: Database,
 ) : PostgresPerClassTest() {
     @MockitoBean
     lateinit var clock: Clock
@@ -118,7 +122,7 @@ class PredictionCorrectnessTest(
 
     @AfterEach
     fun cleanup() {
-        jdbc.update("delete from prediction_checkpoint")
+        transaction(db) { PredictionCheckpointTable.deleteAll() }
         accuracy.deleteAll()
         predictions.deleteAll()
         crossings.deleteAll()
@@ -210,7 +214,7 @@ class PredictionCorrectnessTest(
         val at = start()
         advance("T1", geom.stopPathCumM[2] - 10, at, issuedAt = at.plusSeconds(601))
         assertThat(predictions.findAll()).isEmpty()
-        assertThat(jdbc.queryForObject("select count(*) from prediction_checkpoint", Int::class.java)).isEqualTo(0)
+        assertThat(transaction(db) { PredictionCheckpointTable.selectAll().count() }).isEqualTo(0L)
     }
 
     @Test
@@ -230,7 +234,7 @@ class PredictionCorrectnessTest(
         assertThat(observations.findAll()).isNotEmpty()
         assertThat(states.findAll()).isNotEmpty()
         assertThat(predictions.findAll()).isEmpty()
-        assertThat(jdbc.queryForObject("select count(*) from prediction_checkpoint", Int::class.java)).isEqualTo(0)
+        assertThat(transaction(db) { PredictionCheckpointTable.selectAll().count() }).isEqualTo(0L)
     }
 
     @Test

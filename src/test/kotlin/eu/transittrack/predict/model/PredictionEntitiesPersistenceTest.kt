@@ -8,14 +8,15 @@ import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.insertAvlFeed
 
 @PostgresSliceTest
 class PredictionEntitiesPersistenceTest(
@@ -23,18 +24,13 @@ class PredictionEntitiesPersistenceTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictions: VehiclePredictionRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
-    @Autowired val jdbcTemplate: JdbcTemplate,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
-    // A plain JDBC insert, which autocommits: the test itself runs outside any transaction
+    // Committed on its own transaction: the test itself runs outside any Spring transaction
     // (NOT_SUPPORTED).
     @BeforeTest
     fun seedFeed() {
-        jdbcTemplate.update(
-            "insert into avl_feed " +
-                "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
-                "prediction_algorithms, enabled, source, created_at, updated_at) values " +
-                "(1, 'feed-1', 'feed', 'g', 'http://x', 0, 30, 0, '[\"SCHEDULE_ADHERENCE\"]', true, 'CONFIG', now(), now())",
-        )
+        db.insertAvlFeed(1, "feed-1")
     }
 
     @Test

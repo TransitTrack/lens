@@ -1,7 +1,6 @@
 package eu.transittrack.schedule.derive
 
 import java.time.Instant
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertFailure
@@ -19,6 +18,10 @@ import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import assertk.assertions.messageContains
 import assertk.assertions.startsWith
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.mockito.kotlin.mock
 import org.springframework.beans.factory.annotation.Autowired
@@ -26,7 +29,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.context.annotation.Import
 import org.springframework.core.task.SyncTaskExecutor
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
@@ -53,6 +55,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.ExposedRevisionWriter
+import eu.transittrack.gtfs.store.GtfsTables
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
@@ -61,6 +64,7 @@ import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
+import eu.transittrack.schedule.model.ScheduleTables
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
@@ -105,7 +109,7 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val blocks: BlockRepository,
     @Autowired val blockTrips: BlockTripRepository,
-    @Autowired val dataSource: DataSource,
+    @Autowired val database: Database,
     @Autowired val jsonMapper: JsonMapper,
     @Autowired val calendars: CalendarRepository,
     @Autowired val calendarDates: CalendarDateRepository,
@@ -113,8 +117,6 @@ class ScheduleDerivationEdgeCaseTest(
 ) : PostgresPerMethodTest() {
     private var feedId: Long = 0
     private var rev: Long = 0
-
-    private val jdbc by lazy { JdbcTemplate(dataSource) }
 
     /** Ingests [fixture] with schedule derivation switched OFF, so tests drive it explicitly. */
     private fun ingest(
@@ -186,12 +188,10 @@ class ScheduleDerivationEdgeCaseTest(
         return counts
     }
 
-    private fun rowCount(table: String): Int =
-        jdbc.queryForObject(
-            "select count(*) from $table where revision_id = ?",
-            Int::class.java,
-            rev,
-        )!!
+    private fun rowCount(table: String): Long {
+        val t = (ScheduleTables.ALL + GtfsTables.ALL).single { it.tableName == table }
+        return transaction(database) { t.selectAll().where { t.revisionId eq rev }.count() }
+    }
 
     @AfterEach
     fun cleanup() {
@@ -432,7 +432,7 @@ class ScheduleDerivationEdgeCaseTest(
             "trip_patterns", "stop_path", "schedule_time",
             "block", "block_trip", "travel_times_for_stop_path",
         )) {
-            assertThat(rowCount(table)).isEqualTo(0)
+            assertThat(rowCount(table)).isEqualTo(0L)
         }
         // the raw trips survive, but their derived columns are NULL'd
         assertThat(trips.findByRevisionId(rev).all { it.tripPatternId == null }).isTrue()
@@ -447,12 +447,12 @@ class ScheduleDerivationEdgeCaseTest(
         assertThat(loaded.status).isEqualTo(GtfsRevisionStatus.FAILED)
         assertThat(loaded.errorMessage).isNotNull().contains("trip X1")
 
-        assertThat(rowCount("trip_patterns")).isEqualTo(0)
-        assertThat(rowCount("stop_path")).isEqualTo(0)
-        assertThat(rowCount("schedule_time")).isEqualTo(0)
-        assertThat(rowCount("block")).isEqualTo(0)
+        assertThat(rowCount("trip_patterns")).isEqualTo(0L)
+        assertThat(rowCount("stop_path")).isEqualTo(0L)
+        assertThat(rowCount("schedule_time")).isEqualTo(0L)
+        assertThat(rowCount("block")).isEqualTo(0L)
         // a FAILED revision is wiped whole — raw trips included
-        assertThat(rowCount("trips")).isEqualTo(0)
+        assertThat(rowCount("trips")).isEqualTo(0L)
     }
 
     // --- FIX 1: a pipeline failure AFTER a successful derivation still wipes schedule rows ---
@@ -534,7 +534,7 @@ class ScheduleDerivationEdgeCaseTest(
 
         assertThat(revisions.findById(rev)!!.status).isEqualTo(GtfsRevisionStatus.FAILED)
         // schedule rows must not survive on a FAILED revision
-        assertThat(rowCount("trip_patterns")).isEqualTo(0)
+        assertThat(rowCount("trip_patterns")).isEqualTo(0L)
     }
 
     /** A [RevisionService] that fails the pipeline step immediately after `DERIVING`. */

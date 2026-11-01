@@ -1,6 +1,5 @@
 package eu.transittrack.gtfs.draft.edit
 
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertThat
@@ -8,23 +7,30 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTimeRepository
+import eu.transittrack.gtfs.model.StopTimeTable
 import eu.transittrack.gtfs.model.TripRepository
+import eu.transittrack.gtfs.model.TripTable
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.schedule.derive.DerivationService
 import eu.transittrack.schedule.derive.ScheduleWriter
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.ScheduleTimeTable
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerMethodTest
 
@@ -52,17 +58,29 @@ class DraftEditIntegrationTest(
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
     @Autowired val json: JsonMapper,
-    @Autowired dataSource: DataSource,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
 
     /** Full snapshot of every `stop_times` row for a revision, ignoring the surrogate `id`. */
     private fun stopTimesSnapshot(revisionId: Long): List<Map<String, Any?>> =
-        jdbc
-            .queryForList("select * from stop_times where revision_id = ?", revisionId)
-            .map { row -> row.filterKeys { it.lowercase() != "id" } }
-            .sortedWith(compareBy({ it["trip_id"] as String }, { (it["stop_sequence"] as Number).toInt() }))
+        transaction(db) {
+            StopTimeTable
+                .selectAll()
+                .where { StopTimeTable.revisionId eq revisionId }
+                .map { row -> StopTimeTable.columns.filter { it != StopTimeTable.id }.associate { it.name to row[it] } }
+        }.sortedWith(compareBy({ it["trip_id"] as String }, { it["stop_sequence"] as Int }))
+
+    private fun tripSurrogateId(
+        revisionId: Long,
+        tripId: String,
+    ): Long =
+        transaction(db) {
+            TripTable
+                .selectAll()
+                .where { (TripTable.revisionId eq revisionId) and (TripTable.tripId eq tripId) }
+                .single()[TripTable.id]
+        }
 
     private fun arrivalsOf(
         revisionId: Long,
@@ -85,27 +103,17 @@ class DraftEditIntegrationTest(
         // capture T3's surrogate id + its schedule_time count now, while it is still a scheduled trip.
         derivationService.rederive(id)
         val t3SurrogateId =
-            jdbc.queryForObject(
-                "select id from trips where revision_id = ? and trip_id = ?",
-                Long::class.java,
-                id,
-                "T3",
-            )!!
+            tripSurrogateId(id, "T3")
         val t1SurrogateId =
-            jdbc.queryForObject(
-                "select id from trips where revision_id = ? and trip_id = ?",
-                Long::class.java,
-                id,
-                "T1",
-            )!!
+            tripSurrogateId(id, "T1")
 
         fun scheduleRowCount(surrogateId: Long) =
-            jdbc.queryForObject(
-                "select count(*) from schedule_time where revision_id = ? and trip_id = ?",
-                Long::class.java,
-                id,
-                surrogateId,
-            )!!
+            transaction(db) {
+                ScheduleTimeTable
+                    .selectAll()
+                    .where { (ScheduleTimeTable.revisionId eq id) and (ScheduleTimeTable.tripId eq surrogateId) }
+                    .count()
+            }
         assertThat(scheduleRowCount(t3SurrogateId) > 0L).isEqualTo(true)
         assertThat(scheduleRowCount(t1SurrogateId) > 0L).isEqualTo(true)
 
@@ -145,12 +153,12 @@ class DraftEditIntegrationTest(
                 )
             }
         val addedTripId =
-            jdbc.queryForObject(
-                "select trip_id from trips where revision_id = ? and trip_headsign = ?",
-                String::class.java,
-                id,
-                "Integ",
-            )!!
+            transaction(db) {
+                TripTable
+                    .selectAll()
+                    .where { (TripTable.revisionId eq id) and (TripTable.tripHeadsign eq "Integ") }
+                    .single()[TripTable.tripId]
+            }
         val addedStops = stopTimes.findByTripId(id, addedTripId)
         assertThat(addedStops.map { it.stopSequence }).isEqualTo(listOf(1, 2))
         assertThat(addedStops.map { it.stopId }).isEqualTo(listOf("S1", "S2"))

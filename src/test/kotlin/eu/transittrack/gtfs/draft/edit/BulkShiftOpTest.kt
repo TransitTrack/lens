@@ -1,6 +1,5 @@
 package eu.transittrack.gtfs.draft.edit
 
-import javax.sql.DataSource
 import kotlin.test.Test
 
 import assertk.assertFailure
@@ -12,7 +11,6 @@ import assertk.assertions.messageContains
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -39,9 +37,7 @@ class BulkShiftOpTest(
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val derivation: DerivationService,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired dataSource: DataSource,
 ) : PostgresPerMethodTest() {
-    private val jdbc = JdbcTemplate(dataSource)
     private val clean = mutableListOf<Long>()
 
     private fun forkDraft(): Long {

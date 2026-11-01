@@ -7,28 +7,24 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.insertAvlFeed
 
 @PostgresSliceTest
 class VehicleMatchRepositoryTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val matches: VehicleMatchRepository,
-    @Autowired val jdbcTemplate: JdbcTemplate,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
-    // A plain JDBC insert, which autocommits: the test itself runs outside any transaction
+    // Committed on its own transaction: the test itself runs outside any Spring transaction
     // (NOT_SUPPORTED).
     @BeforeTest
     fun seedFeeds() {
-        jdbcTemplate.update(
-            "insert into avl_feed " +
-                "(id, code, name, gtfs_feed_code, url, format, poll_interval_sec, assignment_mode, " +
-                "enabled, source, created_at, updated_at) values " +
-                "(1, 'feed-1', 'feed', 'g', 'http://x', 0, 30, 0, true, 'CONFIG', now(), now())",
-        )
+        db.insertAvlFeed(1, "feed-1")
     }
 
     private fun report(

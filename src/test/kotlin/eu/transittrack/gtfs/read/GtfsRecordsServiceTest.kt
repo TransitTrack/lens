@@ -4,16 +4,20 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import org.jetbrains.exposed.v1.core.VarCharColumnType
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.insertGtfsFeed
+import eu.transittrack.support.insertGtfsRevision
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
 class GtfsRecordsServiceTest(
     @Autowired val service: GtfsRecordsService,
-    @Autowired val jdbc: JdbcTemplate,
+    @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
     private fun literal(dataType: String): String =
         when (dataType) {
@@ -33,30 +37,32 @@ class GtfsRecordsServiceTest(
         table: String,
         revisionId: Long,
     ) {
-        val cols =
-            jdbc.queryForList(
-                """
-                select column_name, data_type from information_schema.columns
-                where table_schema = current_schema() and table_name = ? and column_name not in ('id', 'revision_id')
-                order by ordinal_position
-                """.trimIndent(),
-                table,
+        // Raw SQL: this seeds every table generically from information_schema, which the DSL cannot express.
+        transaction(db) {
+            val cols =
+                exec(
+                    """
+                    select column_name, data_type from information_schema.columns
+                    where table_schema = current_schema() and table_name = ? and column_name not in ('id', 'revision_id')
+                    order by ordinal_position
+                    """.trimIndent(),
+                    listOf(VarCharColumnType() to table),
+                ) { rs ->
+                    generateSequence { if (rs.next()) rs.getString(1) to rs.getString(2) else null }.toList()
+                }.orEmpty()
+            val names = cols.map { it.first }
+            val values = cols.map { literal(it.second) }
+            exec(
+                "insert into $table (id, revision_id${names.joinToString("") { ", $it" }}) " +
+                    "values (nextval('gtfs_entity_seq'), $revisionId${values.joinToString("") { ", $it" }})",
             )
-        val names = cols.map { it["column_name"] as String }
-        val values = cols.map { literal(it["data_type"] as String) }
-        jdbc.update(
-            "insert into $table (id, revision_id${names.joinToString("") { ", $it" }}) " +
-                "values (nextval('gtfs_entity_seq'), $revisionId${values.joinToString("") { ", $it" }})",
-        )
+        }
     }
 
     @Test
     fun valueTypesUnchanged() {
-        jdbc.update(
-            "insert into gtfs_feed (id, code, name, url, enabled, source, created_at, updated_at) " +
-                "values (1, 'g', 'G', 'x', true, 'CONFIG', now(), now())",
-        )
-        jdbc.update("insert into gtfs_revision (id, feed_id, status, source_url, created_at) values (1, 1, 'ACTIVE', 'x', now())")
+        db.insertGtfsFeed(1, "g")
+        db.insertGtfsRevision(1, 1)
 
         val actual = sortedMapOf<String, String>()
         for ((enum, table) in GtfsRecordsService.TABLE_BY_ENUM) {
@@ -73,7 +79,7 @@ class GtfsRecordsServiceTest(
     }
 
     private companion object {
-        /** Simple class names (java.lang.* and PGobject) per column, in `select *` order, captured on the pre-Exposed JdbcTemplate code. */
+        /** Simple class names (java.lang.* and PGobject) per column, in `select *` order, captured on the pre-Exposed code. */
         val EXPECTED =
             """
             areas: id=Long, revision_id=Long, area_id=String, area_name=String
