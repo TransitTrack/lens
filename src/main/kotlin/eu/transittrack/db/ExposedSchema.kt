@@ -10,6 +10,13 @@ import eu.transittrack.gtfs.draft.DraftEditTable
 import eu.transittrack.gtfs.feed.GtfsFeedTable
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
 import eu.transittrack.gtfs.store.GtfsTables
+import eu.transittrack.predict.model.AvlStopCrossingTable
+import eu.transittrack.predict.model.KalmanTravelTimeStateTable
+import eu.transittrack.predict.model.PredictionAccuracyTable
+import eu.transittrack.predict.model.PredictionCheckpointTable
+import eu.transittrack.predict.model.PredictionFrequencyRunTable
+import eu.transittrack.predict.model.TravelTimeObservationTable
+import eu.transittrack.predict.model.VehiclePredictionTable
 import eu.transittrack.schedule.model.ScheduleTables
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationTable
 import eu.transittrack.schedule.optimize.model.OptimizationRunTable
@@ -23,5 +30,14 @@ object ExposedSchema {
         GtfsTables.ALL +
         ScheduleTables.ALL +
         listOf(OptimizationRunTable, OptimizationRecommendationTable) +
-        listOf(AvlFeedTable, AvlReportTable, VehicleMatchTable, VehicleStateTable)
+        listOf(AvlFeedTable, AvlReportTable, VehicleMatchTable, VehicleStateTable) +
+        listOf(
+            AvlStopCrossingTable,
+            KalmanTravelTimeStateTable,
+            PredictionAccuracyTable,
+            PredictionCheckpointTable,
+            PredictionFrequencyRunTable,
+            TravelTimeObservationTable,
+            VehiclePredictionTable,
+        )
 }

@@ -19,13 +19,14 @@ import eu.transittrack.util.observability.TransitTrackMetrics
 @PostgresSliceTest
 class PredictionRetentionSchedulerTest(
     @Autowired val jdbc: JdbcTemplate,
+    @Autowired val retention: PredictionRetentionRepository,
 ) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-05T12:00:00Z")
     private lateinit var scheduler: PredictionRetentionScheduler
 
     @BeforeEach
     fun seed() {
-        scheduler = PredictionRetentionScheduler(jdbc, PredictProperties(), TransitTrackMetrics.forTests())
+        scheduler = PredictionRetentionScheduler(retention, PredictProperties(), TransitTrackMetrics.forTests())
 
         jdbc.update(
             "insert into gtfs_feed (id, code, name, url, enabled, source, created_at, updated_at) " +

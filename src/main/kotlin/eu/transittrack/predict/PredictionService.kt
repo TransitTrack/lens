@@ -5,7 +5,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 
-import org.hibernate.StatelessSession
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
@@ -120,17 +119,17 @@ class PredictionService(
             }
         val now = clock.instant()
 
-        // Everything below writes through the same StatelessSession/transaction: a matched report
+        // Everything below writes through the same transaction: a matched report
         // can fan out into hundreds of rows (per horizon stop, per algorithm, plus passes/learning),
         // and committing each one separately made that commit's fsync the dominant cost of the whole
         // prediction pipeline. Each set of rows goes out as one batch.
-        writer.inTransaction { session ->
-            val runStartedAt = resolveFrequencyRun(session, feed, report, prev, outcome, trip, serviceDate, ctx)
-            if (detected != null) recordStopPasses(session, feed, report, outcome, trip, serviceDate, ctx, detected, runStartedAt, now)
+        writer.inTransaction {
+            val runStartedAt = resolveFrequencyRun(feed, report, prev, outcome, trip, serviceDate, ctx)
+            if (detected != null) recordStopPasses(feed, report, outcome, trip, serviceDate, ctx, detected, runStartedAt, now)
             if (generation != null) {
                 val producedAt = clock.instant()
                 if (props.run.isFreshSource(report.ts, producedAt)) {
-                    writePredictions(session, feed, report, outcome, serviceDate, generation, producedAt)
+                    writePredictions(feed, report, outcome, serviceDate, generation, producedAt)
                 }
             }
         }
@@ -138,7 +137,6 @@ class PredictionService(
     }
 
     private fun resolveFrequencyRun(
-        session: StatelessSession,
         feed: AvlFeed,
         report: AvlReportRow,
         prev: PrevVehicleMatch?,
@@ -149,7 +147,7 @@ class PredictionService(
     ): Instant {
         val serviceStart = serviceSecToInstant(serviceDate, 0, ctx.zone)
         if (trip.frequencyBased != true) return serviceStart
-        val state = writer.frequencyRun(session, feed.code, report.vehicleId, trip.id)
+        val state = writer.frequencyRun(feed.code, report.vehicleId, trip.id)
         if (state != null && report.ts.isBefore(state.lastReportTs)) {
             check(!report.ts.isBefore(state.startedAt)) { "Report ${report.ts} precedes the current frequency run ${state.startedAt}" }
             return state.startedAt
@@ -157,7 +155,7 @@ class PredictionService(
         val previousDistance = state?.lastDistanceAlongTripM ?: prev?.takeIf { it.tripRowId == trip.id }?.distanceAlongTripM
         val recent = if (previousDistance == null) {
             writer.passObservations(
-                session, feed.code, report.vehicleId, trip.id, serviceStart, report.ts,
+                feed.code, report.vehicleId, trip.id, serviceStart, report.ts,
             )
         } else {
             emptyList()
@@ -173,9 +171,9 @@ class PredictionService(
             (priorDistance != null && priorDistance - outcome.distanceAlongTripM > avlProps.match.backtrackToleranceM)
         val startedAt = if (reset) report.ts else state?.startedAt ?: recent.lastOrNull()?.runStartedAt ?: serviceStart
         val startTimeSec = report.descStartTimeSec ?: state?.takeUnless { reset }?.startTimeSec
-        if (reset) writer.clearPreviousRun(session, feed.code, report.vehicleId, trip.id)
+        if (reset) writer.clearPreviousRun(feed.code, report.vehicleId, trip.id)
         writer.saveFrequencyRun(
-            session, feed.code, report.vehicleId, trip.id,
+            feed.code, report.vehicleId, trip.id,
             FrequencyRunState(
                 serviceDate, startedAt, report.ts, startTimeSec, outcome.distanceAlongTripM,
             ),
@@ -244,7 +242,6 @@ class PredictionService(
     }
 
     private fun writePredictions(
-        session: StatelessSession,
         feed: AvlFeed,
         report: AvlReportRow,
         outcome: MatchOutcome.Matched,
@@ -254,7 +251,6 @@ class PredictionService(
     ) {
         val horizon = generation.horizon ?: return
         writer.deleteOutOfHorizonPredictions(
-            session,
             feed.code,
             report.vehicleId,
             outcome.tripRowId,
@@ -288,7 +284,6 @@ class PredictionService(
             }
         }
         writer.upsertPredictions(
-            session,
             rows,
             staleBefore = now.minus(predictionLifetime()),
             refreshBefore = now.minusSeconds(props.run.predictionRefreshSec.toLong()),
@@ -318,7 +313,6 @@ class PredictionService(
             }
         }
         writer.insertCheckpoints(
-            session,
             checkpoints,
             now.minusSeconds(horizonsSec.last().toLong() + interval),
         )
@@ -346,7 +340,6 @@ class PredictionService(
      * furthest one already passed starts a new run, which forgets the previous run's passes.
      */
     private fun recordStopPasses(
-        session: StatelessSession,
         feed: AvlFeed,
         report: AvlReportRow,
         outcome: MatchOutcome.Matched,
@@ -361,7 +354,7 @@ class PredictionService(
         // Same trip row on an earlier service day, or a stale pass, is never this trip's previous stop.
         val serviceStart = serviceSecToInstant(serviceDate, 0, ctx.zone)
         val since = maxOf(report.ts.minusSeconds(maxPlausibleSec.toLong()), serviceStart, runStartedAt)
-        val recent = writer.passObservations(session, feed.code, report.vehicleId, outcome.tripRowId, since, report.ts)
+        val recent = writer.passObservations(feed.code, report.vehicleId, outcome.tripRowId, since, report.ts)
         val passedAt = recent.filter { !it.observedAt.isBefore(runStartedAt) }.associateBy { it.stopPathIndex }.toMutableMap()
         val passedHere = LinkedHashMap<Int, Instant>()
         val samples = ArrayList<LearningSample>()
@@ -413,12 +406,12 @@ class PredictionService(
         }
 
         if (detected.learningKey != null && samples.isNotEmpty()) {
-            learn(session, detected.learningKey, samples, report.ts)
+            learn(detected.learningKey, samples, report.ts)
             metrics.predictionLearningSamples(feed.code, samples.size)
         }
-        writer.insertCrossings(session, crossings)
-        writer.fillActuals(session, feed.code, report.vehicleId, outcome.tripRowId, passedHere, detected.reportGapSec, serviceDate)
-        scoreCheckpoints(session, feed, report.vehicleId, trip, serviceDate, ctx, passedHere, reliable, now)
+        writer.insertCrossings(crossings)
+        writer.fillActuals(feed.code, report.vehicleId, outcome.tripRowId, passedHere, detected.reportGapSec, serviceDate)
+        scoreCheckpoints(feed, report.vehicleId, trip, serviceDate, ctx, passedHere, reliable, now)
         metrics.predictionCrossings(feed.code, crossings.size)
         if (!reliable) metrics.predictionUnreliableCrossings(feed.code, crossings.size)
     }
@@ -429,7 +422,6 @@ class PredictionService(
      * rows, as [PredictionWriter.lockObservations] requires.
      */
     private fun learn(
-        session: StatelessSession,
         key: LearningKey,
         samples: List<LearningSample>,
         now: Instant,
@@ -441,7 +433,7 @@ class PredictionService(
                 .map { LearnerBucket(s.stopPathIndex, it) to s }
         }
 
-        val observations = writer.lockObservations(session, key, rows.map { it.first })
+        val observations = writer.lockObservations(key, rows.map { it.first })
         val newObservations =
             rows.associate { (b, s) ->
                 b to
@@ -454,9 +446,9 @@ class PredictionService(
                         clip,
                     )
             }
-        writer.upsertObservations(session, key, newObservations, now)
+        writer.upsertObservations(key, newObservations, now)
 
-        val states = writer.lockKalmanStates(session, key, rows.map { it.first }, now, props.learn.kalmanVarianceGrowthSec2PerHour)
+        val states = writer.lockKalmanStates(key, rows.map { it.first }, now, props.learn.kalmanVarianceGrowthSec2PerHour)
         val newStates =
             rows.associate { (b, s) ->
                 b to
@@ -470,7 +462,7 @@ class PredictionService(
                         clip,
                     )
             }
-        writer.upsertKalmanStates(session, key, newStates, now)
+        writer.upsertKalmanStates(key, newStates, now)
     }
 
     /**
@@ -480,7 +472,6 @@ class PredictionService(
      * Crossings interpolated over excessive report gaps are retained but not treated as ground truth.
      */
     private fun scoreCheckpoints(
-        session: StatelessSession,
         feed: AvlFeed,
         vehicleId: String,
         trip: TripRef,
@@ -490,7 +481,7 @@ class PredictionService(
         reliable: Boolean,
         now: Instant,
     ) {
-        val checkpoints = writer.takeCheckpoints(session, feed.code, vehicleId, trip.id, passedAt.keys)
+        val checkpoints = writer.takeCheckpoints(feed.code, vehicleId, trip.id, passedAt.keys)
         if (!reliable) return
         val rows = ArrayList<PredictionAccuracy>()
         for ((stopIndex, snapshots) in checkpoints.groupBy { it.stopPathIndex }) {
@@ -537,7 +528,7 @@ class PredictionService(
                 }
             }
         }
-        writer.insertAccuracy(session, rows)
+        writer.insertAccuracy(rows)
     }
 }
 

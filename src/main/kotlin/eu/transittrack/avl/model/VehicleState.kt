@@ -38,6 +38,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.db.EpochSecondsBetween
 import eu.transittrack.db.RowTable
 import eu.transittrack.db.bridge.ExposedBridge
 
@@ -164,21 +165,6 @@ object VehicleStateTable : RowTable<VehicleState>("vehicle_state") {
         s[snappedLon] = row.snappedLon
         s[updatedAt] = row.updatedAt
     }
-}
-
-/**
- * `extract(epoch from until - since)`: the seconds between two `timestamptz` expressions, exactly as
- * HQL's `timestampdiff(second, since, until)` renders on Postgres. Exposed ships no `extract(field
- * from ...)` builder, so this one expression is spelled out here.
- */
-private class EpochSecondsBetween(
-    private val since: Expression<*>,
-    private val until: Expression<*>,
-) : Expression<Any>() {
-    override fun toQueryBuilder(queryBuilder: QueryBuilder) =
-        queryBuilder {
-            append("extract(epoch from ", until, "-", since, ")")
-        }
 }
 
 /** `CAST(? AS TIMESTAMP WITH TIME ZONE)`, as Hibernate binds an `Instant` parameter in arithmetic. */

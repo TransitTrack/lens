@@ -55,6 +55,12 @@ class SchemaDriftTest(
                 "ALTER TABLE avl_report ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
                 "ALTER TABLE vehicle_match ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
                 "ALTER TABLE vehicle_state ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE avl_stop_crossing ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE kalman_travel_time_state ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE prediction_accuracy ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE prediction_checkpoint ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE travel_time_observation ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE vehicle_prediction ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
             )
     }
 }

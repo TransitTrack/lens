@@ -302,8 +302,8 @@ class PredictionCorrectnessTest(
         assertThat(crossings.count()).isEqualTo(4L)
         assertThat(current.last().observedTravelTimeSec != null).isEqualTo(true)
         assertThat(accuracy.findAll().filter { it.stopPathIndex == 0 && it.predictedTs != null }).isNotEmpty()
-        writer.inTransaction { session ->
-            assertThat(writer.frequencyRun(session, feed.code, "bus", trip.id)?.startedAt).isEqualTo(at)
+        writer.inTransaction {
+            assertThat(writer.frequencyRun(feed.code, "bus", trip.id)?.startedAt).isEqualTo(at)
         }
     }
 
@@ -323,8 +323,8 @@ class PredictionCorrectnessTest(
         }
         assertThat(firstStop.actualDepartureTs).isNull()
         assertThat(firstStop.sourceReportTs).isEqualTo(nextRun)
-        writer.inTransaction { session ->
-            val run = writer.frequencyRun(session, feed.code, "bus", trip.id)!!
+        writer.inTransaction {
+            val run = writer.frequencyRun(feed.code, "bus", trip.id)!!
             assertThat(run.startedAt).isEqualTo(nextRun)
             assertThat(run.startTimeSec).isNull()
             assertThat(run.lastDistanceAlongTripM).isEqualTo(0.0)
@@ -333,8 +333,8 @@ class PredictionCorrectnessTest(
         val departed = crossings.findAll().single { it.runStartedAt == nextRun }
         assertThat(departed.stopPathIndex).isEqualTo(0)
         assertThat(crossings.count()).isEqualTo(3L)
-        writer.inTransaction { session ->
-            assertThat(writer.frequencyRun(session, feed.code, "bus", trip.id)?.startedAt).isEqualTo(nextRun)
+        writer.inTransaction {
+            assertThat(writer.frequencyRun(feed.code, "bus", trip.id)?.startedAt).isEqualTo(nextRun)
         }
     }
 }

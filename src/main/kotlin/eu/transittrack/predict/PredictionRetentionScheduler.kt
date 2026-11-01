@@ -1,31 +1,52 @@
 package eu.transittrack.predict
 
-import java.sql.Timestamp
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
+import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.intLiteral
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.notExists
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.select
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
+import org.springframework.stereotype.Repository
 
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.feed.GtfsFeedTable
+import eu.transittrack.gtfs.revision.GtfsRevisionTable
+import eu.transittrack.predict.model.AvlStopCrossingTable
+import eu.transittrack.predict.model.KalmanTravelTimeStateTable
+import eu.transittrack.predict.model.LearnerBucketColumns
+import eu.transittrack.predict.model.PredictionAccuracyTable
+import eu.transittrack.predict.model.PredictionCheckpointTable
+import eu.transittrack.predict.model.PredictionFrequencyRunTable
+import eu.transittrack.predict.model.TravelTimeObservationTable
+import eu.transittrack.predict.model.VehiclePredictionTable
+import eu.transittrack.schedule.model.TripPatternTable
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
  * Age-based prune of prediction tables, plus a sweep of learner-table rows left orphaned once no
  * revision still stored for their GTFS feed has a pattern with their `pattern_key` (the route,
- * shape or stop list changed). A revision swap that keeps a pattern keeps its learning.
+ * shape or stop list changed). A revision swap that keeps a pattern keeps its learning. Each of the
+ * seven deletes commits on its own (none of them runs inside a caller transaction).
  */
 @Component
 @ConditionalOnProperty("transittrack.predict.enabled", havingValue = "true")
 @ConditionalOnRole(Role.FEED_PROCESSOR)
 class PredictionRetentionScheduler(
-    private val jdbc: JdbcTemplate,
+    private val retention: PredictionRetentionRepository,
     props: PredictProperties,
     private val metrics: TransitTrackMetrics,
 ) {
@@ -67,34 +88,49 @@ class PredictionRetentionScheduler(
     }
 
     fun prune(now: Instant): PruneCounts {
-        val predictions = jdbc.update(
-            "delete from vehicle_prediction where computed_at < ?",
-            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
-        )
+        val predictionCutoff = now.minus(cfg.predictionHours, ChronoUnit.HOURS)
+        val predictions = retention.deletePredictionsComputedBefore(predictionCutoff)
         // Never scored: the vehicle didn't reach the stop on that trip, or wasn't seen passing it.
-        val checkpoints = jdbc.update(
-            "delete from prediction_checkpoint where computed_at < ?",
-            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
-        )
-        val accuracy = jdbc.update(
-            "delete from prediction_accuracy where created_at < ?",
-            Timestamp.from(now.minus(cfg.accuracyDays, ChronoUnit.DAYS)),
-        )
-        val crossings = jdbc.update(
-            "delete from avl_stop_crossing where observed_at < ?",
-            Timestamp.from(now.minus(cfg.rawCrossingDays, ChronoUnit.DAYS)),
-        )
-        val orphanObservations = jdbc.update(orphanSweepSql("travel_time_observation"))
-        val orphanKalman = jdbc.update(orphanSweepSql("kalman_travel_time_state"))
-        val frequencyRuns = jdbc.update(
-            "delete from prediction_frequency_run where last_report_ts < ?",
-            Timestamp.from(now.minus(cfg.predictionHours, ChronoUnit.HOURS)),
-        )
+        val checkpoints = retention.deleteCheckpointsComputedBefore(predictionCutoff)
+        val accuracy = retention.deleteAccuracyCreatedBefore(now.minus(cfg.accuracyDays, ChronoUnit.DAYS))
+        val crossings = retention.deleteCrossingsObservedBefore(now.minus(cfg.rawCrossingDays, ChronoUnit.DAYS))
+        val orphanObservations = retention.deleteOrphanObservations()
+        val orphanKalman = retention.deleteOrphanKalmanStates()
+        val frequencyRuns = retention.deleteFrequencyRunsReportedBefore(predictionCutoff)
         return PruneCounts(predictions, checkpoints, accuracy, crossings, orphanObservations, orphanKalman, frequencyRuns)
     }
 }
 
-private fun orphanSweepSql(table: String) =
-    "delete from $table t where not exists (" +
-        "select 1 from trip_patterns p join gtfs_revision r on r.id = p.revision_id join gtfs_feed f on f.id = r.feed_id " +
-        "where f.code = t.gtfs_feed_code and p.pattern_key = t.pattern_key)"
+/**
+ * The retention deletes of [PredictionRetentionScheduler], one bridged call (and so, outside a
+ * Spring transaction, one transaction) each.
+ */
+@Repository
+@ExposedBridge
+class PredictionRetentionRepository {
+    fun deletePredictionsComputedBefore(cutoff: Instant): Int = VehiclePredictionTable.deleteWhere { computedAt less cutoff }
+
+    fun deleteCheckpointsComputedBefore(cutoff: Instant): Int = PredictionCheckpointTable.deleteWhere { computedAt less cutoff }
+
+    fun deleteAccuracyCreatedBefore(cutoff: Instant): Int = PredictionAccuracyTable.deleteWhere { createdAt less cutoff }
+
+    fun deleteCrossingsObservedBefore(cutoff: Instant): Int = AvlStopCrossingTable.deleteWhere { observedAt less cutoff }
+
+    fun deleteFrequencyRunsReportedBefore(cutoff: Instant): Int = PredictionFrequencyRunTable.deleteWhere { lastReportTs less cutoff }
+
+    fun deleteOrphanObservations(): Int = deleteOrphans(TravelTimeObservationTable)
+
+    fun deleteOrphanKalmanStates(): Int = deleteOrphans(KalmanTravelTimeStateTable)
+
+    /** Rows whose (GTFS feed code, pattern key) no stored revision's trip pattern has any more. */
+    private fun <L> deleteOrphans(table: L): Int where L : Table, L : LearnerBucketColumns =
+        table.deleteWhere {
+            notExists(
+                TripPatternTable
+                    .join(GtfsRevisionTable, JoinType.INNER, onColumn = GtfsRevisionTable.id, otherColumn = TripPatternTable.revisionId)
+                    .join(GtfsFeedTable, JoinType.INNER, onColumn = GtfsFeedTable.id, otherColumn = GtfsRevisionTable.feedId)
+                    .select(intLiteral(1))
+                    .where { (GtfsFeedTable.code eq table.gtfsFeedCode) and (TripPatternTable.patternKey eq table.patternKey) },
+            )
+        }
+}

@@ -46,6 +46,12 @@ import eu.transittrack.gtfs.model.TransferRepository
 import eu.transittrack.gtfs.model.TranslationRepository
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
+import eu.transittrack.predict.PredictionRetentionRepository
+import eu.transittrack.predict.model.AvlStopCrossingRepository
+import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
+import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.TravelTimeObservationRepository
+import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
@@ -112,5 +118,11 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
     AvlReportRowRepository::class,
     VehicleMatchRepository::class,
     VehicleStateRepository::class,
+    AvlStopCrossingRepository::class,
+    KalmanTravelTimeStateRepository::class,
+    PredictionAccuracyRepository::class,
+    TravelTimeObservationRepository::class,
+    VehiclePredictionRepository::class,
+    PredictionRetentionRepository::class,
 )
 class ExposedSliceConfig

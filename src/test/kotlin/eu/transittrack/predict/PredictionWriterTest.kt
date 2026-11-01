@@ -7,17 +7,21 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
+import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.support.TransactionTemplate
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
@@ -34,6 +38,7 @@ import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.learn.updateKalman
 import eu.transittrack.predict.learn.updateRunningAverage
 import eu.transittrack.predict.model.AvlStopCrossing
+import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.PredictionAccuracyRepository
@@ -42,10 +47,10 @@ import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
- * [PredictionWriter] commits through its own [org.hibernate.StatelessSession] transaction, so this
- * test must NOT run inside the default rollback transaction — otherwise the seeded `avl_feed` row
- * (parent of `vehicle_prediction.feed_code`/`prediction_accuracy.feed_code`) would be invisible to the
- * stateless session's connection. Hence `NOT_SUPPORTED` + explicit cleanup in `@AfterEach`.
+ * [PredictionWriter.inTransaction] commits in its own transaction (`REQUIRES_NEW`), so this test must
+ * NOT run inside the default rollback transaction — otherwise the seeded `avl_feed` row (parent of
+ * `vehicle_prediction.feed_code`/`prediction_accuracy.feed_code`) would be invisible to the writer's
+ * connection. Hence `NOT_SUPPORTED` + explicit cleanup in `@AfterEach`.
  */
 @PostgresSliceTest
 @Import(PredictionWriter::class)
@@ -56,8 +61,10 @@ class PredictionWriterTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictions: VehiclePredictionRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
+    @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val feeds: AvlFeedRepository,
     @Autowired val jdbc: JdbcTemplate,
+    @Autowired val txManager: PlatformTransactionManager,
 ) : PostgresPerMethodTest() {
     private var feedId = 0L
 
@@ -100,11 +107,9 @@ class PredictionWriterTest(
     private val peak = TravelTimeBucket(DayType.WEEKDAY, TimeBand.MORNING_PEAK)
 
     private fun upsert(
-        session: org.hibernate.StatelessSession,
         vararg rows: VehiclePredictionUpsert,
         now: Instant = rows.first().computedAt,
     ) = writer.upsertPredictions(
-        session,
         rows.toList(),
         staleBefore = now.minusSeconds(6 * 3_600),
         refreshBefore = now.minusSeconds(120),
@@ -118,18 +123,18 @@ class PredictionWriterTest(
 
     @Test
     fun `upsertObservations replaces the single row per bucket, latest wins`() {
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer
                 .upsertObservations(
-                    session, key, mapOf(LearnerBucket(2, peak) to observation(1L, 30.0)),
+                    key, mapOf(LearnerBucket(2, peak) to observation(1L, 30.0)),
                     Instant
                         .parse("2026-09-04T10:00:00Z"),
                 )
         }
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer
                 .upsertObservations(
-                    session, key, mapOf(LearnerBucket(2, peak) to observation(2L, 45.0)),
+                    key, mapOf(LearnerBucket(2, peak) to observation(2L, 45.0)),
                     Instant
                         .parse("2026-09-04T10:05:00Z"),
                 )
@@ -140,9 +145,8 @@ class PredictionWriterTest(
 
     @Test
     fun `upsertObservations keeps buckets of the same stop path apart`() {
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.upsertObservations(
-                session,
                 key,
                 mapOf(LearnerBucket(2, peak) to observation(1L, 90.0), LearnerBucket(2, TravelTimeBucket.OVERALL) to observation(1L, 60.0)),
                 Instant.parse("2026-09-04T08:00:00Z"),
@@ -154,18 +158,18 @@ class PredictionWriterTest(
 
     @Test
     fun `upsertKalmanStates replaces the single row per bucket, latest wins`() {
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer
                 .upsertKalmanStates(
-                    session, key, mapOf(LearnerBucket(2, peak) to KalmanState(30.0, 5.0, 1L)),
+                    key, mapOf(LearnerBucket(2, peak) to KalmanState(30.0, 5.0, 1L)),
                     Instant
                         .parse("2026-09-04T10:00:00Z"),
                 )
         }
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer
                 .upsertKalmanStates(
-                    session, key, mapOf(LearnerBucket(2, peak) to KalmanState(40.0, 3.0, 2L)),
+                    key, mapOf(LearnerBucket(2, peak) to KalmanState(40.0, 3.0, 2L)),
                     Instant
                         .parse("2026-09-04T10:05:00Z"),
                 )
@@ -176,8 +180,8 @@ class PredictionWriterTest(
 
     @Test
     fun `upsertPredictions replaces the single row, latest wins`() {
-        writer.inTransaction { session -> upsert(session, prediction(Instant.parse("2026-09-04T10:10:00Z"))) }
-        writer.inTransaction { session -> upsert(session, prediction(Instant.parse("2026-09-04T10:20:00Z"))) }
+        writer.inTransaction { upsert(prediction(Instant.parse("2026-09-04T10:10:00Z"))) }
+        writer.inTransaction { upsert(prediction(Instant.parse("2026-09-04T10:20:00Z"))) }
         val all =
             predictions.findByPatternStopAlgorithm("f1", 10L, 2, PredictionAlgorithm.KALMAN)
         assertThat(all.size).isEqualTo(1)
@@ -196,15 +200,15 @@ class PredictionWriterTest(
 
         fun stored() = predictions.findAll().single().let { it.predictedArrivalTs to it.computedAt }
 
-        writer.inTransaction { session -> upsert(session, at(t0, arrival)) }
+        writer.inTransaction { upsert(at(t0, arrival)) }
         // Moved by 5s: under the 10s threshold, kept as it was.
-        writer.inTransaction { session -> upsert(session, at(t0.plusSeconds(30), arrival.plusSeconds(5))) }
+        writer.inTransaction { upsert(at(t0.plusSeconds(30), arrival.plusSeconds(5))) }
         assertThat(stored()).isEqualTo(arrival to t0)
         // Moved by 15s: rewritten.
-        writer.inTransaction { session -> upsert(session, at(t0.plusSeconds(60), arrival.plusSeconds(15))) }
+        writer.inTransaction { upsert(at(t0.plusSeconds(60), arrival.plusSeconds(15))) }
         assertThat(stored()).isEqualTo(arrival.plusSeconds(15) to t0.plusSeconds(60))
         // Barely changed, but older than the refresh interval: rewritten so it still reads as live.
-        writer.inTransaction { session -> upsert(session, at(t0.plusSeconds(200), arrival.plusSeconds(18))) }
+        writer.inTransaction { upsert(at(t0.plusSeconds(200), arrival.plusSeconds(18))) }
         assertThat(stored()).isEqualTo(arrival.plusSeconds(18) to t0.plusSeconds(200))
     }
 
@@ -212,13 +216,13 @@ class PredictionWriterTest(
     fun `upsertPredictions keeps a passed stop's row, unless it is from an earlier run`() {
         val t0 = Instant.parse("2026-09-04T10:00:00Z")
         val actual = Instant.parse("2026-09-04T10:12:00Z")
-        writer.inTransaction { session ->
-            upsert(session, prediction(Instant.parse("2026-09-04T10:10:00Z")))
-            writer.fillActuals(session, "f1", "v1", 1L, mapOf(2 to actual))
+        writer.inTransaction {
+            upsert(prediction(Instant.parse("2026-09-04T10:10:00Z")))
+            writer.fillActuals("f1", "v1", 1L, mapOf(2 to actual))
         }
         // GPS jitter puts the stop back in the horizon a minute later: the passed row stays.
-        writer.inTransaction { session ->
-            upsert(session, prediction(Instant.parse("2026-09-04T10:13:00Z")).copy(computedAt = t0.plusSeconds(60)))
+        writer.inTransaction {
+            upsert(prediction(Instant.parse("2026-09-04T10:13:00Z")).copy(computedAt = t0.plusSeconds(60)))
         }
         predictions.findAll().single().let {
             assertThat(it.actualArrivalTs).isEqualTo(actual)
@@ -226,7 +230,7 @@ class PredictionWriterTest(
         }
         // The next day the same trip row starts afresh.
         val nextDay = t0.plusSeconds(86_400)
-        writer.inTransaction { session -> upsert(session, prediction(nextDay.plusSeconds(600)).copy(computedAt = nextDay)) }
+        writer.inTransaction { upsert(prediction(nextDay.plusSeconds(600)).copy(computedAt = nextDay)) }
         predictions.findAll().single().let {
             assertThat(it.actualArrivalTs).isNull()
             assertThat(it.predictedArrivalTs).isEqualTo(nextDay.plusSeconds(600))
@@ -243,19 +247,19 @@ class PredictionWriterTest(
             actual: Instant? = null,
         ) = prediction(at).copy(tripRowId = tripRowId, stopPathIndex = stopPathIndex, actualArrivalTs = actual)
 
-        writer.inTransaction { session ->
+        writer.inTransaction {
             listOf(
                 row(1L, 1, actual = at), // passed and observed: kept as history
                 row(1L, 2), // passed but never observed: dropped
                 row(1L, 3), // ahead of the vehicle: kept
                 row(2L, 0), // next block trip, still in the horizon: kept
                 row(9L, 4), // a trip the vehicle is no longer on: dropped
-            ).let { upsert(session, *it.toTypedArray()) }
+            ).let { upsert(*it.toTypedArray()) }
         }
 
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.deleteOutOfHorizonPredictions(
-                session, feedCode = "f1", vehicleId = "v1", currentTripRowId = 1L, fromStopPathIndex = 3,
+                feedCode = "f1", vehicleId = "v1", currentTripRowId = 1L, fromStopPathIndex = 3,
                 horizonTripRowIds = setOf(1L, 2L),
             )
         }
@@ -266,9 +270,8 @@ class PredictionWriterTest(
 
     @Test
     fun `insertAccuracy appends a row`() {
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.insertAccuracy(
-                session,
                 listOf(
                     PredictionAccuracy(
                         feedCode = "f1", vehicleId = "v1", tripRowId = 1L, stopPathIndex = 2,
@@ -295,59 +298,56 @@ class PredictionWriterTest(
     @Test
     fun `insertCheckpoints keeps the first report per sampling slot and prunes old snapshots`() {
         val t0 = Instant.parse("2026-09-04T10:00:00Z")
-        writer.inTransaction { session ->
-            writer.insertCheckpoints(session, listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
+        writer.inTransaction {
+            writer.insertCheckpoints(listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
         }
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.insertCheckpoints(
-                session,
                 listOf(checkpoint(t0.plusSeconds(330), t0.plusSeconds(30)), checkpoint(t0.plusSeconds(200), t0.plusSeconds(60))),
                 staleBefore = t0.minusSeconds(3_600),
             )
         }
         var taken = emptyList<eu.transittrack.predict.model.PredictionCheckpoint>()
-        writer.inTransaction { session -> taken = writer.takeCheckpoints(session, "f1", "v1", 1L, listOf(2)) }
+        writer.inTransaction { taken = writer.takeCheckpoints("f1", "v1", 1L, listOf(2)) }
         assertThat(taken.associate { it.sampleSlot to it.predictedTs })
             .isEqualTo(mapOf(t0 to t0.plusSeconds(280), t0.plusSeconds(60) to t0.plusSeconds(200)))
-        writer.inTransaction { session -> assertThat(writer.takeCheckpoints(session, "f1", "v1", 1L, listOf(2))).isEmpty() }
+        writer.inTransaction { assertThat(writer.takeCheckpoints("f1", "v1", 1L, listOf(2))).isEmpty() }
 
         // A day later the same trip row's leftover checkpoint is stale and gets replaced.
         val nextDay = t0.plusSeconds(86_400)
-        writer.inTransaction { session ->
-            writer.insertCheckpoints(session, listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
+        writer.inTransaction {
+            writer.insertCheckpoints(listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
             writer.insertCheckpoints(
-                session,
                 listOf(checkpoint(nextDay.plusSeconds(290), nextDay)),
                 staleBefore = nextDay.minusSeconds(3_600),
             )
-            assertThat(writer.takeCheckpoints(session, "f1", "v1", 1L, listOf(2)).single().computedAt).isEqualTo(nextDay)
+            assertThat(writer.takeCheckpoints("f1", "v1", 1L, listOf(2)).single().computedAt).isEqualTo(nextDay)
         }
     }
 
     @Test
     fun `insertCheckpoints skips a stop the vehicle already passed`() {
         val t0 = Instant.parse("2026-09-04T10:00:00Z")
-        writer.inTransaction { session ->
-            upsert(session, prediction(t0.plusSeconds(280)))
-            writer.fillActuals(session, "f1", "v1", 1L, mapOf(2 to t0.plusSeconds(290)))
-            writer.insertCheckpoints(session, listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
-            assertThat(writer.takeCheckpoints(session, "f1", "v1", 1L, listOf(2))).isEmpty()
+        writer.inTransaction {
+            upsert(prediction(t0.plusSeconds(280)))
+            writer.fillActuals("f1", "v1", 1L, mapOf(2 to t0.plusSeconds(290)))
+            writer.insertCheckpoints(listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
+            assertThat(writer.takeCheckpoints("f1", "v1", 1L, listOf(2))).isEmpty()
         }
     }
 
     @Test
     fun `clearPreviousRun drops all previous predictions and leftover checkpoints of the trip row`() {
         val t0 = Instant.parse("2026-09-04T10:00:00Z")
-        writer.inTransaction { session ->
-            upsert(session, prediction(t0.plusSeconds(280)), prediction(t0.plusSeconds(400)).copy(stopPathIndex = 3))
-            writer.fillActuals(session, "f1", "v1", 1L, mapOf(2 to t0.plusSeconds(290)))
+        writer.inTransaction {
+            upsert(prediction(t0.plusSeconds(280)), prediction(t0.plusSeconds(400)).copy(stopPathIndex = 3))
+            writer.fillActuals("f1", "v1", 1L, mapOf(2 to t0.plusSeconds(290)))
             writer.insertCheckpoints(
-                session,
                 listOf(checkpoint(t0.plusSeconds(400), t0).copy(stopPathIndex = 3)),
                 staleBefore = t0.minusSeconds(3_600),
             )
-            writer.clearPreviousRun(session, "f1", "v1", 1L)
-            assertThat(writer.takeCheckpoints(session, "f1", "v1", 1L, listOf(2, 3))).isEmpty()
+            writer.clearPreviousRun("f1", "v1", 1L)
+            assertThat(writer.takeCheckpoints("f1", "v1", 1L, listOf(2, 3))).isEmpty()
         }
         assertThat(predictions.findAll()).isEmpty()
     }
@@ -358,14 +358,14 @@ class PredictionWriterTest(
         val fine = LearnerBucket(2, peak)
         val overall = LearnerBucket(2, TravelTimeBucket.OVERALL)
         val nextStop = LearnerBucket(3, peak)
-        writer.inTransaction { session ->
-            assertThat(writer.lockObservations(session, key, listOf(fine, overall))).isEmpty()
-            writer.upsertObservations(session, key, mapOf(fine to observation(3L, 42.0), nextStop to observation(1L, 70.0)), at)
-            writer.upsertKalmanStates(session, key, mapOf(fine to KalmanState(40.0, 90.0, 3L)), at)
-            assertThat(writer.lockObservations(session, key, listOf(fine, overall, nextStop))).isEqualTo(
+        writer.inTransaction {
+            assertThat(writer.lockObservations(key, listOf(fine, overall))).isEmpty()
+            writer.upsertObservations(key, mapOf(fine to observation(3L, 42.0), nextStop to observation(1L, 70.0)), at)
+            writer.upsertKalmanStates(key, mapOf(fine to KalmanState(40.0, 90.0, 3L)), at)
+            assertThat(writer.lockObservations(key, listOf(fine, overall, nextStop))).isEqualTo(
                 mapOf(fine to observation(3L, 42.0), nextStop to observation(1L, 70.0)),
             )
-            assertThat(writer.lockKalmanStates(session, key, listOf(fine, overall))).isEqualTo(mapOf(fine to KalmanState(40.0, 90.0, 3L)))
+            assertThat(writer.lockKalmanStates(key, listOf(fine, overall))).isEqualTo(mapOf(fine to KalmanState(40.0, 90.0, 3L)))
         }
     }
 
@@ -380,15 +380,15 @@ class PredictionWriterTest(
             sample: Double,
             wait: Boolean,
         ) {
-            writer.inTransaction { session ->
-                val previous = writer.lockObservations(session, key, listOf(bucket))[bucket]
+            writer.inTransaction {
+                val previous = writer.lockObservations(key, listOf(bucket))[bucket]
                 if (wait) {
                     firstRead.countDown()
                     check(releaseFirst.await(10, TimeUnit.SECONDS)) { "First learner transaction was not released" }
                 }
-                writer.upsertObservations(session, key, mapOf(bucket to updateRunningAverage(previous, 600.0, sample, 50)), at)
-                val state = writer.lockKalmanStates(session, key, listOf(bucket))[bucket]
-                writer.upsertKalmanStates(session, key, mapOf(bucket to updateKalman(state, 600.0, 3600.0, 400.0, 25.0, sample)), at)
+                writer.upsertObservations(key, mapOf(bucket to updateRunningAverage(previous, 600.0, sample, 50)), at)
+                val state = writer.lockKalmanStates(key, listOf(bucket))[bucket]
+                writer.upsertKalmanStates(key, mapOf(bucket to updateKalman(state, 600.0, 3600.0, 400.0, 25.0, sample)), at)
             }
         }
         Executors.newFixedThreadPool(2).use { pool ->
@@ -421,17 +421,16 @@ class PredictionWriterTest(
     @Test
     fun `snapshots include missing forecasts and cannot mix report times inside one slot`() {
         val at = Instant.parse("2026-09-04T10:00:00Z")
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.insertCheckpoints(
-                session,
                 listOf(
                     checkpoint(at.plusSeconds(60), at).copy(algorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE),
                     checkpoint(null, at),
                 ),
                 at.minusSeconds(1800),
             )
-            writer.insertCheckpoints(session, listOf(checkpoint(at.plusSeconds(600), at.plusSeconds(30))), at.minusSeconds(1800))
-            val snapshots = writer.takeCheckpoints(session, "f1", "v1", 1L, listOf(2))
+            writer.insertCheckpoints(listOf(checkpoint(at.plusSeconds(600), at.plusSeconds(30))), at.minusSeconds(1800))
+            val snapshots = writer.takeCheckpoints("f1", "v1", 1L, listOf(2))
             assertThat(snapshots.size).isEqualTo(2)
             assertThat(snapshots.map { it.computedAt }.toSet()).isEqualTo(setOf(at))
             assertThat(snapshots.single { it.algorithm == PredictionAlgorithm.KALMAN }.predictedTs).isNull()
@@ -441,9 +440,9 @@ class PredictionWriterTest(
     @Test
     fun `late processing of an older report cannot replace a newer prediction`() {
         val at = Instant.parse("2026-09-04T10:00:00Z")
-        writer.inTransaction { session ->
-            upsert(session, prediction(at.plusSeconds(600)).copy(sourceReportTs = at.plusSeconds(60)))
-            upsert(session, prediction(at.plusSeconds(1200)).copy(computedAt = at.plusSeconds(300), sourceReportTs = at))
+        writer.inTransaction {
+            upsert(prediction(at.plusSeconds(600)).copy(sourceReportTs = at.plusSeconds(60)))
+            upsert(prediction(at.plusSeconds(1200)).copy(computedAt = at.plusSeconds(300), sourceReportTs = at))
         }
         val stored = predictions.findAll().single()
         assertThat(stored.predictedArrivalTs).isEqualTo(at.plusSeconds(600))
@@ -463,14 +462,12 @@ class PredictionWriterTest(
             observedTravelTimeSec = null, serviceId = null, tripStartSec = null, routeId = null, directionId = null,
             revisionId = 1L, runStartedAt = run, reportGapSec = 30,
         )
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.insertCrossings(
-                session,
                 listOf(pass(0, at, at), pass(1, at.plusSeconds(600), at), pass(0, at.plusSeconds(900), at.plusSeconds(900))),
             )
-            assertThat(writer.lastPasses(session, "f1", "v1", 1L, at.minusSeconds(60))).isEqualTo(mapOf(0 to at.plusSeconds(900)))
-            val count = session.createSelectionQuery("select count(c) from AvlStopCrossing c", Long::class.javaObjectType).singleResult
-            assertThat(count).isEqualTo(3L)
+            assertThat(writer.lastPasses("f1", "v1", 1L, at.minusSeconds(60))).isEqualTo(mapOf(0 to at.plusSeconds(900)))
+            assertThat(crossings.count()).isEqualTo(3L)
         }
     }
 
@@ -485,12 +482,11 @@ class PredictionWriterTest(
             feedCode = "f1", vehicleId = "v1", tripRowId = 1L, tripPatternId = 10L, stopPathIndex = k, observedAt = at,
             observedTravelTimeSec = null, serviceId = null, tripStartSec = null, routeId = null, directionId = null, revisionId = 1L,
         )
-        writer.inTransaction { session ->
+        writer.inTransaction {
             writer.insertCrossings(
-                session,
                 listOf(pass(1, t0.minusSeconds(86_400)), pass(1, t0), pass(2, t0.plusSeconds(60)), pass(3, t0.minusSeconds(86_400))),
             )
-            assertThat(writer.lastPasses(session, "f1", "v1", 1L, since = t0.minusSeconds(1_800)))
+            assertThat(writer.lastPasses("f1", "v1", 1L, since = t0.minusSeconds(1_800)))
                 .isEqualTo(mapOf(1 to t0, 2 to t0.plusSeconds(60)))
         }
     }
@@ -499,14 +495,13 @@ class PredictionWriterTest(
     fun `fillActuals sets the arrival, or the departure of a first stop, on every algorithm's row`() {
         val actual = Instant.parse("2026-09-04T10:12:00Z")
         val departed = Instant.parse("2026-09-04T10:01:00Z")
-        writer.inTransaction { session ->
+        writer.inTransaction {
             upsert(
-                session,
                 prediction(Instant.parse("2026-09-04T10:10:00Z")),
                 prediction(Instant.parse("2026-09-04T10:11:00Z")).copy(algorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE),
                 prediction(Instant.parse("2026-09-04T10:00:00Z")).copy(stopPathIndex = 0),
             )
-            writer.fillActuals(session, "f1", "v1", 1L, mapOf(0 to departed, 2 to actual))
+            writer.fillActuals("f1", "v1", 1L, mapOf(0 to departed, 2 to actual))
         }
         val rows = predictions.findAll().groupBy { it.stopPathIndex }
         assertThat(rows.getValue(2).map { it.actualArrivalTs }.toSet()).isEqualTo(setOf<Instant?>(actual))
@@ -519,11 +514,11 @@ class PredictionWriterTest(
     fun `Kalman update prior includes uncertainty accumulated since the latest source evidence`() {
         val at = Instant.parse("2026-09-04T10:00:00Z")
         val bucket = LearnerBucket(2, peak)
-        writer.inTransaction { session ->
-            writer.upsertKalmanStates(session, key, mapOf(bucket to KalmanState(600.0, 100.0, 10L)), at)
+        writer.inTransaction {
+            writer.upsertKalmanStates(key, mapOf(bucket to KalmanState(600.0, 100.0, 10L)), at)
         }
-        writer.inTransaction { session ->
-            val prior = writer.lockKalmanStates(session, key, listOf(bucket), at.plusSeconds(7200), 400.0).getValue(bucket)
+        writer.inTransaction {
+            val prior = writer.lockKalmanStates(key, listOf(bucket), at.plusSeconds(7200), 400.0).getValue(bucket)
             assertThat(prior.errorVariance).isEqualTo(900.0)
             assertThat(prior.estimateSec).isEqualTo(600.0)
         }
@@ -534,12 +529,119 @@ class PredictionWriterTest(
         val at = Instant.parse("2026-09-04T10:00:00Z")
         val bucket = LearnerBucket(2, peak)
         for ((time, count) in listOf(at to 1L, at.minusSeconds(600) to 2L)) {
-            writer.inTransaction { session ->
-                writer.upsertObservations(session, key, mapOf(bucket to RunningAverageState(count, 600.0)), time)
-                writer.upsertKalmanStates(session, key, mapOf(bucket to KalmanState(600.0, 100.0, count)), time)
+            writer.inTransaction {
+                writer.upsertObservations(key, mapOf(bucket to RunningAverageState(count, 600.0)), time)
+                writer.upsertKalmanStates(key, mapOf(bucket to KalmanState(600.0, 100.0, count)), time)
             }
         }
         assertThat(observations.findAll().single().updatedAt).isEqualTo(at)
         assertThat(kalmanStates.findAll().single().updatedAt).isEqualTo(at)
+    }
+
+    /**
+     * The conflict `WHERE` of the prediction upsert: a rewrite moving the predicted arrival by less
+     * than `minChangeSec` (10s) is rejected and the stored row stays as it was; one moving it by more is
+     * applied, clearing the actual report gap.
+     */
+    @Test
+    fun upsertPredictionRespectsConflictWhere() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        val arrival = Instant.parse("2026-09-04T10:10:00Z")
+
+        fun stored() = predictions.findAll().single()
+
+        writer.inTransaction { upsert(prediction(arrival).copy(computedAt = t0, confidenceSec = 30)) }
+        jdbc.update("update vehicle_prediction set actual_report_gap_sec = 12")
+
+        // Within the threshold: rejected, nothing about the row changes.
+        writer.inTransaction { upsert(prediction(arrival.plusSeconds(9)).copy(computedAt = t0.plusSeconds(30), confidenceSec = 45)) }
+        stored().let {
+            assertThat(it.predictedArrivalTs).isEqualTo(arrival)
+            assertThat(it.computedAt).isEqualTo(t0)
+            assertThat(it.confidenceSec).isEqualTo(30)
+            assertThat(it.actualReportGapSec).isEqualTo(12)
+        }
+
+        // Beyond it: accepted, every updated column takes the new values.
+        writer.inTransaction { upsert(prediction(arrival.plusSeconds(11)).copy(computedAt = t0.plusSeconds(60), confidenceSec = 45)) }
+        stored().let {
+            assertThat(it.predictedArrivalTs).isEqualTo(arrival.plusSeconds(11))
+            assertThat(it.computedAt).isEqualTo(t0.plusSeconds(60))
+            assertThat(it.confidenceSec).isEqualTo(45)
+            assertThat(it.actualReportGapSec).isNull()
+        }
+
+        // A departure appearing where there was none is a change too, however close the arrival.
+        writer.inTransaction {
+            upsert(
+                prediction(arrival.plusSeconds(11)).copy(computedAt = t0.plusSeconds(90), predictedDepartureTs = arrival.plusSeconds(40)),
+            )
+        }
+        assertThat(stored().predictedDepartureTs).isEqualTo(arrival.plusSeconds(40))
+
+        // So is another block, with both times unchanged.
+        writer.inTransaction {
+            upsert(
+                prediction(arrival.plusSeconds(11))
+                    .copy(computedAt = t0.plusSeconds(100), predictedDepartureTs = arrival.plusSeconds(40), blockPk = 5L),
+            )
+        }
+        stored().let {
+            assertThat(it.blockPk).isEqualTo(5L)
+            assertThat(it.computedAt).isEqualTo(t0.plusSeconds(100))
+        }
+    }
+
+    @Test
+    fun insertCheckpointsSkipsExisting() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        val candidates =
+            listOf(
+                checkpoint(t0.plusSeconds(280), t0),
+                checkpoint(t0.plusSeconds(290), t0).copy(algorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE),
+                checkpoint(t0.plusSeconds(400), t0).copy(stopPathIndex = 3),
+            )
+        writer.inTransaction { writer.insertCheckpoints(candidates, staleBefore = t0.minusSeconds(3_600)) }
+        writer.inTransaction { writer.insertCheckpoints(candidates, staleBefore = t0.minusSeconds(3_600)) }
+        assertThat(jdbc.queryForObject("select count(*) from prediction_checkpoint", Int::class.java)).isEqualTo(3)
+    }
+
+    private class CallerFailed : RuntimeException()
+
+    /** [PredictionWriter.inTransaction] commits on its own: a caller transaction that fails afterwards doesn't take its writes along. */
+    @Test
+    fun writesSurviveCallerFailure() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        assertFailure {
+            TransactionTemplate(txManager).executeWithoutResult {
+                writer.inTransaction {
+                    upsert(prediction(t0.plusSeconds(600)))
+                    writer.upsertObservations(key, mapOf(LearnerBucket(2, peak) to observation(1L, 30.0)), t0)
+                }
+                throw CallerFailed()
+            }
+        }.isInstanceOf(CallerFailed::class)
+        assertThat(predictions.findAll().size).isEqualTo(1)
+        assertThat(observations.findAll().size).isEqualTo(1)
+    }
+
+    /** A failure inside the block rolls back every write made in it, and releases its locks. */
+    @Test
+    fun failureInsideTransactionRollsBackItsWrites() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        assertFailure {
+            writer.inTransaction {
+                upsert(prediction(t0.plusSeconds(600)))
+                writer.lockObservations(key, listOf(LearnerBucket(2, peak)))
+                throw CallerFailed()
+            }
+        }.isInstanceOf(CallerFailed::class)
+        assertThat(predictions.findAll()).isEmpty()
+        assertThat(
+            jdbc.queryForObject(
+                "select pg_try_advisory_xact_lock(hashtext(?), hashtext(?))",
+                Boolean::class.java, "transittrack.predict.learn:${key.gtfsFeedCode}", key.patternKey,
+            ),
+        ).isEqualTo(true)
     }
 }
