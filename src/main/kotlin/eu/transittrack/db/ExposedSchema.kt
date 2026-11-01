@@ -41,7 +41,7 @@ object ExposedSchema {
                 PredictionFrequencyRunTable,
                 TravelTimeObservationTable,
                 VehiclePredictionTable,
-            )
+            ),
         )
     }
 

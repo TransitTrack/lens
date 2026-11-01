@@ -234,7 +234,7 @@ class PredictionService(
                 }.onFailure {
                     val elapsed = Duration.between(startedAt, Instant.now())
                     metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.FAILED, elapsed, 0)
-                    if (failure == null) failure = it else failure?.addSuppressed(it)
+                    if (failure == null) failure = it else failure.addSuppressed(it)
                 }.getOrNull()
                     ?.let { algorithm to it }
             }
@@ -377,7 +377,7 @@ class PredictionService(
                 previousPassAt
                     ?.let { Duration.between(it, pass.passedAt).toMillis() / 1000.0 }
                     ?.takeIf { it > 0.0 && it <= maxPlausibleSec }
-            if (sampleSec != null && previousPassAt != null) {
+            if (sampleSec != null) {
                 // Bucketed by when the vehicle left the previous stop, the same moment predictions
                 // look a stop path's time up by.
                 val bucket = TravelTimeBucket.at(serviceDate, ctx.zone, previousPassAt)

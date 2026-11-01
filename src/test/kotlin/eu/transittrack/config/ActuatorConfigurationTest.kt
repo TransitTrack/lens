@@ -4,6 +4,7 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import org.springframework.beans.factory.getBean
 import org.springframework.boot.actuate.autoconfigure.context.properties.ConfigurationPropertiesReportEndpointAutoConfiguration
 import org.springframework.boot.actuate.context.properties.ConfigurationPropertiesReportEndpoint
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -54,10 +55,10 @@ class ActuatorConfigurationTest {
         runner.run { ctx ->
             val beans =
                 ctx
-                    .getBean(ConfigurationPropertiesReportEndpoint::class.java)
+                    .getBean<ConfigurationPropertiesReportEndpoint>()
                     .configurationProperties()
                     .contexts.values
-                    .single()!!
+                    .single()
                     .beans.values
             val feeds = beans.single { it.prefix == "transittrack.feed" }.properties
             val datasource = beans.single { it.prefix == "spring.datasource" }.properties
