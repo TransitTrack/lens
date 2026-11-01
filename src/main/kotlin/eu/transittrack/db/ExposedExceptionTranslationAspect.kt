@@ -22,13 +22,18 @@ import org.springframework.transaction.TransactionSystemException
  *   [SQLException] in a [TransactionSystemException].
  *
  * Matches every `@Transactional` class or method — the boundaries Exposed statements run inside.
- * Ordered first, so it runs outside Spring's transaction interceptor and sees what the commit
+ * Ordered ahead of Spring's transaction interceptor, so it runs outside it and sees what the commit
  * throws; that interceptor still rolls back on the raw [SQLException], since the starter's
  * `ExposedSpringTransactionAttributeSource` adds it to the rollback rules.
+ *
+ * It must still come after Spring's `ExposeInvocationInterceptor` (`HIGHEST_PRECEDENCE + 1`): the
+ * pointcut is matched at runtime, and ahead of that interceptor every advised call has no current
+ * invocation to match against, so Spring creates and swallows an `IllegalStateException` (with its
+ * full stack trace) on each call.
  */
 @Aspect
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 2)
 class ExposedExceptionTranslationAspect(
     private val translator: ExposedExceptionTranslator,
 ) {
