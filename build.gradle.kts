@@ -51,6 +51,8 @@ val kotlinxBenchmarkVersion = project.property("kotlinxBenchmarkVersion") as Str
 val exposedVersion = project.property("exposedVersion") as String
 
 dependencies {
+    // Source: https://mvnrepository.com/artifact/org.jetbrains.exposed/exposed-bom
+    implementation(platform("org.jetbrains.exposed:exposed-bom:$exposedVersion"))
     implementation(project(":extension-api"))
 
     implementation("org.springframework.boot:spring-boot-starter-cache")
@@ -76,10 +78,10 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
     implementation("com.google.guava:guava:$guavaVersion")
 
-    implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
-    implementation("org.jetbrains.exposed:exposed-json:$exposedVersion")
+    implementation("org.jetbrains.exposed:exposed-core")
+    implementation("org.jetbrains.exposed:exposed-jdbc")
+    implementation("org.jetbrains.exposed:exposed-java-time")
+    implementation("org.jetbrains.exposed:exposed-json")
 
     implementation("org.postgresql:postgresql")
     runtimeOnly("io.micrometer:micrometer-registry-prometheus")
@@ -97,8 +99,8 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:$mockitoKotlinVersion")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("com.willowtreeapps.assertk:assertk:$assertkVersion")
-    testImplementation("org.jetbrains.exposed:exposed-migration-core:$exposedVersion")
-    testImplementation("org.jetbrains.exposed:exposed-migration-jdbc:$exposedVersion")
+    testImplementation("org.jetbrains.exposed:exposed-migration-core")
+    testImplementation("org.jetbrains.exposed:exposed-migration-jdbc")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
