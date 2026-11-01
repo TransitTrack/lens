@@ -52,10 +52,11 @@ class CrossingDetectorTest {
 
     @Test
     fun `last stop is reached within its radius of the pattern's end`() {
-        // 2800m -> 3000m in 40s reaches 2970m (3000 - LAST_STOP_RADIUS_M) 34s in.
-        assertThat(passes(2800.0, 3000.0, 40)).containsExactly(StopPass(3, t0.plusSeconds(34)))
-        // A vehicle pulling up short of where the shape ends still reaches it.
-        assertThat(passes(2800.0, 2980.0, 40)).containsExactly(StopPass(3, t0.plusSeconds(37) + java.time.Duration.ofMillis(777)))
+        // 2800m -> 3000m in 40s reaches 2990m (3000 - LAST_STOP_RADIUS_M) 38s in.
+        assertThat(passes(2800.0, 3000.0, 40)).containsExactly(StopPass(3, t0.plusSeconds(38)))
+        // A vehicle pulling up within the 10m radius still reaches the last stop.
+        assertThat(passes(2800.0, 2995.0, 40))
+            .containsExactly(StopPass(3, t0.plusSeconds(38) + java.time.Duration.ofMillis(974)))
         assertThat(passes(2800.0, 2960.0, 40)).isEmpty()
     }
 
