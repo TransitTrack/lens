@@ -5,6 +5,7 @@ import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.DoubleColumnType
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.ExpressionWithColumnType
+import org.jetbrains.exposed.v1.core.IColumnType
 import org.jetbrains.exposed.v1.core.QueryBuilder
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.append
@@ -58,7 +59,7 @@ class InsertSelectOnConflictDoNothing(
  * arguments executed in order, so each one sees the rows the ones before it wrote. Exposed batches
  * only inserts and upserts on its own; this covers updates and insert-selects too. The statements
  * must render the same SQL, so build them from one DSL expression whose shape doesn't depend on the
- * row (every value a bound parameter).
+ * row (every value a bound parameter): only the first one's SQL is rendered and sent.
  */
 fun JdbcTransaction.execBatch(statements: List<Statement<*>>) {
     if (statements.isEmpty()) return
@@ -73,16 +74,36 @@ private class SameSqlBatch(
 
     override val isAlwaysBatch: Boolean get() = true
 
+    /** Rendered once: Exposed renders a statement's whole SQL to collect its arguments. */
+    private val argumentSets by lazy { statements.flatMap { it.arguments() } }
+
+    /**
+     * Renders only the first statement. Rendering every one to compare them cost more than the rest
+     * of the batch, so the check is on the argument types instead, which catches a statement with
+     * more, fewer or different parameters (not one that differs only in its SQL text).
+     */
     override fun prepareSQL(
         transaction: Transaction,
         prepared: Boolean,
     ): String {
-        val sql = statements.first().prepareSQL(transaction, prepared)
-        check(statements.all { it.prepareSQL(transaction, prepared) == sql }) { "A batch's statements must all render the same SQL" }
-        return sql
+        val types = argumentSets.first().map { it.first }
+        check(argumentSets.all { args -> sameTypes(args, types) }) { "A batch's statements must all take the same parameters" }
+        return statements.first().prepareSQL(transaction, prepared)
     }
 
-    override fun arguments() = statements.flatMap { it.arguments() }
+    override fun arguments() = argumentSets
 
     override fun JdbcPreparedStatementApi.executeInternal(transaction: JdbcTransaction): List<Int> = executeBatch()
+
+    private fun sameTypes(
+        args: Iterable<Pair<IColumnType<*>, Any?>>,
+        types: List<IColumnType<*>>,
+    ): Boolean {
+        var i = 0
+        for ((type, _) in args) {
+            if (i >= types.size || types[i] != type) return false
+            i++
+        }
+        return i == types.size
+    }
 }
