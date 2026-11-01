@@ -113,7 +113,7 @@ class PredictionProcessor(
                     failedIds.add(row.id!!)
                     continue
                 }
-                val report = reports.findById(row.avlReportId).orElse(null)
+                val report = reports.findById(row.avlReportId)
                 if (report == null) {
                     failedIds.add(row.id!!)
                     continue

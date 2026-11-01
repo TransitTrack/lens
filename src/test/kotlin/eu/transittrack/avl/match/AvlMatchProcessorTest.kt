@@ -28,7 +28,6 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.data.domain.Pageable
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -51,6 +50,7 @@ import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.support.PostgresPerClassTest
 import eu.transittrack.util.concurrency.FeedLockCoordinator
+import eu.transittrack.util.paging.PageRequest
 
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -131,7 +131,7 @@ class AvlMatchProcessorTest(
             .atZone(factory.open(feedRow())!!.zone)
             .toInstant()
 
-    private fun feedRow(): AvlFeed = feeds.findById(feedId).orElseThrow()
+    private fun feedRow(): AvlFeed = feeds.findById(feedId)!!
 
     private fun t1Geom() =
         factory.open(feedRow())!!.let { ctx ->
@@ -180,7 +180,7 @@ class AvlMatchProcessorTest(
         assertThat(state.tripRowId).isEqualTo(trip.id)
         assertThat(state.distanceAlongTripM!!).isCloseTo(0.60 * len, 0.1 * len)
 
-        assertThat(vehicleMatches.findByVehicle(feedRow().code, "bus-1", Pageable.unpaged())).hasSize(2)
+        assertThat(vehicleMatches.findByVehicle(feedRow().code, "bus-1", PageRequest(0, Int.MAX_VALUE))).hasSize(2)
     }
 
     @Test

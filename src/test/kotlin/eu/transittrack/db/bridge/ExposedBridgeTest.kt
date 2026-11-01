@@ -2,6 +2,7 @@ package eu.transittrack.db.bridge
 
 import java.time.Instant
 import javax.sql.DataSource
+import jakarta.persistence.EntityManager
 
 import assertk.assertThat
 import assertk.assertions.containsExactly
@@ -24,7 +25,6 @@ import org.springframework.transaction.support.TransactionTemplate
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
-import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.support.PostgresPerMethodTest
 
@@ -33,7 +33,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 class ExposedBridgeTest(
     @Autowired val probe: BridgeProbe,
     @Autowired val txManager: PlatformTransactionManager,
-    @Autowired val avlFeedRepository: AvlFeedRepository,
+    @Autowired val em: EntityManager,
     @Autowired val dataSource: DataSource,
 ) : PostgresPerMethodTest() {
     /** The test's own view of the database, outside any Spring transaction and outside the bridge. */
@@ -67,7 +67,7 @@ class ExposedBridgeTest(
     fun exposedSeesUnflushedJpaWriteInSameTransaction() {
         val count =
             TransactionTemplate(txManager).execute {
-                avlFeedRepository.save(feed())
+                em.persist(feed())
                 probe.countAvlFeeds()
             }
 

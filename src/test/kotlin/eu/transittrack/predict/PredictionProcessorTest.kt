@@ -25,7 +25,6 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.data.domain.Pageable
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -58,6 +57,7 @@ import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.support.PostgresPerClassTest
 import eu.transittrack.util.concurrency.FeedLockCoordinator
+import eu.transittrack.util.paging.PageRequest
 
 /**
  * Covers the core scenario this decoupling plan exists to fix: multiple `vehicle_match` rows for the
@@ -158,7 +158,7 @@ class PredictionProcessorTest(
             .atZone(factory.open(feedRow())!!.zone)
             .toInstant()
 
-    private fun feedRow(): AvlFeed = feeds.findById(feedId).orElseThrow()
+    private fun feedRow(): AvlFeed = feeds.findById(feedId)!!
 
     private fun t1Geom() =
         factory.open(feedRow())!!.let { ctx ->
@@ -201,14 +201,14 @@ class PredictionProcessorTest(
         // One AvlMatchProcessor pass matches all three reports, producing three PENDING vehicle_match rows.
         processor.processBatch()
 
-        val matchedBefore = vehicleMatches.findByVehicle(feedRow().code, "bus-1", Pageable.unpaged())
+        val matchedBefore = vehicleMatches.findByVehicle(feedRow().code, "bus-1", PageRequest(0, Int.MAX_VALUE))
         assertThat(matchedBefore).hasSize(3)
         assertThat(matchedBefore.all { it.predictionStatus == PredictionStatus.PENDING }).isTrue()
 
         // One PredictionProcessor pass must claim and process the whole batch, not just the first row.
         predictionProcessor.processBatch()
 
-        val matchedAfter = vehicleMatches.findByVehicle(feedRow().code, "bus-1", Pageable.unpaged())
+        val matchedAfter = vehicleMatches.findByVehicle(feedRow().code, "bus-1", PageRequest(0, Int.MAX_VALUE))
         assertThat(matchedAfter).hasSize(3)
         assertThat(matchedAfter.all { it.predictionStatus == PredictionStatus.DONE }).isTrue()
 

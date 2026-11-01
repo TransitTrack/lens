@@ -6,7 +6,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
-import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 
 import eu.transittrack.avl.match.AvlMatchContextFactory
@@ -20,6 +19,7 @@ import eu.transittrack.avl.read.dto.AvlReportDto
 import eu.transittrack.avl.read.dto.AvlReportMatchDto
 import eu.transittrack.avl.read.dto.AvlReportPageDto
 import eu.transittrack.avl.read.dto.VehicleDto
+import eu.transittrack.util.paging.PageRequest
 
 @Service
 class AvlReadService(
@@ -67,7 +67,7 @@ class AvlReadService(
         limit: Int,
     ): List<AvlReportDto> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
-        val pageable = PageRequest.of(0, limit.coerceIn(1, 1000))
+        val pageable = PageRequest(0, limit.coerceIn(1, 1000))
         val sinceInstant = since?.let { Instant.parse(it) }
         val rows =
             if (sinceInstant != null) {
@@ -138,21 +138,21 @@ class AvlReadService(
                 vehicleId,
                 from,
                 until,
-                PageRequest.of(requestedPage - 1, requestedPageSize),
+                PageRequest(requestedPage - 1, requestedPageSize),
             )
         val matchesByReportId =
             vehicleMatches
-                .findByAvlReportIdIn(rows.content.mapNotNull { it.id })
+                .findByAvlReportIdIn(rows.items.mapNotNull { it.id })
                 .associateBy { it.avlReportId }
         return AvlReportPageDto(
-            items = rows.content.map { row ->
+            items = rows.items.map { row ->
                 AvlReportDto.of(
                     row,
                     matchesByReportId[row.id]?.let { AvlReportMatchDto.of(it, feed.gtfsFeedCode) },
                     feed.format,
                 )
             },
-            totalCount = rows.totalElements.toInt(),
+            totalCount = rows.total.toInt(),
             page = requestedPage,
             pageSize = requestedPageSize,
         )

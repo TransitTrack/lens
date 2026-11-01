@@ -153,7 +153,7 @@ class PredictionServiceTest(
             .atZone(factory.open(feedRow())!!.zone)
             .toInstant()
 
-    private fun feedRow(): AvlFeed = feeds.findById(feedId).orElseThrow()
+    private fun feedRow(): AvlFeed = feeds.findById(feedId)!!
 
     private fun t1Geom() =
         factory.open(feedRow())!!.let { ctx ->

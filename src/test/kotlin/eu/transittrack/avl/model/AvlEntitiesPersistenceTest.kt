@@ -8,11 +8,11 @@ import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.data.domain.PageRequest
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.util.paging.PageRequest
 
 @PostgresSliceTest
 class AvlEntitiesPersistenceTest(
@@ -90,7 +90,7 @@ class AvlEntitiesPersistenceTest(
                 createdAt = r.ts,
             ),
         )
-        assertThat(matches.findByVehicle("feed-3", "v", PageRequest.of(0, 5))).hasSize(1)
+        assertThat(matches.findByVehicle("feed-3", "v", PageRequest(0, 5))).hasSize(1)
     }
 
     @Test

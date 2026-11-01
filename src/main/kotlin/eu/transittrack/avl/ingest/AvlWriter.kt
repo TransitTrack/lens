@@ -1,14 +1,21 @@
 package eu.transittrack.avl.ingest
 
 import java.time.Instant
-import jakarta.persistence.EntityManagerFactory
 
-import org.hibernate.SessionFactory
-import org.hibernate.StatelessSession
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.jdbc.batchInsert
+import org.jetbrains.exposed.v1.jdbc.batchUpsert
+import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Propagation
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.avl.model.AvlReportRow
+import eu.transittrack.avl.model.AvlReportTable
 import eu.transittrack.avl.model.VehicleMatch
+import eu.transittrack.avl.model.VehicleMatchTable
+import eu.transittrack.avl.model.VehicleStateTable
+import eu.transittrack.db.bridge.ExposedBridge
 
 data class VehicleStateUpsert(
     val feedCode: String,
@@ -36,95 +43,72 @@ data class VehicleStateUpsert(
 )
 
 /**
- * Bulk persistence for the AVL pipeline. `avl_report` and `vehicle_match` go in via a Hibernate
- * [org.hibernate.StatelessSession] (JDBC-batched, no persistence context); `vehicle_state` is a
- * native `INSERT ... ON CONFLICT` upsert keyed on `(feed_code, vehicle_id)`. The `vehicle_state.id`
- * column is a Postgres IDENTITY, so it is left out of the insert entirely.
+ * Bulk persistence for the AVL pipeline: JDBC-batched inserts of `avl_report` and `vehicle_match`
+ * rows (their generated ids are never read back), and an `INSERT ... ON CONFLICT (feed_code,
+ * vehicle_id) DO UPDATE` upsert of `vehicle_state` that updates every column except the key and `id`.
+ *
+ * Every method commits in its own transaction (`REQUIRES_NEW`), as the Hibernate stateless session it
+ * replaced did: reports written by [AvlIngestService.pollOnce] stand even if its poll transaction
+ * rolls back afterwards.
  */
 @Component
-class AvlWriter(
-    emf: EntityManagerFactory,
-) {
-    private val sessionFactory: SessionFactory = emf.unwrap(SessionFactory::class.java)
-
+@ExposedBridge
+class AvlWriter {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun insertReports(rows: List<AvlReportRow>) {
         if (rows.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session -> rows.forEach(session::insert) }
+        AvlReportTable.batchInsert(rows, shouldReturnGeneratedValues = false) { AvlReportTable.bind(this, it) }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun insertMatches(matches: List<VehicleMatch>) {
         if (matches.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session -> matches.forEach(session::insert) }
+        VehicleMatchTable.batchInsert(matches, shouldReturnGeneratedValues = false) { VehicleMatchTable.bind(this, it) }
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertState(s: VehicleStateUpsert) {
-        sessionFactory.inStatelessTransaction { session -> upsertState(session, s) }
+        VehicleStateTable.upsert(VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(it, s) }
     }
 
+    /** Applied in list order (one statement per row in a JDBC batch), so a later upsert for the same vehicle wins. */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertStates(states: List<VehicleStateUpsert>) {
         if (states.isEmpty()) return
-        sessionFactory.inStatelessTransaction { session -> states.forEach { upsertState(session, it) } }
+        VehicleStateTable.batchUpsert(
+            states,
+            VehicleStateTable.feedCode,
+            VehicleStateTable.vehicleId,
+            shouldReturnGeneratedValues = false,
+        ) { bind(this, it) }
     }
 
-    private fun upsertState(
-        session: StatelessSession,
+    /** Every column but `id`, which the insert takes from `vehicle_state_seq` and an update leaves alone. */
+    private fun bind(
+        st: UpdateBuilder<*>,
         s: VehicleStateUpsert,
-    ) {
-        session
-            .createNativeMutationQuery(UPSERT_SQL)
-            .setParameter("feed_code", s.feedCode)
-            .setParameter("vehicle_id", s.vehicleId)
-            .setParameter("vehicle_label", s.vehicleLabel)
-            .setParameter("report_ts", s.reportTs)
-            .setParameter("lat", s.lat)
-            .setParameter("lon", s.lon)
-            .setParameter("bearing", s.bearing)
-            .setParameter("speed_mps", s.speedMps)
-            .setParameter("occupancy_status", s.occupancyStatus)
-            .setParameter("matched", s.matched)
-            .setParameter("stale", s.stale)
-            .setParameter("consecutive_failures", s.consecutiveFailures)
-            .setParameter("revision_id", s.revisionId)
-            .setParameter("trip_row_id", s.tripRowId)
-            .setParameter("block_pk", s.blockPk)
-            .setParameter("trip_pattern_id", s.tripPatternId)
-            .setParameter("stop_path_index", s.stopPathIndex)
-            .setParameter("distance_along_trip_m", s.distanceAlongTripM)
-            .setParameter("schedule_adherence_sec", s.scheduleAdherenceSec)
-            .setParameter("snapped_lat", s.snappedLat)
-            .setParameter("snapped_lon", s.snappedLon)
-            .setParameter("updated_at", s.updatedAt)
-            .executeUpdate()
-    }
-
-    private companion object {
-        const val UPSERT_SQL = """
-            insert into vehicle_state (
-                feed_code, vehicle_id, vehicle_label, report_ts, lat, lon, bearing, speed_mps,
-                occupancy_status, matched, stale, consecutive_failures, revision_id, trip_row_id,
-                block_pk, trip_pattern_id, stop_path_index, distance_along_trip_m,
-                schedule_adherence_sec, snapped_lat, snapped_lon, updated_at
-            ) values (
-                :feed_code, :vehicle_id, :vehicle_label, :report_ts, :lat, :lon, :bearing, :speed_mps,
-                :occupancy_status, :matched, :stale, :consecutive_failures, :revision_id, :trip_row_id,
-                :block_pk, :trip_pattern_id, :stop_path_index, :distance_along_trip_m,
-                :schedule_adherence_sec, :snapped_lat, :snapped_lon, :updated_at
-            )
-            on conflict (feed_code, vehicle_id) do update set
-                vehicle_label = excluded.vehicle_label,
-                report_ts = excluded.report_ts,
-                lat = excluded.lat, lon = excluded.lon,
-                bearing = excluded.bearing, speed_mps = excluded.speed_mps,
-                occupancy_status = excluded.occupancy_status,
-                matched = excluded.matched, stale = excluded.stale,
-                consecutive_failures = excluded.consecutive_failures,
-                revision_id = excluded.revision_id, trip_row_id = excluded.trip_row_id,
-                block_pk = excluded.block_pk, trip_pattern_id = excluded.trip_pattern_id,
-                stop_path_index = excluded.stop_path_index,
-                distance_along_trip_m = excluded.distance_along_trip_m,
-                schedule_adherence_sec = excluded.schedule_adherence_sec,
-                snapped_lat = excluded.snapped_lat, snapped_lon = excluded.snapped_lon,
-                updated_at = excluded.updated_at
-        """
+    ) = with(VehicleStateTable) {
+        st[feedCode] = s.feedCode
+        st[vehicleId] = s.vehicleId
+        st[vehicleLabel] = s.vehicleLabel
+        st[reportTs] = s.reportTs
+        st[lat] = s.lat
+        st[lon] = s.lon
+        st[bearing] = s.bearing
+        st[speedMps] = s.speedMps
+        st[occupancyStatus] = s.occupancyStatus?.toShort()
+        st[matched] = s.matched
+        st[stale] = s.stale
+        st[consecutiveFailures] = s.consecutiveFailures
+        st[revisionId] = s.revisionId
+        st[tripRowId] = s.tripRowId
+        st[blockPk] = s.blockPk
+        st[tripPatternId] = s.tripPatternId
+        st[stopPathIndex] = s.stopPathIndex
+        st[distanceAlongTripM] = s.distanceAlongTripM
+        st[scheduleAdherenceSec] = s.scheduleAdherenceSec
+        st[snappedLat] = s.snappedLat
+        st[snappedLon] = s.snappedLon
+        st[updatedAt] = s.updatedAt
     }
 }

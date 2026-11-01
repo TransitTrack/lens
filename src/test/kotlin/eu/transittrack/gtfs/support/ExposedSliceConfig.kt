@@ -3,6 +3,10 @@ package eu.transittrack.gtfs.support
 import org.springframework.context.annotation.EnableAspectJAutoProxy
 import org.springframework.context.annotation.Import
 
+import eu.transittrack.avl.model.AvlFeedRepository
+import eu.transittrack.avl.model.AvlReportRowRepository
+import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.db.ExposedExceptionTranslator
 import eu.transittrack.db.bridge.ExposedBridgeConfig
 import eu.transittrack.gtfs.draft.DraftEditRepository
@@ -104,5 +108,9 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
     TravelTimesForStopPathRepository::class,
     OptimizationRunRepository::class,
     OptimizationRecommendationRepository::class,
+    AvlFeedRepository::class,
+    AvlReportRowRepository::class,
+    VehicleMatchRepository::class,
+    VehicleStateRepository::class,
 )
 class ExposedSliceConfig

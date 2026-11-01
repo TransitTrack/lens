@@ -32,7 +32,6 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.data.domain.PageRequest
 import org.springframework.graphql.test.tester.HttpGraphQlTester
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -56,6 +55,7 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.util.paging.PageRequest
 
 /**
  * Full AVL pipeline through a real HTTP endpoint: a GTFS-RT `VehiclePosition` feed served by
@@ -180,7 +180,7 @@ class AvlEndToEndTest(
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p25, svcTs(1).epochSecond))))
         assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
         assertThat(
-            reports.findByVehicle(feedRow.code, "bus-1", PageRequest.of(0, 2)).size,
+            reports.findByVehicle(feedRow.code, "bus-1", PageRequest(0, 2)).size,
         ).isEqualTo(1)
 
         assertThat(processor.processBatch()).isEqualTo(1)
@@ -211,7 +211,7 @@ class AvlEndToEndTest(
         // --- GraphQL surface ---
         // The schedule fixture uses a fixed date; expose a current vehicle state for this read.
         s3.reportTs = Instant.now()
-        vehicleStates.saveAndFlush(s3)
+        vehicleStates.save(s3)
         val v =
             tester
                 .document(

@@ -24,7 +24,7 @@ class AvlPollRecorder(
         status: String,
         count: Int,
     ) {
-        val f = feeds.findById(feedId).orElseThrow()
+        val f = feeds.findById(feedId) ?: throw NoSuchElementException("no avl feed $feedId")
         f.lastPollAt = Instant.now()
         f.lastPollStatus = status
         f.lastPollReportCount = count

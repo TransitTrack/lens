@@ -99,7 +99,7 @@ class PredictionGraphQlTest(
 
     private var feedId = 0L
 
-    private fun feedRow() = feeds.findById(feedId).orElseThrow()
+    private fun feedRow() = feeds.findById(feedId)!!
 
     @BeforeAll
     fun setup() {
@@ -119,7 +119,7 @@ class PredictionGraphQlTest(
                     ),
                 ).id!!
 
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId)!!
         val ctx = factory.open(feed)!!
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!
         val geom = ctx.patternGeometry(trip.tripPatternId!!)!!

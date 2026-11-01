@@ -14,8 +14,8 @@ import eu.transittrack.gtfs.feed.GtfsFeedDeletedEvent
  * between the two (see `AvlFeed.gtfsFeedCode`), so without this the row survives the GTFS feed's
  * deletion and `AvlPoller` keeps polling it indefinitely. Runs `AFTER_COMMIT` so it only acts once
  * the GTFS feed deletion is durable; `fallbackExecution = true` also fires it when there is no
- * surrounding transaction. `REQUIRES_NEW` gives the lookup-and-delete its own transaction/
- * EntityManager instead of trying to participate in the just-completed one, whose synchronization
+ * surrounding transaction. `REQUIRES_NEW` gives the lookup-and-delete its own transaction and
+ * connection instead of trying to participate in the just-completed one, whose synchronization
  * resources are still being torn down at the point `AFTER_COMMIT` callbacks run.
  */
 @Component

@@ -2,6 +2,10 @@ package eu.transittrack.db
 
 import org.jetbrains.exposed.v1.core.Table
 
+import eu.transittrack.avl.model.AvlFeedTable
+import eu.transittrack.avl.model.AvlReportTable
+import eu.transittrack.avl.model.VehicleMatchTable
+import eu.transittrack.avl.model.VehicleStateTable
 import eu.transittrack.gtfs.draft.DraftEditTable
 import eu.transittrack.gtfs.feed.GtfsFeedTable
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
@@ -18,5 +22,6 @@ object ExposedSchema {
     val ALL: List<Table> = listOf(GtfsFeedTable, GtfsRevisionTable, DraftEditTable) +
         GtfsTables.ALL +
         ScheduleTables.ALL +
-        listOf(OptimizationRunTable, OptimizationRecommendationTable)
+        listOf(OptimizationRunTable, OptimizationRecommendationTable) +
+        listOf(AvlFeedTable, AvlReportTable, VehicleMatchTable, VehicleStateTable)
 }

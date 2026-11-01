@@ -95,7 +95,7 @@ class AvlGraphQlTest(
                     ),
                 ).id!!
 
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId)!!
         val ctx = factory.open(feed)!!
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!
         val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
@@ -146,7 +146,7 @@ class AvlGraphQlTest(
     fun refreshVehicleReport() {
         val state = vehicleStates.findByFeedCodeAndVehicleId("a", "bus-1")!!
         state.reportTs = Instant.now().minusSeconds(60)
-        vehicleStates.saveAndFlush(state)
+        vehicleStates.save(state)
     }
 
     @Test
@@ -154,7 +154,7 @@ class AvlGraphQlTest(
         val state = vehicleStates.findByFeedCodeAndVehicleId("a", "bus-1")!!
         state.reportTs = Instant.now().minusSeconds(3601)
         state.updatedAt = Instant.now()
-        vehicleStates.saveAndFlush(state)
+        vehicleStates.save(state)
 
         tester
             .document("""{ vehicles(feedCode:"a"){ vehicleId } }""")

@@ -51,6 +51,10 @@ class SchemaDriftTest(
                 "ALTER TABLE gtfs_revision ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
                 "ALTER TABLE schedule_optimization_run ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
                 "ALTER TABLE schedule_optimization_recommendation ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE avl_feed ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE avl_report ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE vehicle_match ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE vehicle_state ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
             )
     }
 }

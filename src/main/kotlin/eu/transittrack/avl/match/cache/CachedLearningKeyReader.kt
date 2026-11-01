@@ -1,29 +1,35 @@
 package eu.transittrack.avl.match.cache
 
+import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.select
 import org.springframework.cache.annotation.Cacheable
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 
+import eu.transittrack.db.bridge.ExposedBridge
+import eu.transittrack.gtfs.feed.GtfsFeedTable
+import eu.transittrack.gtfs.revision.GtfsRevisionTable
 import eu.transittrack.predict.learn.LearningKey
+import eu.transittrack.schedule.model.TripPatternTable
 
 /**
  * Revision-scoped, cached lookup of a trip pattern's [LearningKey] - its GTFS feed code and stable
- * `pattern_key` - so learned travel times are keyed by what survives a revision swap.
+ * `pattern_key` - so learned travel times are keyed by what survives a revision swap. A cache hit
+ * never reaches the database: Spring's cache advisor runs outside the [ExposedBridge] aspect.
  */
 @Component
-class CachedLearningKeyReader(
-    private val jdbc: JdbcTemplate,
-) {
+@ExposedBridge
+class CachedLearningKeyReader {
     @Cacheable(AvlCaches.LEARNING_KEY, key = "#revisionId + ':' + #tripPatternId")
     fun keyOf(
         revisionId: Long,
         tripPatternId: Long,
     ): LearningKey? =
-        jdbc
-            .query(
-                "select f.code, p.pattern_key from trip_patterns p " +
-                    "join gtfs_revision r on r.id = p.revision_id join gtfs_feed f on f.id = r.feed_id where p.id = ?",
-                { rs, _ -> LearningKey(rs.getString(1), rs.getString(2)) },
-                tripPatternId,
-            ).firstOrNull()
+        TripPatternTable
+            .join(GtfsRevisionTable, JoinType.INNER, onColumn = GtfsRevisionTable.id, otherColumn = TripPatternTable.revisionId)
+            .join(GtfsFeedTable, JoinType.INNER, onColumn = GtfsFeedTable.id, otherColumn = GtfsRevisionTable.feedId)
+            .select(GtfsFeedTable.code, TripPatternTable.patternKey)
+            .where { TripPatternTable.id eq tripPatternId }
+            .firstOrNull()
+            ?.let { LearningKey(it[GtfsFeedTable.code], it[TripPatternTable.patternKey]) }
 }

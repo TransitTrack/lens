@@ -101,7 +101,7 @@ class AdherenceReadServiceTest(
                     ),
                 ).id!!
 
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId)!!
         val ctx = factory.open(feed)!!
 
         fun ts(

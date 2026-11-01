@@ -142,7 +142,7 @@ class StopPassageDerivationServiceTest(
                     ),
                 ).id!!
 
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId)!!
         val ctx = factory.open(feed)!!
         val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
         // T1's pattern total shape length - used below to build matches that land at the pattern's

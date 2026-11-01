@@ -126,7 +126,7 @@ class HeadwayReadServiceTest(
                     ),
                 ).id!!
 
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId)!!
         val ctx = factory.open(feed)!!
 
         fun ts(
@@ -275,7 +275,7 @@ class HeadwayReadServiceTest(
 
     @Test
     fun `accuracy pairs common forecasts, measures missing coverage and computes real percentiles`() {
-        val feed = feeds.findById(feedId).orElseThrow()
+        val feed = feeds.findById(feedId)!!
         val configured = feed.predictionAlgorithms
         feed.predictionAlgorithms = listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.KALMAN)
         feeds.save(feed)

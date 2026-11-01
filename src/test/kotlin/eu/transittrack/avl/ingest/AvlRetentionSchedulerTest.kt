@@ -13,6 +13,9 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.avl.model.AvlReportRowRepository
+import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
 import eu.transittrack.util.observability.TransitTrackMetrics
@@ -20,6 +23,9 @@ import eu.transittrack.util.observability.TransitTrackMetrics
 @PostgresSliceTest
 class AvlRetentionSchedulerTest(
     @Autowired val jdbc: JdbcTemplate,
+    @Autowired val reports: AvlReportRowRepository,
+    @Autowired val matches: VehicleMatchRepository,
+    @Autowired val states: VehicleStateRepository,
 ) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-04T12:00:00Z")
 
@@ -71,7 +77,7 @@ class AvlRetentionSchedulerTest(
                 matchDuration = Duration.ofHours(72),
             ),
         )
-        val scheduler = AvlRetentionScheduler(jdbc, props, TransitTrackMetrics.forTests())
+        val scheduler = AvlRetentionScheduler(reports, matches, states, props, TransitTrackMetrics.forTests())
 
         val counts = scheduler.prune(now)
 
