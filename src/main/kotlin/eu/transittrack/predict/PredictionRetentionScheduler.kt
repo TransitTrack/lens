@@ -80,8 +80,15 @@ class PredictionRetentionScheduler(
             outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
             elapsed = Duration.between(start, Instant.now()),
             items = result.getOrNull()?.let {
-                (it.predictions + it.checkpoints + it.accuracy + it.crossings + it.orphanObservations + it.orphanKalman + it.frequencyRuns)
-                    .toLong()
+                (
+                    it.predictions +
+                        it.checkpoints +
+                        it.accuracy +
+                        it.crossings +
+                        it.orphanObservations +
+                        it.orphanKalman +
+                        it.frequencyRuns
+                ).toLong()
             },
         )
         result.getOrThrow()

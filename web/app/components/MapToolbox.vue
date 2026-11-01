@@ -55,6 +55,12 @@ function chooseTool(tool: MapToolMode) {
   props.tools.selectTool(tool)
 }
 
+function setNoteLabel(value: string | number | null | undefined) {
+  // noteLabel is a ref owned by the useMapTools composable, not prop state.
+  const noteLabel = props.tools.noteLabel
+  noteLabel.value = String(value ?? '')
+}
+
 function closeTools() {
   props.tools.deactivate()
   activeSection.value = null
@@ -150,7 +156,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <span class="text-xs">{{ tool.label }}</span>
           </UButton>
         </div>
-        <UInput v-model="tools.noteLabel.value" size="sm" placeholder="Next note label" />
+        <UInput
+          :model-value="tools.noteLabel.value"
+          size="sm"
+          placeholder="Next note label"
+          @update:model-value="setNoteLabel"
+        />
         <div class="flex justify-between gap-2">
           <UButton color="neutral" variant="soft" size="sm" label="Finish" :disabled="!tools.activePoints.value.length" @click="tools.complete" />
           <UButton color="neutral" variant="ghost" size="sm" label="Clear shapes" @click="tools.clear('drawing')" />
