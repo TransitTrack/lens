@@ -26,20 +26,24 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunTable
  * `SchemaDriftTest` checks against it, so each table must be added here when it is defined.
  */
 object ExposedSchema {
-    val ALL: List<Table> = listOf(GtfsFeedTable, GtfsRevisionTable, DraftEditTable) +
-        GtfsTables.ALL +
-        ScheduleTables.ALL +
-        listOf(OptimizationRunTable, OptimizationRecommendationTable) +
-        listOf(AvlFeedTable, AvlReportTable, VehicleMatchTable, VehicleStateTable) +
-        listOf(
-            AvlStopCrossingTable,
-            KalmanTravelTimeStateTable,
-            PredictionAccuracyTable,
-            PredictionCheckpointTable,
-            PredictionFrequencyRunTable,
-            TravelTimeObservationTable,
-            VehiclePredictionTable,
+    val ALL: List<Table> = buildList {
+        addAll(listOf(GtfsFeedTable, GtfsRevisionTable, DraftEditTable))
+        addAll(GtfsTables.ALL)
+        addAll(ScheduleTables.ALL)
+        addAll(listOf(OptimizationRunTable, OptimizationRecommendationTable))
+        addAll(listOf(AvlFeedTable, AvlReportTable, VehicleMatchTable, VehicleStateTable))
+        addAll(
+            listOf(
+                AvlStopCrossingTable,
+                KalmanTravelTimeStateTable,
+                PredictionAccuracyTable,
+                PredictionCheckpointTable,
+                PredictionFrequencyRunTable,
+                TravelTimeObservationTable,
+                VehiclePredictionTable,
+            )
         )
+    }
 
     /**
      * Exact statements that are known, accepted differences between the Exposed model and the
