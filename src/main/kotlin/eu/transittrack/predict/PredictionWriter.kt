@@ -212,9 +212,21 @@ class PredictionWriter(
         observedAt: Instant? = null,
         varianceGrowthPerHour: Double = 0.0,
     ): Map<LearnerBucket, KalmanState> =
-        lockBucketRows(session, "kalman_travel_time_state", "estimate_sec, error_variance, sample_count, updated_at", key, buckets) { rs ->
+        lockBucketRows(
+            session,
+            "kalman_travel_time_state",
+            "estimate_sec, error_variance, sample_count, updated_at",
+            key,
+            buckets,
+        ) { rs ->
             val ageHours = observedAt?.let {
-                Duration.between(rs.getObject("updated_at", OffsetDateTime::class.java).toInstant(), it).seconds.coerceAtLeast(0) / 3600.0
+                Duration
+                    .between(
+                        rs.getObject("updated_at", OffsetDateTime::class.java).toInstant(),
+                        it,
+                    ).seconds
+                    .coerceAtLeast(0) /
+                    3600.0
             } ?: 0.0
             KalmanState(
                 rs.getDouble("estimate_sec"),
