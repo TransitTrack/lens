@@ -14,7 +14,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
-import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
+import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -96,7 +96,7 @@ class PredictionProcessorTest(
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
-    @Autowired val lockProvider: JdbcTemplateLockProvider,
+    @Autowired val lockProvider: ExposedLockProvider,
 ) : PostgresPerClassTest() {
     @MockitoBean
     lateinit var clock: Clock

@@ -108,7 +108,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-java:$protobufVersion")
 
     implementation("net.javacrumbs.shedlock:shedlock-spring:$shedlockVersion")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:$shedlockVersion")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-exposed:$shedlockVersion")
 
     testImplementation("net.javacrumbs.shedlock:shedlock-core:$shedlockVersion")
 

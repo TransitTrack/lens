@@ -9,8 +9,10 @@ import assertk.assertions.contains
 import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
 import net.javacrumbs.shedlock.core.LockProvider
-import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
+import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
+import org.jetbrains.exposed.v1.jdbc.Database
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
 
@@ -20,18 +22,12 @@ import eu.transittrack.util.concurrency.FeedLockCoordinator
 
 @SpringBootTest(classes = [Application::class])
 class FeedLockCoordinatorTest(
+    @Autowired @Qualifier("exposedDatabase") val database: Database,
     @Autowired val jdbcTemplate: JdbcTemplate,
 ) : PostgresPerMethodTest() {
-    // Two independent JdbcTemplateLockProvider instances sharing one DataSource stand in for
+    // Two independent ExposedLockProvider instances sharing one Database stand in for
     // two pods contending over the same shedlock table rows.
-    private fun newProvider(): LockProvider =
-        JdbcTemplateLockProvider(
-            JdbcTemplateLockProvider.Configuration
-                .builder()
-                .withJdbcTemplate(jdbcTemplate)
-                .usingDbTime()
-                .build(),
-        )
+    private fun newProvider(): LockProvider = ExposedLockProvider(database)
 
     private fun coordinator(
         lockAtMostFor: Duration = Duration.ofMinutes(3),

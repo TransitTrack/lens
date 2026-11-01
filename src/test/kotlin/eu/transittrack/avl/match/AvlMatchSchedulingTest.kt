@@ -6,7 +6,7 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
+import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -39,7 +39,7 @@ class AvlMatchSchedulingTest(
     @Autowired val gtfsFeeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired @Qualifier("avlFeedLockCoordinator") val sharedCoordinator: FeedLockCoordinator,
-    @Autowired val lockProvider: JdbcTemplateLockProvider,
+    @Autowired val lockProvider: ExposedLockProvider,
 ) : PostgresPerMethodTest() {
     // See AvlPollerTest for why both resets are needed: this class's cached Spring context (and
     // its singleton coordinator + lock provider bean) survives across @Test methods, but each

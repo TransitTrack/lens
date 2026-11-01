@@ -7,7 +7,7 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.doesNotContain
-import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
+import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -38,7 +38,7 @@ class AvlPollerTest(
     @Autowired val gtfsFeeds: GtfsFeedRepository,
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired @Qualifier("avlFeedLockCoordinator") val sharedCoordinator: FeedLockCoordinator,
-    @Autowired val lockProvider: JdbcTemplateLockProvider,
+    @Autowired val lockProvider: ExposedLockProvider,
 ) : PostgresPerMethodTest() {
     @MockitoBean
     lateinit var ingest: AvlIngestService
@@ -46,7 +46,7 @@ class AvlPollerTest(
     // The Spring context (and this singleton coordinator + lock provider bean) is cached across
     // this class's @Test methods, but each method truncates every table, including `shedlock`.
     // FeedLockCoordinator's own in-memory `held` map would then reference rows that no longer
-    // exist; separately, JdbcTemplateLockProvider (via ShedLock's StorageBasedLockProvider) keeps
+    // exist; separately, ExposedLockProvider (via ShedLock's StorageBasedLockProvider) keeps
     // its own in-memory registry of lock names it believes already have a row, so it stops
     // attempting INSERT for that name — an UPDATE against a truncated-away row then matches zero
     // rows and the "lock" silently fails. clearCache() must run *after* the truncate, not before:

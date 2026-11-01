@@ -18,7 +18,7 @@ import assertk.assertions.isLessThan
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
-import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider
+import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -72,7 +72,7 @@ class AvlMatchProcessorTest(
     @Autowired val reports: AvlReportRowRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val vehicleMatches: VehicleMatchRepository,
-    @Autowired val lockProvider: JdbcTemplateLockProvider,
+    @Autowired val lockProvider: ExposedLockProvider,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -85,7 +85,7 @@ class AvlMatchProcessorTest(
 
     @BeforeAll
     fun ingest() {
-        // See AvlPollerTest for why this is needed: JdbcTemplateLockProvider's in-memory registry
+        // See AvlPollerTest for why this is needed: ExposedLockProvider's in-memory registry
         // of lock names it believes already have a row otherwise survives the truncate, so a later
         // UPDATE against the now-gone row matches zero rows and every subsequent lock() attempt for
         // that name (including the one reconcile()'s own @SchedulerLock acquires) silently fails as
