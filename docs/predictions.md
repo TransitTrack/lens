@@ -225,7 +225,8 @@ when a bucket has no row yet — the Kalman state starts there with
 predictions are sane from the very first match.
 
 **Consistency.** All reads and writes of one report go through a single
-`StatelessSession` transaction. Learner rows are read with `SELECT ... FOR UPDATE`
+`PredictionWriter.inTransaction` call: one `REQUIRES_NEW` Exposed transaction per report, independent
+of the caller's. Learner rows are read with `SELECT ... FOR UPDATE`
 in a fixed order (stop path ascending, then fine to coarse bucket, observation
 before Kalman state). A transaction-scoped advisory lock per GTFS feed/pattern
 also protects initialization when there is no row to lock yet. Concurrent first

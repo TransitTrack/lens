@@ -252,8 +252,8 @@ overridden per environment:
 ## 11. ShedLock — the `shedlock` table
 
 Not application-configurable — it's infrastructure the app manages itself.
-`SchedulerLockConfig` wires a `JdbcTemplateLockProvider` against the same
-`DataSource`, backed by the `shedlock` table (migration
+`SchedulerLockConfig` wires an `ExposedLockProvider` against the same
+`Database`, backed by the `shedlock` table (migration
 `0009-shedlock.yaml`). Every cluster-singleton scheduled job carries its own
 `@SchedulerLock(lockAtMostFor, lockAtLeastFor)`, and the per-feed processors
 (`AvlPoller`, `AvlMatchProcessor`, `PredictionProcessor`) coordinate through

@@ -48,6 +48,11 @@ changeset-0012 `default nextval('<table>_seq')` id columns, which Exposed cannot
 the sequence explicitly). Both the test and the generator use it. Every entry needs a comment saying
 why it is safe to ignore.
 
+Each table's id sequence is declared `autoIncrement(Sequence(..., incrementBy = N))`. Exposed
+consumes one full increment per inserted row — there is no client-side pooling the way Hibernate's
+`hi/lo` optimizer batched allocations — so gaps in the id sequence under concurrent inserts are
+expected, not a bug.
+
 ## Raw SQL allowlist
 
 Everything goes through the Exposed DSL except the following. A new raw `exec(...)` needs a line here
@@ -57,8 +62,8 @@ and a reason the DSL cannot express it.
 | --- | --- | --- |
 | `AGGREGATE_ACCURACY_SQL` (`PredictionAccuracyRepository.aggregateAccuracy`) | `predict/model/PredictionAccuracy.kt` | CTEs, aggregate `FILTER`, `percentile_cont ... WITHIN GROUP` and `GROUPING SETS`; run via `exec` with bound parameters, one `?` per algorithm. |
 
-(`grep -rn "exec(" src/main` also finds `db/SqlExpressions.kt`'s `execBatch`, which runs DSL
-statements, not a SQL string.)
+(`grep -rn "exec(" src/main` also finds two call sites that run DSL statements, not a SQL string:
+`db/SqlExpressions.kt`'s `execBatch`, and `db/BatchWrites.kt`'s `exec(WithoutResults(statement))`.)
 
 ## Custom SQL expressions
 
@@ -76,6 +81,11 @@ with every value a bound parameter (no string-built values).
 | `greatest(<column>, EXCLUDED.<column>)` (`CustomFunction`) | `predict/PredictionWriter.kt` | Upsert merge keeping the larger value. |
 | `AbsFunction(EpochSecondsBetween(...))` | `predict/PredictionWriter.kt` | `ABS(extract(epoch ...))` in the prediction conflict `WHERE`. |
 | `now()` default (`CustomFunction`) | `db/RowTable.kt` | `Column<Instant>.defaultNow()`. |
+| `batchInsertWithoutResults` / `batchUpsertWithoutResults`, `WithoutResults` (`BatchInsertBlockingExecutable`) | `db/BatchWrites.kt` | Same single JDBC batch and SQL as Exposed's own `batchInsert`/`batchUpsert`, but for write-only callers: skips building a `ResultRow` per inserted row and reading back generated ids, which cut allocations on the AVL and prediction hot paths. |
+
+`BatchWrites.kt` uses Exposed's `@InternalApi` (`BatchInsertStatement.validateLastBatch()` and the
+`resultedValues` setter) to get there. That's fragile across an Exposed version bump — re-check it
+when Exposed is upgraded.
 
 ## Transaction rules
 
