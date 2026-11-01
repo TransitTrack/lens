@@ -180,7 +180,8 @@ class PredictionAccuracyRepository {
     /**
      * Legacy ETA-selected checkpoints are excluded; only shared, actual-lead snapshots are comparable.
      * Raw SQL ([AGGREGATE_ACCURACY_SQL]); [algorithms] binds one placeholder per value, as the Spring
-     * Data native query expanded it.
+     * Data native query expanded it. No [algorithms] means nothing to aggregate (and `in ()` isn't
+     * valid SQL), so nothing is queried.
      */
     fun aggregateAccuracy(
         feedCode: String,
@@ -192,6 +193,7 @@ class PredictionAccuracyRepository {
         dayType: Short?,
         timeBand: Short?,
     ): List<PredictionAccuracyAggregate> {
+        if (algorithms.isEmpty()) return emptyList()
         val text = TextColumnType()
         val int = IntegerColumnType()
         val short = ShortColumnType()

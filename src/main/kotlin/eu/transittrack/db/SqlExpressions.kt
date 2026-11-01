@@ -1,11 +1,14 @@
 package eu.transittrack.db
 
+import org.jetbrains.exposed.v1.core.AbstractQuery
+import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.DoubleColumnType
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.ExpressionWithColumnType
 import org.jetbrains.exposed.v1.core.QueryBuilder
 import org.jetbrains.exposed.v1.core.Transaction
 import org.jetbrains.exposed.v1.core.append
+import org.jetbrains.exposed.v1.core.statements.InsertSelectStatement
 import org.jetbrains.exposed.v1.core.statements.Statement
 import org.jetbrains.exposed.v1.jdbc.JdbcTransaction
 import org.jetbrains.exposed.v1.jdbc.statements.BlockingExecutable
@@ -26,6 +29,28 @@ class EpochSecondsBetween(
         queryBuilder {
             append("extract(epoch from ", until, "-", since, ")")
         }
+}
+
+/**
+ * `INSERT INTO <table> (<columns>) <selectQuery> ON CONFLICT (<conflictTarget>) DO NOTHING`. Exposed's
+ * `insertIgnore` renders `ON CONFLICT DO NOTHING` with no conflict target, which skips a violation of
+ * any unique constraint rather than of the one named; this names it.
+ */
+class InsertSelectOnConflictDoNothing(
+    columns: List<Column<*>>,
+    selectQuery: AbstractQuery<*>,
+    private val conflictTarget: List<Column<*>>,
+) : InsertSelectStatement(columns, selectQuery, isIgnore = false) {
+    init {
+        require(conflictTarget.isNotEmpty()) { "A conflict target needs at least one column" }
+    }
+
+    override fun prepareSQL(
+        transaction: Transaction,
+        prepared: Boolean,
+    ): String =
+        super.prepareSQL(transaction, prepared) +
+            conflictTarget.joinToString(prefix = " ON CONFLICT (", postfix = ") DO NOTHING") { transaction.identity(it) }
 }
 
 /**

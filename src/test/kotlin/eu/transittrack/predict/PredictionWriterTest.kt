@@ -13,6 +13,11 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
+import org.jetbrains.exposed.v1.core.Transaction
+import org.jetbrains.exposed.v1.core.statements.StatementContext
+import org.jetbrains.exposed.v1.core.statements.StatementInterceptor
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
@@ -65,6 +70,7 @@ class PredictionWriterTest(
     @Autowired val feeds: AvlFeedRepository,
     @Autowired val jdbc: JdbcTemplate,
     @Autowired val txManager: PlatformTransactionManager,
+    @Autowired val exposedDatabase: Database,
 ) : PostgresPerMethodTest() {
     private var feedId = 0L
 
@@ -590,6 +596,47 @@ class PredictionWriterTest(
             assertThat(it.blockPk).isEqualTo(5L)
             assertThat(it.computedAt).isEqualTo(t0.plusSeconds(100))
         }
+
+        // Moving backward counts by its size too: by 9s rejected, by 11s accepted.
+        fun backward(
+            bySec: Long,
+            computedAt: Instant,
+        ) = prediction(arrival.plusSeconds(11).minusSeconds(bySec))
+            .copy(computedAt = computedAt, predictedDepartureTs = arrival.plusSeconds(40), blockPk = 5L)
+        writer.inTransaction { upsert(backward(9, t0.plusSeconds(130))) }
+        stored().let {
+            assertThat(it.predictedArrivalTs).isEqualTo(arrival.plusSeconds(11))
+            assertThat(it.computedAt).isEqualTo(t0.plusSeconds(100))
+        }
+        writer.inTransaction { upsert(backward(11, t0.plusSeconds(160))) }
+        stored().let {
+            assertThat(it.predictedArrivalTs).isEqualTo(arrival)
+            assertThat(it.computedAt).isEqualTo(t0.plusSeconds(160))
+        }
+    }
+
+    /** The checkpoint insert skips only a conflict on its own key, named as the conflict target. */
+    @Test
+    fun insertCheckpointsNamesItsConflictTarget() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        val sql = ArrayList<String>()
+        transaction(exposedDatabase) {
+            registerInterceptor(
+                object : StatementInterceptor {
+                    override fun beforeExecution(
+                        transaction: Transaction,
+                        context: StatementContext,
+                    ) {
+                        sql.add(context.sql(transaction))
+                    }
+                },
+            )
+            writer.insertCheckpoints(listOf(checkpoint(t0.plusSeconds(280), t0)), staleBefore = t0.minusSeconds(3_600))
+            rollback()
+        }
+        val insert = sql.single { it.startsWith("INSERT INTO prediction_checkpoint") }
+        assertThat(insert.substringAfterLast(" ON CONFLICT "))
+            .isEqualTo("(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, sample_slot) DO NOTHING")
     }
 
     @Test

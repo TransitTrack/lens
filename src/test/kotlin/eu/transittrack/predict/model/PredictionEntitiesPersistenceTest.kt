@@ -122,4 +122,12 @@ class PredictionEntitiesPersistenceTest(
         assertThat(recent).hasSize(1)
         assertThat(recent.first().errorSec).isEqualTo(5)
     }
+
+    /** No algorithm to compare is nothing to aggregate: no `algorithm in ()` query is sent. */
+    @Test
+    fun `aggregateAccuracy without algorithms returns nothing`() {
+        assertThat(
+            accuracies.aggregateAccuracy("feed-1", emptyList(), 0, Instant.EPOCH, null, null, null, null),
+        ).isEqualTo(emptyList())
+    }
 }

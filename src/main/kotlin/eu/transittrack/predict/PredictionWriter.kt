@@ -53,6 +53,7 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.EpochSecondsBetween
+import eu.transittrack.db.InsertSelectOnConflictDoNothing
 import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.db.execBatch
 import eu.transittrack.predict.learn.KalmanState
@@ -480,9 +481,8 @@ class PredictionWriter {
      * Later reports cannot fill that cohort with different observation times. Stops already passed
      * get no snapshots. Old snapshots beyond the longest scored lead are pruned per vehicle.
      *
-     * Each candidate is one `INSERT ... SELECT ... WHERE NOT EXISTS ...`, skipped on the
-     * `uq_prediction_checkpoint_key` conflict (the table's only unique key besides its sequence-fed
-     * id, so `ON CONFLICT DO NOTHING` has the same arbiter as naming it), all in one batch.
+     * Each candidate is one `INSERT ... SELECT ... WHERE NOT EXISTS ... ON CONFLICT
+     * (<uq_prediction_checkpoint_key columns>) DO NOTHING`, all in one batch.
      */
     fun insertCheckpoints(
         candidates: List<CheckpointCandidate>,
@@ -530,7 +530,11 @@ class PredictionWriter {
                             param(c.producedAt, k.producedAt),
                             c.idSequence.nextLongVal(),
                         ).where { notExists(passed) and notExists(otherCohort) }
-                buildStatement { c.insertIgnore(values, columns) }
+                InsertSelectOnConflictDoNothing(
+                    columns,
+                    values,
+                    conflictTarget = listOf(c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.sampleSlot),
+                )
             }
         currentTransaction().execBatch(statements)
     }
