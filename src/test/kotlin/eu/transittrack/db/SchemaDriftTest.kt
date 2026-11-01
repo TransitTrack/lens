@@ -49,6 +49,8 @@ class SchemaDriftTest(
                 // explicitly (`autoIncrement(Sequence)`), so the DB-side default is never relied on from Exposed.
                 "ALTER TABLE gtfs_feed ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
                 "ALTER TABLE gtfs_revision ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE schedule_optimization_run ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
+                "ALTER TABLE schedule_optimization_recommendation ALTER COLUMN id TYPE BIGINT, ALTER COLUMN id DROP DEFAULT",
             )
     }
 }

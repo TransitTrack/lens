@@ -287,7 +287,7 @@ class ScheduleOptimizationApplyTest(
         assertFailure { service.apply(run.id!!, setOf(empty.id!!), "proposal", "planner") }
 
         assertThat(revisions.count()).isEqualTo(revisionsBefore)
-        assertThat(recommendations.findById(empty.id!!).orElseThrow().status)
+        assertThat(recommendations.findById(empty.id!!)!!.status)
             .isEqualTo(OptimizationRecommendationStatus.PENDING)
     }
 
@@ -325,7 +325,7 @@ class ScheduleOptimizationApplyTest(
         ex.isInstanceOf(IllegalStateException::class)
 
         assertThat(revisions.count()).isEqualTo(revisionsBefore)
-        assertThat(recommendations.findById(rec.id!!).orElseThrow().status)
+        assertThat(recommendations.findById(rec.id!!)!!.status)
             .isEqualTo(OptimizationRecommendationStatus.PENDING)
     }
 }

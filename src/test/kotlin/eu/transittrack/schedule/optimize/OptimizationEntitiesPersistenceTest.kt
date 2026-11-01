@@ -46,7 +46,7 @@ class OptimizationEntitiesPersistenceTest(
     fun `new run starts queued with its full filters and no lifecycle timestamps`() {
         val run = newRun()
 
-        val loaded = runs.findById(run.id!!).orElseThrow()
+        val loaded = runs.findById(run.id!!)!!
         assertThat(loaded.state).isEqualTo(OptimizationRunState.QUEUED)
         assertThat(loaded.revisionId).isEqualTo(11)
         assertThat(loaded.serviceId).isEqualTo("weekday")
@@ -70,7 +70,7 @@ class OptimizationEntitiesPersistenceTest(
         run.error = "optimization run failed unexpectedly; see server logs"
         runs.save(run)
 
-        val loaded = runs.findById(run.id!!).orElseThrow()
+        val loaded = runs.findById(run.id!!)!!
         assertThat(loaded.state).isEqualTo(OptimizationRunState.FAILED)
         assertThat(loaded.error).isEqualTo("optimization run failed unexpectedly; see server logs")
     }
@@ -99,7 +99,7 @@ class OptimizationEntitiesPersistenceTest(
         // a save+findById genuinely round-trips through the database instead of being served from a
         // shared first-level cache, which NOT_SUPPORTED now guarantees, so single-key values can
         // still assert exact equality but a multi-key object needs an order-independent check.
-        val loaded = recommendations.findById(recommendation.id!!).orElseThrow()
+        val loaded = recommendations.findById(recommendation.id!!)!!
         assertThat(loaded.deltaSec).isEqualTo(65)
         assertThat(loaded.status).isEqualTo(OptimizationRecommendationStatus.PENDING)
         assertThat(loaded.currentValue).isEqualTo("""{"arrivalSec": 100}""")

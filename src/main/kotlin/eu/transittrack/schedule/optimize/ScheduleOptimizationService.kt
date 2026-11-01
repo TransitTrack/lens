@@ -120,7 +120,7 @@ class ScheduleOptimizationService(
         return run
     }
 
-    fun get(runId: Long): OptimizationRunRow? = runs.findById(runId).orElse(null)
+    fun get(runId: Long): OptimizationRunRow? = runs.findById(runId)
 
     fun listRuns(
         feedCode: String,
@@ -183,7 +183,7 @@ class ScheduleOptimizationService(
         editor: String,
     ): GtfsRevision {
         require(recommendationIds.isNotEmpty()) { "no recommendations selected" }
-        val run = runs.findById(runId).orElseThrow { IllegalArgumentException("no run $runId") }
+        val run = runs.findById(runId) ?: throw IllegalArgumentException("no run $runId")
         check(run.state == OptimizationRunState.SUCCEEDED) { "run $runId has not succeeded" }
 
         // Locks the selected rows for the duration of this transaction so a concurrent apply of an
@@ -312,7 +312,7 @@ class ScheduleOptimizationService(
 
     private fun runOne(runId: Long) {
         try {
-            val run = runs.findById(runId).orElse(null) ?: return
+            val run = runs.findById(runId) ?: return
             run.state = OptimizationRunState.RUNNING
             run.startedAt = Instant.now()
             runs.save(run)
@@ -345,7 +345,7 @@ class ScheduleOptimizationService(
     /** Best-effort terminal FAILED with an operator-safe (sanitized) message; the real cause is logged, not stored. */
     private fun markFailed(runId: Long) {
         runCatching {
-            runs.findById(runId).ifPresent { run ->
+            runs.findById(runId)?.let { run ->
                 run.state = OptimizationRunState.FAILED
                 run.completedAt = Instant.now()
                 run.error = SANITIZED_FAILURE_MESSAGE

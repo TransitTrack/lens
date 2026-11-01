@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 
 import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.support.PostgresPerMethodTest
 import eu.transittrack.util.observability.TransitTrackMetrics
 
@@ -25,13 +26,14 @@ import eu.transittrack.util.observability.TransitTrackMetrics
 @PostgresSliceTest
 class OptimizationRetentionSchedulerTest(
     @Autowired val jdbc: JdbcTemplate,
+    @Autowired val runs: OptimizationRunRepository,
 ) : PostgresPerMethodTest() {
     private val now = Instant.parse("2026-09-13T12:00:00Z")
     private lateinit var scheduler: OptimizationRetentionScheduler
 
     @BeforeEach
     fun seed() {
-        scheduler = OptimizationRetentionScheduler(jdbc, OptimizationProperties(), TransitTrackMetrics.forTests())
+        scheduler = OptimizationRetentionScheduler(runs, OptimizationProperties(), TransitTrackMetrics.forTests())
 
         // Old run (past the 90-day default retention) with a child recommendation that must
         // cascade-delete with it.

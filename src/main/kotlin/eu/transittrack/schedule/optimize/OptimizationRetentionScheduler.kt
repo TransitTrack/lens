@@ -1,18 +1,17 @@
 package eu.transittrack.schedule.optimize
 
-import java.sql.Timestamp
 import java.time.Duration
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
 import org.slf4j.LoggerFactory
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
+import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
@@ -26,7 +25,7 @@ import eu.transittrack.util.observability.TransitTrackMetrics
 @Component
 @ConditionalOnRole(Role.FEED_PROCESSOR)
 class OptimizationRetentionScheduler(
-    private val jdbc: JdbcTemplate,
+    private val runs: OptimizationRunRepository,
     props: OptimizationProperties,
     private val metrics: TransitTrackMetrics,
 ) {
@@ -54,12 +53,5 @@ class OptimizationRetentionScheduler(
         result.getOrThrow()
     }
 
-    fun prune(now: Instant): PruneCounts {
-        val runs =
-            jdbc.update(
-                "delete from schedule_optimization_run where created_at < ?",
-                Timestamp.from(now.minus(resultsRetentionDays, ChronoUnit.DAYS)),
-            )
-        return PruneCounts(runs)
-    }
+    fun prune(now: Instant): PruneCounts = PruneCounts(runs.deleteCreatedBefore(now.minus(resultsRetentionDays, ChronoUnit.DAYS)))
 }

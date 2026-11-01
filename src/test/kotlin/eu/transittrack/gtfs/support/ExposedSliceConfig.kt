@@ -48,6 +48,8 @@ import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TravelTimesForStopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
+import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRepository
+import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 
 /**
  * The Exposed repositories (and the JPA bridge they run through) for `@DataJpaTest` slices, which
@@ -100,5 +102,7 @@ import eu.transittrack.schedule.model.TripPatternRepository
     BlockRepository::class,
     BlockTripRepository::class,
     TravelTimesForStopPathRepository::class,
+    OptimizationRunRepository::class,
+    OptimizationRecommendationRepository::class,
 )
 class ExposedSliceConfig

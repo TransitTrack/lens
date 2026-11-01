@@ -40,18 +40,18 @@ private class CapturingExecutor : TaskExecutor {
     }
 }
 
-/** In-memory fake standing in for a JPA repository so `save`/`findById` observe the same row instance. */
-private class FakeRunRepository : OptimizationRunRepository by mock() {
+/** In-memory fake standing in for the Exposed repository so `save`/`findById` observe the same row instance. */
+private class FakeRunRepository : OptimizationRunRepository() {
     private val rows = LinkedHashMap<Long, OptimizationRunRow>()
     private var nextId = 1L
 
-    override fun <S : OptimizationRunRow> save(entity: S): S {
-        if (entity.id == null) entity.id = nextId++
-        rows[entity.id!!] = entity
-        return entity
+    override fun save(row: OptimizationRunRow): OptimizationRunRow {
+        if (row.id == null) row.id = nextId++
+        rows[row.id!!] = row
+        return row
     }
 
-    override fun findById(id: Long) = java.util.Optional.ofNullable(rows[id])
+    override fun findById(id: Long): OptimizationRunRow? = rows[id]
 }
 
 class ScheduleOptimizationServiceTest {
@@ -228,18 +228,18 @@ class ScheduleOptimizationServiceTest {
         val rows = LinkedHashMap<Long, OptimizationRunRow>()
         var nextId = 1L
         val runs =
-            object : OptimizationRunRepository by mock() {
-                override fun <S : OptimizationRunRow> save(entity: S): S {
-                    if (entity.id == null) entity.id = nextId++
-                    if (entity.state == OptimizationRunState.RUNNING && failuresLeft > 0) {
+            object : OptimizationRunRepository() {
+                override fun save(row: OptimizationRunRow): OptimizationRunRow {
+                    if (row.id == null) row.id = nextId++
+                    if (row.state == OptimizationRunState.RUNNING && failuresLeft > 0) {
                         failuresLeft--
                         throw RuntimeException("leaking sensitive detail: password=hunter2")
                     }
-                    rows[entity.id!!] = entity
-                    return entity
+                    rows[row.id!!] = row
+                    return row
                 }
 
-                override fun findById(id: Long) = java.util.Optional.ofNullable(rows[id])
+                override fun findById(id: Long): OptimizationRunRow? = rows[id]
             }
         val executor = CapturingExecutor()
 

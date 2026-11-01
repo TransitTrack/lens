@@ -8,16 +8,32 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
-import jakarta.persistence.LockModeType
 import jakarta.persistence.SequenceGenerator
 import jakarta.persistence.Table
 
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Lock
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.ReferenceOption
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.Sequence
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.core.vendors.ForUpdateOption
+import org.jetbrains.exposed.v1.javatime.timestamp
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.update
+import org.jetbrains.exposed.v1.json.jsonb
+import org.springframework.stereotype.Repository
+
+import eu.transittrack.db.RowTable
+import eu.transittrack.db.bridge.ExposedBridge
 
 enum class OptimizationRunState { QUEUED, RUNNING, SUCCEEDED, FAILED }
 
@@ -57,21 +73,108 @@ class OptimizationRunRow(
     var id: Long? = null,
 )
 
-interface OptimizationRunRepository : JpaRepository<OptimizationRunRow, Long> {
+object OptimizationRunTable : RowTable<OptimizationRunRow>("schedule_optimization_run") {
+    val id = long("id").autoIncrement(Sequence("schedule_optimization_run_seq", startWith = 1, incrementBy = 50))
+    val feedCode = varchar("feed_code", 64)
+    val revisionId = long("revision_id")
+    val serviceId = text("service_id").nullable()
+    val routeId = text("route_id").nullable()
+    val directionId = integer("direction_id").nullable()
+    val windowFromSec = integer("window_from_sec").nullable()
+    val windowToSec = integer("window_to_sec").nullable()
+    val observedFrom = timestamp("observed_from")
+    val observedTo = timestamp("observed_to")
+    val minimumSamples = integer("minimum_samples")
+    val state = enumerationByName<OptimizationRunState>("state", 16)
+    val startedAt = timestamp("started_at").nullable()
+    val completedAt = timestamp("completed_at").nullable()
+    val error = text("error").nullable()
+    val createdAt = timestamp("created_at")
+
+    override val primaryKey = PrimaryKey(id, name = "schedule_optimization_run_pkey")
+
+    override fun read(row: ResultRow) =
+        OptimizationRunRow(
+            feedCode = row[feedCode],
+            revisionId = row[revisionId],
+            serviceId = row[serviceId],
+            routeId = row[routeId],
+            directionId = row[directionId],
+            windowFromSec = row[windowFromSec],
+            windowToSec = row[windowToSec],
+            observedFrom = row[observedFrom],
+            observedTo = row[observedTo],
+            minimumSamples = row[minimumSamples],
+            state = row[state],
+            startedAt = row[startedAt],
+            completedAt = row[completedAt],
+            error = row[error],
+            createdAt = row[createdAt],
+            id = row[id],
+        )
+
+    override fun bind(
+        s: UpdateBuilder<*>,
+        row: OptimizationRunRow,
+    ) {
+        s[feedCode] = row.feedCode
+        s[revisionId] = row.revisionId
+        s[serviceId] = row.serviceId
+        s[routeId] = row.routeId
+        s[directionId] = row.directionId
+        s[windowFromSec] = row.windowFromSec
+        s[windowToSec] = row.windowToSec
+        s[observedFrom] = row.observedFrom
+        s[observedTo] = row.observedTo
+        s[minimumSamples] = row.minimumSamples
+        s[state] = row.state
+        s[startedAt] = row.startedAt
+        s[completedAt] = row.completedAt
+        s[error] = row.error
+        s[createdAt] = row.createdAt
+    }
+}
+
+@Repository
+@ExposedBridge
+class OptimizationRunRepository {
+    fun findById(id: Long): OptimizationRunRow? =
+        OptimizationRunTable
+            .selectAll()
+            .where { OptimizationRunTable.id eq id }
+            .singleOrNull()
+            ?.let(OptimizationRunTable::read)
+
+    /** Inserts when [row] has no id, else updates it in place; returns [row] with its id set. */
+    fun save(row: OptimizationRunRow): OptimizationRunRow {
+        val id = row.id
+        if (id == null) {
+            row.id = OptimizationRunTable.insert { OptimizationRunTable.bind(it, row) }[OptimizationRunTable.id]
+        } else {
+            OptimizationRunTable.update({ OptimizationRunTable.id eq id }) { OptimizationRunTable.bind(it, row) }
+        }
+        return row
+    }
+
     /**
      * Bounded, newest-first page of runs for one feed — backs the UI's runs-history list.
-     * A native query (matching `OptimizationRecommendationRepository.page`'s pattern) so an
-     * arbitrary `offset`/`limit` pair maps directly to `OFFSET`/`LIMIT`.
+     * An arbitrary `offset`/`limit` pair maps directly to `OFFSET`/`LIMIT`.
      */
-    @Query(
-        value = "select * from schedule_optimization_run where feed_code = :feedCode order by created_at desc offset :offset limit :limit",
-        nativeQuery = true,
-    )
     fun page(
-        @Param("feedCode") feedCode: String,
-        @Param("offset") offset: Int,
-        @Param("limit") limit: Int,
-    ): List<OptimizationRunRow>
+        feedCode: String,
+        offset: Int,
+        limit: Int,
+    ): List<OptimizationRunRow> =
+        OptimizationRunTable
+            .selectAll()
+            .where { OptimizationRunTable.feedCode eq feedCode }
+            .orderBy(OptimizationRunTable.createdAt, SortOrder.DESC)
+            .limit(limit)
+            .offset(offset.toLong())
+            .map(OptimizationRunTable::read)
+
+    /** Deletes runs created before [cutoff]; their recommendations cascade via the foreign key. */
+    fun deleteCreatedBefore(cutoff: Instant): Int = OptimizationRunTable.deleteWhere { createdAt less cutoff }
 }
 
 /**
@@ -106,9 +209,98 @@ class OptimizationRecommendationRow(
     var id: Long? = null,
 )
 
-interface OptimizationRecommendationRepository : JpaRepository<OptimizationRecommendationRow, Long> {
+object OptimizationRecommendationTable : RowTable<OptimizationRecommendationRow>("schedule_optimization_recommendation") {
+    val id = long("id").autoIncrement(Sequence("schedule_optimization_recommendation_seq", startWith = 1, incrementBy = 50))
+    val runId =
+        long("run_id").references(
+            OptimizationRunTable.id,
+            onDelete = ReferenceOption.CASCADE,
+            onUpdate = ReferenceOption.NO_ACTION,
+            fkName = "fk_optimization_recommendation_run",
+        )
+    val kind = enumerationByName<OptimizationRecommendationKind>("kind", 16)
+    val sampleCount = integer("sample_count")
+    val deltaSec = integer("delta_sec")
+    val reason = text("reason")
+    val status = enumerationByName<OptimizationRecommendationStatus>("status", 16).default(OptimizationRecommendationStatus.PENDING)
+    val currentValue = jsonb<String>("current_value", { it }, { it }).nullable()
+    val proposedValue = jsonb<String>("proposed_value", { it }, { it }).nullable()
+    val evidence = jsonb<String>("evidence", { it }, { it }).nullable()
+    val conflictKey = text("conflict_key").nullable()
+
+    override val primaryKey = PrimaryKey(id, name = "schedule_optimization_recommendation_pkey")
+
+    init {
+        index("ix_optimization_recommendation_run", false, runId, id)
+        index("ix_optimization_recommendation_run_status", false, runId, status, id)
+    }
+
+    override fun read(row: ResultRow) =
+        OptimizationRecommendationRow(
+            runId = row[runId],
+            kind = row[kind],
+            sampleCount = row[sampleCount],
+            deltaSec = row[deltaSec],
+            reason = row[reason],
+            status = row[status],
+            currentValue = row[currentValue],
+            proposedValue = row[proposedValue],
+            evidence = row[evidence],
+            conflictKey = row[conflictKey],
+            id = row[id],
+        )
+
+    override fun bind(
+        s: UpdateBuilder<*>,
+        row: OptimizationRecommendationRow,
+    ) {
+        s[runId] = row.runId
+        s[kind] = row.kind
+        s[sampleCount] = row.sampleCount
+        s[deltaSec] = row.deltaSec
+        s[reason] = row.reason
+        s[status] = row.status
+        s[currentValue] = row.currentValue
+        s[proposedValue] = row.proposedValue
+        s[evidence] = row.evidence
+        s[conflictKey] = row.conflictKey
+    }
+}
+
+@Repository
+@ExposedBridge
+class OptimizationRecommendationRepository {
+    fun findAllById(ids: Iterable<Long>): List<OptimizationRecommendationRow> =
+        OptimizationRecommendationTable
+            .selectAll()
+            .where { OptimizationRecommendationTable.id inList ids.toList() }
+            .map(OptimizationRecommendationTable::read)
+
+    fun findById(id: Long): OptimizationRecommendationRow? =
+        OptimizationRecommendationTable
+            .selectAll()
+            .where { OptimizationRecommendationTable.id eq id }
+            .singleOrNull()
+            ?.let(OptimizationRecommendationTable::read)
+
+    /** Inserts when [row] has no id, else updates it in place; returns [row] with its id set. */
+    fun save(row: OptimizationRecommendationRow): OptimizationRecommendationRow {
+        val id = row.id
+        if (id == null) {
+            row.id =
+                OptimizationRecommendationTable.insert { OptimizationRecommendationTable.bind(it, row) }[OptimizationRecommendationTable.id]
+        } else {
+            OptimizationRecommendationTable.update({ OptimizationRecommendationTable.id eq id }) {
+                OptimizationRecommendationTable.bind(it, row)
+            }
+        }
+        return row
+    }
+
+    fun saveAll(rows: Iterable<OptimizationRecommendationRow>): List<OptimizationRecommendationRow> = rows.map(::save)
+
     /**
-     * Row-locking read for `ScheduleOptimizationService.apply`: a `PESSIMISTIC_WRITE` lock on every
+     * Row-locking read for `ScheduleOptimizationService.apply`: a `for no key update` lock on every
      * selected recommendation row so two concurrent `apply` calls whose recommendation-id sets
      * overlap serialize on the shared rows, turning the `PENDING`-status check that follows into a
      * true compare-and-swap rather than a TOCTOU race that could fork two drafts from one selection.
@@ -116,27 +308,32 @@ interface OptimizationRecommendationRepository : JpaRepository<OptimizationRecom
      * recommendation rows, not the whole run. Modeled on
      * [eu.transittrack.gtfs.revision.GtfsRevisionRepository.findByIdForUpdate].
      */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from OptimizationRecommendationRow r where r.id in :ids")
-    fun findAllByIdForUpdate(ids: Collection<Long>): List<OptimizationRecommendationRow>
+    fun findAllByIdForUpdate(ids: Collection<Long>): List<OptimizationRecommendationRow> =
+        OptimizationRecommendationTable
+            .selectAll()
+            .where { OptimizationRecommendationTable.id inList ids.toList() }
+            .forUpdate(ForUpdateOption.PostgreSQL.ForNoKeyUpdate)
+            .map(OptimizationRecommendationTable::read)
 
     /**
      * Stable `(run_id, status, id)` pagination for `ScheduleOptimizationService.listRecommendations`.
-     * A native query (rather than a `Pageable`-based derived query) so an arbitrary `offset`/`limit`
-     * pair maps directly to `OFFSET`/`LIMIT` instead of being constrained to page-aligned windows.
+     * An arbitrary `offset`/`limit` pair maps directly to `OFFSET`/`LIMIT` instead of being
+     * constrained to page-aligned windows. A null [status] returns every status.
      */
-    @Query(
-        value =
-            "select * from schedule_optimization_recommendation " +
-                "where run_id = :runId and (:status is null or status = :status) " +
-                "order by status, id " +
-                "offset :offset limit :limit",
-        nativeQuery = true,
-    )
     fun page(
-        @Param("runId") runId: Long,
-        @Param("status") status: String?,
-        @Param("offset") offset: Int,
-        @Param("limit") limit: Int,
-    ): List<OptimizationRecommendationRow>
+        runId: Long,
+        status: String?,
+        offset: Int,
+        limit: Int,
+    ): List<OptimizationRecommendationRow> {
+        val byStatus: Op<Boolean> =
+            if (status == null) Op.TRUE else OptimizationRecommendationTable.status eq OptimizationRecommendationStatus.valueOf(status)
+        return OptimizationRecommendationTable
+            .selectAll()
+            .where { (OptimizationRecommendationTable.runId eq runId) and byStatus }
+            .orderBy(OptimizationRecommendationTable.status to SortOrder.ASC, OptimizationRecommendationTable.id to SortOrder.ASC)
+            .limit(limit)
+            .offset(offset.toLong())
+            .map(OptimizationRecommendationTable::read)
+    }
 }
