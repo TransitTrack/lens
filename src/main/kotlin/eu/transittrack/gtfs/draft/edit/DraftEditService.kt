@@ -109,11 +109,10 @@ class DraftEditService(
             edits.deleteUndone(draftId) // truncate redo tail
             planned.mutate()
 
-            // Ordering is safe: the findByRevision query below forces a Hibernate flush,
-            // and within one flush Hibernate runs INSERTs before DELETEs — so the queued redo-tail
-            // deletes are applied before nextSeq is computed, and it cannot collide with
-            // uq_draft_edit_revision_seq. A future `select max(seq)` projection must keep that property:
-            // it must stay a query over draft_edit (which auto-flushes), not an in-memory shortcut.
+            // Ordering is safe: Exposed runs each statement as it is issued, so the redo-tail DELETE
+            // above has already run in this transaction when nextSeq is computed, and it cannot
+            // collide with uq_draft_edit_revision_seq. A future `select max(seq)` projection must keep
+            // that property: it must stay a query over draft_edit, not an in-memory shortcut.
             val nextSeq = (edits.findByRevision(draftId).maxOfOrNull { it.seq } ?: 0) + 1
             edits.save(
                 DraftEdit(

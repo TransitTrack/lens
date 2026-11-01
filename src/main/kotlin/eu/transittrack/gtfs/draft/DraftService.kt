@@ -178,8 +178,8 @@ class DraftService(
         val base = d.baseRevisionId ?: error("draft $draftId has no base revision")
         wipeRows(draftId)
         edits.deleteForRevision(draftId)
-        // wipeRows commits on ScheduleWriter/RevisionWriter's own connections; the entity-field
-        // updates below are in this JPA transaction. If the re-copy throws, that wipe still stands,
+        // wipeRows commits on ScheduleWriter/RevisionWriter's own connections; the revision-row
+        // update below is in this transaction. If the re-copy throws, that wipe still stands,
         // so persist an honest "empty draft, must re-revert" state (in a REQUIRES_NEW txn that
         // survives this rollback) rather than let `drafts`/`draft` keep advertising the old counts.
         val counts =

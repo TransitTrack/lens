@@ -1,44 +1,35 @@
 package eu.transittrack.gtfs.model
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Table
-
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
-
-import eu.transittrack.db.bridge.ExposedBridge
+import org.springframework.transaction.annotation.Transactional
 
 /**
- * Typed JPA entities for GTFS `shapes.txt`.
+ * Typed row classes for GTFS `shapes.txt`.
  *
  * `GtfsShape` is a per-revision summary row (one per `shape_id`); `GtfsShapePoint` holds the
  * ordered geometry points. All coordinate / distance columns are `DOUBLE PRECISION`; counts and
  * sequences are `INT`.
  */
-@Entity
-@Table(name = "shapes")
 class Shape(
     revisionId: Long,
-    @Column(name = "shape_id", nullable = false) var shapeId: String,
-    @Column(name = "point_count", nullable = false) var pointCount: Int,
+    var shapeId: String,
+    var pointCount: Int,
     // Trailing single capital: CamelCaseToUnderscoresNamingStrategy yields "lengthm", so name it
     // explicitly.
-    @Column(name = "length_m") var lengthM: Double?,
+    var lengthM: Double?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "shape_points")
 class ShapePoint(
     revisionId: Long,
-    @Column(name = "shape_id", nullable = false) var shapeId: String,
+    var shapeId: String,
     var shapePtLat: Double?,
     var shapePtLon: Double?,
-    @Column(name = "shape_pt_sequence", nullable = false) var shapePtSequence: Int,
+    var shapePtSequence: Int,
     var shapeDistTraveled: Double?,
 ) : RevisionScoped(revisionId)
 
@@ -101,7 +92,7 @@ object ShapePointTable : RevisionScopedTable<ShapePoint>("shape_points", ShapePo
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class ShapeRepository : RevisionScopedRepository<Shape>(ShapeTable) {
     fun findByShapeId(
         revisionId: Long,
@@ -115,7 +106,7 @@ class ShapeRepository : RevisionScopedRepository<Shape>(ShapeTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class ShapePointRepository : RevisionScopedRepository<ShapePoint>(ShapePointTable) {
     fun findByShapeId(
         revisionId: Long,

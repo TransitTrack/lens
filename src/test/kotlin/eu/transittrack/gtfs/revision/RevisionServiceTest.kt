@@ -28,7 +28,7 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
 
 /**
- * [RevisionWriter.deleteAllForRevision] commits in a transaction of its own on a separate connection, so — like [ExposedRevisionWriter]'s own test — this must NOT run inside the `@DataJpaTest` rollback transaction, or the writer
+ * [RevisionWriter.deleteAllForRevision] commits in a transaction of its own on a separate connection, so — like [ExposedRevisionWriter]'s own test — this must NOT run inside the `@JdbcTest` rollback transaction, or the writer
  * would never see the seeded rows. Hence `NOT_SUPPORTED` + explicit cleanup.
  */
 @PostgresSliceTest

@@ -22,7 +22,7 @@ abstract class RowTable<R : Any>(
         row: R,
     )
 
-    /** A SMALLINT column holding [E]'s ordinal, as JPA's default `@Enumerated` (ORDINAL) mapping stores it. */
+    /** A SMALLINT column holding [E]'s ordinal. */
     protected inline fun <reified E : Enum<E>> shortOrdinal(name: String): Column<E> {
         val values = enumValues<E>()
         return short(name).transform({ values[it.toInt()] }, { it.ordinal.toShort() })

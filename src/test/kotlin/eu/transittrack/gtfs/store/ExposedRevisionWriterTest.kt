@@ -32,7 +32,7 @@ import eu.transittrack.support.PostgresPerMethodTest
 
 /**
  * [ExposedRevisionWriter.deleteAllForRevision] commits in a transaction of its own, so this test must NOT run inside the default
- * `@DataJpaTest` rollback transaction — otherwise the seeded `gtfs_revision` rows would be invisible to that transaction's
+ * `@JdbcTest` rollback transaction — otherwise the seeded `gtfs_revision` rows would be invisible to that transaction's
  * connection. Hence `NOT_SUPPORTED` + explicit cleanup in `@AfterEach`.
  */
 @PostgresSliceTest

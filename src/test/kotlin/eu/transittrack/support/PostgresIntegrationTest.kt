@@ -1,8 +1,9 @@
 package eu.transittrack.support
 
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.postgresql.PostgreSQLContainer
@@ -21,23 +22,28 @@ object SharedPostgresContainer {
  */
 abstract class PostgresContainerSupport {
     @Autowired
-    private lateinit var jdbcTemplate: JdbcTemplate
+    private lateinit var database: Database
 
     private val tableNames: List<String> by lazy {
-        jdbcTemplate
-            .queryForList(
+        transaction(database) {
+            exec(
                 """
                 select tablename from pg_tables
                 where schemaname = 'public'
                   and tablename not in ('databasechangelog', 'databasechangeloglock')
                 """.trimIndent(),
-                String::class.java,
-            ).filterNotNull()
+            ) { rs -> generateSequence { if (rs.next()) rs.getString(1) else null }.toList() }.orEmpty()
+        }
     }
 
     protected fun truncateAllTables() {
         if (tableNames.isEmpty()) return
-        jdbcTemplate.execute("truncate table ${tableNames.joinToString(", ")} restart identity cascade")
+        transaction(database) {
+            // Other cached contexts' schedulers keep querying these tables; a deadlock with one of
+            // them is transient, so retry it rather than fail the test.
+            maxAttempts = 3
+            exec("truncate table ${tableNames.joinToString(", ")} restart identity cascade")
+        }
     }
 
     companion object {

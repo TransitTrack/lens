@@ -1,18 +1,7 @@
 package eu.transittrack.avl.model
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
 import org.jetbrains.exposed.v1.core.eq
@@ -24,43 +13,34 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.json.jsonb
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 import tools.jackson.core.type.TypeReference
 import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.predict.PredictionAlgorithm
 
 enum class AvlFeedSourceKind { CONFIG, API }
 
-@Entity
-@Table(name = "avl_feed")
 class AvlFeed(
-    @Column(nullable = false, unique = true) var code: String,
-    @Column(nullable = false) var name: String,
-    @Column(name = "gtfs_feed_code", nullable = false) var gtfsFeedCode: String,
-    @Column(nullable = false) var url: String,
-    @Enumerated @Column(nullable = false) var format: AvlFormat,
-    @Column(name = "poll_interval_sec", nullable = false) var pollIntervalSec: Int,
-    @Enumerated
-    @Column(name = "assignment_mode", nullable = false)
+    var code: String,
+    var name: String,
+    var gtfsFeedCode: String,
+    var url: String,
+    var format: AvlFormat,
+    var pollIntervalSec: Int,
     var assignmentMode: AvlAssignmentMode,
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "prediction_algorithms", nullable = false)
     var predictionAlgorithms: List<PredictionAlgorithm> = listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE),
-    @Column(nullable = false) var enabled: Boolean,
-    @JdbcTypeCode(SqlTypes.JSON) @Column var headers: Map<String, String>?,
-    @Enumerated(EnumType.STRING) @Column(nullable = false) var source: AvlFeedSourceKind,
-    @Column(name = "last_poll_at") var lastPollAt: Instant? = null,
-    @Column(name = "last_poll_status") var lastPollStatus: String? = null,
-    @Column(name = "last_poll_report_count") var lastPollReportCount: Int? = null,
-    @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlFeedSeq")
-    @SequenceGenerator(name = "avlFeedSeq", sequenceName = "avl_feed_seq", allocationSize = 50)
+    var enabled: Boolean,
+    var headers: Map<String, String>?,
+    var source: AvlFeedSourceKind,
+    var lastPollAt: Instant? = null,
+    var lastPollStatus: String? = null,
+    var lastPollReportCount: Int? = null,
+    var createdAt: Instant,
+    var updatedAt: Instant,
     var id: Long? = null,
 )
 
@@ -142,7 +122,7 @@ object AvlFeedTable : RowTable<AvlFeed>("avl_feed") {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class AvlFeedRepository {
     fun findByCode(code: String): AvlFeed? =
         AvlFeedTable

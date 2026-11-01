@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm")
     kotlin("plugin.spring")
-    kotlin("plugin.jpa")
     kotlin("kapt")
     kotlin("plugin.serialization")
     id("org.springframework.boot")
@@ -57,7 +56,6 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
@@ -78,8 +76,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
     implementation("com.google.guava:guava:$guavaVersion")
 
-    implementation("org.jetbrains.exposed:exposed-core")
-    implementation("org.jetbrains.exposed:exposed-jdbc")
+    implementation("org.jetbrains.exposed:exposed-spring-boot4-starter")
     implementation("org.jetbrains.exposed:exposed-java-time")
     implementation("org.jetbrains.exposed:exposed-json")
 
@@ -91,8 +88,8 @@ dependencies {
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-cache-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
     testImplementation("org.springframework.boot:spring-boot-starter-graphql-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("com.squareup.okhttp3:mockwebserver:$okhttpVersion")
@@ -326,9 +323,6 @@ spotless {
 }
 
 allOpen {
-    annotation("jakarta.persistence.Entity")
-    annotation("jakarta.persistence.MappedSuperclass")
-    annotation("jakarta.persistence.Embeddable")
     // JMH (which kotlinx-benchmark drives under the hood) generates subclasses of @State classes,
     // which requires the class and its @Benchmark methods to be non-final.
     annotation("org.openjdk.jmh.annotations.State")

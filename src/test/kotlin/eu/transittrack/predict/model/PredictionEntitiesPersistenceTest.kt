@@ -25,8 +25,8 @@ class PredictionEntitiesPersistenceTest(
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val jdbcTemplate: JdbcTemplate,
 ) : PostgresPerMethodTest() {
-    // A plain JDBC insert (not an EntityManager native query) - the latter needs an active
-    // transaction, which NOT_SUPPORTED deliberately does not provide.
+    // A plain JDBC insert, which autocommits: the test itself runs outside any transaction
+    // (NOT_SUPPORTED).
     @BeforeTest
     fun seedFeed() {
         jdbcTemplate.update(

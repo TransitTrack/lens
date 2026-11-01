@@ -18,12 +18,12 @@ import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.draft.DraftKind
 
 @Repository
-@ExposedBridge
+@Transactional
 class GtfsRevisionRepository {
     fun findById(id: Long): GtfsRevision? =
         GtfsRevisionTable

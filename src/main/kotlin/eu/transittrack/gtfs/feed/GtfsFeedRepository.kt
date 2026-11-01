@@ -6,11 +6,10 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
-
-import eu.transittrack.db.bridge.ExposedBridge
+import org.springframework.transaction.annotation.Transactional
 
 @Repository
-@ExposedBridge
+@Transactional
 class GtfsFeedRepository {
     fun findByCode(code: String): GtfsFeed? =
         GtfsFeedTable

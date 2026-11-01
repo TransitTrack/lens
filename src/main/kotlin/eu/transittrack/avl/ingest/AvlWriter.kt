@@ -15,7 +15,6 @@ import eu.transittrack.avl.model.AvlReportTable
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchTable
 import eu.transittrack.avl.model.VehicleStateTable
-import eu.transittrack.db.bridge.ExposedBridge
 
 data class VehicleStateUpsert(
     val feedCode: String,
@@ -47,12 +46,12 @@ data class VehicleStateUpsert(
  * rows (their generated ids are never read back), and an `INSERT ... ON CONFLICT (feed_code,
  * vehicle_id) DO UPDATE` upsert of `vehicle_state` that updates every column except the key and `id`.
  *
- * Every method commits in its own transaction (`REQUIRES_NEW`), as the Hibernate stateless session it
- * replaced did: reports written by [AvlIngestService.pollOnce] stand even if its poll transaction
+ * Every method commits in its own transaction (`REQUIRES_NEW`): reports written by
+ * [AvlIngestService.pollOnce] stand even if its poll transaction
  * rolls back afterwards.
  */
 @Component
-@ExposedBridge
+@Transactional
 class AvlWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun insertReports(rows: List<AvlReportRow>) {

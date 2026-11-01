@@ -1,17 +1,7 @@
 package eu.transittrack.predict.model
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.IColumnType
 import org.jetbrains.exposed.v1.core.IntegerColumnType
 import org.jetbrains.exposed.v1.core.ReferenceOption
@@ -35,41 +25,36 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.avl.model.AvlFeedTable
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
 
-@Entity
-@Table(name = "prediction_accuracy")
 class PredictionAccuracy(
-    @Column(name = "feed_code", nullable = false) var feedCode: String,
-    @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
-    @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
-    @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
-    @Enumerated @Column(nullable = false) var algorithm: PredictionAlgorithm,
-    @Column(name = "predicted_ts") var predictedTs: Instant?,
-    @Column(name = "actual_ts", nullable = false) var actualTs: Instant,
-    @Column(name = "error_sec") var errorSec: Int?,
-    @Column(name = "abs_error_sec") var absErrorSec: Int?,
-    @Column(name = "created_at", nullable = false) var createdAt: Instant,
+    var feedCode: String,
+    var vehicleId: String,
+    var tripRowId: Long,
+    var stopPathIndex: Int,
+    var algorithm: PredictionAlgorithm,
+    var predictedTs: Instant?,
+    var actualTs: Instant,
+    var errorSec: Int?,
+    var absErrorSec: Int?,
+    var createdAt: Instant,
     /** Actual lead-time bin's upper bound; null on early legacy rows. */
-    @Column(name = "horizon_sec") var horizonSec: Int? = null,
+    var horizonSec: Int? = null,
     /** Source AVL report time; actual issuance is stored separately in [producedAt]. */
-    @Column(name = "predicted_at") var predictedAt: Instant? = null,
-    @Column(name = "produced_at") var producedAt: Instant? = null,
-    @Column(name = "actual_lead_sec") var actualLeadSec: Int? = null,
-    @Column(name = "confidence_sec") var confidenceSec: Int? = null,
-    @Column(name = "route_id") var routeId: String? = null,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "direction_id") var directionId: Int? = null,
-    @Enumerated @Column(name = "day_type") var dayType: DayType? = null,
-    @Enumerated @Column(name = "time_band") var timeBand: TimeBand? = null,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "predictionAccuracySeq")
-    @SequenceGenerator(name = "predictionAccuracySeq", sequenceName = "prediction_accuracy_seq", allocationSize = 50)
+    var predictedAt: Instant? = null,
+    var producedAt: Instant? = null,
+    var actualLeadSec: Int? = null,
+    var confidenceSec: Int? = null,
+    var routeId: String? = null,
+    var directionId: Int? = null,
+    var dayType: DayType? = null,
+    var timeBand: TimeBand? = null,
     var id: Long? = null,
 )
 
@@ -175,7 +160,7 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class PredictionAccuracyRepository {
     /**
      * Legacy ETA-selected checkpoints are excluded; only shared, actual-lead snapshots are comparable.

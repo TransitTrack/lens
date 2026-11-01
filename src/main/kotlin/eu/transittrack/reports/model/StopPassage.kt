@@ -6,7 +6,7 @@ import eu.transittrack.avl.ingest.AvlOccupancyStatus
 
 /**
  * One scheduled stop of one trip execution, as derived on-demand from AVL match history by
- * [eu.transittrack.reports.read.StopPassageDerivationService]. Not a JPA entity - purely an
+ * [eu.transittrack.reports.read.StopPassageDerivationService]. Not a table row - purely an
  * in-memory shape returned from derivation, never persisted.
  *
  * [observedSec]/[adherenceSec] are `null` when the trip never reached this stop (by

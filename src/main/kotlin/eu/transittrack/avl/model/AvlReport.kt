@@ -2,17 +2,7 @@ package eu.transittrack.avl.model
 
 import java.time.Instant
 import java.time.LocalDate
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -39,42 +29,36 @@ import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.util.paging.PageRequest
 import eu.transittrack.util.paging.PageResult
 
 /** Ordinal 0 = PENDING must match the `avl_report.match_status` column default. */
 enum class MatchStatus { PENDING, MATCHED, UNMATCHED, SKIPPED }
 
-@Entity
-@Table(name = "avl_report")
 class AvlReportRow(
-    @Column(name = "feed_code", nullable = false) var feedCode: String,
-    @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
-    @Column(name = "vehicle_label") var vehicleLabel: String?,
-    @Column(nullable = false) var ts: Instant,
-    @Column(nullable = false) var lat: Double,
-    @Column(nullable = false) var lon: Double,
-    @Column var bearing: Double?,
-    @Column(name = "speed_mps") var speedMps: Double?,
-    @Column(name = "odometer_m") var odometerM: Double?,
-    @Column(name = "desc_trip_id") var descTripId: String?,
-    @Column(name = "desc_route_id") var descRouteId: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "desc_direction_id") var descDirectionId: Int?,
-    @Column(name = "desc_start_date") var descStartDate: LocalDate?,
-    @Column(name = "desc_start_time_sec") var descStartTimeSec: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "desc_schedule_relationship") var descScheduleRelationship: Int?,
-    @Column(name = "current_stop_sequence") var currentStopSequence: Int?,
-    @Column(name = "current_stop_id") var currentStopId: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "current_status") var currentStatus: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "occupancy_status") var occupancyStatus: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "congestion_level") var congestionLevel: Int?,
-    @Enumerated @Column(name = "match_status", nullable = false) var matchStatus: MatchStatus,
-    @Column(name = "matched_at") var matchedAt: Instant?,
-    @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlReportSeq")
-    @SequenceGenerator(name = "avlReportSeq", sequenceName = "avl_report_seq", allocationSize = 50)
+    var feedCode: String,
+    var vehicleId: String,
+    var vehicleLabel: String?,
+    var ts: Instant,
+    var lat: Double,
+    var lon: Double,
+    var bearing: Double?,
+    var speedMps: Double?,
+    var odometerM: Double?,
+    var descTripId: String?,
+    var descRouteId: String?,
+    var descDirectionId: Int?,
+    var descStartDate: LocalDate?,
+    var descStartTimeSec: Int?,
+    var descScheduleRelationship: Int?,
+    var currentStopSequence: Int?,
+    var currentStopId: String?,
+    var currentStatus: Int?,
+    var occupancyStatus: Int?,
+    var congestionLevel: Int?,
+    var matchStatus: MatchStatus,
+    var matchedAt: Instant?,
+    var createdAt: Instant,
     var id: Long? = null,
 )
 
@@ -188,7 +172,7 @@ object AvlReportTable : RowTable<AvlReportRow>("avl_report") {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class AvlReportRowRepository {
     fun pendingMetricsByFeed(): List<PendingAvlMetrics> {
         val pendingCount = AvlReportTable.id.count()

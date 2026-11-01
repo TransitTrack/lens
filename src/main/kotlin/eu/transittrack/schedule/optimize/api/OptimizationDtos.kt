@@ -30,7 +30,7 @@ data class OptimizationRunDto(
 /**
  * GraphQL `OptimizationRecommendation`. `currentValue`/`proposedValue`/`evidence` are the entity's
  * stored JSONB strings parsed into plain `Map`/`List` structures for the `JSON!` scalar — never the
- * raw JPA row.
+ * raw table row.
  */
 data class OptimizationRecommendationDto(
     val id: String,

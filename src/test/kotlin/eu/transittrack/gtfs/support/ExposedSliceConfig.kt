@@ -3,12 +3,13 @@ package eu.transittrack.gtfs.support
 import org.springframework.context.annotation.EnableAspectJAutoProxy
 import org.springframework.context.annotation.Import
 
+import eu.transittrack.DatabaseConfiguration
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.db.ExposedExceptionTranslationAspect
 import eu.transittrack.db.ExposedExceptionTranslator
-import eu.transittrack.db.bridge.ExposedBridgeConfig
 import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftRowCopier
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -62,13 +63,16 @@ import eu.transittrack.schedule.optimize.model.OptimizationRecommendationReposit
 import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
 
 /**
- * The Exposed repositories (and the JPA bridge they run through) for `@DataJpaTest` slices, which
- * do not component-scan `@Repository` classes. Every area ported to Exposed adds its repositories here.
+ * The Exposed [org.jetbrains.exposed.v1.jdbc.Database] bean, exception translation and repositories
+ * for [PostgresSliceTest] slices, which do not component-scan `@Repository` classes. Proxies are
+ * class-based as in the application (where Boot's AOP auto-configuration, absent from the slice,
+ * makes them so), so beans stay injectable by their class.
  */
-@EnableAspectJAutoProxy
+@EnableAspectJAutoProxy(proxyTargetClass = true)
 @Import(
-    ExposedBridgeConfig::class,
+    DatabaseConfiguration::class,
     ExposedExceptionTranslator::class,
+    ExposedExceptionTranslationAspect::class,
     GtfsFeedRepository::class,
     GtfsRevisionRepository::class,
     DraftEditRepository::class,

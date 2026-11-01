@@ -33,7 +33,7 @@ import eu.transittrack.schedule.model.TripPattern
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerMethodTest
 
-/** Like IngestionServiceTest, ScheduleWriter commits on its own connection, so this must not run inside the @DataJpaTest rollback transaction. */
+/** Like IngestionServiceTest, ScheduleWriter commits on its own connection, so this must not run inside the @JdbcTest rollback transaction. */
 @PostgresSliceTest
 @Import(ScheduleWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)

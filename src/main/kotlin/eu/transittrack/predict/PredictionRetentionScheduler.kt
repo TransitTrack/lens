@@ -19,10 +19,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.feed.GtfsFeedTable
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
 import eu.transittrack.predict.model.AvlStopCrossingTable
@@ -106,7 +106,7 @@ class PredictionRetentionScheduler(
  * Spring transaction, one transaction) each.
  */
 @Repository
-@ExposedBridge
+@Transactional
 class PredictionRetentionRepository {
     fun deletePredictionsComputedBefore(cutoff: Instant): Int = VehiclePredictionTable.deleteWhere { computedAt less cutoff }
 

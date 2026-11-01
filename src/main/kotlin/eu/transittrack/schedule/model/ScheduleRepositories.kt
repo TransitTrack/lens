@@ -10,13 +10,13 @@ import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScopedRepository
 import eu.transittrack.gtfs.model.TripTable
 
 @Repository
-@ExposedBridge
+@Transactional
 class TripPatternRepository : RevisionScopedRepository<TripPattern>(TripPatternTable) {
     fun findByRouteId(
         revisionId: Long,
@@ -39,7 +39,7 @@ class TripPatternRepository : RevisionScopedRepository<TripPattern>(TripPatternT
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class StopPathRepository : RevisionScopedRepository<StopPath>(StopPathTable) {
     fun findByTripPatternOrdered(
         revisionId: Long,
@@ -62,7 +62,7 @@ class StopPathRepository : RevisionScopedRepository<StopPath>(StopPathTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class ScheduleTimeRepository : RevisionScopedRepository<ScheduleTime>(ScheduleTimeTable) {
     fun findByTripOrdered(
         revisionId: Long,
@@ -115,7 +115,7 @@ data class ServiceStopTime(
 )
 
 @Repository
-@ExposedBridge
+@Transactional
 class BlockRepository : RevisionScopedRepository<Block>(BlockTable) {
     fun findByBlockId(
         revisionId: Long,
@@ -148,7 +148,7 @@ class BlockRepository : RevisionScopedRepository<Block>(BlockTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class BlockTripRepository : RevisionScopedRepository<BlockTrip>(BlockTripTable) {
     fun findByBlockIdOrdered(
         revisionId: Long,

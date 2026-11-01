@@ -1,16 +1,7 @@
 package eu.transittrack.avl.model
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.Expression
 import org.jetbrains.exposed.v1.core.GreaterOp
 import org.jetbrains.exposed.v1.core.Op
@@ -40,36 +31,30 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.EpochSecondsBetween
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 
-@Entity
-@Table(name = "vehicle_state")
 class VehicleState(
-    @Column(name = "feed_code", nullable = false) var feedCode: String,
-    @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
-    @Column(name = "vehicle_label") var vehicleLabel: String?,
-    @Column(name = "report_ts", nullable = false) var reportTs: Instant,
-    @Column(nullable = false) var lat: Double,
-    @Column(nullable = false) var lon: Double,
-    @Column var bearing: Double?,
-    @Column(name = "speed_mps") var speedMps: Double?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "occupancy_status") var occupancyStatus: Int?,
-    @Column(nullable = false) var matched: Boolean,
-    @Column(nullable = false) var stale: Boolean,
-    @Column(name = "consecutive_failures", nullable = false) var consecutiveFailures: Int,
-    @Column(name = "revision_id") var revisionId: Long?,
-    @Column(name = "trip_row_id") var tripRowId: Long?,
-    @Column(name = "block_pk") var blockPk: Long?,
-    @Column(name = "trip_pattern_id") var tripPatternId: Long?,
-    @Column(name = "stop_path_index") var stopPathIndex: Int?,
-    @Column(name = "distance_along_trip_m") var distanceAlongTripM: Double?,
-    @Column(name = "schedule_adherence_sec") var scheduleAdherenceSec: Int?,
-    @Column(name = "snapped_lat") var snappedLat: Double?,
-    @Column(name = "snapped_lon") var snappedLon: Double?,
-    @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehicleStateSeq")
-    @SequenceGenerator(name = "vehicleStateSeq", sequenceName = "vehicle_state_seq", allocationSize = 50)
+    var feedCode: String,
+    var vehicleId: String,
+    var vehicleLabel: String?,
+    var reportTs: Instant,
+    var lat: Double,
+    var lon: Double,
+    var bearing: Double?,
+    var speedMps: Double?,
+    var occupancyStatus: Int?,
+    var matched: Boolean,
+    var stale: Boolean,
+    var consecutiveFailures: Int,
+    var revisionId: Long?,
+    var tripRowId: Long?,
+    var blockPk: Long?,
+    var tripPatternId: Long?,
+    var stopPathIndex: Int?,
+    var distanceAlongTripM: Double?,
+    var scheduleAdherenceSec: Int?,
+    var snappedLat: Double?,
+    var snappedLon: Double?,
+    var updatedAt: Instant,
     var id: Long? = null,
 )
 
@@ -167,7 +152,7 @@ object VehicleStateTable : RowTable<VehicleState>("vehicle_state") {
     }
 }
 
-/** `CAST(? AS TIMESTAMP WITH TIME ZONE)`, as Hibernate binds an `Instant` parameter in arithmetic. */
+/** `CAST(? AS TIMESTAMP WITH TIME ZONE)`: an `Instant` parameter typed for timestamp arithmetic. */
 private class TimestampTzParam(
     private val value: Instant,
 ) : Expression<Instant>() {
@@ -178,7 +163,7 @@ private class TimestampTzParam(
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class VehicleStateRepository {
     fun findByFeedCodeAndVehicleId(
         feedCode: String,

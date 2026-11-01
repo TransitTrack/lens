@@ -1,14 +1,6 @@
 package eu.transittrack.avl.model
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -32,39 +24,31 @@ import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.util.paging.PageRequest
 
 /** Ordinal 0 = PENDING must match the `vehicle_match.prediction_status` column default. */
 enum class PredictionStatus { PENDING, DONE, FAILED }
 
-@Entity
-@Table(name = "vehicle_match")
 class VehicleMatch(
-    @Column(name = "avl_report_id", nullable = false) var avlReportId: Long,
-    @Column(name = "feed_code", nullable = false) var feedCode: String,
-    @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
-    @Column(nullable = false) var ts: Instant,
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
-    @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
-    @Column(name = "block_pk") var blockPk: Long?,
-    @Column(name = "trip_pattern_id") var tripPatternId: Long?,
-    @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
-    @Column(name = "distance_along_trip_m", nullable = false) var distanceAlongTripM: Double,
-    @Column(name = "deviation_m", nullable = false) var deviationM: Double,
-    @Column(name = "schedule_adherence_sec") var scheduleAdherenceSec: Int?,
-    @Column(name = "snapped_lat", nullable = false) var snappedLat: Double,
-    @Column(name = "snapped_lon", nullable = false) var snappedLon: Double,
-    @Column var heading: Double?,
-    @Column var score: Double?,
-    @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @Enumerated
-    @Column(name = "prediction_status", nullable = false)
+    var avlReportId: Long,
+    var feedCode: String,
+    var vehicleId: String,
+    var ts: Instant,
+    var revisionId: Long,
+    var tripRowId: Long,
+    var blockPk: Long?,
+    var tripPatternId: Long?,
+    var stopPathIndex: Int,
+    var distanceAlongTripM: Double,
+    var deviationM: Double,
+    var scheduleAdherenceSec: Int?,
+    var snappedLat: Double,
+    var snappedLon: Double,
+    var heading: Double?,
+    var score: Double?,
+    var createdAt: Instant,
     var predictionStatus: PredictionStatus = PredictionStatus.PENDING,
-    @Column(name = "predicted_at") var predictedAt: Instant? = null,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehicleMatchSeq")
-    @SequenceGenerator(name = "vehicleMatchSeq", sequenceName = "vehicle_match_seq", allocationSize = 50)
+    var predictedAt: Instant? = null,
     var id: Long? = null,
 )
 
@@ -162,7 +146,7 @@ object VehicleMatchTable : RowTable<VehicleMatch>("vehicle_match") {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class VehicleMatchRepository {
     fun findByAvlReportIdIn(avlReportIds: Collection<Long>): List<VehicleMatch> =
         VehicleMatchTable

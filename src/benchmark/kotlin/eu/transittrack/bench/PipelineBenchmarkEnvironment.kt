@@ -1,6 +1,7 @@
 package eu.transittrack.bench
 
 import java.time.Instant
+import java.time.ZoneOffset
 import java.util.function.Supplier
 
 import com.google.transit.realtime.GtfsRealtime.FeedEntity
@@ -10,13 +11,19 @@ import com.google.transit.realtime.GtfsRealtime.Position
 import com.google.transit.realtime.GtfsRealtime.TripDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.javatime.CurrentTimestampWithTimeZone
+import org.jetbrains.exposed.v1.javatime.timestampWithTimeZone
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.beans.factory.config.BeanDefinitionCustomizer
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ApplicationContextInitializer
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.support.GenericApplicationContext
-import org.springframework.jdbc.core.JdbcTemplate
 import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 
@@ -31,11 +38,13 @@ import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.avl.model.AvlFeedTable
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
+import eu.transittrack.gtfs.feed.GtfsFeedTable
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.predict.PredictionProcessor
 
@@ -87,7 +96,7 @@ class PipelineBenchmarkEnvironment {
         private set
     lateinit var avlFeedSource: StubAvlFeedSource
         private set
-    private lateinit var jdbc: JdbcTemplate
+    private lateinit var db: Database
     private var started = false
 
     fun <T : Any> bean(type: Class<T>): T = ctx.getBean(type)
@@ -140,7 +149,7 @@ class PipelineBenchmarkEnvironment {
                     },
                 ).run()
         avlFeedSource = stubSource
-        jdbc = bean(JdbcTemplate::class.java)
+        db = bean(Database::class.java)
 
         // `transittrack.feed.feeds` is a YAML-bound List<FeedDef>; Spring's relaxed binder doesn't
         // let a single scalar property override an indexed list from a lower-priority source, so
@@ -155,8 +164,10 @@ class PipelineBenchmarkEnvironment {
         // races that thread - expect (harmless) "No value present" stack traces logged from
         // IngestionService/RevisionService on startup; they're isolated to that background thread
         // and don't affect this environment's own feed or any `@Benchmark`-measured call.
-        jdbc.execute("delete from avl_feed")
-        jdbc.execute("delete from gtfs_feed")
+        transaction(db) {
+            AvlFeedTable.deleteAll()
+            GtfsFeedTable.deleteAll()
+        }
 
         bean(GtfsFeedService::class.java).register(FeedInput("bench-gtfs", "Bench", null, "bench://fixed", null))
         bean(IngestionService::class.java).ingestBlocking("bench-gtfs")
@@ -179,13 +190,25 @@ class PipelineBenchmarkEnvironment {
      * `PredictionProcessor` (`predictor-feed:<id>`) would otherwise acquire for this feed - see the
      * class doc. `lock_until` ten years out easily outlives any single benchmark run. */
     private fun poisonBackgroundSchedulerLocks(feedId: Long) {
-        val lockUntil = Instant.now().plusSeconds(10L * 365 * 24 * 3600)
-        for (lockName in listOf("avl-feed:$feedId", "predictor-feed:$feedId")) {
-            jdbc.update(
-                "insert into shedlock (name, lock_until, locked_at, locked_by) values (?, ?, now(), 'benchmark')",
-                lockName, java.sql.Timestamp.from(lockUntil),
-            )
+        val lockUntil = Instant.now().plusSeconds(10L * 365 * 24 * 3600).atOffset(ZoneOffset.UTC)
+        transaction(db) {
+            for (lockName in listOf("avl-feed:$feedId", "predictor-feed:$feedId")) {
+                ShedLockTable.insert {
+                    it[name] = lockName
+                    it[this.lockUntil] = lockUntil
+                    it[lockedAt] = CurrentTimestampWithTimeZone
+                    it[lockedBy] = "benchmark"
+                }
+            }
         }
+    }
+
+    /** ShedLock's table (owned by Liquibase and the lock provider), just enough to pre-claim rows. */
+    private object ShedLockTable : Table("shedlock") {
+        val name = varchar("name", 64)
+        val lockUntil = timestampWithTimeZone("lock_until")
+        val lockedAt = timestampWithTimeZone("locked_at")
+        val lockedBy = varchar("locked_by", 255)
     }
 
     fun stop() {
@@ -196,7 +219,7 @@ class PipelineBenchmarkEnvironment {
     /** Clears the mutable AVL tables between benchmark invocations so table growth and dedup /
      * match-status state don't skew later iterations - cheap, and unmeasured (runs in `@Setup`). */
     fun resetAvlTables() {
-        jdbc.execute("truncate table avl_report, vehicle_match, vehicle_state restart identity cascade")
+        transaction(db) { exec("truncate table avl_report, vehicle_match, vehicle_state restart identity cascade") }
     }
 
     /** One in three descriptors resolve directly (the `TrustDescriptorMatcher` fast path), one in

@@ -2,18 +2,7 @@ package eu.transittrack.gtfs.revision
 
 import java.time.Instant
 import java.time.LocalDate
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
@@ -28,37 +17,31 @@ import eu.transittrack.db.RowTable
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.feed.GtfsFeedTable
 
-@Entity
-@Table(name = "gtfs_revision")
 class GtfsRevision(
-    @Column(name = "feed_id", nullable = false) var feedId: Long,
-    @Enumerated(EnumType.STRING) @Column(nullable = false) var status: GtfsRevisionStatus,
-    @Column(name = "source_url", nullable = false) var sourceUrl: String,
-    @Column(name = "content_sha256", length = 64) var contentSha256: String? = null,
-    @Column(name = "byte_size") var byteSize: Long? = null,
-    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "files_present") var filesPresent: List<String> = emptyList(),
-    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "row_counts") var rowCounts: Map<String, Long> = emptyMap(),
-    @Column(name = "feed_start_date") var feedStartDate: LocalDate? = null,
-    @Column(name = "feed_end_date") var feedEndDate: LocalDate? = null,
-    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "validation_report") var validationReport: String? = null,
-    @Column(name = "error_message") var errorMessage: String? = null,
-    @Column(name = "created_at", nullable = false) var createdAt: Instant = Instant.now(),
-    @Column(name = "activated_at") var activatedAt: Instant? = null,
-    @Column(name = "superseded_at") var supersededAt: Instant? = null,
-    @Enumerated(EnumType.STRING) @Column(name = "kind", nullable = false)
+    var feedId: Long,
+    var status: GtfsRevisionStatus,
+    var sourceUrl: String,
+    var contentSha256: String? = null,
+    var byteSize: Long? = null,
+    var filesPresent: List<String> = emptyList(),
+    var rowCounts: Map<String, Long> = emptyMap(),
+    var feedStartDate: LocalDate? = null,
+    var feedEndDate: LocalDate? = null,
+    var validationReport: String? = null,
+    var errorMessage: String? = null,
+    var createdAt: Instant = Instant.now(),
+    var activatedAt: Instant? = null,
+    var supersededAt: Instant? = null,
     var kind: DraftKind = DraftKind.IMPORT,
-    @Column(name = "base_revision_id") var baseRevisionId: Long? = null,
-    @Column(name = "label") var label: String? = null,
-    @Column(name = "derivation_stale", nullable = false) var derivationStale: Boolean = false,
-    @Column(name = "deriving", nullable = false) var deriving: Boolean = false,
-    @JdbcTypeCode(SqlTypes.JSON) @Column(name = "last_validation") var lastValidation: String? = null,
-    @Column(name = "editor_claim_by") var editorClaimBy: String? = null,
-    @Column(name = "editor_claim_expires_at") var editorClaimExpiresAt: Instant? = null,
-    @Column(name = "version", nullable = false) var version: Long = 0,
-    @Column(name = "created_by") var createdBy: String? = null,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "gtfsRevisionSeq")
-    @SequenceGenerator(name = "gtfsRevisionSeq", sequenceName = "gtfs_revision_seq", allocationSize = 50)
+    var baseRevisionId: Long? = null,
+    var label: String? = null,
+    var derivationStale: Boolean = false,
+    var deriving: Boolean = false,
+    var lastValidation: String? = null,
+    var editorClaimBy: String? = null,
+    var editorClaimExpiresAt: Instant? = null,
+    var version: Long = 0,
+    var createdBy: String? = null,
     var id: Long? = null,
 )
 

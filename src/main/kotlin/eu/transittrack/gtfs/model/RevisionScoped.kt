@@ -1,12 +1,5 @@
 package eu.transittrack.gtfs.model
 
-import jakarta.persistence.Column
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.MappedSuperclass
-import jakarta.persistence.SequenceGenerator
-
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
@@ -18,10 +11,10 @@ import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Extent
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
 
 /**
@@ -31,18 +24,12 @@ import eu.transittrack.gtfs.revision.GtfsRevisionTable
  * re-declared on each entity. Subclasses take it as a pass-through constructor parameter: `class
  * Foo(revisionId: Long, ...) : RevisionScoped(revisionId)`.
  *
- * `id` is assigned from the `gtfs_entity_seq` sequence. `allocationSize` MUST match the sequence's
- * `incrementBy` in `0000-init.yaml` (500).
+ * `id` is assigned from the `gtfs_entity_seq` sequence (see [RevisionScopedTable.id]).
  */
-@MappedSuperclass
 abstract class RevisionScoped(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
+    var revisionId: Long,
 ) {
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "gtfsSeq")
-    @SequenceGenerator(name = "gtfsSeq", sequenceName = "gtfs_entity_seq", allocationSize = 500)
-    var id:
-        Long? = null
+    var id: Long? = null
 }
 
 /**
@@ -71,8 +58,8 @@ abstract class RevisionScopedTable<R : RevisionScoped>(
 }
 
 /**
- * The four nullable bounding-box columns an [Extent] is flattened into (JPA's `@Embedded`
- * mapping): no extent is stored as four NULLs and read back as `null`.
+ * The four nullable bounding-box columns an [Extent] is flattened into: no extent is stored as four
+ * NULLs and read back as `null`.
  */
 class ExtentColumns(
     table: Table,
@@ -104,11 +91,11 @@ class ExtentColumns(
  * Shared query surface for every [RevisionScoped] table. Concrete repositories extend it with their
  * own explicit queries.
  *
- * Annotated [ExposedBridge] itself (and every member `open`): the bridge aspect only matches
- * methods declared in an annotated class, and a CGLIB proxy cannot route final members to the
- * target.
+ * Annotated `@Transactional` itself (and every member `open`): Spring takes a class-level
+ * `@Transactional` from the class that declares the method, so the subclasses' annotation does not
+ * cover these inherited members, and a CGLIB proxy cannot route final members to the target.
  */
-@ExposedBridge
+@Transactional
 open class RevisionScopedRepository<R : RevisionScoped>(
     open val table: RevisionScopedTable<R>,
 ) {

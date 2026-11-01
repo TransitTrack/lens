@@ -2,14 +2,6 @@ package eu.transittrack.predict.model
 
 import java.time.Instant
 import java.time.LocalDate
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ReferenceOption
@@ -25,34 +17,29 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.avl.model.AvlFeedTable
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.predict.PredictionAlgorithm
 
-@Entity
-@Table(name = "vehicle_prediction")
 class VehiclePrediction(
-    @Column(name = "feed_code", nullable = false) var feedCode: String,
-    @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
-    @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
-    @Column(name = "block_pk") var blockPk: Long?,
-    @Column(name = "trip_pattern_id", nullable = false) var tripPatternId: Long,
-    @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
-    @Enumerated @Column(nullable = false) var algorithm: PredictionAlgorithm,
-    @Column(name = "predicted_arrival_ts") var predictedArrivalTs: Instant?,
-    @Column(name = "predicted_departure_ts") var predictedDepartureTs: Instant?,
-    @Column(name = "actual_arrival_ts") var actualArrivalTs: Instant?,
-    @Column(name = "actual_departure_ts") var actualDepartureTs: Instant?,
-    @Column(name = "confidence_sec") var confidenceSec: Int?,
-    @Column(name = "computed_at", nullable = false) var computedAt: Instant,
-    @Column(name = "source_report_ts") var sourceReportTs: Instant? = computedAt,
-    @Column(name = "service_date") var serviceDate: LocalDate? = null,
-    @Column(name = "actual_report_gap_sec") var actualReportGapSec: Int? = null,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "vehiclePredictionSeq")
-    @SequenceGenerator(name = "vehiclePredictionSeq", sequenceName = "vehicle_prediction_seq", allocationSize = 50)
+    var feedCode: String,
+    var vehicleId: String,
+    var tripRowId: Long,
+    var blockPk: Long?,
+    var tripPatternId: Long,
+    var stopPathIndex: Int,
+    var algorithm: PredictionAlgorithm,
+    var predictedArrivalTs: Instant?,
+    var predictedDepartureTs: Instant?,
+    var actualArrivalTs: Instant?,
+    var actualDepartureTs: Instant?,
+    var confidenceSec: Int?,
+    var computedAt: Instant,
+    var sourceReportTs: Instant? = computedAt,
+    var serviceDate: LocalDate? = null,
+    var actualReportGapSec: Int? = null,
     var id: Long? = null,
 )
 
@@ -135,7 +122,7 @@ object VehiclePredictionTable : RowTable<VehiclePrediction>("vehicle_prediction"
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class VehiclePredictionRepository {
     /** A null [algorithm] matches every algorithm. */
     fun findByVehicleTrip(

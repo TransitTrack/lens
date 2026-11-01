@@ -1,16 +1,7 @@
 package eu.transittrack.predict.model
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -29,32 +20,27 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.avl.model.AvlFeedTable
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 
-@Entity
-@Table(name = "avl_stop_crossing")
 class AvlStopCrossing(
-    @Column(name = "feed_code", nullable = false) var feedCode: String,
-    @Column(name = "vehicle_id", nullable = false) var vehicleId: String,
-    @Column(name = "trip_row_id", nullable = false) var tripRowId: Long,
-    @Column(name = "trip_pattern_id", nullable = false) var tripPatternId: Long,
-    @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
-    @Column(name = "observed_at", nullable = false) var observedAt: Instant,
+    var feedCode: String,
+    var vehicleId: String,
+    var tripRowId: Long,
+    var tripPatternId: Long,
+    var stopPathIndex: Int,
+    var observedAt: Instant,
     /** Time since the vehicle passed the previous stop on this trip; `null` when that wasn't seen. */
-    @Column(name = "observed_travel_time_sec") var observedTravelTimeSec: Double?,
-    @Column(name = "service_id") var serviceId: String?,
-    @Column(name = "trip_start_sec") var tripStartSec: Int?,
-    @Column(name = "route_id") var routeId: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "direction_id") var directionId: Int?,
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
-    @Column(name = "run_started_at") var runStartedAt: Instant? = null,
-    @Column(name = "report_gap_sec") var reportGapSec: Int? = null,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "avlStopCrossingSeq")
-    @SequenceGenerator(name = "avlStopCrossingSeq", sequenceName = "avl_stop_crossing_seq", allocationSize = 50)
+    var observedTravelTimeSec: Double?,
+    var serviceId: String?,
+    var tripStartSec: Int?,
+    var routeId: String?,
+    var directionId: Int?,
+    var revisionId: Long,
+    var runStartedAt: Instant? = null,
+    var reportGapSec: Int? = null,
     var id: Long? = null,
 )
 
@@ -134,7 +120,7 @@ object AvlStopCrossingTable : RowTable<AvlStopCrossing>("avl_stop_crossing") {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class AvlStopCrossingRepository {
     /**
      * Bounded projection for the optimization analysis pipeline

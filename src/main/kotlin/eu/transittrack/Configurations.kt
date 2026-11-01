@@ -13,17 +13,20 @@ import okhttp3.logging.HttpLoggingInterceptor
 import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer
+import org.jetbrains.exposed.v1.core.DatabaseConfig
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import org.jetbrains.exposed.v1.spring7.transaction.SpringTransactionManager
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.actuate.endpoint.SanitizingFunction
 import org.springframework.boot.cache.autoconfigure.CacheManagerCustomizer
-import org.springframework.boot.persistence.autoconfigure.EntityScan
 import org.springframework.cache.annotation.EnableCaching
 import org.springframework.cache.caffeine.CaffeineCacheManager
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.data.jpa.repository.config.EnableJpaRepositories
 import org.springframework.scheduling.annotation.EnableScheduling
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
+import org.springframework.transaction.support.TransactionTemplate
 
 @Configuration
 class TimeConfiguration {
@@ -169,10 +172,32 @@ class ActuatorConfiguration {
     }
 }
 
-@Configuration
-@EntityScan(basePackages = ["eu.transittrack"])
-@EnableJpaRepositories(basePackages = ["eu.transittrack"])
-class DatabaseConfiguration
+/**
+ * Exposed runs on the starter's [SpringTransactionManager], so `@Transactional` boundaries own every
+ * Exposed transaction; SQL failures leave them as Spring `DataAccessException`s (see
+ * [eu.transittrack.db.ExposedExceptionTranslationAspect]).
+ */
+@Configuration(proxyBeanMethods = false)
+class DatabaseConfiguration {
+    /**
+     * Replaces the starter's default config. A plain `transaction {}` block (ShedLock's lock
+     * operations) must not re-run on failure: its work need not be idempotent.
+     */
+    @Bean
+    fun databaseConfig(): DatabaseConfig = DatabaseConfig { defaultMaxAttempts = 1 }
+
+    /**
+     * The one Exposed [Database]: the one [SpringTransactionManager] connected (the starter exposes
+     * no bean for it), made the default, for code that needs a [Database] outright (lock providers).
+     * Read off a transaction the manager begins, which opens no connection until a statement runs.
+     */
+    @Bean
+    fun exposedDatabase(transactionManager: SpringTransactionManager): Database {
+        val database = checkNotNull(TransactionTemplate(transactionManager).execute { TransactionManager.current().db })
+        TransactionManager.defaultDatabase = database
+        return database
+    }
+}
 
 /**
  * Programmatic Caffeine setup for the AVL match read cache. Every cache in `AvlCaches.NAMES` is

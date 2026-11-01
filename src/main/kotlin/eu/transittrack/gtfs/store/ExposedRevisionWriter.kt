@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.RevisionScopedTable
 
@@ -17,11 +16,11 @@ import eu.transittrack.gtfs.model.RevisionScopedTable
  * and fails the whole write before anything is inserted.
  */
 @Component
-@ExposedBridge
+@Transactional
 class ExposedRevisionWriter : RevisionWriter {
     private val registry: Map<Class<out RevisionScoped>, RevisionScopedTable<*>> = GtfsTables.ALL.associateBy { it.rowClass }
 
-    /** Joins the caller's transaction (as the JPA `saveAll` this replaces did); its own when there is none. */
+    /** Joins the caller's transaction; its own when there is none. */
     @Transactional
     override fun write(rows: List<RevisionScoped>) {
         if (rows.isEmpty()) return

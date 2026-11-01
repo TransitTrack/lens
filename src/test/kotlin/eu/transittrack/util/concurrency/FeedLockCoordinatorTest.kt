@@ -12,7 +12,6 @@ import net.javacrumbs.shedlock.core.LockProvider
 import net.javacrumbs.shedlock.provider.exposed.ExposedLockProvider
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
 
@@ -22,7 +21,7 @@ import eu.transittrack.util.concurrency.FeedLockCoordinator
 
 @SpringBootTest(classes = [Application::class])
 class FeedLockCoordinatorTest(
-    @Autowired @Qualifier("exposedDatabase") val database: Database,
+    @Autowired val database: Database,
     @Autowired val jdbcTemplate: JdbcTemplate,
 ) : PostgresPerMethodTest() {
     // Two independent ExposedLockProvider instances sharing one Database stand in for

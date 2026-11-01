@@ -1,14 +1,6 @@
 package eu.transittrack.predict.model
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
@@ -20,28 +12,23 @@ import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
 import org.jetbrains.exposed.v1.core.Column as ExposedColumn
 
 /** Windowed mean stop-to-stop time for one stop path of a pattern, in one day-type/time-band bucket. */
-@Entity
-@Table(name = "travel_time_observation")
 class TravelTimeObservation(
-    @Column(name = "gtfs_feed_code", nullable = false) var gtfsFeedCode: String,
-    @Column(name = "pattern_key", nullable = false) var patternKey: String,
-    @Column(name = "stop_path_index", nullable = false) var stopPathIndex: Int,
-    @Enumerated @Column(name = "day_type", nullable = false) var dayType: DayType,
-    @Enumerated @Column(name = "time_band", nullable = false) var timeBand: TimeBand,
-    @Column(name = "sample_count", nullable = false) var sampleCount: Long,
-    @Column(name = "mean_sec", nullable = false) var meanSec: Double,
-    @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "travelTimeObservationSeq")
-    @SequenceGenerator(name = "travelTimeObservationSeq", sequenceName = "travel_time_observation_seq", allocationSize = 50)
+    var gtfsFeedCode: String,
+    var patternKey: String,
+    var stopPathIndex: Int,
+    var dayType: DayType,
+    var timeBand: TimeBand,
+    var sampleCount: Long,
+    var meanSec: Double,
+    var updatedAt: Instant,
     var id: Long? = null,
 )
 
@@ -103,7 +90,7 @@ object TravelTimeObservationTable : RowTable<TravelTimeObservation>("travel_time
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class TravelTimeObservationRepository {
     fun findInBucket(
         gtfsFeedCode: String,

@@ -12,12 +12,13 @@ import org.springframework.stereotype.Component
 /**
  * Turns Exposed's [ExposedSQLException] into Spring's [DataAccessException] hierarchy, so code
  * built on Exposed throws the same `DataIntegrityViolationException`/`DuplicateKeyException`/...
- * that callers and tests already expect from JPA.
+ * that callers and tests expect.
  *
  * [ExposedSQLException] is a checked [SQLException], and Spring's `@Repository` translation
  * interceptor only looks at [RuntimeException]s, so [translateExceptionIfPossible] handles a
  * runtime exception that carries one in its cause chain, while [translate] is the direct entry
- * point for code that catches the [SQLException] itself.
+ * point for code that catches the [SQLException] itself ([ExposedExceptionTranslationAspect] does,
+ * around every transactional method).
  */
 @Component
 class ExposedExceptionTranslator : PersistenceExceptionTranslator {

@@ -1,86 +1,66 @@
 package eu.transittrack.gtfs.model
 
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.Table
-
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.Coalesce
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.core.stringLiteral
 import org.springframework.stereotype.Repository
-
-import eu.transittrack.db.bridge.ExposedBridge
+import org.springframework.transaction.annotation.Transactional
 
 /**
- * Typed JPA entities for the GTFS Fares v2 (and v1) files: fare_attributes, fare_rules, timeframes,
+ * Typed row classes for the GTFS Fares v2 (and v1) files: fare_attributes, fare_rules, timeframes,
  * rider_categories, fare_media, fare_products, fare_leg_rules, fare_leg_join_rules,
  * fare_transfer_rules, areas, stop_areas, networks, route_networks.
  *
- * GTFS enum integers are stored as `SMALLINT`; the matching Kotlin `Int?` fields carry
- * `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate` sees matching JDBC type
- * codes. `timeframe.start_time` / `end_time` are stored as seconds-of-day (`INT`).
+ * GTFS enum integers are stored as `SMALLINT` and read as Kotlin `Int?`.
+ * `timeframe.start_time` / `end_time` are stored as seconds-of-day (`INT`).
  */
-@Entity
-@Table(name = "fare_attributes")
 class FareAttribute(
     revisionId: Long,
-    @Column(name = "fare_id", nullable = false) var fareId: String,
+    var fareId: String,
     var price: Double?,
     var currencyType: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var paymentMethod: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var transfers: Int?,
+    var paymentMethod: Int?,
+    var transfers: Int?,
     var agencyId: String?,
     var transferDuration: Int?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "fare_rules")
 class FareRule(
     revisionId: Long,
-    @Column(name = "fare_id", nullable = false) var fareId: String,
+    var fareId: String,
     var routeId: String?,
     var originId: String?,
     var destinationId: String?,
     var containsId: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "timeframes")
 class Timeframe(
     revisionId: Long,
-    @Column(name = "timeframe_group_id", nullable = false) var timeframeGroupId: String,
+    var timeframeGroupId: String,
     var startTime: Int?,
     var endTime: Int?,
-    @Column(name = "service_id", nullable = false) var serviceId: String,
+    var serviceId: String,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "rider_categories")
 class RiderCategory(
     revisionId: Long,
-    @Column(name = "rider_category_id", nullable = false) var riderCategoryId: String,
+    var riderCategoryId: String,
     var riderCategoryName: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) @Column(name = "is_default_fare_category") var isDefaultFareCategory: Int?,
+    var isDefaultFareCategory: Int?,
     var eligibilityUrl: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "fare_media")
 class FareMedia(
     revisionId: Long,
-    @Column(name = "fare_media_id", nullable = false) var fareMediaId: String,
+    var fareMediaId: String,
     var fareMediaName: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var fareMediaType: Int?,
+    var fareMediaType: Int?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "fare_products")
 class FareProduct(
     revisionId: Long,
-    @Column(name = "fare_product_id", nullable = false) var fareProductId: String,
+    var fareProductId: String,
     var fareProductName: String?,
     var riderCategoryId: String?,
     var fareMediaId: String?,
@@ -88,8 +68,6 @@ class FareProduct(
     var currency: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "fare_leg_rules")
 class FareLegRule(
     revisionId: Long,
     var legGroupId: String?,
@@ -98,63 +76,51 @@ class FareLegRule(
     var toAreaId: String?,
     var fromTimeframeGroupId: String?,
     var toTimeframeGroupId: String?,
-    @Column(name = "fare_product_id", nullable = false) var fareProductId: String,
+    var fareProductId: String,
     var rulePriority: Int?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "fare_leg_join_rules")
 class FareLegJoinRule(
     revisionId: Long,
-    @Column(name = "from_network_id", nullable = false) var fromNetworkId: String,
-    @Column(name = "to_network_id", nullable = false) var toNetworkId: String,
+    var fromNetworkId: String,
+    var toNetworkId: String,
     var fromStopId: String?,
     var toStopId: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "fare_transfer_rules")
 class FareTransferRule(
     revisionId: Long,
     var fromLegGroupId: String?,
     var toLegGroupId: String?,
     var transferCount: Int?,
     var durationLimit: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var durationLimitType: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var fareTransferType: Int?,
+    var durationLimitType: Int?,
+    var fareTransferType: Int?,
     var fareProductId: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "areas")
 class Area(
     revisionId: Long,
-    @Column(name = "area_id", nullable = false) var areaId: String,
+    var areaId: String,
     var areaName: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "stop_areas")
 class StopArea(
     revisionId: Long,
-    @Column(name = "area_id", nullable = false) var areaId: String,
-    @Column(name = "stop_id", nullable = false) var stopId: String,
+    var areaId: String,
+    var stopId: String,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "networks")
 class Network(
     revisionId: Long,
-    @Column(name = "network_id", nullable = false) var networkId: String,
+    var networkId: String,
     var networkName: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "route_networks")
 class RouteNetwork(
     revisionId: Long,
-    @Column(name = "network_id", nullable = false) var networkId: String,
-    @Column(name = "route_id", nullable = false) var routeId: String,
+    var networkId: String,
+    var routeId: String,
 ) : RevisionScoped(revisionId)
 
 object FareAttributeTable : RevisionScopedTable<FareAttribute>("fare_attributes", FareAttribute::class.java, "fk_fare_attr_rev") {
@@ -562,53 +528,53 @@ object RouteNetworkTable : RevisionScopedTable<RouteNetwork>("route_networks", R
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareAttributeRepository : RevisionScopedRepository<FareAttribute>(FareAttributeTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareRuleRepository : RevisionScopedRepository<FareRule>(FareRuleTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class TimeframeRepository : RevisionScopedRepository<Timeframe>(TimeframeTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class RiderCategoryRepository : RevisionScopedRepository<RiderCategory>(RiderCategoryTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareMediaRepository : RevisionScopedRepository<FareMedia>(FareMediaTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareProductRepository : RevisionScopedRepository<FareProduct>(FareProductTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareLegRuleRepository : RevisionScopedRepository<FareLegRule>(FareLegRuleTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareLegJoinRuleRepository : RevisionScopedRepository<FareLegJoinRule>(FareLegJoinRuleTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FareTransferRuleRepository : RevisionScopedRepository<FareTransferRule>(FareTransferRuleTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class AreaRepository : RevisionScopedRepository<Area>(AreaTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class StopAreaRepository : RevisionScopedRepository<StopArea>(StopAreaTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class NetworkRepository : RevisionScopedRepository<Network>(NetworkTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class RouteNetworkRepository : RevisionScopedRepository<RouteNetwork>(RouteNetworkTable)

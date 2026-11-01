@@ -11,8 +11,8 @@ import org.jetbrains.exposed.v1.core.nextLongVal
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.store.GtfsTables
 
 /** Raw GTFS tables copied when forking a draft — everything revision-scoped except the derived schedule model. */
@@ -40,7 +40,7 @@ object DraftRawTables {
 }
 
 @Component
-@ExposedBridge
+@Transactional
 class DraftRowCopier {
     /** For each raw table, INSERT ... SELECT every row of [fromRevisionId] as a new row of [toRevisionId]. */
     fun copyRawTables(

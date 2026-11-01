@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Extent
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.AgencyTable
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScopedTable
@@ -44,12 +43,11 @@ data class TripDerivation(
  * Kept separate from [ScheduleWriter], which owns the derived tables and whose `deleteForRevision`
  * must not touch GTFS tables.
  *
- * Every public method commits in its own transaction (`REQUIRES_NEW`), as the Hibernate stateless
- * session it replaced did.
+ * Every public method commits in its own transaction (`REQUIRES_NEW`).
  */
 @Component
 @ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
-@ExposedBridge
+@Transactional
 class DerivedGtfsWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyRouteExtents(

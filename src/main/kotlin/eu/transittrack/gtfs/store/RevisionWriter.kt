@@ -56,8 +56,8 @@ interface RevisionWriter {
  * Ordered children/leaf tables first so the `DELETE`s never trip a FK. All FKs currently point only
  * at `gtfs_revision`, but this order is also what validation and pruning expect.
  *
- * Deliberately excludes `gtfs_revision` and `gtfs_feed` (not revision-scoped rows). Cross-checked
- * against `git grep '@Table(name' in `eu.transittrack.gtfs.model` (33 tables). Also the registry
+ * Deliberately excludes `gtfs_revision` and `gtfs_feed` (not revision-scoped rows); every other
+ * Liquibase table in the GTFS model is here (33 tables, checked by `SchemaDriftTest`). Also the registry
  * [ExposedRevisionWriter] routes rows by: every row class written through it needs its table here.
  */
 object GtfsTables {

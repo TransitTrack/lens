@@ -1,15 +1,6 @@
 package eu.transittrack.gtfs.feed
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.EnumType
-import jakarta.persistence.Enumerated
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
@@ -17,23 +8,18 @@ import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 
 import eu.transittrack.db.RowTable
 
-@Entity
-@Table(name = "gtfs_feed")
 class GtfsFeed(
-    @Column(nullable = false, unique = true) var code: String,
-    @Column(nullable = false) var name: String,
-    @Column var description: String?,
-    @Column(nullable = false) var url: String,
-    @Column(name = "polling_cron") var pollingCron: String?,
-    @Column(nullable = false) var enabled: Boolean,
-    @Column(name = "auto_activate") var autoActivate: Boolean?,
-    @Enumerated(EnumType.STRING) @Column(nullable = false) var source: FeedSource,
-    @Column(name = "created_at", nullable = false) var createdAt: Instant,
-    @Column(name = "updated_at", nullable = false) var updatedAt: Instant,
-    @Column(name = "last_ingest_at") var lastIngestAt: Instant? = null,
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "gtfsFeedSeq")
-    @SequenceGenerator(name = "gtfsFeedSeq", sequenceName = "gtfs_feed_seq", allocationSize = 50)
+    var code: String,
+    var name: String,
+    var description: String?,
+    var url: String,
+    var pollingCron: String?,
+    var enabled: Boolean,
+    var autoActivate: Boolean?,
+    var source: FeedSource,
+    var createdAt: Instant,
+    var updatedAt: Instant,
+    var lastIngestAt: Instant? = null,
     var id: Long? = null,
 )
 

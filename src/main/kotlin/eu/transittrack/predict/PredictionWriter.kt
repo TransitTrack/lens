@@ -54,7 +54,6 @@ import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.EpochSecondsBetween
 import eu.transittrack.db.InsertSelectOnConflictDoNothing
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.db.execBatch
 import eu.transittrack.predict.learn.KalmanState
 import eu.transittrack.predict.learn.LearningKey
@@ -137,15 +136,14 @@ data class FrequencyRunState(
  * per `onMatched()` call via [inTransaction] and call the other methods inside its block.
  */
 @Component
-@ExposedBridge
+@Transactional
 class PredictionWriter {
     /**
      * Runs [block] in a transaction of its own, committed when [block] returns and rolled back if it
      * throws anything: never part of a caller's transaction (`REQUIRES_NEW`), so its writes stand or
      * fall alone, and the row and advisory locks taken inside it are held until it ends. Every method
      * of this writer called inside [block] (through the Spring proxy, as any caller holding this bean
-     * does) runs on that transaction's connection: the [ExposedBridge] aspect finds the Exposed
-     * transaction it opened on that connection and reuses it.
+     * does) joins that transaction (the class-level `@Transactional` is `REQUIRED`).
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = [Throwable::class])
     fun inTransaction(block: () -> Unit) = block()

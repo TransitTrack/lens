@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.RevisionScopedTable
 import eu.transittrack.schedule.model.Block
@@ -28,13 +27,13 @@ data class StopPathLayoverUpdate(
 /**
  * Bulk write path for the derived schedule model ([ScheduleTables]), JDBC-batched.
  *
- * Every public method commits in its own transaction (`REQUIRES_NEW`), as the Hibernate stateless
- * session it replaced did: derivation runs with no caller transaction, and `DraftService`'s
+ * Every public method commits in its own transaction (`REQUIRES_NEW`): derivation runs with no
+ * caller transaction, and `DraftService`'s
  * discard / revert-to-fork rely on [deleteForRevision] standing even when they roll back.
  */
 @Component
 @ConditionalOnProperty(name = ["transittrack.schedule.enabled"], havingValue = "true")
-@ExposedBridge
+@Transactional
 class ScheduleWriter {
     private val registry: Map<Class<out RevisionScoped>, RevisionScopedTable<*>> = ScheduleTables.ALL.associateBy { it.rowClass }
     private val byName: Map<String, RevisionScopedTable<*>> = ScheduleTables.ALL.associateBy { it.tableName }

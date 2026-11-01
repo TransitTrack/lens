@@ -19,15 +19,9 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate.jdbc.batch_size: 100
-      hibernate.order_inserts: true
-      hibernate.order_updates: true
-      hibernate.generate_statistics: true
+  exposed:
+    # Liquibase owns the schema.
+    generate-ddl: false
   threads:
     virtual:
       enabled: true
@@ -61,7 +55,6 @@ management:
         transittrack.http.client.duration: true
     enable:
       cache: true
-      hibernate: true
       hikaricp: true
 
 transittrack:

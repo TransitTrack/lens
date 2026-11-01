@@ -1,16 +1,7 @@
 package eu.transittrack.gtfs.draft
 
 import java.time.Instant
-import jakarta.persistence.Column
-import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
-import jakarta.persistence.Id
-import jakarta.persistence.SequenceGenerator
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
@@ -24,26 +15,21 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.json.jsonb
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.db.RowTable
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
 
-@Entity
-@Table(name = "draft_edit")
 class DraftEdit(
-    @Column(name = "revision_id", nullable = false) var revisionId: Long,
-    @Column(nullable = false) var seq: Int,
-    @Column(nullable = false) var op: String,
-    @Column(nullable = false) var summary: String,
-    @JdbcTypeCode(SqlTypes.JSON) @Column(nullable = false) var forward: String,
-    @JdbcTypeCode(SqlTypes.JSON) @Column(nullable = false) var inverse: String,
-    @Column(name = "applied_at", nullable = false) var appliedAt: Instant,
-    @Column(nullable = false) var undone: Boolean = false,
+    var revisionId: Long,
+    var seq: Int,
+    var op: String,
+    var summary: String,
+    var forward: String,
+    var inverse: String,
+    var appliedAt: Instant,
+    var undone: Boolean = false,
 ) {
-    @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "draftEditSeq")
-    @SequenceGenerator(name = "draftEditSeq", sequenceName = "draft_edit_seq", allocationSize = 50)
     var id: Long? = null
 }
 
@@ -98,7 +84,7 @@ object DraftEditTable : RowTable<DraftEdit>("draft_edit") {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class DraftEditRepository {
     fun findByRevision(revisionId: Long): List<DraftEdit> =
         DraftEditTable

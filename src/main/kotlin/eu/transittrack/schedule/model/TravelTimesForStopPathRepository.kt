@@ -4,12 +4,12 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScopedRepository
 
 @Repository
-@ExposedBridge
+@Transactional
 class TravelTimesForStopPathRepository : RevisionScopedRepository<TravelTimesForStopPath>(TravelTimesForStopPathTable) {
     fun findByTripPatternOrdered(
         revisionId: Long,

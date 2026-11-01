@@ -10,7 +10,7 @@ import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedDeletedEvent
 
 /**
- * Deletes the `avl_feed` row(s) linked to a deleted `gtfs_feed`. There is no FK/JPA relationship
+ * Deletes the `avl_feed` row(s) linked to a deleted `gtfs_feed`. There is no FK
  * between the two (see `AvlFeed.gtfsFeedCode`), so without this the row survives the GTFS feed's
  * deletion and `AvlPoller` keeps polling it indefinitely. Runs `AFTER_COMMIT` so it only acts once
  * the GTFS feed deletion is durable; `fallbackExecution = true` also fires it when there is no

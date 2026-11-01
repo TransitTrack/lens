@@ -11,8 +11,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScopedTable
 import eu.transittrack.gtfs.store.GtfsTables
 
@@ -22,7 +22,7 @@ import eu.transittrack.gtfs.store.GtfsTables
  * iterator, never collected into a list.
  */
 @Component
-@ExposedBridge
+@Transactional
 class GtfsSerializer {
     fun serialize(
         revisionId: Long,

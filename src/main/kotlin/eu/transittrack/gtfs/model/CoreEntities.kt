@@ -3,13 +3,7 @@ package eu.transittrack.gtfs.model
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
-import jakarta.persistence.Column
-import jakarta.persistence.Embedded
-import jakarta.persistence.Entity
-import jakarta.persistence.Table
 
-import org.hibernate.annotations.JdbcTypeCode
-import org.hibernate.type.SqlTypes
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -25,22 +19,18 @@ import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
+import org.springframework.transaction.annotation.Transactional
 
 import eu.transittrack.Extent
 import eu.transittrack.Point
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.schedule.model.TripPatternTable
 
 /**
- * Typed JPA entities for the core GTFS Schedule files (agency, stops, routes, trips, stop_times,
+ * Typed row classes for the core GTFS Schedule files (agency, stops, routes, trips, stop_times,
  * calendar, calendar_dates, feed_info, frequencies).
  *
- * GTFS enum integers are stored as `SMALLINT`; the corresponding Kotlin `Int?` fields carry
- * `@JdbcTypeCode(SqlTypes.SMALLINT)` so Hibernate `ddl-auto: validate` sees matching JDBC type
- * codes.
+ * GTFS enum integers are stored as `SMALLINT` and read as Kotlin `Int?`.
  */
-@Entity
-@Table(name = "agencies")
 class Agency(
     revisionId: Long,
     var agencyId: String?,
@@ -51,14 +41,12 @@ class Agency(
     var agencyPhone: String?,
     var agencyFareUrl: String?,
     var agencyEmail: String?,
-    @Embedded var extent: Extent? = null,
+    var extent: Extent? = null,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "stops")
 class Stop(
     revisionId: Long,
-    @Column(name = "stop_id", nullable = false) var stopId: String,
+    var stopId: String,
     var stopCode: String?,
     var stopName: String?,
     var ttsStopName: String?,
@@ -67,10 +55,10 @@ class Stop(
     var stopLon: Double?,
     var zoneId: String?,
     var stopUrl: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var locationType: Int?,
+    var locationType: Int?,
     var parentStation: String?,
     var stopTimezone: ZoneId?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairBoarding: Int?,
+    var wheelchairBoarding: Int?,
     var levelId: String?,
     var platformCode: String?,
     var timePointStop: Boolean? = null,
@@ -82,55 +70,49 @@ class Stop(
         get() = Point(stopLat!!, stopLon!!)
 }
 
-@Entity
-@Table(name = "routes")
 class Route(
     revisionId: Long,
-    @Column(name = "route_id", nullable = false) var routeId: String,
+    var routeId: String,
     var agencyId: String?,
     var routeShortName: String?,
     var routeLongName: String?,
     var routeDesc: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var routeType: Int?,
+    var routeType: Int?,
     var routeUrl: String?,
     var routeColor: String?,
     var routeTextColor: String?,
     var routeSortOrder: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var continuousPickup: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var continuousDropOff: Int?,
+    var continuousPickup: Int?,
+    var continuousDropOff: Int?,
     var networkId: String?,
     var maxDistance: Double? = null,
-    @Column(nullable = false) var hidden: Boolean = false,
-    @Embedded var extent: Extent? = null,
+    var hidden: Boolean = false,
+    var extent: Extent? = null,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "trips")
 class Trip(
     revisionId: Long,
-    @Column(name = "route_id", nullable = false) var routeId: String,
-    @Column(name = "service_id", nullable = false) var serviceId: String,
-    @Column(name = "trip_id", nullable = false) var tripId: String,
+    var routeId: String,
+    var serviceId: String,
+    var tripId: String,
     var tripHeadsign: String?,
     var tripShortName: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var directionId: Int?,
+    var directionId: Int?,
     var blockId: String?,
     var shapeId: String?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var wheelchairAccessible: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var bikesAllowed: Int?,
-    @Column(name = "trip_pattern_id") var tripPatternId: Long? = null,
-    @Column(name = "start_time_sec") var startTimeSec: Int? = null,
-    @Column(name = "end_time_sec") var endTimeSec: Int? = null,
-    @Column(name = "frequency_based") var frequencyBased: Boolean? = null,
-    @Column(name = "no_schedule") var noSchedule: Boolean? = null,
+    var wheelchairAccessible: Int?,
+    var bikesAllowed: Int?,
+    var tripPatternId: Long? = null,
+    var startTimeSec: Int? = null,
+    var endTimeSec: Int? = null,
+    var frequencyBased: Boolean? = null,
+    var noSchedule: Boolean? = null,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "stop_times")
 class StopTime(
     revisionId: Long,
-    @Column(name = "trip_id", nullable = false) var tripId: String,
-    @Column(name = "stop_sequence", nullable = false) var stopSequence: Int,
+    var tripId: String,
+    var stopSequence: Int,
     var stopId: String?,
     var arrivalTime: Int?,
     var departureTime: Int?,
@@ -139,21 +121,19 @@ class StopTime(
     var stopHeadsign: String?,
     var startPickupDropOffWindow: Int?,
     var endPickupDropOffWindow: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var pickupType: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var dropOffType: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var continuousPickup: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var continuousDropOff: Int?,
+    var pickupType: Int?,
+    var dropOffType: Int?,
+    var continuousPickup: Int?,
+    var continuousDropOff: Int?,
     var shapeDistTraveled: Double?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var timepoint: Int?,
+    var timepoint: Int?,
     var pickupBookingRuleId: String?,
     var dropOffBookingRuleId: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "calendars")
 class Calendar(
     revisionId: Long,
-    @Column(name = "service_id", nullable = false) var serviceId: String,
+    var serviceId: String,
     var monday: Boolean?,
     var tuesday: Boolean?,
     var wednesday: Boolean?,
@@ -165,17 +145,13 @@ class Calendar(
     var endDate: LocalDate?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "calendar_dates")
 class CalendarDate(
     revisionId: Long,
-    @Column(name = "service_id", nullable = false) var serviceId: String,
-    @Column(name = "date", nullable = false) var date: LocalDate,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var exceptionType: Int?,
+    var serviceId: String,
+    var date: LocalDate,
+    var exceptionType: Int?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "feed_infos")
 class FeedInfo(
     revisionId: Long,
     var feedPublisherName: String?,
@@ -189,18 +165,16 @@ class FeedInfo(
     var feedContactUrl: String?,
 ) : RevisionScoped(revisionId)
 
-@Entity
-@Table(name = "frequencies")
 class Frequency(
     revisionId: Long,
-    @Column(name = "trip_id", nullable = false) var tripId: String,
-    @Column(name = "start_time", nullable = false) var startTime: Int,
+    var tripId: String,
+    var startTime: Int,
     var endTime: Int?,
     var headwaySecs: Int?,
-    @JdbcTypeCode(SqlTypes.SMALLINT) var exactTimes: Int?,
+    var exactTimes: Int?,
 ) : RevisionScoped(revisionId)
 
-/** Hibernate's `LocaleJavaType` storage form: written as [Locale.toString], read back by splitting on `_`. */
+/** Stored as [Locale.toString] (the form existing rows use), read back by splitting on `_`. */
 private fun localeFromDb(s: String): Locale {
     if (s.isEmpty()) return Locale.ROOT
     val p = s.split('_', limit = 3)
@@ -349,7 +323,7 @@ object RouteTable : RevisionScopedTable<Route>("routes", Route::class.java, "fk_
     val continuousDropOff = short("continuous_drop_off").nullable()
     val networkId = varchar("network_id", 255).nullable()
 
-    // Nullable with a `false` default in the schema; the row class (like the JPA mapping) never holds null.
+    // Nullable with a `false` default in the schema; the row class never holds null.
     val hidden = bool("hidden").default(false).nullable()
     val maxDistance = double("max_distance").nullable()
     val extent = ExtentColumns(this)
@@ -713,7 +687,7 @@ object FrequencyTable : RevisionScopedTable<Frequency>("frequencies", Frequency:
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class AgencyRepository : RevisionScopedRepository<Agency>(AgencyTable) {
     fun findByAgencyId(
         revisionId: Long,
@@ -727,7 +701,7 @@ class AgencyRepository : RevisionScopedRepository<Agency>(AgencyTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class StopRepository : RevisionScopedRepository<Stop>(StopTable) {
     fun findByStopId(
         revisionId: Long,
@@ -759,7 +733,7 @@ class StopRepository : RevisionScopedRepository<Stop>(StopTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class RouteRepository : RevisionScopedRepository<Route>(RouteTable) {
     fun findByRouteId(
         revisionId: Long,
@@ -773,7 +747,7 @@ class RouteRepository : RevisionScopedRepository<Route>(RouteTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class TripRepository : RevisionScopedRepository<Trip>(TripTable) {
     fun findByTripId(
         revisionId: Long,
@@ -864,7 +838,7 @@ class TripRepository : RevisionScopedRepository<Trip>(TripTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class StopTimeRepository : RevisionScopedRepository<StopTime>(StopTimeTable) {
     fun findByTripId(
         revisionId: Long,
@@ -901,7 +875,7 @@ class StopTimeRepository : RevisionScopedRepository<StopTime>(StopTimeTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class CalendarRepository : RevisionScopedRepository<Calendar>(CalendarTable) {
     fun findByServiceId(
         revisionId: Long,
@@ -915,7 +889,7 @@ class CalendarRepository : RevisionScopedRepository<Calendar>(CalendarTable) {
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class CalendarDateRepository : RevisionScopedRepository<CalendarDate>(CalendarDateTable) {
     fun findByServiceId(
         revisionId: Long,
@@ -935,11 +909,11 @@ class CalendarDateRepository : RevisionScopedRepository<CalendarDate>(CalendarDa
 }
 
 @Repository
-@ExposedBridge
+@Transactional
 class FeedInfoRepository : RevisionScopedRepository<FeedInfo>(FeedInfoTable)
 
 @Repository
-@ExposedBridge
+@Transactional
 class FrequencyRepository : RevisionScopedRepository<Frequency>(FrequencyTable) {
     fun findByTripId(
         revisionId: Long,

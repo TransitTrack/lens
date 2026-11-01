@@ -1,26 +1,18 @@
 package eu.transittrack
 
-import jakarta.persistence.Column
-import jakarta.persistence.Embeddable
-
-@Embeddable
 class Extent {
     // Initialized to NaN to represent "unset" values safely without
     // throwing SQL errors regarding Infinity database inserts
-    @Column(name = "min_lat")
-    final var minLat: Double = Double.NaN
+    var minLat: Double = Double.NaN
         private set
 
-    @Column(name = "max_lat")
-    final var maxLat: Double = Double.NaN
+    var maxLat: Double = Double.NaN
         private set
 
-    @Column(name = "min_lon")
-    final var minLon: Double = Double.NaN
+    var minLon: Double = Double.NaN
         private set
 
-    @Column(name = "max_lon")
-    final var maxLon: Double = Double.NaN
+    var maxLon: Double = Double.NaN
         private set
 
     /**

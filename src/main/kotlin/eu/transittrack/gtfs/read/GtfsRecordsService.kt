@@ -10,8 +10,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.postgresql.util.PGobject
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.db.bridge.ExposedBridge
 import eu.transittrack.gtfs.model.RevisionScopedTable
 import eu.transittrack.gtfs.store.GtfsTables
 
@@ -26,7 +26,7 @@ import eu.transittrack.gtfs.store.GtfsTables
  * `Int`, `date` as `java.sql.Date`, `jsonb` as `PGobject`), see [rawValue].
  */
 @Service
-@ExposedBridge
+@Transactional
 class GtfsRecordsService(
     private val resolver: RevisionResolver,
 ) {
