@@ -1,6 +1,7 @@
 package eu.transittrack.predict
 
 import java.time.Instant
+import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -9,6 +10,7 @@ import kotlin.test.Test
 
 import assertk.assertFailure
 import assertk.assertThat
+import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
@@ -639,6 +641,32 @@ class PredictionWriterTest(
         val insert = sql.single { it.startsWith("INSERT INTO prediction_checkpoint") }
         assertThat(insert.substringAfterLast(" ON CONFLICT "))
             .isEqualTo("(feed_code, vehicle_id, trip_row_id, stop_path_index, algorithm, sample_slot) DO NOTHING")
+    }
+
+    /**
+     * `execBatch` sends the first row's SQL for the whole batch, so every row of a checkpoint or
+     * actuals batch must render the same SQL, however its nullable values are mixed.
+     */
+    @Test
+    fun checkpointAndActualsBatchRowsRenderTheSameSql() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        val day = LocalDate.parse("2026-09-04")
+        val candidates =
+            listOf(
+                checkpoint(t0.plusSeconds(280), t0),
+                checkpoint(null, t0).copy(confidenceSec = 30, serviceDate = day, producedAt = t0.plusSeconds(5)),
+                checkpoint(t0.plusSeconds(400), t0).copy(stopPathIndex = 0, algorithm = PredictionAlgorithm.SCHEDULE_ADHERENCE),
+                checkpoint(null, t0.plusSeconds(60)).copy(confidenceSec = null, serviceDate = day),
+            )
+        transaction(exposedDatabase) {
+            assertThat(candidates.map { checkpointInsert(it).prepareSQL(this, true) }.distinct()).hasSize(1)
+            for ((gapSec, serviceDate) in listOf(null to null, 12 to day, null to day, 12 to null)) {
+                val rows = mapOf(0 to t0, 2 to t0.plusSeconds(60), 3 to t0.plusSeconds(120))
+                val sql =
+                    rows.map { (stop, at) -> actualsUpdate("f1", "v1", 1L, stop, at, gapSec, serviceDate).prepareSQL(this, true) }
+                assertThat(sql.distinct(), name = "gap=$gapSec date=$serviceDate").hasSize(1)
+            }
+        }
     }
 
     @Test

@@ -37,6 +37,7 @@ import org.jetbrains.exposed.v1.core.notExists
 import org.jetbrains.exposed.v1.core.notInList
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.core.statements.buildStatement
 import org.jetbrains.exposed.v1.core.statements.insertValue
 import org.jetbrains.exposed.v1.core.stringParam
@@ -435,23 +436,9 @@ class PredictionWriter {
         reportGapSec: Int? = null,
         serviceDate: LocalDate? = null,
     ) {
-        val t = VehiclePredictionTable
-        val firstStop = t.stopPathIndex eq intLiteral(0)
         val statements =
             passes.map { (stopPathIndex, actualTs) ->
-                val actual = param(t.actualArrivalTs, actualTs)
-                buildStatement {
-                    t.update({
-                        (
-                            (t.feedCode eq feedCode) and (t.vehicleId eq vehicleId) and (t.tripRowId eq tripRowId) and
-                                (t.stopPathIndex eq stopPathIndex)
-                        ).andIfNotNull(serviceDate?.let { t.serviceDate eq it })
-                    }) {
-                        it[t.actualArrivalTs] = case().When<Instant?>(firstStop, t.actualArrivalTs).Else(actual)
-                        it[t.actualDepartureTs] = case().When<Instant?>(firstStop, actual).Else(t.actualDepartureTs)
-                        it[t.actualReportGapSec] = reportGapSec
-                    }
-                }
+                actualsUpdate(feedCode, vehicleId, tripRowId, stopPathIndex, actualTs, reportGapSec, serviceDate)
             }
         currentTransaction().execBatch(statements)
     }
@@ -485,53 +472,10 @@ class PredictionWriter {
     ) {
         val first = candidates.firstOrNull() ?: return
         val c = PredictionCheckpointTable
-        val p = VehiclePredictionTable
         c.deleteWhere {
             (c.feedCode eq first.feedCode) and (c.vehicleId eq first.vehicleId) and (coalesce(c.producedAt, c.computedAt) less staleBefore)
         }
-        val columns =
-            listOf(
-                c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.predictedTs, c.computedAt,
-                c.sampleSlot, c.confidenceSec, c.serviceDate, c.producedAt, c.id,
-            )
-        val statements =
-            candidates.map { k ->
-                val passed =
-                    p.select(intLiteral(1)).where {
-                        (p.feedCode eq k.feedCode) and (p.vehicleId eq k.vehicleId) and (p.tripRowId eq k.tripRowId) and
-                            (p.stopPathIndex eq k.stopPathIndex) and
-                            IsNotDistinctFromOp(p.serviceDate, param(p.serviceDate, k.serviceDate)) and
-                            (p.actualArrivalTs.isNotNull() or p.actualDepartureTs.isNotNull())
-                    }
-                val otherCohort =
-                    c.select(intLiteral(1)).where {
-                        (c.feedCode eq k.feedCode) and (c.vehicleId eq k.vehicleId) and (c.tripRowId eq k.tripRowId) and
-                            (c.stopPathIndex eq k.stopPathIndex) and (c.sampleSlot eq k.sampleSlot) and
-                            ((c.computedAt neq k.computedAt) or IsDistinctFromOp(c.producedAt, param(c.producedAt, k.producedAt)))
-                    }
-                val values =
-                    Table.Dual
-                        .select(
-                            param(c.feedCode, k.feedCode),
-                            param(c.vehicleId, k.vehicleId),
-                            param(c.tripRowId, k.tripRowId),
-                            param(c.stopPathIndex, k.stopPathIndex),
-                            param(c.algorithm, k.algorithm),
-                            param(c.predictedTs, k.predictedTs),
-                            param(c.computedAt, k.computedAt),
-                            param(c.sampleSlot, k.sampleSlot),
-                            param(c.confidenceSec, k.confidenceSec),
-                            param(c.serviceDate, k.serviceDate),
-                            param(c.producedAt, k.producedAt),
-                            c.idSequence.nextLongVal(),
-                        ).where { notExists(passed) and notExists(otherCohort) }
-                InsertSelectOnConflictDoNothing(
-                    columns,
-                    values,
-                    conflictTarget = listOf(c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.sampleSlot),
-                )
-            }
-        currentTransaction().execBatch(statements)
+        currentTransaction().execBatch(candidates.map(::checkpointInsert))
     }
 
     /** Removes and returns this vehicle's checkpoints for the stops of a trip it just passed. */
@@ -589,12 +533,6 @@ class PredictionWriter {
         fun greatestOfStoredAndInserted(column: Column<Instant>) =
             CustomFunction("greatest", column.columnType, column, insertValue(column))
 
-        /** [value] as a parameter bound the way [column] binds its values. */
-        fun <T> param(
-            column: Column<T>,
-            value: T,
-        ): QueryParameter<T> = QueryParameter(value, column.columnType)
-
         fun UpdateBuilder<*>.setBucketKey(
             table: LearnerBucketColumns,
             key: LearningKey,
@@ -610,5 +548,86 @@ class PredictionWriter {
         /** The order learner rows are locked in; see [lockObservations]. */
         val BUCKET_ORDER: Comparator<Map.Entry<LearnerBucket, *>> =
             compareBy({ it.key.stopPathIndex }, { it.key.bucket.dayType.ordinal }, { it.key.bucket.timeBand.ordinal })
+    }
+}
+
+/** [value] as a parameter bound the way [column] binds its values. */
+private fun <T> param(
+    column: Column<T>,
+    value: T,
+): QueryParameter<T> = QueryParameter(value, column.columnType)
+
+/**
+ * One candidate's row of [PredictionWriter.insertCheckpoints]' batch. Every candidate must render the
+ * same SQL (see `execBatch`), so every value, nullable ones included, is a bound parameter.
+ */
+internal fun checkpointInsert(k: CheckpointCandidate): InsertSelectOnConflictDoNothing {
+    val c = PredictionCheckpointTable
+    val p = VehiclePredictionTable
+    val columns =
+        listOf(
+            c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.predictedTs, c.computedAt,
+            c.sampleSlot, c.confidenceSec, c.serviceDate, c.producedAt, c.id,
+        )
+    val passed =
+        p.select(intLiteral(1)).where {
+            (p.feedCode eq k.feedCode) and (p.vehicleId eq k.vehicleId) and (p.tripRowId eq k.tripRowId) and
+                (p.stopPathIndex eq k.stopPathIndex) and
+                IsNotDistinctFromOp(p.serviceDate, param(p.serviceDate, k.serviceDate)) and
+                (p.actualArrivalTs.isNotNull() or p.actualDepartureTs.isNotNull())
+        }
+    val otherCohort =
+        c.select(intLiteral(1)).where {
+            (c.feedCode eq k.feedCode) and (c.vehicleId eq k.vehicleId) and (c.tripRowId eq k.tripRowId) and
+                (c.stopPathIndex eq k.stopPathIndex) and (c.sampleSlot eq k.sampleSlot) and
+                ((c.computedAt neq k.computedAt) or IsDistinctFromOp(c.producedAt, param(c.producedAt, k.producedAt)))
+        }
+    val values =
+        Table.Dual
+            .select(
+                param(c.feedCode, k.feedCode),
+                param(c.vehicleId, k.vehicleId),
+                param(c.tripRowId, k.tripRowId),
+                param(c.stopPathIndex, k.stopPathIndex),
+                param(c.algorithm, k.algorithm),
+                param(c.predictedTs, k.predictedTs),
+                param(c.computedAt, k.computedAt),
+                param(c.sampleSlot, k.sampleSlot),
+                param(c.confidenceSec, k.confidenceSec),
+                param(c.serviceDate, k.serviceDate),
+                param(c.producedAt, k.producedAt),
+                c.idSequence.nextLongVal(),
+            ).where { notExists(passed) and notExists(otherCohort) }
+    return InsertSelectOnConflictDoNothing(
+        columns,
+        values,
+        conflictTarget = listOf(c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.sampleSlot),
+    )
+}
+
+/** One stop's row of [PredictionWriter.fillActuals]' batch; see [checkpointInsert]. */
+internal fun actualsUpdate(
+    feedCode: String,
+    vehicleId: String,
+    tripRowId: Long,
+    stopPathIndex: Int,
+    actualTs: Instant,
+    reportGapSec: Int?,
+    serviceDate: LocalDate?,
+): UpdateStatement {
+    val t = VehiclePredictionTable
+    val firstStop = t.stopPathIndex eq intLiteral(0)
+    val actual = param(t.actualArrivalTs, actualTs)
+    return buildStatement {
+        t.update({
+            (
+                (t.feedCode eq feedCode) and (t.vehicleId eq vehicleId) and (t.tripRowId eq tripRowId) and
+                    (t.stopPathIndex eq stopPathIndex)
+            ).andIfNotNull(serviceDate?.let { t.serviceDate eq it })
+        }) {
+            it[t.actualArrivalTs] = case().When<Instant?>(firstStop, t.actualArrivalTs).Else(actual)
+            it[t.actualDepartureTs] = case().When<Instant?>(firstStop, actual).Else(t.actualDepartureTs)
+            it[t.actualReportGapSec] = reportGapSec
+        }
     }
 }

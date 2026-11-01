@@ -78,9 +78,10 @@ private class SameSqlBatch(
     private val argumentSets by lazy { statements.flatMap { it.arguments() } }
 
     /**
-     * Renders only the first statement. Rendering every one to compare them cost more than the rest
-     * of the batch, so the check is on the argument types instead, which catches a statement with
-     * more, fewer or different parameters (not one that differs only in its SQL text).
+     * Sends the first statement's SQL for every statement. The argument types are always checked:
+     * that is cheap and catches a statement with more, fewer or different parameters. The full check
+     * that every statement renders the same SQL (which also catches, say, `a = ?` against `a IS NULL`)
+     * costs more than the rest of the batch, so it runs only with JVM assertions enabled, as in tests.
      */
     override fun prepareSQL(
         transaction: Transaction,
@@ -88,7 +89,12 @@ private class SameSqlBatch(
     ): String {
         val types = argumentSets.first().map { it.first }
         check(argumentSets.all { args -> sameTypes(args, types) }) { "A batch's statements must all take the same parameters" }
-        return statements.first().prepareSQL(transaction, prepared)
+        val sql = statements.first().prepareSQL(transaction, prepared)
+        // Gated by an `if` rather than `assert(...)`: Kotlin's assert always evaluates its argument.
+        if (CHECK_SAME_SQL) {
+            check(statements.all { it.prepareSQL(transaction, prepared) == sql }) { "A batch's statements must all render the same SQL" }
+        }
+        return sql
     }
 
     override fun arguments() = argumentSets
@@ -105,5 +111,10 @@ private class SameSqlBatch(
             i++
         }
         return i == types.size
+    }
+
+    private companion object {
+        /** Whether JVM assertions (`-ea`) are enabled for this class; Gradle's test JVM enables them. */
+        val CHECK_SAME_SQL: Boolean = SameSqlBatch::class.java.desiredAssertionStatus()
     }
 }
