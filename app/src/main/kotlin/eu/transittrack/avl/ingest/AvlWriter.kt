@@ -2,7 +2,9 @@ package eu.transittrack.avl.ingest
 
 import java.time.Instant
 
+import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
+import org.jetbrains.exposed.v1.core.statements.insertValue
 import org.jetbrains.exposed.v1.jdbc.upsert
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
@@ -67,21 +69,28 @@ class AvlWriter {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertState(s: VehicleStateUpsert) {
-        VehicleStateTable.upsert(VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(it, s) }
+        VehicleStateTable.upsert(
+            VehicleStateTable.feedCode,
+            VehicleStateTable.vehicleId,
+            where = { VehicleStateTable.reportTs lessEq insertValue(VehicleStateTable.reportTs) },
+        ) { bind(it, s) }
     }
 
-    /**
-     * Applied in list order (one statement per row in a JDBC batch), so a later upsert for the same vehicle wins.
-     * Last-wins for a key repeated within one batch relies on pgjdbc sending separate statements (`reWriteBatchedInserts` off).
-     */
+    /** Greatest reportTs wins; equal timestamps use the last input. Older reports cannot replace stored state. */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertStates(states: List<VehicleStateUpsert>) {
         if (states.isEmpty()) return
         val latestState = states
             .groupBy { it.feedCode to it.vehicleId }
-            .map { (_, state) -> state.maxByOrNull { it.reportTs } }
-            .filterNotNull()
-        VehicleStateTable.batchUpsertWithoutResults(latestState, VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(this, it) }
+            .map { (_, updates) ->
+                updates.reduce { latest, update -> if (update.reportTs >= latest.reportTs) update else latest }
+            }
+        VehicleStateTable.batchUpsertWithoutResults(
+            latestState,
+            VehicleStateTable.feedCode,
+            VehicleStateTable.vehicleId,
+            where = { VehicleStateTable.reportTs lessEq insertValue(VehicleStateTable.reportTs) },
+        ) { bind(this, it) }
     }
 
     /** Every column but `id`, which the insert takes from `vehicle_state_seq` and an update leaves alone. */

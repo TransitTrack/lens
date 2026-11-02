@@ -86,11 +86,27 @@ class AvlWriterTest(
         matched: Boolean,
         vehicleId: String = "v",
     ) = VehicleStateUpsert(
-        feedCode = feedCode, vehicleId = vehicleId, vehicleLabel = null, reportTs = Instant.parse("2026-09-04T10:00:00Z"),
-        lat = 44.0, lon = 26.0, bearing = null, speedMps = null, occupancyStatus = null,
-        matched = matched, stale = !matched, consecutiveFailures = if (matched) 0 else 1,
-        revisionId = null, tripRowId = null, blockPk = null, tripPatternId = null, stopPathIndex = null,
-        distanceAlongTripM = null, scheduleAdherenceSec = null, snappedLat = null, snappedLon = null,
+        feedCode = feedCode,
+        vehicleId = vehicleId,
+        vehicleLabel = null,
+        reportTs = Instant.parse("2026-09-04T10:00:00Z"),
+        lat = 44.0,
+        lon = 26.0,
+        bearing = null,
+        speedMps = null,
+        occupancyStatus = null,
+        matched = matched,
+        stale = !matched,
+        consecutiveFailures = if (matched) 0 else 1,
+        revisionId = null,
+        tripRowId = null,
+        blockPk = null,
+        tripPatternId = null,
+        stopPathIndex = null,
+        distanceAlongTripM = null,
+        scheduleAdherenceSec = null,
+        snappedLat = null,
+        snappedLon = null,
         updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
     )
 
@@ -135,22 +151,103 @@ class AvlWriterTest(
         assertThat(row.id).isEqualTo(first.id)
         assertThat(
             VehicleStateUpsert(
-                row.feedCode, row.vehicleId, row.vehicleLabel, row.reportTs, row.lat, row.lon, row.bearing, row.speedMps,
-                row.occupancyStatus, row.matched, row.stale, row.consecutiveFailures, row.revisionId, row.tripRowId,
-                row.blockPk, row.tripPatternId, row.stopPathIndex, row.distanceAlongTripM, row.scheduleAdherenceSec,
-                row.snappedLat, row.snappedLon, row.updatedAt,
+                row.feedCode,
+                row.vehicleId,
+                row.vehicleLabel,
+                row.reportTs,
+                row.lat,
+                row.lon,
+                row.bearing,
+                row.speedMps,
+                row.occupancyStatus,
+                row.matched,
+                row.stale,
+                row.consecutiveFailures,
+                row.revisionId,
+                row.tripRowId,
+                row.blockPk,
+                row.tripPatternId,
+                row.stopPathIndex,
+                row.distanceAlongTripM,
+                row.scheduleAdherenceSec,
+                row.snappedLat,
+                row.snappedLon,
+                row.updatedAt,
             ),
         ).isEqualTo(second)
     }
 
-    /** A matching batch can hold several upserts for one vehicle; they apply in list order, last wins. */
     @Test
-    fun upsertStatesAppliesRepeatedVehiclesInOrder() {
-        writer.upsertStates(listOf(upsert(matched = false), upsert(matched = false, vehicleId = "w"), upsert(matched = true)))
+    fun upsertStatesUsesLastEntryWhenReportTimestampsAreEqual() {
+        writer.upsertStates(
+            listOf(
+                upsert(matched = false),
+                upsert(matched = false, vehicleId = "w"),
+                upsert(matched = true),
+            ),
+        )
 
-        assertThat(states.findByFeedCodeOrderByUpdatedAtDesc(feedCode).map { it.vehicleId }.sorted()).containsExactly("v", "w")
+        assertThat(
+            states
+                .findByFeedCodeOrderByUpdatedAtDesc(feedCode)
+                .map { it.vehicleId }
+                .sorted(),
+        ).containsExactly("v", "w")
         assertThat(states.findByFeedCodeAndVehicleId(feedCode, "v")!!.matched).isEqualTo(true)
         assertThat(states.findByFeedCodeAndVehicleId(feedCode, "w")!!.matched).isEqualTo(false)
+    }
+
+    @Test
+    fun upsertStatesUsesLatestReportTimestampRegardlessOfInputOrder() {
+        val oldest = upsert(matched = false).copy(reportTs = Instant.parse("2026-09-04T10:00:00Z"), lat = 44.0)
+        val middle = upsert(matched = false).copy(reportTs = Instant.parse("2026-09-04T10:00:15Z"), lat = 45.0)
+        val latest = upsert(matched = true).copy(reportTs = Instant.parse("2026-09-04T10:00:30Z"), lat = 46.0)
+        val inputOrders = listOf(
+            listOf(oldest, middle, latest),
+            listOf(latest, middle, oldest),
+            listOf(middle, latest, oldest),
+        )
+
+        inputOrders.forEachIndexed { index, updates ->
+            val vehicleId = "v-$index"
+            writer.upsertStates(updates.map { it.copy(vehicleId = vehicleId) })
+
+            val stored = states.findByFeedCodeAndVehicleId(feedCode, vehicleId)!!
+            assertThat(stored.reportTs).isEqualTo(latest.reportTs)
+            assertThat(stored.lat).isEqualTo(latest.lat)
+            assertThat(stored.matched).isEqualTo(latest.matched)
+        }
+        assertThat(states.findByFeedCodeOrderByUpdatedAtDesc(feedCode).size).isEqualTo(inputOrders.size)
+    }
+
+    @Test
+    fun upsertStatesDoesNotReplaceNewerStoredReportWithOlderBatch() {
+        val latest = upsert(matched = true).copy(reportTs = Instant.parse("2026-09-04T10:00:30Z"), lat = 46.0)
+        writer.upsertStates(listOf(latest))
+        val originalId = states.findByFeedCodeAndVehicleId(feedCode, "v")!!.id
+
+        writer.upsertStates(listOf(upsert(matched = false).copy(updatedAt = latest.reportTs.plusSeconds(60))))
+
+        val stored = states.findByFeedCodeAndVehicleId(feedCode, "v")!!
+        assertThat(stored.id).isEqualTo(originalId)
+        assertThat(stored.reportTs).isEqualTo(latest.reportTs)
+        assertThat(stored.lat).isEqualTo(latest.lat)
+        assertThat(stored.matched).isEqualTo(latest.matched)
+        assertThat(stored.updatedAt).isEqualTo(latest.updatedAt)
+    }
+
+    @Test
+    fun upsertStateDoesNotReplaceNewerStoredReportWithOlderReport() {
+        val latest = upsert(matched = true).copy(reportTs = Instant.parse("2026-09-04T10:00:30Z"), lat = 46.0)
+        writer.upsertState(latest)
+
+        writer.upsertState(upsert(matched = false).copy(updatedAt = latest.reportTs.plusSeconds(60)))
+
+        val stored = states.findByFeedCodeAndVehicleId(feedCode, "v")!!
+        assertThat(stored.reportTs).isEqualTo(latest.reportTs)
+        assertThat(stored.lat).isEqualTo(latest.lat)
+        assertThat(stored.matched).isEqualTo(latest.matched)
+        assertThat(stored.updatedAt).isEqualTo(latest.updatedAt)
     }
 
     // Each AvlWriter method commits on its own (as the stateless-session transaction it replaced did):
@@ -185,6 +282,11 @@ class AvlWriterTest(
     fun statesSurviveCallerFailure() {
         inFailingCaller { writer.upsertState(upsert(matched = true)) }
         inFailingCaller { writer.upsertStates(listOf(upsert(matched = false, vehicleId = "w"))) }
-        assertThat(states.findByFeedCodeOrderByUpdatedAtDesc(feedCode).map { it.vehicleId }.sorted()).containsExactly("v", "w")
+        assertThat(
+            states
+                .findByFeedCodeOrderByUpdatedAtDesc(feedCode)
+                .map { it.vehicleId }
+                .sorted(),
+        ).containsExactly("v", "w")
     }
 }
