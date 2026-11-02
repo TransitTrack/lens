@@ -31,9 +31,8 @@ import org.springframework.context.annotation.Primary
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
 import eu.transittrack.Point
+import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind

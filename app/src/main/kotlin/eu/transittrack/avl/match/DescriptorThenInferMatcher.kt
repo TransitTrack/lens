@@ -2,8 +2,6 @@ package eu.transittrack.avl.match
 
 import org.springframework.stereotype.Component
 
-import eu.transittrack.AvlAssignmentMode
-
 /**
  * Tries [TrustDescriptorMatcher] first and falls back to [FullInferenceMatcher] whenever the
  * descriptor path does not produce a match — for feeds whose descriptors are usually present but

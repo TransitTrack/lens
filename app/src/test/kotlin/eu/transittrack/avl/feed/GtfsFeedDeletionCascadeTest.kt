@@ -9,8 +9,8 @@ import assertk.assertions.isNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Import
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind

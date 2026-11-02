@@ -17,7 +17,7 @@ import org.openjdk.jmh.annotations.State
 import org.openjdk.jmh.annotations.TearDown
 import org.openjdk.jmh.annotations.Warmup
 
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
 
 /**
  * Ingest stage: decode a GTFS-RT `VehiclePosition` payload, drop already-seen `(vehicleId, ts)`
@@ -56,7 +56,7 @@ class AvlIngestBenchmark {
     fun beforeEachPoll() {
         env.resetAvlTables()
         val now = Instant.now()
-        env.avlFeedSource.payload = RawAvlPayload(env.gtfsRtPayload(vehicleCount, now.epochSecond), null, now)
+        env.avlFeedSource.payload = Payload(env.gtfsRtPayload(vehicleCount, now.epochSecond), null, now)
     }
 
     @Benchmark

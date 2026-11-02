@@ -12,6 +12,9 @@ import assertk.assertions.isTrue
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
+
 class FeedsPropertiesTest {
     private fun bind(map: Map<String, Any>): FeedsProperties =
         Binder(MapConfigurationPropertySource(map))

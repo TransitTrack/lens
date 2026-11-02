@@ -7,8 +7,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Component
 
-import eu.transittrack.AvlFormat
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
 import eu.transittrack.util.kmphToMps
 
 @Serializable
@@ -81,7 +80,7 @@ class StptVehiclePositionDecoder(
         get() = AvlFormat.STPT
 
     override fun decode(
-        payload: RawAvlPayload,
+        payload: Payload,
         feed: FeedDescriptor,
     ): List<AvlReport> {
         val response = payload.bytes

@@ -2,7 +2,6 @@ package eu.transittrack.avl.model
 
 import java.time.Instant
 
-import kotlinx.serialization.encodeToString
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
 import org.jetbrains.exposed.v1.core.eq
@@ -16,9 +15,9 @@ import org.jetbrains.exposed.v1.json.jsonb
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
 import eu.transittrack.ProjectJson
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.db.RowTable
 import eu.transittrack.predict.PredictionAlgorithm
 

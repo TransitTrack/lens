@@ -33,8 +33,8 @@ import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.transaction.support.TransactionTemplate
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind

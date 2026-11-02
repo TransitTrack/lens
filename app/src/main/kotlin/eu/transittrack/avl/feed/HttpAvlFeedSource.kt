@@ -23,7 +23,7 @@ class HttpAvlFeedSource(
     private val client: OkHttpClient,
     private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) : AvlFeedSource {
-    override fun fetch(feed: AvlFeed): RawAvlPayload {
+    override fun fetch(feed: AvlFeed): Payload {
         val startedAt = Instant.now()
         val builder = Request
             .Builder()
@@ -44,7 +44,7 @@ class HttpAvlFeedSource(
                         Duration
                             .between(startedAt, Instant.now()),
                     )
-                return RawAvlPayload(body, response.body.contentType()?.toString(), Instant.now())
+                return Payload(body, response.body.contentType()?.toString(), Instant.now())
             }
         } catch (e: AvlFetchException) {
             metrics.outboundHttp("avl_poll", feed.url, null, TransitTrackMetrics.Outcome.FAILED, Duration.between(startedAt, Instant.now()))

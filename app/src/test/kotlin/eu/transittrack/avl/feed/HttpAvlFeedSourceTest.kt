@@ -14,10 +14,10 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
 import eu.transittrack.HttpClientProperties
 import eu.transittrack.HttpClientsConfiguration
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 

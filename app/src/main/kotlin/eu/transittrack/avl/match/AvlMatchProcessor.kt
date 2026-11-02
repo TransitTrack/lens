@@ -10,7 +10,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Component
 
-import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
 import eu.transittrack.avl.AvlProperties

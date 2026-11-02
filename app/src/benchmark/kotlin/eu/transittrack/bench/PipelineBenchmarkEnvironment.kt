@@ -28,12 +28,12 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 
 import eu.transittrack.Application
-import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.AvlFeedSource
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
 import eu.transittrack.avl.ingest.AvlIngestService
 import eu.transittrack.avl.ingest.AvlWriter
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
@@ -54,9 +54,9 @@ import eu.transittrack.predict.PredictionProcessor
  * background loop, see [PipelineBenchmarkEnvironment.poisonBackgroundSchedulerLocks] - decodes to
  * zero vehicles instead of throwing. */
 class StubAvlFeedSource : AvlFeedSource {
-    @Volatile var payload: RawAvlPayload = RawAvlPayload(emptyFeedMessageBytes(), null, Instant.now())
+    @Volatile var payload: Payload = Payload(emptyFeedMessageBytes(), null, Instant.now())
 
-    override fun fetch(feed: AvlFeed): RawAvlPayload = payload
+    override fun fetch(feed: AvlFeed): Payload = payload
 
     companion object {
         private fun emptyFeedMessageBytes(): ByteArray =

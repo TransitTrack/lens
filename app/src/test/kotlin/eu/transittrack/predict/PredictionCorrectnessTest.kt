@@ -28,8 +28,8 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.MatchOutcome

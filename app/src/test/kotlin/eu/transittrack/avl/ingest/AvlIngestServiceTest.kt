@@ -18,10 +18,9 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.AvlFeedSource
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -47,7 +46,7 @@ class AvlIngestServiceTest(
     private var bytes: ByteArray = ByteArray(0)
     private val source =
         object : AvlFeedSource {
-            override fun fetch(feed: AvlFeed) = RawAvlPayload(bytes, null, Instant.parse("2026-09-04T10:00:00Z"))
+            override fun fetch(feed: AvlFeed) = Payload(bytes, null, Instant.parse("2026-09-04T10:00:00Z"))
         }
     private val service by lazy { AvlIngestService(source, decoders, writer, reports, pollRecorder) }
 

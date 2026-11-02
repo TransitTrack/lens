@@ -9,7 +9,6 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
-import assertk.assertions.isNull
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.mockito.kotlin.mock
@@ -21,8 +20,8 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.match.AvlMatchContext
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.cache.CachedLearningKeyReader

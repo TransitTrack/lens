@@ -11,8 +11,8 @@ import assertk.assertions.isEqualTo
 import org.mockito.kotlin.mock
 import org.springframework.beans.factory.annotation.Autowired
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository

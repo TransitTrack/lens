@@ -18,8 +18,7 @@ import com.google.transit.realtime.GtfsRealtime.TripDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 
-import eu.transittrack.AvlFormat
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
 
 class GtfsRealtimeVehiclePositionDecoderTest {
     private val decoder = GtfsRealtimeVehiclePositionDecoder()
@@ -27,7 +26,7 @@ class GtfsRealtimeVehiclePositionDecoderTest {
         code = "f", name = "F", url = "https://x.test/vp.pb", format = AvlFormat.GTFS_RT, headers = null,
     )
 
-    private fun payload(m: FeedMessage) = RawAvlPayload(m.toByteArray(), "application/x-protobuf", Instant.parse("2026-09-04T10:00:00Z"))
+    private fun payload(m: FeedMessage) = Payload(m.toByteArray(), "application/x-protobuf", Instant.parse("2026-09-04T10:00:00Z"))
 
     private fun message(vararg entities: FeedEntity): FeedMessage =
         FeedMessage
@@ -149,7 +148,7 @@ class GtfsRealtimeVehiclePositionDecoderTest {
     @Test
     fun `garbage bytes raise AvlDecodeException`() {
         assertFailure {
-            decoder.decode(RawAvlPayload(byteArrayOf(9, 9, 9, 9), null, Instant.EPOCH), feed)
+            decoder.decode(Payload(byteArrayOf(9, 9, 9, 9), null, Instant.EPOCH), feed)
         }.isInstanceOf(AvlDecodeException::class)
     }
 

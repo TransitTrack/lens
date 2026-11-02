@@ -3,7 +3,6 @@ package eu.transittrack.avl.match
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
-import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.schedule.model.TripRef

@@ -12,8 +12,7 @@ import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
-import eu.transittrack.AvlFormat
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
 
 /**
  * Decodes a GTFS-realtime `FeedMessage` into normalized [AvlReport]s, one per entity that carries a
@@ -27,7 +26,7 @@ class GtfsRealtimeVehiclePositionDecoder : AvlFeedDecoder {
     override val format = AvlFormat.GTFS_RT
 
     override fun decode(
-        payload: RawAvlPayload,
+        payload: Payload,
         feed: FeedDescriptor,
     ): List<AvlReport> {
         val message =

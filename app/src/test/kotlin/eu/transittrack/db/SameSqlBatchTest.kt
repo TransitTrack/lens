@@ -14,7 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.springframework.beans.factory.annotation.Autowired
 
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.model.AvlFeedTable
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest

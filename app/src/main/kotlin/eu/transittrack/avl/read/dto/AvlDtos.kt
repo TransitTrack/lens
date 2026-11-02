@@ -1,9 +1,9 @@
 package eu.transittrack.avl.read.dto
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
+import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.ingest.VehicleStopStatus
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.MatchStatus

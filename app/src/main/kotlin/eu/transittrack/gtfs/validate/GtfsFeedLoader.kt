@@ -1,7 +1,6 @@
 package eu.transittrack.gtfs.validate
 
 import java.nio.file.Path
-import kotlin.io.path.Path
 
 import io.github.transittrack.gtfsanalyzer.EngineJson
 import io.github.transittrack.gtfsanalyzer.EngineResult

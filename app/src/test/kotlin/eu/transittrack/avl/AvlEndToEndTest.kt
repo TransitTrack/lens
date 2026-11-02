@@ -1,7 +1,6 @@
 package eu.transittrack.avl
 
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import kotlin.test.Test
 
@@ -36,10 +35,10 @@ import org.springframework.graphql.test.tester.HttpGraphQlTester
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.AvlAssignmentMode
-import eu.transittrack.AvlFormat
 import eu.transittrack.Point
+import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.ingest.AvlIngestService
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.match.AvlMatchProcessor
 import eu.transittrack.avl.model.AvlFeed

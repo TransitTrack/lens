@@ -8,7 +8,6 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.AvlFormat
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.feed.AvlFeedSource
 import eu.transittrack.avl.model.AvlFeed

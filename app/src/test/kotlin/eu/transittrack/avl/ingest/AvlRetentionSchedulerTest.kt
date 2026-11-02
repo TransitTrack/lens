@@ -15,8 +15,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 
-import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.AvlReportTable
 import eu.transittrack.avl.model.MatchStatus

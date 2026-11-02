@@ -18,7 +18,6 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 
-import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedTable
