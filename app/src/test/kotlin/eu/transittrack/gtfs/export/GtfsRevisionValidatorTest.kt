@@ -7,12 +7,16 @@ import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isNotNull
 import assertk.assertions.isTrue
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.model.StopTimeRepository
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
@@ -33,7 +37,7 @@ class GtfsRevisionValidatorTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired val json: JsonMapper,
+    @Autowired val json: Json,
 ) : PostgresPerMethodTest() {
     private var rev: Long? = null
 
@@ -45,9 +49,9 @@ class GtfsRevisionValidatorTest(
         assertThat(result.publishable).isTrue()
         val persisted = revisions.findById(r)!!.lastValidation
         assertThat(persisted).isNotNull()
-        val node = json.readTree(persisted!!)
-        assertThat(node.path("errorCount").isNumber).isTrue()
-        assertThat(node.path("publishable").asBoolean(false)).isTrue()
+        val node = json.parseToJsonElement(persisted!!).jsonObject
+        assertThat(node.getValue("errorCount").jsonPrimitive.int >= 0).isTrue()
+        assertThat(node.getValue("publishable").jsonPrimitive.boolean).isTrue()
     }
 
     @Test
@@ -64,8 +68,8 @@ class GtfsRevisionValidatorTest(
         val result = validator.validate(r)
         assertThat(result.errorCount).isGreaterThan(0)
         assertThat(result.publishable).isFalse()
-        val node = json.readTree(revisions.findById(r)!!.lastValidation!!)
-        assertThat(node.path("errorCount").asInt(-1)).isGreaterThan(0)
-        assertThat(node.path("publishable").asBoolean(true)).isFalse()
+        val node = json.parseToJsonElement(revisions.findById(r)!!.lastValidation!!).jsonObject
+        assertThat(node.getValue("errorCount").jsonPrimitive.int).isGreaterThan(0)
+        assertThat(node.getValue("publishable").jsonPrimitive.boolean).isFalse()
     }
 }

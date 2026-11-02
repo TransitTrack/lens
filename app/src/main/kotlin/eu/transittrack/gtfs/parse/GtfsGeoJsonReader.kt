@@ -2,9 +2,14 @@ package eu.transittrack.gtfs.parse
 
 import java.io.InputStream
 
-import tools.jackson.databind.json.JsonMapper
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 import eu.transittrack.ParseException
+import eu.transittrack.ProjectJson
 
 data class ParsedLocation(
     val locationId: String,
@@ -14,27 +19,35 @@ data class ParsedLocation(
 )
 
 object GtfsGeoJsonReader {
-    private val mapper = JsonMapper.builder().build()
-
     fun read(input: InputStream): List<ParsedLocation> {
-        val root = mapper.readTree(input)
-        if (root.get("type")?.asString() != "FeatureCollection") {
+        val root = ProjectJson.parseToJsonElement(input.reader(Charsets.UTF_8).readText()) as? JsonObject
+            ?: throw ParseException("locations.geojson root must be a FeatureCollection")
+        if (root["type"]?.jsonPrimitive?.content != "FeatureCollection") {
             throw ParseException("locations.geojson root must be a FeatureCollection")
         }
-        val features = root.get("features") ?: return emptyList()
+        val features = root["features"]?.takeUnless { it is JsonNull }?.jsonArray ?: return emptyList()
         return buildList {
-            for (f in features) {
+            for (feature in features) {
+                val f = feature.jsonObject
                 val id =
-                    f.get("id")?.takeIf { !it.isNull }?.asString()
+                    f["id"]?.takeUnless { it is JsonNull }?.jsonPrimitive?.content
                         ?: throw ParseException("locations.geojson feature missing 'id'")
-                val props = f.get("properties")
+                val props = f["properties"]?.takeUnless { it is JsonNull }?.jsonObject
                 add(
                     ParsedLocation(
                         locationId = id,
-                        stopName = props?.get("stop_name")?.takeIf { !it.isNull }?.asString(),
-                        stopDesc = props?.get("stop_desc")?.takeIf { !it.isNull }?.asString(),
+                        stopName = props
+                            ?.get("stop_name")
+                            ?.takeUnless { it is JsonNull }
+                            ?.jsonPrimitive
+                            ?.content,
+                        stopDesc = props
+                            ?.get("stop_desc")
+                            ?.takeUnless { it is JsonNull }
+                            ?.jsonPrimitive
+                            ?.content,
                         geometryJson =
-                            f.get("geometry")?.takeIf { !it.isNull }?.let { mapper.writeValueAsString(it) } ?: "null",
+                            f["geometry"]?.toString() ?: "null",
                     ),
                 )
             }

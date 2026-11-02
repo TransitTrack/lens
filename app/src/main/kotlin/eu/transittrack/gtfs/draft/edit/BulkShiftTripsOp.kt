@@ -1,5 +1,13 @@
 package eu.transittrack.gtfs.draft.edit
 
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+
 import eu.transittrack.gtfs.model.Trip
 
 /**
@@ -81,26 +89,32 @@ class BulkShiftTripsOp(
                 t.tripId to applied
             }
 
-        val fwdArr = ctx.json.createArrayNode()
-        val invArr = ctx.json.createArrayNode()
-        shifts.forEach { (tripId, applied) ->
-            fwdArr.add(
-                ctx.json
-                    .createObjectNode()
-                    .put("tripId", tripId)
-                    .put("delta", applied),
-            )
-            invArr.add(
-                ctx.json
-                    .createObjectNode()
-                    .put("tripId", tripId)
-                    .put("delta", -applied),
+        val fwd = buildJsonObject {
+            put(
+                "shifts",
+                JsonArray(
+                    shifts.map { (tripId, applied) ->
+                        buildJsonObject {
+                            put("tripId", tripId)
+                            put("delta", applied)
+                        }
+                    },
+                ),
             )
         }
-        val fwd = ctx.json.createObjectNode()
-        fwd.replace("shifts", fwdArr)
-        val inv = ctx.json.createObjectNode()
-        inv.replace("shifts", invArr)
+        val inv = buildJsonObject {
+            put(
+                "shifts",
+                JsonArray(
+                    shifts.map { (tripId, applied) ->
+                        buildJsonObject {
+                            put("tripId", tripId)
+                            put("delta", -applied)
+                        }
+                    },
+                ),
+            )
+        }
 
         return PlannedEdit(
             "Shift ${shifts.size} trips by ${if (deltaSec >= 0) "+" else ""}${deltaSec / 60}m",
@@ -114,8 +128,16 @@ class BulkShiftTripsOp(
         init {
             EditOpRegistry.register("BULK_SHIFT") { ctx, dir ->
                 {
-                    dir.get("shifts").forEach { el ->
-                        ShiftTripOp.shift(ctx, el.get("tripId").asString(), el.get("delta").asInt())
+                    dir.jsonObject.getValue("shifts").jsonArray.forEach { el ->
+                        ShiftTripOp.shift(
+                            ctx,
+                            el.jsonObject
+                                .getValue("tripId")
+                                .jsonPrimitive.content,
+                            el.jsonObject
+                                .getValue("delta")
+                                .jsonPrimitive.int,
+                        )
                     }
                 }
             }

@@ -9,13 +9,17 @@ import assertk.assertions.contains
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.ProjectJson
 import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.draft.DraftService
@@ -59,7 +63,7 @@ class ScheduleOptimizationApplyTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
 ) : PostgresPerMethodTest() {
-    private val json = JsonMapper.builder().build()
+    private val json = ProjectJson
     private val clean = mutableListOf<Long>()
 
     private fun successfulRun(
@@ -90,18 +94,22 @@ class ScheduleOptimizationApplyTest(
             deltaSec = 30,
             reason = "test",
             proposedValue =
-                json.writeValueAsString(
-                    linkedMapOf(
-                        "targets" to
-                            listOf(
-                                linkedMapOf(
-                                    "tripId" to tripId,
-                                    "stopSequence" to stopSequence,
-                                    "arrivalSec" to arrivalSec,
-                                    "departureSec" to departureSec,
-                                ),
-                            ),
-                    ),
+                json.encodeToString(
+                    buildJsonObject {
+                        put(
+                            "targets",
+                            buildJsonArray {
+                                add(
+                                    buildJsonObject {
+                                        put("tripId", tripId)
+                                        put("stopSequence", stopSequence)
+                                        put("arrivalSec", arrivalSec)
+                                        put("departureSec", departureSec)
+                                    },
+                                )
+                            },
+                        )
+                    },
                 ),
             conflictKey = "cell:$tripId:$stopSequence",
         ),
@@ -120,11 +128,20 @@ class ScheduleOptimizationApplyTest(
             deltaSec = deltaSec,
             reason = "test",
             proposedValue =
-                json.writeValueAsString(
-                    linkedMapOf(
-                        "targets" to
-                            listOf(linkedMapOf("tripId" to tripId, "startTimeSec" to startTimeSec)),
-                    ),
+                json.encodeToString(
+                    buildJsonObject {
+                        put(
+                            "targets",
+                            buildJsonArray {
+                                add(
+                                    buildJsonObject {
+                                        put("tripId", tripId)
+                                        put("startTimeSec", startTimeSec)
+                                    },
+                                )
+                            },
+                        )
+                    },
                 ),
             conflictKey = "shift:$tripId",
         ),
@@ -277,7 +294,7 @@ class ScheduleOptimizationApplyTest(
                     sampleCount = 5,
                     deltaSec = 30,
                     reason = "test",
-                    proposedValue = json.writeValueAsString(linkedMapOf("targets" to emptyList<Any>())),
+                    proposedValue = json.encodeToString(mapOf("targets" to emptyList<String>())),
                     conflictKey = "cell:none:0",
                 ),
             )

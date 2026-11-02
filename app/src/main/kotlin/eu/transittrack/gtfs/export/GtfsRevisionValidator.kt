@@ -2,19 +2,23 @@ package eu.transittrack.gtfs.export
 
 import java.nio.file.Files
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 
+@Serializable
 data class ValidationNotice(
     val severity: String,
     val code: String,
     val message: String,
 )
 
+@Serializable
 data class ValidationResult(
     val errorCount: Int,
     val warningCount: Int,
@@ -36,7 +40,7 @@ class GtfsRevisionValidator(
     private val serializer: GtfsSerializer,
     private val feedLoader: GtfsFeedLoader,
     private val revisions: GtfsRevisionRepository,
-    private val json: JsonMapper,
+    private val json: Json,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -56,7 +60,7 @@ class GtfsRevisionValidator(
             // "publishable":B}) — DraftService.activate reads `publishable` from it and the web
             // app's draft pages read the rest.
             revisions.findById(revisionId)?.let {
-                it.lastValidation = json.writeValueAsString(result)
+                it.lastValidation = json.encodeToString(result)
                 revisions.save(it)
             }
             log.info(

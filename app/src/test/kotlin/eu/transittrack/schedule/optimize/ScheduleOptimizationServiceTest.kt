@@ -12,8 +12,8 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.core.task.TaskExecutor
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.ProjectJson
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -83,9 +83,7 @@ class ScheduleOptimizationServiceTest {
         val service =
             ScheduleOptimizationService(
                 feeds, revisions, runs, recommendations, pipeline, CapturingExecutor(), mock(), mock(),
-                JsonMapper
-                    .builder()
-                    .build(),
+                ProjectJson,
             )
         val result = service.submit(validRequest())
 
@@ -106,9 +104,7 @@ class ScheduleOptimizationServiceTest {
         val service =
             ScheduleOptimizationService(
                 feeds, revisions, runs, recommendations, pipeline, CapturingExecutor(), mock(), mock(),
-                JsonMapper
-                    .builder()
-                    .build(),
+                ProjectJson,
             )
 
         assertThrows<IllegalArgumentException> { service.submit(validRequest()) }
@@ -171,9 +167,7 @@ class ScheduleOptimizationServiceTest {
         val service =
             ScheduleOptimizationService(
                 feeds, revisions, runs, recommendations, pipeline, executor, mock(), mock(),
-                JsonMapper
-                    .builder()
-                    .build(),
+                ProjectJson,
             )
         val run = service.submit(validRequest())
 
@@ -198,9 +192,7 @@ class ScheduleOptimizationServiceTest {
         val service =
             ScheduleOptimizationService(
                 feeds, revisions, runs, recommendations, pipeline, executor, mock(), mock(),
-                JsonMapper
-                    .builder()
-                    .build(),
+                ProjectJson,
             )
         val run = service.submit(validRequest())
         executor.runAll()
@@ -246,9 +238,7 @@ class ScheduleOptimizationServiceTest {
         val service =
             ScheduleOptimizationService(
                 feeds, revisions, runs, recommendations, pipeline, executor, mock(), mock(),
-                JsonMapper
-                    .builder()
-                    .build(),
+                ProjectJson,
             )
         val run = service.submit(validRequest())
         executor.runAll()
@@ -271,9 +261,7 @@ class ScheduleOptimizationServiceTest {
         val service =
             ScheduleOptimizationService(
                 feeds, revisions, runs, recommendations, pipeline, CapturingExecutor(), mock(), mock(),
-                JsonMapper
-                    .builder()
-                    .build(),
+                ProjectJson,
             )
         service.listRecommendations(42, eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus.PENDING, 10, 25)
 

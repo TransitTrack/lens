@@ -2,7 +2,9 @@ package eu.transittrack.schedule.optimize.api
 
 import java.time.Instant
 import kotlin.test.Test
+import kotlin.test.assertEquals
 
+import kotlinx.serialization.encodeToString
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.eq
@@ -13,8 +15,9 @@ import org.springframework.boot.graphql.test.autoconfigure.GraphQlTest
 import org.springframework.context.annotation.Import
 import org.springframework.graphql.test.tester.GraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.JsonConfiguration
+import eu.transittrack.ProjectJson
 import eu.transittrack.gtfs.api.DraftMapper
 import eu.transittrack.gtfs.api.GraphQlConfiguration
 import eu.transittrack.gtfs.draft.DraftLock
@@ -37,7 +40,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunState
  * database.
  */
 @GraphQlTest(controllers = [OptimizationController::class])
-@Import(GraphQlConfiguration::class, DraftMapper::class)
+@Import(GraphQlConfiguration::class, DraftMapper::class, JsonConfiguration::class)
 class OptimizationGraphQlTest(
     @Autowired val tester: GraphQlTester,
 ) {
@@ -47,7 +50,7 @@ class OptimizationGraphQlTest(
 
     @MockitoBean lateinit var feedService: GtfsFeedService
 
-    private val json = JsonMapper.builder().build()
+    private val json = ProjectJson
 
     private fun run(
         id: Long = 1,
@@ -73,9 +76,9 @@ class OptimizationGraphQlTest(
         deltaSec = 45,
         reason = "test reason",
         status = status,
-        currentValue = json.writeValueAsString(linkedMapOf("targets" to listOf(1, 2))),
-        proposedValue = json.writeValueAsString(linkedMapOf("targets" to listOf(3, 4))),
-        evidence = json.writeValueAsString(linkedMapOf("sampleCount" to 5)),
+        currentValue = json.encodeToString(linkedMapOf("targets" to listOf(1, 2))),
+        proposedValue = json.encodeToString(linkedMapOf("targets" to listOf(3, 4))),
+        evidence = json.encodeToString(linkedMapOf("sampleCount" to 5)),
         conflictKey = "cell:T1:2",
     ).apply { this.id = id }
 
@@ -200,6 +203,41 @@ class OptimizationGraphQlTest(
             .path("optimizationRecommendations")
             .entityList(Any::class.java)
             .hasSize(0)
+    }
+
+    @Test
+    fun `recommendation JSON fields expose objects arrays and primitive values`() {
+        val row =
+            recommendation().apply {
+                evidence = """{"sampleCount":5,"large":9007199254740993,"string":"null","boolean":true,"absent":null}"""
+            }
+        whenever(service.listRecommendations(eq(1L), isNull(), eq(0), eq(100))).thenReturn(listOf(row))
+
+        val response =
+            tester
+                .document(
+                    """{ optimizationRecommendations(runId: "1") { currentValue proposedValue evidence } }""",
+                ).execute()
+        assertEquals(
+            listOf(1, 2),
+            response.path("optimizationRecommendations[0].currentValue.targets").entityList(Int::class.java).get(),
+        )
+        assertEquals(
+            listOf(3, 4),
+            response.path("optimizationRecommendations[0].proposedValue.targets").entityList(Int::class.java).get(),
+        )
+        response
+            .path("optimizationRecommendations[0].evidence.large")
+            .entity(Long::class.java)
+            .isEqualTo(9007199254740993L)
+            .path("optimizationRecommendations[0].evidence.string")
+            .entity(String::class.java)
+            .isEqualTo("null")
+            .path("optimizationRecommendations[0].evidence.boolean")
+            .entity(Boolean::class.java)
+            .isEqualTo(true)
+            .path("optimizationRecommendations[0].evidence.absent")
+            .valueIsNull()
     }
 
     @Test

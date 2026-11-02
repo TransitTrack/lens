@@ -2,9 +2,10 @@ package eu.transittrack.gtfs.draft.edit
 
 import java.time.Instant
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftEditRepository
@@ -36,7 +37,7 @@ class DraftEditService(
     private val tripPatterns: TripPatternRepository,
     private val calendars: CalendarRepository,
     private val calendarDates: CalendarDateRepository,
-    private val json: JsonMapper,
+    private val json: Json,
 ) {
     data class DraftEditResultData(
         val draft: GtfsRevision,
@@ -120,8 +121,8 @@ class DraftEditService(
                     seq = nextSeq,
                     op = op.op,
                     summary = planned.summary,
-                    forward = json.writeValueAsString(planned.forward),
-                    inverse = json.writeValueAsString(planned.inverse),
+                    forward = json.encodeToString(planned.forward),
+                    inverse = json.encodeToString(planned.inverse),
                     appliedAt = Instant.now(),
                 ),
             )
@@ -150,7 +151,7 @@ class DraftEditService(
     ): DraftEditResultData {
         val d = guard(draftId, editor, expectedVersion)
         val top = edits.findLastApplied(draftId) ?: return result(d, null)
-        EditOpRegistry.mutationFor(top.op, json.readTree(top.inverse))(ctx(draftId))
+        EditOpRegistry.mutationFor(top.op, json.parseToJsonElement(top.inverse))(ctx(draftId))
         top.undone = true
         edits.save(top)
         bump(d)
@@ -165,7 +166,7 @@ class DraftEditService(
     ): DraftEditResultData {
         val d = guard(draftId, editor, expectedVersion)
         val next = edits.findNextRedo(draftId) ?: return result(d, null)
-        EditOpRegistry.mutationFor(next.op, json.readTree(next.forward))(ctx(draftId))
+        EditOpRegistry.mutationFor(next.op, json.parseToJsonElement(next.forward))(ctx(draftId))
         next.undone = false
         edits.save(next)
         bump(d)

@@ -10,10 +10,10 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import org.springframework.beans.factory.annotation.Autowired
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
+import eu.transittrack.ProjectJson
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -54,7 +54,7 @@ class StopTimeAnalyzerTest(
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val runs: OptimizationRunRepository,
 ) : PostgresPerMethodTest() {
-    private val json = JsonMapper.builder().build()
+    private val json = ProjectJson
     private val analyzer = StopTimeAnalyzer(OptimizationProperties(), json)
 
     private fun seedFeedAndRevision(code: String = "g"): Triple<String, Long, String> {
@@ -305,6 +305,12 @@ class StopTimeAnalyzerTest(
         assertThat(recommendation.currentValue!!).contains("T1")
         assertThat(recommendation.currentValue!!.contains("T2")).isFalse()
         assertThat(recommendation.conflictKey!!).isEqualTo("cell:T1:2")
+        assertThat(json.parseToJsonElement(recommendation.currentValue!!)).isEqualTo(
+            json.parseToJsonElement("""{"targets":[{"tripId":"T1","stopSequence":2,"arrivalSec":29100,"departureSec":29100}]}"""),
+        )
+        assertThat(json.parseToJsonElement(recommendation.proposedValue!!)).isEqualTo(
+            json.parseToJsonElement("""{"targets":[{"tripId":"T1","stopSequence":2,"arrivalSec":29165,"departureSec":29165}]}"""),
+        )
     }
 
     @Test

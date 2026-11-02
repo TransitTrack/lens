@@ -1,6 +1,10 @@
 package eu.transittrack.gtfs.draft.edit
 
-import tools.jackson.databind.node.ArrayNode
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 import eu.transittrack.gtfs.model.StopTime
 
@@ -16,14 +20,12 @@ import eu.transittrack.gtfs.model.StopTime
  */
 private object StopSeq {
     /** Serialise an ordered list to a `rows` array, renumbering `stop_sequence` densely 1..n. */
-    fun denseRows(
-        ctx: EditContext,
-        ordered: List<StopTime>,
-    ): ArrayNode {
-        val arr = ctx.json.createArrayNode()
-        ordered.forEachIndexed { i, st -> arr.add(StopTimeSnapshot.toNode(ctx.json, st).put("stopSequence", i + 1)) }
-        return arr
-    }
+    fun denseRows(ordered: List<StopTime>): JsonArray =
+        JsonArray(
+            ordered.mapIndexed { i, st ->
+                JsonObject(StopTimeSnapshot.toNode(st) + ("stopSequence" to JsonPrimitive(i + 1)))
+            },
+        )
 
     fun plannedFor(
         ctx: EditContext,
@@ -31,11 +33,15 @@ private object StopSeq {
         summary: String,
         ordered: List<StopTime>,
     ): PlannedEdit {
-        val forwardRows = denseRows(ctx, ordered)
-        val fwd = ctx.json.createObjectNode().put("tripId", tripId)
-        fwd.replace("rows", forwardRows)
-        val inv = ctx.json.createObjectNode().put("tripId", tripId)
-        inv.replace("rows", StopTimeSnapshot.snapshotRows(ctx, tripId))
+        val forwardRows = denseRows(ordered)
+        val fwd = buildJsonObject {
+            put("tripId", tripId)
+            put("rows", forwardRows)
+        }
+        val inv = buildJsonObject {
+            put("tripId", tripId)
+            put("rows", StopTimeSnapshot.snapshotRows(ctx, tripId))
+        }
         return PlannedEdit(
             summary,
             fwd,

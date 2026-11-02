@@ -6,9 +6,11 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.springframework.beans.factory.annotation.Autowired
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.ProjectJson
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -68,12 +70,11 @@ class AccessibilityEntitiesTest(
         )
         assertThat(
             locations.findByRevisionId(rev)[0].geometry.let {
-                JsonMapper
-                    .builder()
-                    .build()
-                    .readTree(it)
-                    .get("type")
-                    .asString()
+                ProjectJson
+                    .parseToJsonElement(it)
+                    .jsonObject
+                    .getValue("type")
+                    .jsonPrimitive.content
             },
         ).isEqualTo("Polygon")
 

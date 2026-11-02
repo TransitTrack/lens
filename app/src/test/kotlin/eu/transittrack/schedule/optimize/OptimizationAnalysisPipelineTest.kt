@@ -10,10 +10,10 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import org.springframework.beans.factory.annotation.Autowired
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
+import eu.transittrack.ProjectJson
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -59,7 +59,7 @@ class OptimizationAnalysisPipelineTest(
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val runs: OptimizationRunRepository,
 ) : PostgresPerMethodTest() {
-    private val json = JsonMapper.builder().build()
+    private val json = ProjectJson
 
     private fun pipeline() =
         OptimizationAnalysisPipeline(

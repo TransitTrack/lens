@@ -1,13 +1,16 @@
 package eu.transittrack.gtfs.draft.edit
 
-import tools.jackson.databind.node.ObjectNode
-
-private fun ObjectNode.putNullableInt(
-    name: String,
-    v: Int?,
-): ObjectNode = if (v == null) putNull(name) else put(name, v)
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 private fun fmtClock(s: Int?): String = s?.let { "%d:%02d:%02d".format(it / 3600, (it % 3600) / 60, it % 60) } ?: "—"
+
+private fun JsonElement.nullableTime(): Int? = if (this == JsonNull) null else jsonPrimitive.int
 
 /**
  * Set (or clear) the arrival/departure of one stop time. A `null` arg means "set to NULL";
@@ -34,26 +37,26 @@ class UpdateStopTimeOp(
         val oldArr = row.arrivalTime
         val oldDep = row.departureTime
         val fwd =
-            ctx.json
-                .createObjectNode()
-                .put("tripId", tripId)
-                .put("seq", stopSequence)
-                .putNullableInt("arr", arrivalSec)
-                .putNullableInt("dep", departureSec)
+            buildJsonObject {
+                put("tripId", tripId)
+                put("seq", stopSequence)
+                put("arr", arrivalSec)
+                put("dep", departureSec)
+            }
         val inv =
-            ctx.json
-                .createObjectNode()
-                .put("tripId", tripId)
-                .put("seq", stopSequence)
-                .putNullableInt("arr", oldArr)
-                .putNullableInt("dep", oldDep)
+            buildJsonObject {
+                put("tripId", tripId)
+                put("seq", stopSequence)
+                put("arr", oldArr)
+                put("dep", oldDep)
+            }
         return PlannedEdit(
             "Set $tripId#$stopSequence to ${fmtClock(arrivalSec)}/${fmtClock(departureSec)}",
             fwd,
             inv,
             mutate = {
-                row.arrivalTime = if (fwd.get("arr").isNull) null else fwd.get("arr").asInt()
-                row.departureTime = if (fwd.get("dep").isNull) null else fwd.get("dep").asInt()
+                row.arrivalTime = arrivalSec
+                row.departureTime = departureSec
                 ctx.stopTimes.save(row)
             },
         )
@@ -65,10 +68,20 @@ class UpdateStopTimeOp(
                 {
                     val row =
                         ctx.stopTimes
-                            .findByTripId(ctx.revisionId, dir.get("tripId").asString())
-                            .single { it.stopSequence == dir.get("seq").asInt() }
-                    row.arrivalTime = if (dir.get("arr").isNull) null else dir.get("arr").asInt()
-                    row.departureTime = if (dir.get("dep").isNull) null else dir.get("dep").asInt()
+                            .findByTripId(
+                                ctx.revisionId,
+                                dir.jsonObject
+                                    .getValue("tripId")
+                                    .jsonPrimitive.content,
+                            ).single {
+                                it.stopSequence == dir.jsonObject
+                                    .getValue("seq")
+                                    .jsonPrimitive.int
+                            }
+                    val arrival = dir.jsonObject.getValue("arr").nullableTime()
+                    val departure = dir.jsonObject.getValue("dep").nullableTime()
+                    row.arrivalTime = arrival
+                    row.departureTime = departure
                     ctx.stopTimes.save(row)
                 }
             }
@@ -94,14 +107,14 @@ class ShiftTripOp(
                 .flatMap { listOfNotNull(it.arrivalTime, it.departureTime) }
                 .minOrNull() ?: 0
         val applied = if (deltaSec < 0) maxOf(deltaSec, -minTime) else deltaSec
-        val fwd = ctx.json
-            .createObjectNode()
-            .put("tripId", tripId)
-            .put("delta", applied)
-        val inv = ctx.json
-            .createObjectNode()
-            .put("tripId", tripId)
-            .put("delta", -applied)
+        val fwd = buildJsonObject {
+            put("tripId", tripId)
+            put("delta", applied)
+        }
+        val inv = buildJsonObject {
+            put("tripId", tripId)
+            put("delta", -applied)
+        }
         return PlannedEdit(
             "Shift trip $tripId by ${if (applied >= 0) "+" else ""}${applied / 60}m",
             fwd,
@@ -126,7 +139,17 @@ class ShiftTripOp(
 
         init {
             EditOpRegistry.register("SHIFT_TRIP") { ctx, dir ->
-                { shift(ctx, dir.get("tripId").asString(), dir.get("delta").asInt()) }
+                {
+                    shift(
+                        ctx,
+                        dir.jsonObject
+                            .getValue("tripId")
+                            .jsonPrimitive.content,
+                        dir.jsonObject
+                            .getValue("delta")
+                            .jsonPrimitive.int,
+                    )
+                }
             }
         }
     }
@@ -151,17 +174,17 @@ class SetStopDwellOp(
         val oldDep = row.departureTime
         val arr = row.arrivalTime ?: oldDep ?: 0
         val fwd =
-            ctx.json
-                .createObjectNode()
-                .put("tripId", tripId)
-                .put("seq", stopSequence)
-                .put("dep", arr + dwellSec)
+            buildJsonObject {
+                put("tripId", tripId)
+                put("seq", stopSequence)
+                put("dep", arr + dwellSec)
+            }
         val inv =
-            ctx.json
-                .createObjectNode()
-                .put("tripId", tripId)
-                .put("seq", stopSequence)
-                .putNullableInt("dep", oldDep)
+            buildJsonObject {
+                put("tripId", tripId)
+                put("seq", stopSequence)
+                put("dep", oldDep)
+            }
         return PlannedEdit(
             "Dwell ${dwellSec}s at $tripId#$stopSequence",
             fwd,
@@ -179,9 +202,17 @@ class SetStopDwellOp(
                 {
                     val row =
                         ctx.stopTimes
-                            .findByTripId(ctx.revisionId, dir.get("tripId").asString())
-                            .single { it.stopSequence == dir.get("seq").asInt() }
-                    row.departureTime = if (dir.get("dep").isNull) null else dir.get("dep").asInt()
+                            .findByTripId(
+                                ctx.revisionId,
+                                dir.jsonObject
+                                    .getValue("tripId")
+                                    .jsonPrimitive.content,
+                            ).single {
+                                it.stopSequence == dir.jsonObject
+                                    .getValue("seq")
+                                    .jsonPrimitive.int
+                            }
+                    row.departureTime = dir.jsonObject.getValue("dep").nullableTime()
                     ctx.stopTimes.save(row)
                 }
             }

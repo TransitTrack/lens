@@ -4,12 +4,15 @@ import java.nio.file.Files
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
 import kotlin.io.path.nameWithoutExtension
+import kotlin.io.path.readText
 import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEmpty
-import tools.jackson.databind.node.ObjectNode
+import kotlinx.serialization.json.encodeToJsonElement
+
+import eu.transittrack.ProjectJson
 
 /**
  * The in-house reader + mappers must write exactly what the MobilityData pipeline wrote. Goldens in
@@ -28,7 +31,7 @@ class BaselineEquivalenceTest {
         try {
             goldens.forEach { golden ->
                 val fixture = golden.nameWithoutExtension
-                val expected = BaselineSupport.mapper.readTree(golden.toFile()) as ObjectNode
+                val expected = ProjectJson.parseToJsonElement(golden.readText())
                 val actual = LinkedHashMap<String, List<Map<String, String?>>>()
                 GtfsZip(BaselineSupport.zipFixture(fixture, work)).use { zip ->
                     GtfsFileRegistry.orderedForParsing
@@ -41,7 +44,7 @@ class BaselineEquivalenceTest {
                             actual[def.entityType] = rows
                         }
                 }
-                assertThat(BaselineSupport.mapper.valueToTree<ObjectNode>(actual), "fixture $fixture")
+                assertThat(ProjectJson.encodeToJsonElement(actual), "fixture $fixture")
                     .isEqualTo(expected)
             }
         } finally {

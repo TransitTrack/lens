@@ -4,23 +4,20 @@ package eu.transittrack.gtfs.draft.edit
 
 import java.time.LocalDate
 
-import tools.jackson.databind.node.ObjectNode
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 import eu.transittrack.gtfs.model.Calendar
 
-private fun ObjectNode.putDate(
-    name: String,
-    v: LocalDate?,
-): ObjectNode = if (v == null) putNull(name) else put(name, v.toString())
+private fun dateOrNull(node: JsonElement): LocalDate? = if (node == JsonNull) null else LocalDate.parse(node.jsonPrimitive.content)
 
-private fun dateOrNull(node: tools.jackson.databind.JsonNode): LocalDate? = if (node.isNull) null else LocalDate.parse(node.asString())
-
-private fun ObjectNode.putNullableBoolean(
-    name: String,
-    v: Boolean?,
-): ObjectNode = if (v == null) putNull(name) else put(name, v)
-
-private fun booleanOrNull(node: tools.jackson.databind.JsonNode): Boolean? = if (node.isNull) null else node.asBoolean()
+private fun JsonElement.nullableBoolean(): Boolean? = if (this == JsonNull) null else jsonPrimitive.boolean
 
 /**
  * Full-replace upsert of a `calendars` row for [serviceId]: creates it if absent, otherwise
@@ -47,39 +44,39 @@ class SetCalendarOp(
         }
         val existing = ctx.calendars.findByServiceId(ctx.revisionId, serviceId)
         val fwd =
-            ctx.json
-                .createObjectNode()
-                .put("serviceId", serviceId)
-                .put("existed", true)
-                .put("monday", monday)
-                .put("tuesday", tuesday)
-                .put("wednesday", wednesday)
-                .put("thursday", thursday)
-                .put("friday", friday)
-                .put("saturday", saturday)
-                .put("sunday", sunday)
-                .putDate("startDate", startDate)
-                .putDate("endDate", endDate)
+            buildJsonObject {
+                put("serviceId", serviceId)
+                put("existed", true)
+                put("monday", monday)
+                put("tuesday", tuesday)
+                put("wednesday", wednesday)
+                put("thursday", thursday)
+                put("friday", friday)
+                put("saturday", saturday)
+                put("sunday", sunday)
+                put("startDate", startDate.toString())
+                put("endDate", endDate.toString())
+            }
         val inv =
             if (existing == null) {
-                ctx.json
-                    .createObjectNode()
-                    .put("serviceId", serviceId)
-                    .put("existed", false)
+                buildJsonObject {
+                    put("serviceId", serviceId)
+                    put("existed", false)
+                }
             } else {
-                ctx.json
-                    .createObjectNode()
-                    .put("serviceId", serviceId)
-                    .put("existed", true)
-                    .putNullableBoolean("monday", existing.monday)
-                    .putNullableBoolean("tuesday", existing.tuesday)
-                    .putNullableBoolean("wednesday", existing.wednesday)
-                    .putNullableBoolean("thursday", existing.thursday)
-                    .putNullableBoolean("friday", existing.friday)
-                    .putNullableBoolean("saturday", existing.saturday)
-                    .putNullableBoolean("sunday", existing.sunday)
-                    .putDate("startDate", existing.startDate)
-                    .putDate("endDate", existing.endDate)
+                buildJsonObject {
+                    put("serviceId", serviceId)
+                    put("existed", true)
+                    put("monday", existing.monday)
+                    put("tuesday", existing.tuesday)
+                    put("wednesday", existing.wednesday)
+                    put("thursday", existing.thursday)
+                    put("friday", existing.friday)
+                    put("saturday", existing.saturday)
+                    put("sunday", existing.sunday)
+                    put("startDate", existing.startDate?.toString())
+                    put("endDate", existing.endDate?.toString())
+                }
             }
         return PlannedEdit(
             "Set calendar for $serviceId",
@@ -92,29 +89,37 @@ class SetCalendarOp(
     companion object {
         private fun apply(
             ctx: EditContext,
-            direction: tools.jackson.databind.JsonNode,
+            direction: JsonElement,
         ) {
-            val serviceId = direction.get("serviceId").asString()
-            if (!direction.get("existed").asBoolean()) {
+            val fields = direction.jsonObject
+            val serviceId = fields.getValue("serviceId").jsonPrimitive.content
+            if (!fields.getValue("existed").jsonPrimitive.boolean) {
                 ctx.calendars.findByServiceId(ctx.revisionId, serviceId)?.let { ctx.calendars.delete(it) }
                 return
             }
-            val row = ctx.calendars.findByServiceId(ctx.revisionId, serviceId) ?: Calendar(
+            val replacement = Calendar(
                 revisionId = ctx.revisionId,
                 serviceId = serviceId,
-                monday = null, tuesday = null, wednesday = null, thursday = null,
-                friday = null, saturday = null, sunday = null,
-                startDate = null, endDate = null,
+                monday = fields.getValue("monday").nullableBoolean(),
+                tuesday = fields.getValue("tuesday").nullableBoolean(),
+                wednesday = fields.getValue("wednesday").nullableBoolean(),
+                thursday = fields.getValue("thursday").nullableBoolean(),
+                friday = fields.getValue("friday").nullableBoolean(),
+                saturday = fields.getValue("saturday").nullableBoolean(),
+                sunday = fields.getValue("sunday").nullableBoolean(),
+                startDate = dateOrNull(fields.getValue("startDate")),
+                endDate = dateOrNull(fields.getValue("endDate")),
             )
-            row.monday = booleanOrNull(direction.get("monday"))
-            row.tuesday = booleanOrNull(direction.get("tuesday"))
-            row.wednesday = booleanOrNull(direction.get("wednesday"))
-            row.thursday = booleanOrNull(direction.get("thursday"))
-            row.friday = booleanOrNull(direction.get("friday"))
-            row.saturday = booleanOrNull(direction.get("saturday"))
-            row.sunday = booleanOrNull(direction.get("sunday"))
-            row.startDate = dateOrNull(direction.get("startDate"))
-            row.endDate = dateOrNull(direction.get("endDate"))
+            val row = ctx.calendars.findByServiceId(ctx.revisionId, serviceId) ?: replacement
+            row.monday = replacement.monday
+            row.tuesday = replacement.tuesday
+            row.wednesday = replacement.wednesday
+            row.thursday = replacement.thursday
+            row.friday = replacement.friday
+            row.saturday = replacement.saturday
+            row.sunday = replacement.sunday
+            row.startDate = replacement.startDate
+            row.endDate = replacement.endDate
             ctx.calendars.save(row)
         }
 
@@ -143,20 +148,17 @@ class SetCalendarExceptionOp(
         }
         val existing = ctx.calendarDates.findByServiceId(ctx.revisionId, serviceId).find { it.date == date }
         val fwd =
-            ctx.json
-                .createObjectNode()
-                .put("serviceId", serviceId)
-                .put("date", date.toString())
-                .let { if (exceptionType == null) it.putNull("exceptionType") else it.put("exceptionType", exceptionType) }
+            buildJsonObject {
+                put("serviceId", serviceId)
+                put("date", date.toString())
+                put("exceptionType", exceptionType)
+            }
         val inv =
-            ctx.json
-                .createObjectNode()
-                .put("serviceId", serviceId)
-                .put("date", date.toString())
-                .let {
-                    val old = existing?.exceptionType
-                    if (old == null) it.putNull("exceptionType") else it.put("exceptionType", old)
-                }
+            buildJsonObject {
+                put("serviceId", serviceId)
+                put("date", date.toString())
+                put("exceptionType", existing?.exceptionType)
+            }
         return PlannedEdit(
             "Set calendar exception $serviceId @ $date",
             fwd,
@@ -168,13 +170,14 @@ class SetCalendarExceptionOp(
     companion object {
         private fun apply(
             ctx: EditContext,
-            direction: tools.jackson.databind.JsonNode,
+            direction: JsonElement,
         ) {
-            val serviceId = direction.get("serviceId").asString()
-            val date = LocalDate.parse(direction.get("date").asString())
+            val fields = direction.jsonObject
+            val serviceId = fields.getValue("serviceId").jsonPrimitive.content
+            val date = LocalDate.parse(fields.getValue("date").jsonPrimitive.content)
             val existing = ctx.calendarDates.findByServiceId(ctx.revisionId, serviceId).find { it.date == date }
-            val typeNode = direction.get("exceptionType")
-            if (typeNode.isNull) {
+            val typeNode = fields.getValue("exceptionType")
+            if (typeNode == JsonNull) {
                 existing?.let { ctx.calendarDates.delete(it) }
                 return
             }
@@ -184,7 +187,7 @@ class SetCalendarExceptionOp(
                 date = date,
                 exceptionType = null,
             )
-            row.exceptionType = typeNode.asInt()
+            row.exceptionType = typeNode.jsonPrimitive.int
             ctx.calendarDates.save(row)
         }
 

@@ -7,13 +7,12 @@ import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.GtfsProperties
+import eu.transittrack.ProjectJson
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.RouteRepository
@@ -30,7 +29,6 @@ import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
-@AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
 @Import(ExposedRevisionWriter::class, ScheduleWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -40,7 +38,6 @@ class TripPatternProcessorTest(
     @Autowired val gtfsWriter: RevisionWriter,
     @Autowired val writer: ScheduleWriter,
     @Autowired val props: ScheduleProperties,
-    @Autowired val json: JsonMapper,
     @Autowired val routes: RouteRepository,
     @Autowired val trips: TripRepository,
     @Autowired val stopTimes: StopTimeRepository,
@@ -49,6 +46,7 @@ class TripPatternProcessorTest(
     @Autowired val patterns: TripPatternRepository,
     @Autowired val stopPaths: StopPathRepository,
 ) : PostgresPerMethodTest() {
+    private val json = ProjectJson
     private val context = DerivationContext()
 
     private fun processor() = TripPatternProcessor(context, writer, props, json, routes, trips, stopTimes, stops, shapePoints)

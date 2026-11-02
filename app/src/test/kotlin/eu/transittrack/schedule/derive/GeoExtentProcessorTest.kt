@@ -7,13 +7,12 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.GtfsProperties
+import eu.transittrack.ProjectJson
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.AgencyRepository
@@ -29,7 +28,6 @@ import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
 
 @PostgresSliceTest
-@AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
 @Import(ExposedRevisionWriter::class, ScheduleWriter::class, DerivedGtfsWriter::class)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -39,7 +37,6 @@ class GeoExtentProcessorTest(
     @Autowired val gtfsWriter: RevisionWriter,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val derivedGtfsWriter: DerivedGtfsWriter,
-    @Autowired val jsonMapper: JsonMapper,
     @Autowired val stops: StopRepository,
     @Autowired val routes: RouteRepository,
     @Autowired val agencies: AgencyRepository,
@@ -47,6 +44,7 @@ class GeoExtentProcessorTest(
     @Autowired val stopTimes: StopTimeRepository,
     @Autowired val shapePoints: ShapePointRepository,
 ) : PostgresPerMethodTest() {
+    private val jsonMapper = ProjectJson
     private val context = DerivationContext()
 
     private fun stage1() =

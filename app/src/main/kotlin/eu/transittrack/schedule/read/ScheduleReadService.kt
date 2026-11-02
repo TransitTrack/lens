@@ -2,8 +2,8 @@ package eu.transittrack.schedule.read
 
 import java.time.LocalDate
 
+import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Service
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.api.dto.TripDto
 import eu.transittrack.gtfs.model.TripRepository
@@ -16,6 +16,7 @@ import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.schedule.read.dto.BlockDto
 import eu.transittrack.schedule.read.dto.StopPathDto
 import eu.transittrack.schedule.read.dto.TripPatternDto
+import eu.transittrack.toScalarValue
 
 @Service
 class ScheduleReadService(
@@ -26,7 +27,7 @@ class ScheduleReadService(
     private val travelTimes: TravelTimesForStopPathRepository,
     private val serviceDates: ServiceDateResolver,
     private val resolver: RevisionResolver,
-    private val json: JsonMapper,
+    private val json: Json,
 ) {
     fun tripPatterns(
         feedCode: String,
@@ -104,7 +105,7 @@ class ScheduleReadService(
     }
 
     /** Parses a stored `path_geometry` JSON string into a List for the `JSON` scalar. */
-    fun parseGeometry(raw: String?): Any? = raw?.let { json.readValue(it, List::class.java) }
+    fun parseGeometry(raw: String?): Any? = raw?.let { json.parseToJsonElement(it).toScalarValue() }
 
     fun stopPathsOf(
         rev: Long,

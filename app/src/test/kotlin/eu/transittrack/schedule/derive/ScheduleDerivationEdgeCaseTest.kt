@@ -26,14 +26,13 @@ import org.junit.jupiter.api.AfterEach
 import org.mockito.kotlin.mock
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.context.properties.EnableConfigurationProperties
-import org.springframework.boot.test.autoconfigure.json.AutoConfigureJson
 import org.springframework.context.annotation.Import
 import org.springframework.core.task.SyncTaskExecutor
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.GtfsProperties
+import eu.transittrack.ProjectJson
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
@@ -77,7 +76,6 @@ import eu.transittrack.support.PostgresPerMethodTest
  * - `schedule-broken-times`: a trip whose last stop has neither arrival nor departure, which makes a real derivation throw partway through.
  */
 @PostgresSliceTest
-@AutoConfigureJson
 @EnableConfigurationProperties(GtfsProperties::class, ScheduleProperties::class)
 @Import(
     ExposedRevisionWriter::class,
@@ -110,11 +108,11 @@ class ScheduleDerivationEdgeCaseTest(
     @Autowired val blocks: BlockRepository,
     @Autowired val blockTrips: BlockTripRepository,
     @Autowired val database: Database,
-    @Autowired val jsonMapper: JsonMapper,
     @Autowired val calendars: CalendarRepository,
     @Autowired val calendarDates: CalendarDateRepository,
     @Autowired val feedInfos: FeedInfoRepository,
 ) : PostgresPerMethodTest() {
+    private val jsonMapper = ProjectJson
     private var feedId: Long = 0
     private var rev: Long = 0
 
@@ -296,7 +294,7 @@ class ScheduleDerivationEdgeCaseTest(
         val expected = haversineMeters(51.100, 17.000, 51.120, 17.020)
         assertThat(paths[1].lengthM).isCloseTo(expected, 1.0)
         // A straight-line fallback geometry is exactly the two stop coordinates.
-        assertThat(jsonMapper.readValue(paths[1].pathGeometry!!, List::class.java))
+        assertThat(jsonMapper.decodeFromString<List<List<Double>>>(paths[1].pathGeometry!!))
             .isEqualTo(listOf(listOf(17.000, 51.100), listOf(17.020, 51.120)))
     }
 
@@ -316,7 +314,7 @@ class ScheduleDerivationEdgeCaseTest(
         // straight lines between stop coordinates rather than shape slices.
         val s1ToOff = haversineMeters(51.100, 17.000, 51.115, 17.000)
         assertThat(paths[1].lengthM).isCloseTo(s1ToOff, 1.0)
-        assertThat(jsonMapper.readValue(paths[1].pathGeometry!!, List::class.java))
+        assertThat(jsonMapper.decodeFromString<List<List<Double>>>(paths[1].pathGeometry!!))
             .isEqualTo(listOf(listOf(17.000, 51.100), listOf(17.000, 51.115)))
         val offToS4 = haversineMeters(51.115, 17.000, 51.130, 17.030)
         assertThat(paths[2].lengthM).isCloseTo(offToS4, 1.0)

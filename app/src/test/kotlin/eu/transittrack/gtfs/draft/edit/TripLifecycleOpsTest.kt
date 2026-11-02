@@ -8,13 +8,16 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.Frequency
 import eu.transittrack.gtfs.model.FrequencyRepository
@@ -38,7 +41,8 @@ class TripLifecycleOpsTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired val json: JsonMapper,
+    @Autowired val json: Json,
+    @Autowired val edits: DraftEditRepository,
 ) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
 
@@ -66,10 +70,49 @@ class TripLifecycleOpsTest(
 
     @Test
     fun `EditOpBootstrap registers the trip lifecycle ops at context startup`() {
-        val node = json.createObjectNode().put("tripId", "x")
+        val node = buildJsonObject { put("tripId", "x") }
         EditOpRegistry.mutationFor("ADD_TRIP", node)
         EditOpRegistry.mutationFor("DUPLICATE_TRIP", node)
         EditOpRegistry.mutationFor("DELETE_TRIP", node)
+    }
+
+    @Test
+    fun `legacy trip snapshot without frequencies restores null and primitive columns`() {
+        val draftId = forkDraft()
+        val trip = pickTripWithStops(draftId)
+        val applied = svc.apply(draftId, "alice", version(draftId)) { _ -> DeleteTripOp(trip.tripId) }
+        val journal = edits.findByRevision(draftId).single()
+        journal.inverse = """
+            {
+              "trip": {
+                "routeId":"${trip.routeId}", "serviceId":"${trip.serviceId}", "tripId":"${trip.tripId}",
+                "tripHeadsign":null, "tripShortName":"0", "directionId":0,
+                "blockId":null, "shapeId":null, "wheelchairAccessible":0, "bikesAllowed":null
+              },
+              "stopTimes": [{
+                "tripId":"${trip.tripId}", "stopSequence":7, "stopId":null,
+                "arrivalTime":null, "departureTime":0, "shapeDistTraveled":1.25, "timepoint":0
+              }]
+            }
+        """.trimIndent()
+        edits.save(journal)
+
+        val undone = svc.undo(draftId, "alice", applied.draft.version)
+        val restored = trips.findByTripId(draftId, trip.tripId)!!
+        assertThat(restored.tripHeadsign).isNull()
+        assertThat(restored.tripShortName).isEqualTo("0")
+        assertThat(restored.directionId).isEqualTo(0)
+        val row = stopTimes.findByTripId(draftId, trip.tripId).single()
+        assertThat(row.stopSequence).isEqualTo(7)
+        assertThat(row.stopId).isNull()
+        assertThat(row.arrivalTime).isNull()
+        assertThat(row.departureTime).isEqualTo(0)
+        assertThat(row.shapeDistTraveled).isEqualTo(1.25)
+        assertThat(row.timepoint).isEqualTo(0)
+        assertThat(row.pickupType).isNull()
+        assertThat(frequencies.findByTripId(draftId, trip.tripId)).isEmpty()
+        svc.redo(draftId, "alice", undone.draft.version)
+        assertThat(trips.findByTripId(draftId, trip.tripId)).isNull()
     }
 
     @Test

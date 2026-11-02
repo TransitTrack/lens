@@ -6,6 +6,11 @@ import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
@@ -46,9 +51,15 @@ class DraftEditServiceTest(
         // Throwaway reversible builder for TEST_BUMP: shift the stop's arrival by the direction's delta.
         EditOpRegistry.register("TEST_BUMP") { ctx, dir ->
             {
-                val tripId = dir.get("tripId").asString()
-                val seq = dir.get("seq").asInt()
-                val delta = dir.get("delta").asInt()
+                val tripId = dir.jsonObject
+                    .getValue("tripId")
+                    .jsonPrimitive.content
+                val seq = dir.jsonObject
+                    .getValue("seq")
+                    .jsonPrimitive.int
+                val delta = dir.jsonObject
+                    .getValue("delta")
+                    .jsonPrimitive.int
                 val row = ctx.stopTimes.findByTripId(ctx.revisionId, tripId).single { it.stopSequence == seq }
                 row.arrivalTime = (row.arrivalTime ?: 0) + delta
                 ctx.stopTimes.save(row)
@@ -69,18 +80,18 @@ class DraftEditServiceTest(
                 val before = row.arrivalTime
                 return PlannedEdit(
                     summary = "bump $tripId#$seq",
-                    forward = ctx.json
-                        .createObjectNode()
-                        .put("tripId", tripId)
-                        .put("seq", seq)
-                        .put("delta", 60),
+                    forward = buildJsonObject {
+                        put("tripId", tripId)
+                        put("seq", seq)
+                        put("delta", 60)
+                    },
                     inverse =
-                        ctx.json
-                            .createObjectNode()
-                            .put("tripId", tripId)
-                            .put("seq", seq)
-                            .put("delta", -60)
-                            .put("was", before),
+                        buildJsonObject {
+                            put("tripId", tripId)
+                            put("seq", seq)
+                            put("delta", -60)
+                            put("was", before)
+                        },
                     mutate = {
                         row.arrivalTime = (row.arrivalTime ?: 0) + 60
                         ctx.stopTimes.save(row)

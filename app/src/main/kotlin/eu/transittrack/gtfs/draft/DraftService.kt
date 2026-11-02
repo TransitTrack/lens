@@ -2,10 +2,13 @@ package eu.transittrack.gtfs.draft
 
 import java.time.Instant
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.edit.LockNotHeldException
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -35,7 +38,7 @@ class DraftService(
     private val props: DraftProperties,
     private val revisionWriter: RevisionWriter,
     scheduleWriterProvider: ObjectProvider<ScheduleWriter>,
-    private val objectMapper: JsonMapper,
+    private val json: Json,
 ) {
     // ScheduleWriter is @ConditionalOnProperty(transittrack.schedule.enabled) — absent when the
     // schedule feature is toggled off, so the draft feature must degrade rather than fail startup.
@@ -215,7 +218,13 @@ class DraftService(
             // A validation stored before `publishable` existed counts as not validated.
             val publishable =
                 d.lastValidation
-                    ?.let { objectMapper.readTree(it).path("publishable").asBoolean(false) } ?: false
+                    ?.let {
+                        json
+                            .parseToJsonElement(it)
+                            .jsonObject["publishable"]
+                            ?.jsonPrimitive
+                            ?.booleanOrNull
+                    } ?: false
             check(publishable) { "draft is not publishable; rebuild & validate, or force" }
         }
         // activation ends the editing session: drop any editor lock so a re-fork starts clean.

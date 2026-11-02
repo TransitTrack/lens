@@ -2,6 +2,7 @@ package eu.transittrack.avl.model
 
 import java.time.Instant
 
+import kotlinx.serialization.encodeToString
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.Sequence
 import org.jetbrains.exposed.v1.core.eq
@@ -14,11 +15,10 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.json.jsonb
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.core.type.TypeReference
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
+import eu.transittrack.ProjectJson
 import eu.transittrack.db.RowTable
 import eu.transittrack.predict.PredictionAlgorithm
 
@@ -44,8 +44,6 @@ class AvlFeed(
     var id: Long? = null,
 )
 
-private val jsonMapper: JsonMapper = JsonMapper.builder().build()
-
 object AvlFeedTable : RowTable<AvlFeed>("avl_feed") {
     val id = long("id").autoIncrement(Sequence("avl_feed_seq", startWith = 1, incrementBy = 50))
     val code = varchar("code", 64).uniqueIndex("avl_feed_code_key")
@@ -58,16 +56,12 @@ object AvlFeedTable : RowTable<AvlFeed>("avl_feed") {
     val predictionAlgorithms =
         jsonb<List<PredictionAlgorithm>>(
             "prediction_algorithms",
-            { jsonMapper.writeValueAsString(it) },
-            { jsonMapper.readValue(it, object : TypeReference<List<PredictionAlgorithm>>() {}) },
+            { ProjectJson.encodeToString(it.map(PredictionAlgorithm::name)) },
+            { ProjectJson.decodeFromString<List<String>>(it).map(PredictionAlgorithm::valueOf) },
         ).default(listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE))
     val enabled = bool("enabled").default(true)
     val headers =
-        jsonb<Map<String, String>>(
-            "headers",
-            { jsonMapper.writeValueAsString(it) },
-            { jsonMapper.readValue(it, object : TypeReference<Map<String, String>>() {}) },
-        ).nullable()
+        jsonb<Map<String, String>>("headers", ProjectJson).nullable()
     val feedSource = enumerationByName<AvlFeedSourceKind>("source", 16)
     val lastPollAt = timestampTz("last_poll_at").nullable()
     val lastPollStatus = varchar("last_poll_status", 255).nullable()

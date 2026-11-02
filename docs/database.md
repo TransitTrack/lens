@@ -4,6 +4,21 @@ PostgreSQL, accessed through [JetBrains Exposed](https://github.com/JetBrains/Ex
 entities). [Liquibase](https://www.liquibase.com/) owns and migrates the schema; the changesets stay
 YAML under `app/src/main/resources/db/changelog/` and are listed in `db.changelog-master.yaml`.
 
+## JSON serialization
+
+Application JSON uses kotlinx.serialization and the shared `ProjectJson` configuration,
+also exposed as the Spring `Json` bean. Exposed's typed JSONB columns use this configuration;
+prediction algorithms retain their enum names as JSON strings without adding serialization
+dependencies to the extension API. Lists, maps, and 64-bit row counts keep their existing
+database representation.
+
+Columns containing pre-encoded JSON (geometry, validation reports, optimization payloads,
+and draft edit journals) retain their raw JSON codecs: they must not be encoded a second time
+as quoted JSON strings. Existing journal payloads remain readable for undo/redo.
+
+Jackson is not used by application or test code. Framework dependencies may still include it
+for their own transport or internal integration; it is not the database serialization layer.
+
 ## Tables are the source of truth
 
 The Exposed table objects (`AvlFeedTable`, `GtfsRevisionTable`, ...) describe the schema the code

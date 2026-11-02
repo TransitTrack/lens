@@ -10,9 +10,8 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.javatime.date
 import org.jetbrains.exposed.v1.json.jsonb
-import tools.jackson.core.type.TypeReference
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.ProjectJson
 import eu.transittrack.db.RowTable
 import eu.transittrack.gtfs.draft.DraftKind
 import eu.transittrack.gtfs.feed.GtfsFeedTable
@@ -45,8 +44,6 @@ class GtfsRevision(
     var id: Long? = null,
 )
 
-private val jsonMapper: JsonMapper = JsonMapper.builder().build()
-
 object GtfsRevisionTable : RowTable<GtfsRevision>("gtfs_revision") {
     val id = long("id").autoIncrement(Sequence("gtfs_revision_seq", startWith = 1, incrementBy = 50))
     val feedId = long("feed_id")
@@ -56,17 +53,9 @@ object GtfsRevisionTable : RowTable<GtfsRevision>("gtfs_revision") {
     val contentSha256 = varchar("content_sha256", 64).nullable()
     val byteSize = long("byte_size").nullable()
     val filesPresent =
-        jsonb<List<String>>(
-            "files_present",
-            { jsonMapper.writeValueAsString(it) },
-            { jsonMapper.readValue(it, object : TypeReference<List<String>>() {}) },
-        ).nullable()
+        jsonb<List<String>>("files_present", ProjectJson).nullable()
     val rowCounts =
-        jsonb<Map<String, Long>>(
-            "row_counts",
-            { jsonMapper.writeValueAsString(it) },
-            { jsonMapper.readValue(it, object : TypeReference<Map<String, Long>>() {}) },
-        ).nullable()
+        jsonb<Map<String, Long>>("row_counts", ProjectJson).nullable()
     val feedStartDate = date("feed_start_date").nullable()
     val feedEndDate = date("feed_end_date").nullable()
     val validationReport = jsonb<String>("validation_report", { it }, { it }).nullable()

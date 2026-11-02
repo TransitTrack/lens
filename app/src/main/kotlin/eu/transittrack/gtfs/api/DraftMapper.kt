@@ -1,7 +1,7 @@
 package eu.transittrack.gtfs.api
 
+import kotlinx.serialization.json.Json
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
@@ -11,11 +11,12 @@ import eu.transittrack.gtfs.api.dto.DraftLockDto
 import eu.transittrack.gtfs.draft.DraftEdit
 import eu.transittrack.gtfs.draft.DraftLock
 import eu.transittrack.gtfs.revision.GtfsRevision
+import eu.transittrack.toScalarValue
 
 @Component
 @ConditionalOnRole(Role.API)
 class DraftMapper(
-    private val json: JsonMapper,
+    private val json: Json,
 ) {
     fun toDto(
         rev: GtfsRevision,
@@ -31,7 +32,7 @@ class DraftMapper(
             kind = rev.kind,
             version = rev.version,
             derivationStale = rev.derivationStale,
-            lastValidation = rev.lastValidation?.let { json.readValue(it, Map::class.java) },
+            lastValidation = rev.lastValidation?.let { json.parseToJsonElement(it).toScalarValue() },
             lock = lock?.let { DraftLockDto(it.editor, it.expiresAt.toString()) },
             createdBy = rev.createdBy,
             createdAt = rev.createdAt.toString(),

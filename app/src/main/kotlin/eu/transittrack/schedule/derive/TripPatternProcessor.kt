@@ -1,10 +1,10 @@
 package eu.transittrack.schedule.derive
 
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Extent
 import eu.transittrack.Point
@@ -32,7 +32,7 @@ class TripPatternProcessor(
     private val context: DerivationContext,
     private val writer: ScheduleWriter,
     private val props: ScheduleProperties,
-    private val json: JsonMapper,
+    private val json: Json,
     private val routes: RouteRepository,
     private val trips: TripRepository,
     private val stopTimes: StopTimeRepository,

@@ -1,7 +1,8 @@
 package eu.transittrack.schedule.derive
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.slf4j.Logger
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Extent
 import eu.transittrack.Point
@@ -55,7 +56,7 @@ fun buildPattern(
     stopCoord: Map<String, Point>,
     line: Polyline?,
     maxDeviationM: Double,
-    json: JsonMapper,
+    json: Json,
 ): PatternBuild {
     // Callers filter out trips with unresolvable stop coordinates, so this never misses.
     val coords = stopIds.map { stopCoord.getValue(it) }
@@ -117,7 +118,7 @@ fun buildPattern(
                 routeId = routeId,
                 stopSeq = r.stopSequence,
                 lengthM = segLen,
-                pathGeometry = json.writeValueAsString(geom.map { listOf(it.lon, it.lat) }),
+                pathGeometry = json.encodeToString(geom.map { listOf(it.lon, it.lat) }),
                 pickupType = r.pickupType,
                 dropOffType = r.dropOffType,
                 waitStop = timed,

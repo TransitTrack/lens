@@ -2,8 +2,8 @@ package eu.transittrack.gtfs.draft.edit
 
 import java.util.concurrent.ConcurrentHashMap
 
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 
 import eu.transittrack.gtfs.model.CalendarDateRepository
 import eu.transittrack.gtfs.model.CalendarRepository
@@ -31,7 +31,7 @@ data class EditContext(
     val tripPatterns: TripPatternRepository,
     val calendars: CalendarRepository,
     val calendarDates: CalendarDateRepository,
-    val json: JsonMapper,
+    val json: Json,
 )
 
 /**
@@ -40,8 +40,8 @@ data class EditContext(
  */
 data class PlannedEdit(
     val summary: String,
-    val forward: JsonNode,
-    val inverse: JsonNode,
+    val forward: JsonElement,
+    val inverse: JsonElement,
     val mutate: () -> Unit,
 )
 
@@ -59,18 +59,18 @@ interface EditOp {
  * Each concrete op registers its builder here (in later tasks); tests register throwaway ops.
  */
 object EditOpRegistry {
-    private val builders = ConcurrentHashMap<String, (EditContext, JsonNode) -> () -> Unit>()
+    private val builders = ConcurrentHashMap<String, (EditContext, JsonElement) -> () -> Unit>()
 
     fun register(
         op: String,
-        builder: (EditContext, JsonNode) -> () -> Unit,
+        builder: (EditContext, JsonElement) -> () -> Unit,
     ) {
         builders[op] = builder
     }
 
     fun mutationFor(
         op: String,
-        direction: JsonNode,
+        direction: JsonElement,
     ): (EditContext) -> Unit {
         val b = builders[op] ?: error("no reversible builder for op '$op'")
         return { ctx -> b(ctx, direction)() }

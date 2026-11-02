@@ -1,8 +1,11 @@
 package eu.transittrack.avl.match.cache
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.double
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Point
 import eu.transittrack.Polyline
@@ -15,7 +18,7 @@ import eu.transittrack.avl.match.PatternGeometry
 @Component
 class CachedPatternGeometryReader(
     private val stopPaths: CachedStopPathReader,
-    private val json: JsonMapper,
+    private val json: Json,
 ) {
     @Cacheable(AvlCaches.PATTERN_GEOMETRY, key = "#revisionId + ':' + #tripPatternId")
     fun geometry(
@@ -34,11 +37,11 @@ class CachedPatternGeometryReader(
             acc += sp.lengthM
             val raw = sp.pathGeometry ?: continue
 
-            // Stored as [[lon,lat],...]; parsed loosely, mirroring ScheduleReadService.parseGeometry.
-            @Suppress("UNCHECKED_CAST")
-            val coords = json.readValue(raw, List::class.java) as List<List<Number>>
+            // Stored as [[lon,lat],...].
+            val coords = json.parseToJsonElement(raw).jsonArray
             for (c in coords) {
-                val p = Point(c[1].toDouble(), c[0].toDouble())
+                val coordinate = c.jsonArray
+                val p = Point(coordinate[1].jsonPrimitive.double, coordinate[0].jsonPrimitive.double)
                 if (pts.isEmpty() || pts.last() != p) pts.add(p)
             }
         }

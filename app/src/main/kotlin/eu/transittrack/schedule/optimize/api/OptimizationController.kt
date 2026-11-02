@@ -3,11 +3,11 @@ package eu.transittrack.schedule.optimize.api
 import java.time.Instant
 import java.time.format.DateTimeParseException
 
+import kotlinx.serialization.json.Json
 import org.springframework.graphql.data.method.annotation.Argument
 import org.springframework.graphql.data.method.annotation.MutationMapping
 import org.springframework.graphql.data.method.annotation.QueryMapping
 import org.springframework.stereotype.Controller
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
@@ -20,6 +20,7 @@ import eu.transittrack.schedule.optimize.ScheduleOptimizationService
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationStatus
 import eu.transittrack.schedule.optimize.model.OptimizationRunRow
+import eu.transittrack.toScalarValue
 
 /**
  * GraphQL surface for the schedule-optimization workflow (design section 8). Every mutation/query
@@ -36,7 +37,7 @@ class OptimizationController(
     private val draftMapper: DraftMapper,
     private val draftService: DraftService,
     private val feedService: GtfsFeedService,
-    private val json: JsonMapper,
+    private val json: Json,
 ) {
     @QueryMapping
     fun optimizationRuns(
@@ -130,5 +131,5 @@ class OptimizationController(
     /** Stored JSONB is a JSON string here, but the schema's `JSON!` scalar is non-null — a genuinely
      * null column (never produced by the analysis pipeline today) maps to an empty object rather than
      * violating non-null. */
-    private fun jsonValue(raw: String?): Any = raw?.let { json.readValue(it, Map::class.java) } ?: emptyMap<String, Any>()
+    private fun jsonValue(raw: String?): Any = raw?.let { json.parseToJsonElement(it).toScalarValue() } ?: emptyMap<String, Any>()
 }

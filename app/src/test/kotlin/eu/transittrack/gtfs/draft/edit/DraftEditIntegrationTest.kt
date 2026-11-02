@@ -7,6 +7,8 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -17,7 +19,6 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTimeRepository
@@ -57,7 +58,7 @@ class DraftEditIntegrationTest(
     @Autowired val writer: RevisionWriter,
     @Autowired val scheduleWriter: ScheduleWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired val json: JsonMapper,
+    @Autowired val json: Json,
     @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
@@ -204,7 +205,7 @@ class DraftEditIntegrationTest(
 
     @Test
     fun `EditOpBootstrap registers a reversible builder for every op`() {
-        val empty = json.createObjectNode()
+        val empty = buildJsonObject {}
         val ops =
             listOf(
                 "UPDATE_STOP_TIME",

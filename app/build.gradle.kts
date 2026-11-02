@@ -71,13 +71,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
     implementation("io.github.transittrack:gtfs-analyzer:$gtfsAnalyzerVersion")
-    modules {
-        // Explicitly exclude jackson if you want to completely move away
-        module("org.springframework.boot:spring-boot-starter-json") {
-            replacedBy("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json", "Use Kotlinx Serialization instead")
-        }
-    }
-
     implementation("com.graphql-java:graphql-java-extended-scalars:$graphqlJavaExtendedScalarsVersion")
     implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("org.jetbrains.kotlin:kotlin-reflect")

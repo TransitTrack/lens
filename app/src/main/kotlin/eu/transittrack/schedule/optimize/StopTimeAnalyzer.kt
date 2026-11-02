@@ -1,8 +1,13 @@
 package eu.transittrack.schedule.optimize
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.schedule.model.ScheduleTime
@@ -17,7 +22,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
 @Component
 class StopTimeAnalyzer(
     private val properties: OptimizationProperties,
-    private val json: JsonMapper,
+    private val json: Json,
 ) : OptimizationAnalyzer {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -108,13 +113,13 @@ class StopTimeAnalyzer(
             }
             val stopSeqByIndex = context.stopSeqByIndex(patternId)
 
-            val perTrip = mutableListOf<Triple<Trip, List<Map<String, Any?>>, List<Map<String, Any?>>>>()
+            val perTrip = mutableListOf<Triple<Trip, List<JsonObject>, List<JsonObject>>>()
             for (aff in affected) {
                 val schedule = aff.schedule
                 val pos = aff.segmentPos
 
-                val current = mutableListOf<Map<String, Any?>>()
-                val proposed = mutableListOf<Map<String, Any?>>()
+                val current = mutableListOf<JsonObject>()
+                val proposed = mutableListOf<JsonObject>()
                 for (i in pos until schedule.size) {
                     val s = schedule[i]
                     // A cell the GTFS feed itself left blank (interpolated by the deriver, not
@@ -123,19 +128,19 @@ class StopTimeAnalyzer(
                     if (s.interpolated) continue
                     val seq = stopSeqByIndex[s.stopPathIndex] ?: s.stopPathIndex
                     current +=
-                        linkedMapOf(
-                            "tripId" to aff.trip.tripId,
-                            "stopSequence" to seq,
-                            "arrivalSec" to s.arrivalSec,
-                            "departureSec" to s.departureSec,
-                        )
+                        buildJsonObject {
+                            put("tripId", aff.trip.tripId)
+                            put("stopSequence", seq)
+                            put("arrivalSec", s.arrivalSec)
+                            put("departureSec", s.departureSec)
+                        }
                     proposed +=
-                        linkedMapOf(
-                            "tripId" to aff.trip.tripId,
-                            "stopSequence" to seq,
-                            "arrivalSec" to s.arrivalSec?.plus(delta),
-                            "departureSec" to s.departureSec?.plus(delta),
-                        )
+                        buildJsonObject {
+                            put("tripId", aff.trip.tripId)
+                            put("stopSequence", seq)
+                            put("arrivalSec", s.arrivalSec?.plus(delta))
+                            put("departureSec", s.departureSec?.plus(delta))
+                        }
                 }
                 // If every downstream cell for this trip was interpolated, this trip contributes no
                 // target at all — it must not appear in perTrip (not a broken/empty op).
@@ -153,12 +158,15 @@ class StopTimeAnalyzer(
             val affectedTripRowIds = sorted.map { it.first.id!! }.toSet()
 
             val evidence =
-                linkedMapOf<String, Any?>(
-                    "sampleCount" to candidate.sampleCount,
-                    "medianObservedTravelTimeSec" to candidate.observedSec,
-                    "scheduledTravelTimeSec" to scheduledSec,
-                    "dispersionMad" to RobustStatistics.filter(samples.mapNotNull { it.observedTravelTimeSec }).mad,
-                ).apply { putAll(context.predictionEvidence(affectedTripRowIds.toList(), stopPathIndex)) }
+                buildJsonObject {
+                    put("sampleCount", candidate.sampleCount)
+                    put("medianObservedTravelTimeSec", candidate.observedSec)
+                    put("scheduledTravelTimeSec", scheduledSec)
+                    put("dispersionMad", RobustStatistics.filter(samples.mapNotNull { it.observedTravelTimeSec }).mad)
+                    context.predictionEvidence(affectedTripRowIds.toList(), stopPathIndex).forEach { (key, value) ->
+                        put(key, value)
+                    }
+                }
 
             results +=
                 OptimizationRecommendationRow(
@@ -169,9 +177,9 @@ class StopTimeAnalyzer(
                     reason =
                         "Observed travel time to stop sequence $repSeq (trip ${repTrip.tripId}) differs from schedule " +
                             "by ${delta}s across ${candidate.sampleCount} samples.",
-                    currentValue = json.writeValueAsString(linkedMapOf("targets" to sorted.flatMap { it.second })),
-                    proposedValue = json.writeValueAsString(linkedMapOf("targets" to sorted.flatMap { it.third })),
-                    evidence = json.writeValueAsString(evidence),
+                    currentValue = json.encodeToString(buildJsonObject { put("targets", JsonArray(sorted.flatMap { it.second })) }),
+                    proposedValue = json.encodeToString(buildJsonObject { put("targets", JsonArray(sorted.flatMap { it.third })) }),
+                    evidence = json.encodeToString(evidence),
                     conflictKey = "cell:${repTrip.tripId}:$repSeq",
                 )
         }

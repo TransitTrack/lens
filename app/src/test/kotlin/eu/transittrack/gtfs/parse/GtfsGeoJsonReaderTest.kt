@@ -51,4 +51,29 @@ class GtfsGeoJsonReaderTest {
             )
         }.isInstanceOf<ParseException>()
     }
+
+    @Test
+    fun `preserves numeric ids explicit nulls and geometry precision`() {
+        val locations = GtfsGeoJsonReader.read(
+            """
+            {"type":"FeatureCollection","features":[
+              {"id":9223372036854775807,"properties":{"stop_name":null,"stop_desc":null},
+               "geometry":{"type":"Point","coordinates":[17.123456789012345,51.000000000000001]}},
+              {"id":"missing-geometry","properties":null,"geometry":null}
+            ]}
+            """.trimIndent().byteInputStream(),
+        )
+        assertThat(locations[0].locationId).isEqualTo("9223372036854775807")
+        assertThat(locations[0].stopName).isNull()
+        assertThat(locations[0].stopDesc).isNull()
+        assertThat(locations[0].geometryJson).contains("17.123456789012345")
+        assertThat(locations[1].stopName).isNull()
+        assertThat(locations[1].geometryJson).isEqualTo("null")
+    }
+
+    @Test
+    fun `rejects array root and treats null features as empty`() {
+        assertFailure { GtfsGeoJsonReader.read("[]".byteInputStream()) }.isInstanceOf<ParseException>()
+        assertThat(GtfsGeoJsonReader.read("""{"type":"FeatureCollection","features":null}""".byteInputStream())).hasSize(0)
+    }
 }

@@ -8,11 +8,12 @@ import assertk.assertions.contains
 import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
+import kotlinx.serialization.encodeToString
 import org.springframework.beans.factory.annotation.Autowired
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.AvlAssignmentMode
 import eu.transittrack.AvlFormat
+import eu.transittrack.ProjectJson
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -55,7 +56,7 @@ class TripShiftAnalyzerTest(
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val runs: OptimizationRunRepository,
 ) : PostgresPerMethodTest() {
-    private val json = JsonMapper.builder().build()
+    private val json = ProjectJson
     private val analyzer = TripShiftAnalyzer(OptimizationProperties(), json)
 
     private fun seedFeedAndRevision(code: String = "g"): Triple<String, Long, String> {
@@ -290,7 +291,7 @@ class TripShiftAnalyzerTest(
                 sampleCount = 2,
                 deltaSec = 10,
                 reason = "test",
-                proposedValue = json.writeValueAsString(mapOf("targets" to listOf(mapOf("tripId" to "T2")))),
+                proposedValue = json.encodeToString(mapOf("targets" to listOf(mapOf("tripId" to "T2")))),
             )
         val result = analyzer.analyze(contextFor(run, listOf(t1, t2, t3), listOf(avlFeedCode), alreadyRecorded = listOf(fakeStopTimeRow)))
 

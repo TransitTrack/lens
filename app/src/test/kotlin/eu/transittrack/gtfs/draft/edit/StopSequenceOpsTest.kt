@@ -6,12 +6,15 @@ import kotlin.test.assertFailsWith
 import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTimeRepository
@@ -33,7 +36,7 @@ class StopSequenceOpsTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired val json: JsonMapper,
+    @Autowired val json: Json,
 ) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
 
@@ -66,8 +69,10 @@ class StopSequenceOpsTest(
 
     @Test
     fun `EditOpBootstrap registers the stop-sequence ops`() {
-        val node = json.createObjectNode().put("tripId", "x")
-        node.replace("rows", json.createArrayNode())
+        val node = buildJsonObject {
+            put("tripId", "x")
+            put("rows", JsonArray(emptyList()))
+        }
         EditOpRegistry.mutationFor("INSERT_TRIP_STOP", node)
         EditOpRegistry.mutationFor("REMOVE_TRIP_STOP", node)
         EditOpRegistry.mutationFor("REORDER_TRIP_STOPS", node)

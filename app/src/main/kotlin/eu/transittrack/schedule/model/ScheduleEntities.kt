@@ -4,10 +4,9 @@ import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.json.jsonb
-import tools.jackson.core.type.TypeReference
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.Extent
+import eu.transittrack.ProjectJson
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.RevisionScopedTable
@@ -249,8 +248,6 @@ object ScheduleTimeTable : RevisionScopedTable<ScheduleTime>("schedule_time", Sc
     }
 }
 
-private val jsonMapper: JsonMapper = JsonMapper.builder().build()
-
 object BlockTable : RevisionScopedTable<Block>("block", Block::class.java, "fk_block_rev") {
     val blockId = varchar("block_id", 255)
     val serviceId = varchar("service_id", 255)
@@ -258,11 +255,7 @@ object BlockTable : RevisionScopedTable<Block>("block", Block::class.java, "fk_b
     val endTimeSec = integer("end_time_sec")
     val tripCount = integer("trip_count")
     val routeIds =
-        jsonb<List<String>>(
-            "route_ids",
-            { jsonMapper.writeValueAsString(it) },
-            { jsonMapper.readValue(it, object : TypeReference<List<String>>() {}) },
-        )
+        jsonb<List<String>>("route_ids", ProjectJson)
 
     init {
         uniqueIndex("uq_block_rev_block_service", revisionId, blockId, serviceId)

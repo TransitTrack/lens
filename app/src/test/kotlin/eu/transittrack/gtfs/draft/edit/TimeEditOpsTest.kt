@@ -4,6 +4,10 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.TestMethodOrder
@@ -12,8 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
+import eu.transittrack.gtfs.draft.DraftEditRepository
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.StopTime
 import eu.transittrack.gtfs.model.StopTimeRepository
@@ -37,7 +41,8 @@ class TimeEditOpsTest(
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val writer: RevisionWriter,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired val json: JsonMapper,
+    @Autowired val json: Json,
+    @Autowired val edits: DraftEditRepository,
 ) : PostgresPerMethodTest() {
     private val clean = mutableListOf<Long>()
 
@@ -78,15 +83,39 @@ class TimeEditOpsTest(
     @Test
     @Order(0)
     fun `EditOpBootstrap registers the time ops at context startup`() {
-        val node = json
-            .createObjectNode()
-            .put("tripId", "x")
-            .put("seq", 1)
-            .putNull("dep")
+        val node = buildJsonObject {
+            put("tripId", "x")
+            put("seq", 1)
+            put("dep", JsonNull)
+        }
         // does not throw -> a reversible builder is registered for each op string
         EditOpRegistry.mutationFor("SET_DWELL", node)
         EditOpRegistry.mutationFor("SHIFT_TRIP", node)
         EditOpRegistry.mutationFor("UPDATE_STOP_TIME", node)
+    }
+
+    @Test
+    fun `legacy stored time journal preserves explicit nulls through undo and redo`() {
+        val draftId = forkDraft()
+        val (tripId, target) = pickTrip(draftId)
+        val seq = target.stopSequence
+        val applied = svc.apply(draftId, "alice", version(draftId)) { _ ->
+            UpdateStopTimeOp(tripId, seq, null, 0)
+        }
+        val journal = edits.findByRevision(draftId).single()
+        assertThat(json.parseToJsonElement(journal.forward)).isEqualTo(
+            json.parseToJsonElement("""{"tripId":"$tripId","seq":$seq,"arr":null,"dep":0}"""),
+        )
+        journal.forward = """{"tripId":"$tripId","seq":$seq,"arr":null,"dep":0}"""
+        journal.inverse = """{"tripId":"$tripId","seq":$seq,"arr":123,"dep":null}"""
+        edits.save(journal)
+
+        val undone = svc.undo(draftId, "alice", applied.draft.version)
+        assertThat(rowAt(draftId, tripId, seq).arrivalTime).isEqualTo(123)
+        assertThat(rowAt(draftId, tripId, seq).departureTime).isEqualTo(null)
+        svc.redo(draftId, "alice", undone.draft.version)
+        assertThat(rowAt(draftId, tripId, seq).arrivalTime).isEqualTo(null)
+        assertThat(rowAt(draftId, tripId, seq).departureTime).isEqualTo(0)
     }
 
     @Test

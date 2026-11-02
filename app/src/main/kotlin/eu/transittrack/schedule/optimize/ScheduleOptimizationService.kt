@@ -3,12 +3,17 @@ package eu.transittrack.schedule.optimize
 import java.time.Duration
 import java.time.Instant
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.slf4j.LoggerFactory
 import org.springframework.core.task.TaskExecutor
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.JsonNode
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.draft.edit.DraftEditService
@@ -90,7 +95,7 @@ class ScheduleOptimizationService(
     private val scheduleOptimizationExecutor: TaskExecutor,
     private val draftService: DraftService,
     private val draftEditService: DraftEditService,
-    private val json: JsonMapper,
+    private val json: Json,
     private val metrics: TransitTrackMetrics = TransitTrackMetrics.forTests(),
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -250,7 +255,7 @@ class ScheduleOptimizationService(
         val all = mutableListOf<ExpandedTarget>()
         for (row in selected) {
             val proposed = row.proposedValue ?: continue
-            val targets: JsonNode = json.readTree(proposed).path("targets")
+            val targets = json.parseToJsonElement(proposed).jsonObject["targets"]?.jsonArray ?: continue
             when (row.kind) {
                 OptimizationRecommendationKind.STOP_TIME -> {
                     targets.forEach { t -> stopTimeTarget(row, t)?.let(all::add) }
@@ -266,18 +271,19 @@ class ScheduleOptimizationService(
 
     private fun stopTimeTarget(
         row: OptimizationRecommendationRow,
-        t: JsonNode,
+        t: JsonElement,
     ): ExpandedTarget? {
-        val tripId = t.path("tripId").asString()
-        val seq = t.path("stopSequence").asInt()
-        val arrNode = t.path("arrivalSec")
-        val depNode = t.path("departureSec")
+        val target = t.jsonObject
+        val tripId = target.getValue("tripId").jsonPrimitive.content
+        val seq = target.getValue("stopSequence").jsonPrimitive.int
+        val arrNode = target["arrivalSec"] ?: JsonNull
+        val depNode = target["departureSec"] ?: JsonNull
         // A target whose proposed arrival/departure are both null carries no actual change (see
         // UpdateStopTimeOp's doc: a null arg means "set to NULL", not "leave unchanged") — skip it
         // defensively rather than clobber the cell.
-        if (arrNode.isNull && depNode.isNull) return null
-        val arr = if (arrNode.isNull) null else arrNode.asInt()
-        val dep = if (depNode.isNull) null else depNode.asInt()
+        if (arrNode == JsonNull && depNode == JsonNull) return null
+        val arr = if (arrNode == JsonNull) null else arrNode.jsonPrimitive.int
+        val dep = if (depNode == JsonNull) null else depNode.jsonPrimitive.int
         return ExpandedTarget(
             recommendationId = row.id!!,
             key = "cell:$tripId:$seq",
@@ -288,9 +294,11 @@ class ScheduleOptimizationService(
 
     private fun tripShiftTarget(
         row: OptimizationRecommendationRow,
-        t: JsonNode,
+        t: JsonElement,
     ): ExpandedTarget {
-        val tripId = t.path("tripId").asString()
+        val tripId = t.jsonObject
+            .getValue("tripId")
+            .jsonPrimitive.content
         return ExpandedTarget(
             recommendationId = row.id!!,
             key = "shift:$tripId",

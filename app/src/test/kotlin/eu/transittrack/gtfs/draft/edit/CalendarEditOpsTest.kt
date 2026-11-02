@@ -6,12 +6,12 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
+import kotlinx.serialization.json.Json
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.gtfs.draft.DraftService
 import eu.transittrack.gtfs.model.Calendar
@@ -34,7 +34,7 @@ class CalendarEditOpsTest(
     @Autowired val calendarDates: CalendarDateRepository,
     @Autowired val revisions: GtfsRevisionRepository,
     @Autowired val ingestFactory: IngestionTestFactory,
-    @Autowired val json: JsonMapper,
+    @Autowired val json: Json,
 ) : PostgresPerMethodTest() {
     private fun forkDraft(): Long {
         val (feedCode, _) = ingestFactory.ingest("schedule-sample")

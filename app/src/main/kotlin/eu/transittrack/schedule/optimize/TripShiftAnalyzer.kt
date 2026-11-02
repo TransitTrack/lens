@@ -3,9 +3,16 @@ package eu.transittrack.schedule.optimize
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
-import tools.jackson.databind.json.JsonMapper
 
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationKind
 import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
@@ -29,7 +36,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRecommendationRow
 @Component
 class TripShiftAnalyzer(
     private val properties: OptimizationProperties,
-    private val json: JsonMapper,
+    private val json: Json,
 ) : OptimizationAnalyzer {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -140,13 +147,16 @@ class TripShiftAnalyzer(
             }
 
             val evidence =
-                linkedMapOf<String, Any?>(
-                    "sampleCount" to candidate.sampleCount,
-                    "medianObservedStartSec" to candidate.observedStartSec,
-                    "scheduledStartSec" to scheduledStart,
-                    "dispersionMad" to RobustStatistics.filter(observedStartSamples).mad,
-                    "targetHeadwaySec" to targetHeadway,
-                ).apply { putAll(context.predictionEvidence(listOf(tripRowId), firstIndex)) }
+                buildJsonObject {
+                    put("sampleCount", candidate.sampleCount)
+                    put("medianObservedStartSec", candidate.observedStartSec)
+                    put("scheduledStartSec", scheduledStart)
+                    put("dispersionMad", RobustStatistics.filter(observedStartSamples).mad)
+                    put("targetHeadwaySec", targetHeadway)
+                    context.predictionEvidence(listOf(tripRowId), firstIndex).forEach { (key, value) ->
+                        put(key, value)
+                    }
+                }
 
             results +=
                 OptimizationRecommendationRow(
@@ -158,17 +168,38 @@ class TripShiftAnalyzer(
                         "Trip ${trip.tripId} is consistently observed ${abs(candidate.deltaSec)}s " +
                             "${if (candidate.deltaSec > 0) "later" else "earlier"} than scheduled, improving headway spacing.",
                     currentValue =
-                        json.writeValueAsString(
-                            linkedMapOf("targets" to listOf(linkedMapOf("tripId" to trip.tripId, "startTimeSec" to scheduledStart))),
+                        json.encodeToString(
+                            buildJsonObject {
+                                put(
+                                    "targets",
+                                    buildJsonArray {
+                                        add(
+                                            buildJsonObject {
+                                                put("tripId", trip.tripId)
+                                                put("startTimeSec", scheduledStart)
+                                            },
+                                        )
+                                    },
+                                )
+                            },
                         ),
                     proposedValue =
-                        json.writeValueAsString(
-                            linkedMapOf(
-                                "targets" to
-                                    listOf(linkedMapOf("tripId" to trip.tripId, "startTimeSec" to candidate.observedStartSec)),
-                            ),
+                        json.encodeToString(
+                            buildJsonObject {
+                                put(
+                                    "targets",
+                                    buildJsonArray {
+                                        add(
+                                            buildJsonObject {
+                                                put("tripId", trip.tripId)
+                                                put("startTimeSec", candidate.observedStartSec)
+                                            },
+                                        )
+                                    },
+                                )
+                            },
                         ),
-                    evidence = json.writeValueAsString(evidence),
+                    evidence = json.encodeToString(evidence),
                     conflictKey = "shift:${trip.tripId}",
                 )
         }
@@ -190,7 +221,11 @@ class TripShiftAnalyzer(
             .filter { it.kind == OptimizationRecommendationKind.STOP_TIME }
             .forEach { row ->
                 val proposed = row.proposedValue ?: return@forEach
-                json.readTree(proposed).path("targets").forEach { t -> tripIds += t.path("tripId").asString() }
+                json.parseToJsonElement(proposed).jsonObject["targets"]?.jsonArray?.forEach { target ->
+                    tripIds += target.jsonObject
+                        .getValue("tripId")
+                        .jsonPrimitive.content
+                }
             }
         return tripIds.mapNotNull { tripRowIdByTripId[it] }.toSet()
     }

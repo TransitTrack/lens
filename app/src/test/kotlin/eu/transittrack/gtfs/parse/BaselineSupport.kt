@@ -11,8 +11,6 @@ import kotlin.io.path.name
 import kotlin.io.path.readBytes
 import kotlin.reflect.full.memberProperties
 
-import tools.jackson.databind.json.JsonMapper
-
 import eu.transittrack.gtfs.model.RevisionScoped
 
 /**
@@ -23,7 +21,6 @@ import eu.transittrack.gtfs.model.RevisionScoped
 object BaselineSupport {
     val fixturesDir: Path = Path("src/test/resources/gtfs")
     val baselineDir: Path = Path("src/test/resources/gtfs-baseline")
-    val mapper: JsonMapper = JsonMapper.builder().build()
 
     fun zipFixture(
         fixture: String,
