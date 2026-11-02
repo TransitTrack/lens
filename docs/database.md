@@ -2,7 +2,7 @@
 
 PostgreSQL, accessed through [JetBrains Exposed](https://github.com/JetBrains/Exposed) (DSL, no ORM
 entities). [Liquibase](https://www.liquibase.com/) owns and migrates the schema; the changesets stay
-YAML under `src/main/resources/db/changelog/` and are listed in `db.changelog-master.yaml`.
+YAML under `app/src/main/resources/db/changelog/` and are listed in `db.changelog-master.yaml`.
 
 ## Tables are the source of truth
 
@@ -24,7 +24,7 @@ new, higher-numbered changeset.
    migrates it with the existing changesets, asks Exposed
    (`MigrationUtils.statementsRequiredForDatabaseMigration`) what DDL is still missing, drops the
    accepted differences in `ExposedSchema.IGNORED_DRIFT`, and writes the rest as
-   `src/main/resources/db/changelog/<NNNN>-<name>.yaml` (next free number) plus an `include` line in
+   `app/src/main/resources/db/changelog/<NNNN>-<name>.yaml` (next free number) plus an `include` line in
    the master. If nothing is missing it prints `Schema is up to date` and writes nothing. `-Pname` is
    required and must be kebab-case (`add-vehicle-note`).
 3. Review and edit the generated file. Each DDL statement is a `sql:` change in a literal block.
@@ -33,7 +33,7 @@ new, higher-numbered changeset.
    better.
 4. Commit the table change and the changeset together.
 
-The generator code lives in the `migrationTool` source set (`src/migrationTool/kotlin`), outside the
+The generator code lives in the `migrationTool` source set (`app/src/migrationTool/kotlin`), outside the
 application classpath.
 
 ### Drift test
@@ -62,7 +62,7 @@ and a reason the DSL cannot express it.
 | --- | --- | --- |
 | `AGGREGATE_ACCURACY_SQL` (`PredictionAccuracyRepository.aggregateAccuracy`) | `predict/model/PredictionAccuracy.kt` | CTEs, aggregate `FILTER`, `percentile_cont ... WITHIN GROUP` and `GROUPING SETS`; run via `exec` with bound parameters, one `?` per algorithm. |
 
-(`grep -rn "exec(" src/main` also finds two call sites that run DSL statements, not a SQL string:
+(`grep -rn "exec(" app/src/main` also finds two call sites that run DSL statements, not a SQL string:
 `db/SqlExpressions.kt`'s `execBatch`, and `db/BatchWrites.kt`'s `exec(WithoutResults(statement))`.)
 
 ## Custom SQL expressions

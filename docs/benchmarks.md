@@ -3,7 +3,7 @@
 Load benchmarks for the three stages of the AVL pipeline: **ingest** (decode a GTFS-RT payload
 and store it), **match/process** (assign pending reports to trips), and **predict** (generate
 `vehicle_prediction` rows from matched reports). They live in their own Gradle source set
-(`src/benchmark/kotlin`), built with [kotlinx-benchmark](https://github.com/Kotlin/kotlinx-benchmark)
+(`app/src/benchmark/kotlin`), built with [kotlinx-benchmark](https://github.com/Kotlin/kotlinx-benchmark)
 on top of JMH, and are a separate, opt-in task from `./gradlew test` - they boot a real Spring
 context against a Testcontainers Postgres instance and run for minutes, not seconds.
 
@@ -20,7 +20,7 @@ Expect the full run to take a couple of minutes; `smokeBenchmark` finishes in we
 and is the one to reach for while iterating on the benchmark code itself.
 
 Results print as a summary table at the end (`ms/op`, lower is better) and are also written to
-`build/reports/benchmarks/<configuration>/<timestamp>/benchmark.json` (the configured
+`app/build/reports/benchmarks/<configuration>/<timestamp>/benchmark.json` (the configured
 `reportFormat`; JSON by default - kotlinx-benchmark doesn't have a built-in HTML format).
 
 For an HTML view, either drop that `benchmark.json` onto https://jmh.morethan.io/ (it's the raw
@@ -31,9 +31,9 @@ JMH JSON format, parsed entirely client-side - nothing is uploaded), or run:
 ```
 
 which renders the most recently modified `benchmark.json` as a self-contained HTML page at
-`build/reports/benchmarks/html/index.html` - open it directly in a browser, no server needed.
+`app/build/reports/benchmarks/html/index.html` - open it directly in a browser, no server needed.
 
-To run a single class, add a Gradle `include(...)` filter to a configuration in `build.gradle.kts`
+To run a single class, add a Gradle `include(...)` filter to a configuration in `app/build.gradle.kts`
 (see the `smoke` profile), or pass `-Pbenchmarks_include=<regex>` if your kotlinx-benchmark version
 supports it - check `./gradlew help --task benchmark` for the exact flags available.
 
@@ -138,11 +138,11 @@ benchmark), JMH `gc` profiler, all three benchmark classes, `vehicleCount` in {4
 
 **kotlinx-benchmark 0.5.0 deviation:** the plugin's `advanced(...)` supports `jvmForks` but has no
 `jvmProfiler` option, and the `@Fork(1)` annotations are overridden by `jvmForks`. To get the `gc`
-profiler (`gc.alloc.rate.norm`), `build.gradle.kts` registers the `baseline` configuration
+profiler (`gc.alloc.rate.norm`), `app/build.gradle.kts` registers the `baseline` configuration
 (warmups/iterations/`jvmForks = 2`) and then re-points the generated `benchmarkBaselineBenchmark`
 task at JMH's own `org.openjdk.jmh.Main` with `-f 2 -wi 2 -i 5 -prof gc -rf json`. Use
 `-PbaselineInclude=<regex>` to run a subset. Output:
-`build/reports/benchmarks/baseline/<timestamp>/benchmark.json`.
+`app/build/reports/benchmarks/baseline/<timestamp>/benchmark.json`.
 
 | Benchmark | vehicleCount | Score (ms/op) | gc.alloc.rate.norm (MiB/op) |
 |---|---|---|---|

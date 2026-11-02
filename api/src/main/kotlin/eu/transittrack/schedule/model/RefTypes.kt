@@ -1,6 +1,6 @@
 package eu.transittrack.schedule.model
 
-/** Lean, JPA-free mirror of `eu.transittrack.gtfs.model.Trip`, for extension-api consumers. */
+/** Lean, JPA-free mirror of `eu.transittrack.gtfs.model.Trip`, for api consumers. */
 data class TripRef(
     val id: Long,
     val revisionId: Long,

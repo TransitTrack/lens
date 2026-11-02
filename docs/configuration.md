@@ -1,7 +1,7 @@
 # Configuration Reference
 
 Every application-specific setting lives under the `transittrack.*` namespace
-in `src/main/resources/application.yaml`, backed by `@ConfigurationProperties`
+in `app/src/main/resources/application.yaml`, backed by `@ConfigurationProperties`
 classes (`eu.transittrack.*Properties`). Standard Spring Boot mechanisms apply
 throughout: environment variables (`TRANSITTRACK_AVL_ENABLED=true`), a mounted
 `application.yaml`/`application-*.yaml`, or `-D`/`--` JVM args all override the

@@ -6,17 +6,17 @@ COPY gradlew build.gradle.kts gradle.properties settings.gradle.kts ./
 COPY gradle gradle
 RUN ./gradlew --version
 
-COPY src src
-COPY extension-api extension-api
+COPY app app
+COPY api api
 COPY examples examples
 
-RUN ./gradlew bootJar --no-daemon -x test
+RUN ./gradlew :app:bootJar --no-daemon -x test
 
 FROM eclipse-temurin:25-jre AS runtime
 WORKDIR /app
 
 RUN useradd --system --create-home --shell /usr/sbin/nologin transittrack
-COPY --from=build /workspace/build/libs/*.jar app.jar
+COPY --from=build /workspace/app/build/libs/*.jar app.jar
 RUN mkdir -p /extensions && chown transittrack:transittrack app.jar /extensions
 ENV LOADER_PATH=/extensions
 USER transittrack

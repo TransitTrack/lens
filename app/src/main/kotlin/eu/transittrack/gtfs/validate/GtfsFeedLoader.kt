@@ -53,7 +53,7 @@ class LoadValidationReport(
     val result: ValidationResult? get() = (engine as? EngineResult.Ok)?.result
 
     /**
-     * The analyzer's R1 verdict, also false when any extension reported an `ERROR` (the extension-api
+     * The analyzer's R1 verdict, also false when any extension reported an `ERROR` (the extension API
      * contract: an ERROR finding blocks like a canonical validator error). Never true for a fatal result.
      */
     val publishable: Boolean

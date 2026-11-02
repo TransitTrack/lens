@@ -20,5 +20,6 @@ pluginManagement {
 }
 
 rootProject.name = "lens"
-include(":extension-api")
+include(":app")
+include(":api")
 include(":examples:example-extension")

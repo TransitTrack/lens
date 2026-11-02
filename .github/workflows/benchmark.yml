@@ -48,13 +48,13 @@ jobs:
       # file path.
       - name: Locate latest JMH output
         run: |
-          latest=$(find build/reports/benchmarks/main -name benchmark.json -printf '%T@ %p\n' | sort -rn | head -n1 | cut -d' ' -f2-)
-          cp "$latest" build/benchmark-latest.json
+          latest=$(find app/build/reports/benchmarks/main -name benchmark.json -printf '%T@ %p\n' | sort -rn | head -n1 | cut -d' ' -f2-)
+          cp "$latest" app/build/benchmark-latest.json
 
       - name: JMH Benchmark Action
         uses: kitlangton/jmh-benchmark-action@v0.1.1
         with:
-          jmh-output-path: build/benchmark-latest.json
+          jmh-output-path: app/build/benchmark-latest.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Render HTML report
@@ -67,6 +67,6 @@ jobs:
         with:
           name: benchmark-reports
           path: |
-            build/reports/benchmarks/main/
-            build/reports/benchmarks/html/
+            app/build/reports/benchmarks/main/
+            app/build/reports/benchmarks/html/
           retention-days: 90

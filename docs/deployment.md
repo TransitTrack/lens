@@ -270,7 +270,7 @@ frontend:
 
 Third-party AVL decoders, GTFS validators, vehicle matchers, and prediction
 strategies are loaded from extra jars on the classpath — no fork, no
-rebuild. See [extension-api/README.md](../extension-api/README.md) for the
+rebuild. See [api/README.md](../api/README.md) for the
 four extension points and their stability guarantees, and
 [examples/example-extension/](../examples/example-extension/) for a
 worked, buildable example.

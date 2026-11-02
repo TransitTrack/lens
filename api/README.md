@@ -1,4 +1,4 @@
-# transittrack extension-api
+# transittrack api
 
 Interfaces for extending transittrack without forking or rebuilding core:
 custom AVL feed decoders, GTFS validation rules, vehicle-matching

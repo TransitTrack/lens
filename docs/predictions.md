@@ -5,7 +5,7 @@ This subsystem (`eu.transittrack.predict`) computes per-stop arrival/departure
 what actually happened, and exposes both — plus a derived route-level
 headway/wait-time view — over a Spring GraphQL read API.
 
-Schema migrations: `src/main/resources/db/changelog/0003-predict.yaml`, reshaped
+Schema migrations: `app/src/main/resources/db/changelog/0003-predict.yaml`, reshaped
 by 0010/0012/0015/0016/0017 (feed-code keys, sequences, pattern keys, learning
 buckets), 0018/0019 (claim index, accuracy horizons), and 0020 (source freshness,
 crossing quality, persistent frequency runs and shared accuracy snapshots).

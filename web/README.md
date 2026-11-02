@@ -14,7 +14,7 @@ A Nuxt 4 / Vue 3 / NuxtUI live dashboard for AVL-matched vehicles, reading the
 
 ```bash
 npm install
-npm run codegen   # regenerate generated/graphql.ts from ../src/main/resources/graphql/*.graphqls
+npm run codegen   # regenerate generated/graphql.ts from ../app/src/main/resources/graphql/*.graphqls
 npm run dev       # starts on :3000, proxies /graphql to :8080 (override via NUXT_BACKEND_URL)
 ```
 
@@ -40,7 +40,7 @@ to `0.0.0.0` — some environments only resolve the IPv6 loopback for a plain
 
 Run `npm run codegen` whenever a `.graphql` operation file under
 `app/graphql/` changes, or whenever the backend's
-`src/main/resources/graphql/*.graphqls` schema changes. The output
+`app/src/main/resources/graphql/*.graphqls` schema changes. The output
 (`generated/graphql.ts`) is checked in.
 
 ## Known limitations / deferred
