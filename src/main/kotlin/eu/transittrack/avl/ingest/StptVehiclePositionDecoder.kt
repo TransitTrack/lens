@@ -68,9 +68,9 @@ private data class Vehicle(
 @Serializable
 private data class ServiceWindow(
     @SerialName("first_departure")
-    val firstDeparture: String,
+    val firstDeparture: String?,
     @SerialName("last_arrival")
-    val lastArrival: String,
+    val lastArrival: String?,
 )
 
 @Component

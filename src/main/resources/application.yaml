@@ -13,7 +13,7 @@ spring:
         pretty-print: false
         encode-defaults: true
   datasource:
-    url: jdbc:postgresql://${POSTGRES_PORT_5432_TCP_ADDR:localhost}:${POSTGRES_PORT_5432_TCP_PORT:5432}/explorer
+    url: jdbc:postgresql://${POSTGRES_PORT_5432_TCP_ADDR:localhost}:${POSTGRES_PORT_5432_TCP_PORT:5432}/explorer?reWriteBatchedInserts=true
     username: postgres
     password: ${POSTGRES_PASSWORD:password}
   liquibase:

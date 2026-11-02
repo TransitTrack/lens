@@ -77,7 +77,11 @@ class AvlWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun upsertStates(states: List<VehicleStateUpsert>) {
         if (states.isEmpty()) return
-        VehicleStateTable.batchUpsertWithoutResults(states, VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(this, it) }
+        val latestState = states
+            .groupBy { it.feedCode to it.vehicleId }
+            .map { (_, state) -> state.maxByOrNull { it.reportTs } }
+            .filterNotNull()
+        VehicleStateTable.batchUpsertWithoutResults(latestState, VehicleStateTable.feedCode, VehicleStateTable.vehicleId) { bind(this, it) }
     }
 
     /** Every column but `id`, which the insert takes from `vehicle_state_seq` and an update leaves alone. */
