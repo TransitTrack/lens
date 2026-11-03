@@ -12,7 +12,15 @@ data class PredictProperties(
     @NestedConfigurationProperty val learn: Learn = Learn(),
     @NestedConfigurationProperty val accuracy: Accuracy = Accuracy(),
     @NestedConfigurationProperty val retention: Retention = Retention(),
+    @NestedConfigurationProperty val smile: Smile = Smile(),
+    @NestedConfigurationProperty val late: Late = Late(),
 ) {
+    init {
+        require(smile.trainingDays <= retention.rawCrossingDays) {
+            "smile.trainingDays (${smile.trainingDays}) must be <= retention.rawCrossingDays (${retention.rawCrossingDays})"
+        }
+    }
+
     data class Run(
         val intervalMs: Long = 5_000,
         val claimBatchSize: Int = 500,
@@ -111,4 +119,52 @@ data class PredictProperties(
         val rawCrossingDays: Long = 90,
         val sweepCron: String = "0 15 * * * *",
     )
+
+    /** Gradient-boosted (SMILE_GBM) prediction model: training schedule, data window and hyperparameters. */
+    data class Smile(
+        /** Spring cron for the training job (default: daily 03:30). */
+        val trainCron: String = "0 30 3 * * *",
+        /** How often the serving side checks for a newer trained model. */
+        val refreshMs: Long = 300_000,
+        /** Training is skipped when fewer crossing rows than this are available. */
+        val minTrainingRows: Int = 2_000,
+        /** Training sample is capped to this many rows. */
+        val maxTrainingRows: Int = 200_000,
+        /** Days of raw crossings used for training; must not exceed retention.rawCrossingDays. */
+        val trainingDays: Int = 60,
+        val trees: Int = 200,
+        val maxDepth: Int = 6,
+        val shrinkage: Double = 0.1,
+        val subsample: Double = 0.7,
+        /** Lower prediction-interval quantile; 0 < low < 0.5. */
+        val lowQuantile: Double = 0.1,
+        /** Upper prediction-interval quantile; 0.5 < high < 1. */
+        val highQuantile: Double = 0.9,
+    ) {
+        init {
+            require(refreshMs > 0) { "refreshMs must be > 0" }
+            require(minTrainingRows > 0) { "minTrainingRows must be > 0" }
+            require(maxTrainingRows >= minTrainingRows) { "maxTrainingRows must be >= minTrainingRows" }
+            require(trainingDays > 0) { "trainingDays must be > 0" }
+            require(trees > 0) { "trees must be > 0" }
+            require(maxDepth > 0) { "maxDepth must be > 0" }
+            require(shrinkage.isFinite() && shrinkage > 0 && shrinkage <= 1) { "shrinkage must be in (0, 1]" }
+            require(subsample.isFinite() && subsample > 0 && subsample <= 1) { "subsample must be in (0, 1]" }
+            require(lowQuantile.isFinite() && lowQuantile > 0 && lowQuantile < 0.5) { "lowQuantile must be in (0, 0.5)" }
+            require(highQuantile.isFinite() && highQuantile > 0.5 && highQuantile < 1) { "highQuantile must be in (0.5, 1)" }
+        }
+    }
+
+    /** Lateness policy: when a vehicle counts as late relative to schedule or headway. */
+    data class Late(
+        /** Seconds past schedule tolerated before a trip is considered late. */
+        val scheduleToleranceSec: Int = 300,
+        /** For headway-based services: fraction of the headway tolerated. */
+        val headwayFraction: Double = 0.5,
+    ) {
+        init {
+            require(scheduleToleranceSec >= 0) { "scheduleToleranceSec must be >= 0" }
+            require(headwayFraction.isFinite() && headwayFraction > 0) { "headwayFraction must be finite and > 0" }
+        }
+    }
 }

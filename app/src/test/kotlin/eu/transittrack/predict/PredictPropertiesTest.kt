@@ -2,9 +2,11 @@ package eu.transittrack.predict
 
 import kotlin.test.Test
 
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 
@@ -87,5 +89,35 @@ class PredictPropertiesTest {
                 .avl!!
                 .predictionAlgorithms,
         ).isEqualTo(listOf(PredictionAlgorithm.SMILE_GBM))
+    }
+
+    @Test
+    fun `smile defaults are valid`() {
+        val p = PredictProperties()
+        assertThat(p.smile.trees).isEqualTo(200)
+        assertThat(p.late.scheduleToleranceSec).isEqualTo(300)
+        assertThat(p.late.headwayFraction).isEqualTo(0.5)
+    }
+
+    @Test
+    fun `smile rejects inverted quantiles`() {
+        assertFailure { PredictProperties.Smile(lowQuantile = 0.9, highQuantile = 0.1) }
+            .isInstanceOf(IllegalArgumentException::class)
+    }
+
+    @Test
+    fun `late rejects non positive headway fraction`() {
+        assertFailure { PredictProperties.Late(headwayFraction = 0.0) }
+            .isInstanceOf(IllegalArgumentException::class)
+    }
+
+    @Test
+    fun `training days cannot exceed raw crossing retention`() {
+        assertFailure {
+            PredictProperties(
+                smile = PredictProperties.Smile(trainingDays = 91),
+                retention = PredictProperties.Retention(rawCrossingDays = 90),
+            )
+        }.isInstanceOf(IllegalArgumentException::class)
     }
 }
