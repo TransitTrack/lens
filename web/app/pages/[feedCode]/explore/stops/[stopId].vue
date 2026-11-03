@@ -187,7 +187,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        aria-label="Go back"
+        :aria-label="t('common.goBack')"
         @click="router.back()"
       />
     </template>

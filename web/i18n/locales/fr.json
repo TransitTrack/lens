@@ -689,7 +689,7 @@
       "allServices": "Tous les services",
       "vehicleHours": "Heures-véhicule",
       "avgTrips": "Moy. voyages/bloc",
-      "peakConcurrent": "Pic simultané",
+      "peakConcurrent": "Nombre max. de blocs simultanés",
       "searchPlaceholder": "Rechercher un bloc, un service ou une ligne…",
       "matching": "{count} bloc correspondant | {count} blocs correspondants",
       "assignments": "Affectations des blocs",

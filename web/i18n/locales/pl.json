@@ -689,7 +689,7 @@
       "allServices": "Wszystkie rozkłady",
       "vehicleHours": "Godziny pracy pojazdów",
       "avgTrips": "Śr. liczba kursów na brygadę",
-      "peakConcurrent": "Maks. jednoczesnych",
+      "peakConcurrent": "Maks. liczba jednoczesnych brygad",
       "searchPlaceholder": "Znajdź brygadę, rozkład lub linię…",
       "matching": "{count} pasująca brygada | {count} pasujące brygady | {count} pasujących brygad",
       "assignments": "Przydziały brygad",

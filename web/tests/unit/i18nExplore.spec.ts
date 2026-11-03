@@ -40,6 +40,14 @@ describe('service day labels', () => {
   })
 })
 
+describe('explore locale keys', () => {
+  it('has goBack and the reworded peak label', () => {
+    expect(make('pl').t('common.goBack')).toBe('Wróć')
+    expect(make('fr').t('common.goBack')).toBe('Retour')
+    expect(make('pl').t('explore.blocks.peakConcurrent')).toBe('Maks. liczba jednoczesnych brygad')
+  })
+})
+
 describe('block layover label', () => {
   it('translates in Polish', () => {
     expect(layoverLabel(600, true, make('pl').t)).toBe('postój 10 min · następnie przejazd techniczny')
