@@ -112,7 +112,7 @@
     "minutesAgo": "acum {count} min"
   },
   "noRealtime": {
-    "title": "Nicio sursă în timp real pentru acest flux",
+    "title": "Fără date în timp real pentru acest flux",
     "body": "{name} nu are un flux AVL asociat, deci nu se poate oferi: {what}. Explorează în schimb datele GTFS statice.",
     "thisFeed": "Acest flux",
     "liveVehicleData": "datele vehiculelor în direct",
@@ -144,7 +144,7 @@
   },
   "home": {
     "loadingFeeds": "Se încarcă fluxurile…",
-    "operationsOverview": "Prezentare operațională",
+    "operationsOverview": "Situație operațională",
     "operationsDescription": "Poziții ale vehiculelor în direct, asocierea curselor și starea serviciului"
   },
   "feed": {
@@ -375,8 +375,8 @@
       "updated": "Actualizat:",
       "noTripProgress": "Fără progres al cursei",
       "tripCompleted": "Cursă parcursă în proporție de {percent}%",
-      "complete": "Distanță parcursă: {distance}",
-      "left": "Distanță rămasă: {distance}",
+      "complete": "parcurs: {distance}",
+      "left": "rămas: {distance}",
       "block": "· bloc",
       "trip": "· cursă",
       "openDetails": "Deschide detaliile",
@@ -1020,7 +1020,7 @@
     "rebuild": "Reconstruiește și validează",
     "activate": "Activează",
     "allDirections": "Toate direcțiile",
-    "undo": "Dezfă",
+    "undo": "Anulează",
     "redo": "Refă",
     "addTrip": "Adaugă cursă",
     "bulkShift": "Decalare în masă…",
@@ -1064,7 +1064,7 @@
     "duplicate": "Duplică",
     "sourceTrip": "Cursa sursă",
     "pickTrip": "Alege o cursă",
-    "offset": "Deplasare",
+    "offset": "Decalare",
     "deltaHintAdd": "Introdu o diferență cu semn: +30m, -90, +1:30",
     "example": "ex. {value}",
     "newTripId": "ID-ul noii curse",
