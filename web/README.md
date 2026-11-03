@@ -102,8 +102,16 @@ updates, no production build/deploy strategy yet.
    (non-zero exit); fix them by hand or rerun. Domain terms come from
    `i18n/glossary.json`.
 3. Review the output: it is machine-quality.
-4. Optionally add the matching Nuxt UI locale in `app.vue` so built-in
-   component strings are translated too.
+4. Add the language to the `INTL_TAGS` map in `app/utils/intlLocale.ts`
+   (e.g. `de: 'de-DE'`); without it dates, weekdays and numbers silently
+   fall back to `en-GB`.
+5. If the language has more than two plural forms (cs, ru, uk, ...), add a
+   rule for it in `i18n/pluralRules.ts`. The translate script only copies
+   the English two-form plurals, so adjust the `a | b | c` forms by hand.
+6. Optionally add the matching Nuxt UI locale in `app/app.vue` (import it
+   next to `en, pl, fr` from `@nuxt/ui/locale` and add it to the `uiLocales`
+   map) so built-in component strings are translated too; unknown codes
+   fall back to `en`.
 
 Run `pnpm i18n:check` (add `--strict` to fail on missing translations) to
 verify locale consistency: keys used in code exist in `en`, `en` keys are
