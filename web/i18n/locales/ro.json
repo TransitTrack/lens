@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Se încarcă detaliile operaționale…",
-      "unassigned": "Neatribuit",
-      "blockWindow": "Interval de bloc",
-      "tripTitle": "Cursa {id}",
       "progress": "Progres {percent}%",
       "remaining": "{distance} km rămași",
       "at": "La",
@@ -441,8 +438,6 @@
       "estimated": "estimat",
       "fromRoute": "De la linie",
       "lastUpdate": "Ultima actualizare",
-      "updated": "Actualizat",
-      "schedule": "Orar",
       "speedUnavailable": "Viteză indisponibilă",
       "estimatedParens": "(estimat)",
       "stale": "învechit",

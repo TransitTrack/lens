@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Ładowanie szczegółów operacyjnych…",
-      "unassigned": "Nieprzypisana",
-      "blockWindow": "Okno brygady",
-      "tripTitle": "Kurs {id}",
       "progress": "Postęp {percent}%",
       "remaining": "Pozostało {distance} km",
       "at": "Lokalizacja",
@@ -441,8 +438,6 @@
       "estimated": "szacowana",
       "fromRoute": "Od trasy",
       "lastUpdate": "Ostatnia aktualizacja",
-      "updated": "Zaktualizowano",
-      "schedule": "Rozkład",
       "speedUnavailable": "Prędkość niedostępna",
       "estimatedParens": "(szacowana)",
       "stale": "nieaktualny",

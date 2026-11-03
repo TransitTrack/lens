@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Chargement des détails opérationnels…",
-      "unassigned": "Non affectée",
-      "blockWindow": "Plage du bloc",
-      "tripTitle": "Voyage {id}",
       "progress": "Progression {percent} %",
       "remaining": "{distance} km restants",
       "at": "Emplacement",
@@ -441,8 +438,6 @@
       "estimated": "estimée",
       "fromRoute": "Écart au parcours",
       "lastUpdate": "Dernière mise à jour",
-      "updated": "Mis à jour",
-      "schedule": "Horaire",
       "speedUnavailable": "Vitesse indisponible",
       "estimatedParens": "(estimée)",
       "stale": "obsolète",

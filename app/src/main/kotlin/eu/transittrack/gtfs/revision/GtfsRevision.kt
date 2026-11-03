@@ -47,7 +47,8 @@ class GtfsRevision(
 object GtfsRevisionTable : RowTable<GtfsRevision>("gtfs_revision") {
     val id = long("id").autoIncrement(Sequence("gtfs_revision_seq", startWith = 1, incrementBy = 50))
     val feedId = long("feed_id")
-        .references(GtfsFeedTable.id, onDelete = ReferenceOption.CASCADE, onUpdate = ReferenceOption.NO_ACTION, fkName = "fk_revision_feed")
+        .references(GtfsFeedTable.id, onDelete = ReferenceOption.CASCADE,
+            onUpdate = ReferenceOption.NO_ACTION, fkName = "fk_revision_feed")
     val status = enumerationByName<GtfsRevisionStatus>("status", 16)
     val sourceUrl = text("source_url")
     val contentSha256 = varchar("content_sha256", 64).nullable()

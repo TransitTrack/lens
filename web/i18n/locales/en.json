@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Loading operational details…",
-      "unassigned": "Unassigned",
-      "blockWindow": "Block window",
-      "tripTitle": "Trip {id}",
       "progress": "Progress {percent}%",
       "remaining": "{distance} km remaining",
       "at": "At",
@@ -441,8 +438,6 @@
       "estimated": "estimated",
       "fromRoute": "From route",
       "lastUpdate": "Last update",
-      "updated": "Updated",
-      "schedule": "Schedule",
       "speedUnavailable": "Speed unavailable",
       "estimatedParens": "(estimated)",
       "stale": "stale",

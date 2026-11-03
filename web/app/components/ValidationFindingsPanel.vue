@@ -14,6 +14,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const PREVIEW = 5
+// i18n-keys: findings.severity.*
 
 const { result } = useValidationFindingsQuery(
   () => ({ feedCode: props.feedCode ?? '', entityType: props.entityType, entityId: props.entityId }),
