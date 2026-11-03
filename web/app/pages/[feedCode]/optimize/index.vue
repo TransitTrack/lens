@@ -8,7 +8,7 @@ import NewOptimizationRunDialog from '~/components/optimize/NewOptimizationRunDi
 import {gtfsDate} from '~/utils/gtfs'
 
 const {selectedFeedCode, feedPath} = useFeeds()
-const {t, te} = useI18n()
+const { t, te, locale } = useI18n()
 const newOpen = ref(false)
 
 const {result, loading, error} = useOptimizationRunsQuery(
@@ -98,7 +98,7 @@ function stateLabel(state: string): string {
           <div class="flex shrink-0 items-center gap-4 text-sm text-muted sm:text-right">
             <div>
               <p class="text-xs text-dimmed">{{ $t('optimize.started') }}</p>
-              <p class="mt-1 font-medium text-highlighted">{{ gtfsDate(run.createdAt) }}</p>
+              <p class="mt-1 font-medium text-highlighted">{{ gtfsDate(run.createdAt, locale) }}</p>
             </div>
             <UIcon name="i-lucide-chevron-right" class="size-5 text-dimmed transition group-hover:translate-x-0.5 group-hover:text-primary" />
           </div>

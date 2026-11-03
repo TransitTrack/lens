@@ -8,7 +8,7 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { selectedFeedCode, feedPath } = useFeeds()
 const toast = useToast()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { name: editorName } = useEditorIdentity()
 
 const label = ref('')
@@ -27,7 +27,7 @@ const { result: feedResult } = useFeedDetailQuery(
 const activeRevisionLabel = computed(() => {
   const active = feedResult.value?.feed?.activeRevision
   return active
-    ? t('drafts.revisionLabel', { id: active.id, date: gtfsDate(active.createdAt) })
+    ? t('drafts.revisionLabel', { id: active.id, date: gtfsDate(active.createdAt, locale.value) })
     : t('feed.overview.activeRevision')
 })
 

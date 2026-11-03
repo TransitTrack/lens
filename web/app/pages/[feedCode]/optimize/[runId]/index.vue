@@ -10,7 +10,7 @@ import {useFeeds} from '~/composables/useFeeds'
 const route = useRoute()
 const runId = computed(() => String(route.params.runId))
 const {feedPath} = useFeeds()
-const {t, te} = useI18n()
+const { t, te, locale } = useI18n()
 
 const selectedIds = ref<string[]>([])
 const conflictIds = ref<string[]>([])
@@ -113,11 +113,11 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
           <dl class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm sm:min-w-72">
             <div>
               <dt class="text-dimmed">{{ $t('optimize.created') }}</dt>
-              <dd class="mt-1 font-medium text-highlighted">{{ gtfsDate(run.createdAt) }}</dd>
+              <dd class="mt-1 font-medium text-highlighted">{{ gtfsDate(run.createdAt, locale) }}</dd>
             </div>
             <div>
               <dt class="text-dimmed">{{ $t('optimize.completed') }}</dt>
-              <dd class="mt-1 font-medium text-highlighted">{{ run.completedAt ? gtfsDate(run.completedAt) : $t('optimize.inProgress') }}</dd>
+              <dd class="mt-1 font-medium text-highlighted">{{ run.completedAt ? gtfsDate(run.completedAt, locale) : $t('optimize.inProgress') }}</dd>
             </div>
           </dl>
         </div>

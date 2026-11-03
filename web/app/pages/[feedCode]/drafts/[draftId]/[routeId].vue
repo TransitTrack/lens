@@ -31,7 +31,7 @@ definePageMeta({
 
 const route = useRoute()
 const toast = useToast()
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const {selectedFeedCode, feedPath} = useFeeds()
 
 const draftId = computed(() => String(route.params.draftId))
@@ -81,7 +81,7 @@ function parseValidation(raw: unknown): ValidationSummary | null {
 const lastValidation = computed(() => parseValidation(draft.value?.lastValidation))
 
 function formatTime(iso: string): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 
 // --- route / service pickers -------------------------------------------

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/AppPage.vue'
 import VehicleList from '~/components/VehicleList.vue'
 import VehicleFacets from '~/components/VehicleFacets.vue'
@@ -16,7 +17,7 @@ import {
   type VehicleState,
 } from '~/utils/vehicleFilters'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { selectedAvlFeedCode, feedPath } = useFeeds()
 const route = useRoute()
 const router = useRouter()
@@ -143,8 +144,8 @@ function openVehicle(vehicleId: string) {
               t(
                 'vehicles.shownOf',
                 {
-                  shown: filtered.length.toLocaleString(),
-                  total: vehicles.length.toLocaleString(),
+                  shown: formatNumber(filtered.length, locale),
+                  total: formatNumber(vehicles.length, locale),
                 },
                 vehicles.length,
               )

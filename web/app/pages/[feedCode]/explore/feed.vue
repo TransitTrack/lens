@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
@@ -17,7 +18,7 @@ import {
 import { gtfsDate } from '~/utils/gtfs'
 import { deriveFeatures } from '~/utils/feedFeatures'
 
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
@@ -238,10 +239,10 @@ async function saveFeed() {
             {{
               rev.byteSize
                 ? t('explore.feed.latestDatasetSize', {
-                    date: gtfsDate(rev.activatedAt ?? rev.createdAt),
+                    date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale),
                     size: (rev.byteSize / 1e6).toFixed(1),
                   })
-                : t('explore.feed.latestDataset', { date: gtfsDate(rev.activatedAt ?? rev.createdAt) })
+                : t('explore.feed.latestDataset', { date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale) })
             }}
           </span>
         </div>
@@ -262,7 +263,7 @@ async function saveFeed() {
                 class="rounded-md border border-default px-2.5 py-1.5"
               >
                 <div class="text-sm font-semibold text-highlighted">
-                  {{ count.toLocaleString() }}
+                  {{ formatNumber(count, locale) }}
                 </div>
                 <div class="truncate text-[11px] text-dimmed">{{ name }}</div>
               </div>
@@ -309,7 +310,7 @@ async function saveFeed() {
               <dt class="text-dimmed">{{ t('explore.feed.language') }}</dt>
               <dd>{{ info.feedLang ?? '—' }}</dd>
               <dt class="text-dimmed">{{ t('explore.feed.valid') }}</dt>
-              <dd>{{ gtfsDate(info.feedStartDate) }} → {{ gtfsDate(info.feedEndDate) }}</dd>
+              <dd>{{ gtfsDate(info.feedStartDate, locale) }} → {{ gtfsDate(info.feedEndDate, locale) }}</dd>
               <dt class="text-dimmed">{{ t('explore.feed.contact') }}</dt>
               <dd>{{ info.feedContactEmail ?? info.feedContactUrl ?? '—' }}</dd>
             </dl>

@@ -27,7 +27,7 @@ interface ReportFilters {
 
 const PAGE_SIZE = 100
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { selectedAvlFeedCode } = useFeeds()
 const units = useUnits()
 const filters = reactive<ReportFilters>({
@@ -65,6 +65,7 @@ const vehicleItems = computed(() =>
 )
 
 function todayIn(timeZone: string): string {
+  // Machine format: 'en-CA' yields ISO yyyy-mm-dd for the API and date inputs, so it must not follow the UI locale.
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone }).formatToParts(new Date())
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? ''
@@ -153,7 +154,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
   {
     accessorKey: 'ts',
     header: t('vehicles.avl.column.time'),
-    cell: ({ row }) => formatReportTimestamp(row.original.ts, timeZone.value ?? 'UTC'),
+    cell: ({ row }) => formatReportTimestamp(row.original.ts, timeZone.value ?? 'UTC', locale.value),
   },
   {
     id: 'location',
@@ -168,7 +169,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
   {
     accessorKey: 'processedAt',
     header: t('reports.col.processingTime'),
-    cell: ({ row }) => formatReportTimestamp(row.original.processedAt, timeZone.value ?? 'UTC'),
+    cell: ({ row }) => formatReportTimestamp(row.original.processedAt, timeZone.value ?? 'UTC', locale.value),
   },
   {
     accessorKey: 'source',

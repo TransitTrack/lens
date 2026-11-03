@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem, TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
@@ -9,7 +10,7 @@ import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExplorePatterns } from '~/composables/useExplorePatterns'
 import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const { agencyId } = useAgencyFilter()
@@ -136,7 +137,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
         class="border-b border-r border-default px-4 py-2.5 last:border-r-0 sm:border-b-0"
       >
         <div class="text-lg font-semibold tracking-tight text-highlighted">
-          {{ s.value.toLocaleString() }}
+          {{ formatNumber(s.value, locale) }}
         </div>
         <div class="text-xs text-muted">{{ s.label }}</div>
       </div>
@@ -158,7 +159,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 t('explore.stops.directory')
               }}</span>
               <span class="text-xs text-dimmed">{{
-                t('explore.stops.shown', { count: rows.length.toLocaleString() })
+                t('explore.stops.shown', { count: formatNumber(rows.length, locale) })
               }}</span>
             </div>
             <UInput
@@ -173,7 +174,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <span>{{
               t(
                 'explore.stops.inView',
-                { count: inAgency.length.toLocaleString() },
+                { count: formatNumber(inAgency.length, locale) },
                 inAgency.length,
               )
             }}</span>

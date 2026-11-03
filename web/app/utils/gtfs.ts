@@ -1,3 +1,5 @@
+import { displayLocale } from './intlLocale'
+
 const KNOWN_ROUTE_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7, 11, 12])
 
 export type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
@@ -73,11 +75,11 @@ export function serviceDaysLabel(cal: DayFlags, t: Translate): string {
 }
 
 /** GTFS date "YYYYMMDD" or ISO → short display */
-export function gtfsDate(raw: string | null | undefined): string {
+export function gtfsDate(raw: string | null | undefined, appLocale?: string): string {
   if (!raw) return '—'
   const s = raw.length === 8 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : raw
   const d = new Date(s)
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, {dateStyle: 'medium'})
+  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(displayLocale(appLocale), {dateStyle: 'medium'})
 }
 
 export type LngLat = [number, number]

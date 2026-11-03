@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {formatTimeAgo} from '@vueuse/core'
 import {useAvlFeedsQuery} from '../../generated/graphql'
 
 const {result, loading} = useAvlFeedsQuery(() => ({pollInterval: 60_000}))
+
+const timeAgo = useRelativeTime()
 
 const feeds = computed(() => result.value?.avlFeeds ?? [])
 
@@ -32,7 +33,7 @@ function healthy(status: string | null | undefined): boolean {
           <div class="truncate text-sm font-medium text-highlighted">{{ feed.name }}</div>
           <div class="text-xs text-dimmed">
             {{ $t('feed.reports', { count: feed.lastPollReportCount ?? 0 }, feed.lastPollReportCount ?? 0) }} ·
-            {{ feed.lastPollAt ? formatTimeAgo(new Date(feed.lastPollAt)) : $t('common.never') }}
+            {{ feed.lastPollAt ? timeAgo(feed.lastPollAt) : $t('common.never') }}
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">

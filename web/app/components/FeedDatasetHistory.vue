@@ -5,7 +5,7 @@ import type {FeedDetailQuery, RevisionStatus} from '~~/generated/graphql'
 
 type Rev = NonNullable<FeedDetailQuery['feed']>['revisions'][number]
 
-const {t, te} = useI18n()
+const { t, te, locale } = useI18n()
 
 defineProps<{ revisions: Rev[] }>()
 const emit = defineEmits<{
@@ -44,12 +44,12 @@ function statusLabel(status: string): string {
     <div class="text-sm font-medium text-muted">{{ $t('feed.dataset.title') }}</div>
     <UTable :data="revisions" :columns="columns">
       <template #createdAt-cell="{ row }">
-        <div class="font-medium text-highlighted">{{ gtfsDate(row.original.createdAt) }}</div>
+        <div class="font-medium text-highlighted">{{ gtfsDate(row.original.createdAt, locale) }}</div>
         <div class="text-xs text-dimmed">#{{ row.original.id }}</div>
       </template>
       <template #service-cell="{ row }">
         <span class="text-sm text-muted">
-          {{ gtfsDate(row.original.feedStartDate) }} → {{ gtfsDate(row.original.feedEndDate) }}
+          {{ gtfsDate(row.original.feedStartDate, locale) }} → {{ gtfsDate(row.original.feedEndDate, locale) }}
         </span>
       </template>
       <template #status-cell="{ row }">

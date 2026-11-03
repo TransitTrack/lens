@@ -9,6 +9,28 @@
     "never": "nigdy",
     "goBack": "Wróć"
   },
+  "timeAgo": {
+    "justNow": "przed chwilą",
+    "past": "{time} temu",
+    "future": "za {time}",
+    "yesterday": "wczoraj",
+    "tomorrow": "jutro",
+    "lastWeek": "w zeszłym tygodniu",
+    "nextWeek": "w przyszłym tygodniu",
+    "lastMonth": "w zeszłym miesiącu",
+    "nextMonth": "w przyszłym miesiącu",
+    "lastYear": "w zeszłym roku",
+    "nextYear": "w przyszłym roku",
+    "unit": {
+      "second": "{count} sekunda | {count} sekundy | {count} sekund",
+      "minute": "{count} minuta | {count} minuty | {count} minut",
+      "hour": "{count} godzina | {count} godziny | {count} godzin",
+      "day": "{count} dzień | {count} dni | {count} dni",
+      "week": "{count} tydzień | {count} tygodnie | {count} tygodni",
+      "month": "{count} miesiąc | {count} miesiące | {count} miesięcy",
+      "year": "{count} rok | {count} lata | {count} lat"
+    }
+  },
   "nav": {
     "overview": "Przegląd",
     "liveService": "Ruch na żywo",

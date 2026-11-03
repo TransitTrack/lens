@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
@@ -14,7 +15,7 @@ import {
 import { hexColor, routeTextColor, serviceDaysLabel } from '~/utils/gtfs'
 import { blockDurationSec, peakConcurrency } from '~/utils/blocks'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
@@ -199,7 +200,7 @@ function routeTripCount(b: Block, routeId: string): number {
           {{
             t(
               'explore.blocks.matching',
-              { count: blocks.length.toLocaleString() },
+              { count: formatNumber(blocks.length, locale) },
               blocks.length,
             )
           }}

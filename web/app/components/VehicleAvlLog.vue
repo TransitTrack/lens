@@ -14,7 +14,7 @@ const props = defineProps<{
 }>()
 const open = defineModel<boolean>('open', { default: false })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const units = useUnits()
 const { intervalMs } = usePollControl()
 
@@ -35,7 +35,7 @@ const STATUS_COLOR: Record<string, 'success' | 'error' | 'neutral' | 'warning'> 
 }
 
 function hhmmss(iso: string): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 
 const columns = computed<TableColumn<AvlLogRow>[]>(() => [

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { formatTimeAgo } from '@vueuse/core'
+import { formatNumber } from '~/utils/intlLocale'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedDetailQuery } from '~~/generated/graphql'
 import { gtfsDate } from '~/utils/gtfs'
 import { revisionStatusMeta, rowCount } from '~/utils/feedStatus'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const timeAgo = useRelativeTime()
 const { selectedFeedCode } = useFeeds()
 
 const { result, loading, error } = useFeedDetailQuery(
@@ -107,13 +108,13 @@ const warningsText = computed(() => {
 })
 
 function noticeCountText(notice: { severity: string; count: number }): string {
-  const params = { count: notice.count.toLocaleString() }
+  const params = { count: formatNumber(notice.count, locale.value) }
   return notice.severity === 'ERROR'
     ? t('feed.overview.noticeError', params, notice.count)
     : t('feed.overview.noticeWarning', params, notice.count)
 }
 
-const n = (v: number | null) => (v == null ? '—' : v.toLocaleString())
+const n = (v: number | null) => (v == null ? '—' : formatNumber(v, locale.value))
 
 function noticeColor(severity: string): 'error' | 'warning' {
   return severity === 'ERROR' ? 'error' : 'warning'
@@ -145,7 +146,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
           <span v-if="rev" class="text-sm text-highlighted">#{{ rev.id }}</span>
         </div>
         <div v-if="rev?.activatedAt" class="text-xs text-dimmed">
-          {{ $t('feed.overview.activated', { time: formatTimeAgo(new Date(rev.activatedAt)) }) }}
+          {{ $t('feed.overview.activated', { time: timeAgo(rev.activatedAt) }) }}
         </div>
       </UCard>
 
@@ -155,7 +156,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
           {{ $t('feed.overview.serviceWindow') }}
         </div>
         <div class="text-sm font-semibold text-highlighted">
-          {{ gtfsDate(rev?.feedStartDate) }} → {{ gtfsDate(rev?.feedEndDate) }}
+          {{ gtfsDate(rev?.feedStartDate, locale) }} → {{ gtfsDate(rev?.feedEndDate, locale) }}
         </div>
         <div v-if="daysLeft != null" class="text-xs text-dimmed">
           {{

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { formatTimeAgo } from '@vueuse/core'
 import { useAvlFeedsQuery } from '../../generated/graphql'
 import { useDashboard } from '../composables/useDashboard'
 
 const { t } = useI18n()
+const timeAgo = useRelativeTime()
 const { isNotificationsSlideoverOpen } = useDashboard()
 
 const { result } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
@@ -53,7 +53,7 @@ const notifications = computed<FeedNotification[]>(() =>
               v-if="n.date"
               :datetime="n.date"
               class="text-xs text-muted"
-              v-text="formatTimeAgo(new Date(n.date))"
+              v-text="timeAgo(n.date)"
             />
           </p>
           <p class="text-dimmed">{{ $t('notifications.lastPoll', { status: n.status }) }}</p>

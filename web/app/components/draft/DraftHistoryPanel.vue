@@ -16,6 +16,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>()
 
+const { locale } = useI18n()
+
 const { result, refetch } = useDraftEditsQuery(
   () => ({ id: props.draftId, limit: 200 }),
   () => ({ enabled: !!props.draftId }),
@@ -103,7 +105,7 @@ async function undoToHere(targetSeq: number) {
 }
 
 function fmt(iso: string): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 </script>
 

@@ -17,7 +17,7 @@ import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import BarChart from '~/components/BarChart.vue'
 import type {Bar} from '~/utils/chart'
 
-const {t} = useI18n()
+const {t, locale} = useI18n()
 const {selectedFeed, selectedFeedCode, selectedAvlFeedCode} = useFeeds()
 const {intervalMs} = usePollControl()
 
@@ -148,7 +148,7 @@ const boardColumns = computed<TableColumn<BoardRow>[]>(() => [
 ])
 
 function formatTs(iso: string | null | undefined): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 
 /**

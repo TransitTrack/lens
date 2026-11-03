@@ -9,6 +9,28 @@
     "never": "never",
     "goBack": "Go back"
   },
+  "timeAgo": {
+    "justNow": "just now",
+    "past": "{time} ago",
+    "future": "in {time}",
+    "yesterday": "yesterday",
+    "tomorrow": "tomorrow",
+    "lastWeek": "last week",
+    "nextWeek": "next week",
+    "lastMonth": "last month",
+    "nextMonth": "next month",
+    "lastYear": "last year",
+    "nextYear": "next year",
+    "unit": {
+      "second": "{count} second | {count} seconds",
+      "minute": "{count} minute | {count} minutes",
+      "hour": "{count} hour | {count} hours",
+      "day": "{count} day | {count} days",
+      "week": "{count} week | {count} weeks",
+      "month": "{count} month | {count} months",
+      "year": "{count} year | {count} years"
+    }
+  },
   "nav": {
     "overview": "Overview",
     "liveService": "Live service",

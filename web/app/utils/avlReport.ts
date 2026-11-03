@@ -1,3 +1,5 @@
+import { intlLocale } from './intlLocale'
+
 export interface ReportAssignment {
   descTripId?: string | null
   match?: {
@@ -18,8 +20,8 @@ export function assignmentLabel(
   return report.match?.trip?.tripId ?? report.descTripId ?? t('reports.notAvailable')
 }
 
-export function formatReportTimestamp(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
+export function formatReportTimestamp(iso: string, timeZone: string, appLocale?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(appLocale), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

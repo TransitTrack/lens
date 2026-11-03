@@ -21,6 +21,7 @@ interface ReportFilters {
 }
 
 function today(): string {
+  // Machine format: 'en-CA' yields ISO yyyy-mm-dd for the API and date inputs, so it must not follow the UI locale.
   const parts = new Intl.DateTimeFormat('en-CA').formatToParts(new Date())
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? ''

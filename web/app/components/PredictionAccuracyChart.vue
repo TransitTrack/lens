@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import BarChart from './BarChart.vue'
 import type { Bar } from '../utils/chart'
 import { usePredictionAccuracyQuery } from '../../generated/graphql'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const props = defineProps<{ feedCode: string | null }>()
 
@@ -36,7 +37,7 @@ const bars = computed<Bar[]>(() =>
       bias: `${r.meanErrorSec >= 0 ? '+' : '−'}${Math.abs(Math.round(r.meanErrorSec))}`,
       samples: t(
         'feed.accuracy.samples',
-        { count: r.sampleCount.toLocaleString() },
+        { count: formatNumber(r.sampleCount, locale.value) },
         r.sampleCount,
       ),
     }),

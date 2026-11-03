@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
 import gql from 'graphql-tag'
 import { useApolloClient } from '@vue/apollo-composable'
@@ -19,7 +20,7 @@ import {
   type ServiceKind,
 } from '~/utils/stopSchedule'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -260,7 +261,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
               <span class="text-xs text-dimmed">{{
                 t(
                   'feed.overview.trips',
-                  { count: tripTotals.total.toLocaleString() },
+                  { count: formatNumber(tripTotals.total, locale) },
                   tripTotals.total,
                 )
               }}</span>
@@ -321,7 +322,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 {{
                   t(
                     'explore.stop.departuresSummary',
-                    { count: histogram.total.toLocaleString(), kind: kindLower },
+                    { count: formatNumber(histogram.total, locale), kind: kindLower },
                     histogram.total,
                   )
                 }}

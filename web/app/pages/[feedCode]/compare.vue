@@ -9,7 +9,7 @@ import CompareHeadwaySummary from '~/components/compare/CompareHeadwaySummary.vu
 import { gtfsDate } from '~/utils/gtfs'
 
 const { selectedFeedCode } = useFeeds()
-const { t, te } = useI18n()
+const { t, te, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -67,7 +67,7 @@ const revisionOptions = computed<RevisionOption[]>(() => {
     return {
       label: label
         ? t('compare.revisionWithLabel', { label, id: r.id })
-        : t('compare.revisionWithStatus', { status: statusLabel(r.status), date: gtfsDate(r.createdAt), id: r.id }),
+        : t('compare.revisionWithStatus', { status: statusLabel(r.status), date: gtfsDate(r.createdAt, locale.value), id: r.id }),
       value: r.id,
     }
   })

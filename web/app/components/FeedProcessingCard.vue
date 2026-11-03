@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import {formatTimeAgo} from '@vueuse/core'
+import { formatNumber } from '~/utils/intlLocale'
 import {useFeeds} from '~/composables/useFeeds'
 import {useFeedDetailQuery, useAvlFeedsQuery} from '~~/generated/graphql'
 import {revisionStatusMeta, cronSummary, PIPELINE_STEPS} from '~/utils/feedStatus'
 
-const {t} = useI18n()
+const { t, locale } = useI18n()
+const timeAgo = useRelativeTime()
 const {selectedFeedCode, selectedFeed} = useFeeds()
 
 const {result, loading, error} = useFeedDetailQuery(
@@ -82,7 +83,7 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
       <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
         <dt class="text-dimmed">{{ $t('feed.processing.lastIngest') }}</dt>
         <dd>
-          {{ latest ? formatTimeAgo(new Date(latest.createdAt)) : '—' }}
+          {{ latest ? timeAgo(latest.createdAt) : '—' }}
           <span class="text-dimmed">
             · {{ $t('feed.processing.revisions', { count: revisions.length }, revisions.length) }}
             <template v-if="failedCount">
@@ -109,14 +110,14 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
         <div class="text-sm">
           {{ $t('feed.processing.polled') }}
           <span class="text-highlighted">
-            {{ avl.lastPollAt ? formatTimeAgo(new Date(avl.lastPollAt)) : $t('common.never') }}
+            {{ avl.lastPollAt ? timeAgo(avl.lastPollAt) : $t('common.never') }}
           </span>
           <span class="text-dimmed">
             ·
             {{
               $t(
                 'feed.reports',
-                { count: (avl.lastPollReportCount ?? 0).toLocaleString() },
+                { count: formatNumber(avl.lastPollReportCount ?? 0, locale) },
                 avl.lastPollReportCount ?? 0,
               )
             }}

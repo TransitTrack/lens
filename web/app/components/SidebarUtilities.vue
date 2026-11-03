@@ -1,5 +1,9 @@
 <script setup lang="ts">
+import { formatCalendarDate } from '~/utils/clock'
+
 defineProps<{ collapsed?: boolean }>()
+
+const { locale } = useI18n()
 
 const currentTime = ref(new Date())
 let clockTimer: ReturnType<typeof setInterval> | undefined
@@ -10,12 +14,7 @@ const formattedClock = computed(() => {
   return `${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`
 })
 
-const formattedCalendarDate = computed(() => {
-  const date = currentTime.value
-  const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short' }).format(date)
-  const twoDigits = (value: number) => String(value).padStart(2, '0')
-  return `${weekday}, ${twoDigits(date.getDate())}.${twoDigits(date.getMonth() + 1)}.${date.getFullYear()}`
-})
+const formattedCalendarDate = computed(() => formatCalendarDate(currentTime.value, locale.value))
 
 onMounted(() => {
   currentTime.value = new Date()

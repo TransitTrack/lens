@@ -11,7 +11,7 @@ import { useEditorIdentity } from '~/composables/useEditorIdentity'
 const { selectedFeedCode, feedPath } = useFeeds()
 const { name: editorName } = useEditorIdentity()
 const toast = useToast()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const newOpen = ref(false)
 
@@ -193,7 +193,7 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
         <template #created-cell="{ row }">
           <div class="text-xs">
             <div class="text-highlighted">{{ row.original.createdBy ?? '—' }}</div>
-            <div class="text-dimmed">{{ gtfsDate(row.original.createdAt) }}</div>
+            <div class="text-dimmed">{{ gtfsDate(row.original.createdAt, locale) }}</div>
           </div>
         </template>
         <template #actions-cell="{ row }">

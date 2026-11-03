@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import NavbarActions from '~/components/NavbarActions.vue'
@@ -38,7 +39,7 @@ import {
 } from '~/utils/vehicleDetail'
 import type { GeoJSON } from 'geojson'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath } = useFeeds()
@@ -295,7 +296,7 @@ const facts = computed<Fact[]>(() => {
 })
 
 function hhmm(iso: string | null): string {
-  return formatClock(iso, { timeZone: agencyTimezone.value, seconds: true })
+  return formatClock(iso, { timeZone: agencyTimezone.value, seconds: true, locale: locale.value })
 }
 
 function relative(iso: string | null): string {
@@ -720,8 +721,8 @@ function adherenceTextClass(sec: number | null): string {
                       <span class="text-dimmed"
                         >{{
                           t('vehicles.detail.quality.pairedEligible', {
-                            paired: selectedAccuracy.pairedSampleCount.toLocaleString(),
-                            eligible: selectedAccuracy.eligibleCount.toLocaleString(),
+                            paired: formatNumber(selectedAccuracy.pairedSampleCount, locale),
+                            eligible: formatNumber(selectedAccuracy.eligibleCount, locale),
                           })
                         }}</span
                       >

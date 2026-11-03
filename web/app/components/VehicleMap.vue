@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDottedTimestamp } from '~/utils/clock'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge } from '../utils/adherence'
 import VehicleMapLegend from './VehicleMapLegend.vue'
@@ -44,7 +45,7 @@ const emit = defineEmits<{
   viewVehicle: [vehicleId: string]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
 const colorMode = useColorMode()
@@ -247,18 +248,7 @@ function updateAge(iso: string): string {
 function updateTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return t('vehicles.unknown')
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date)
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? ''
-  return `${value('day')}.${value('month')}.${value('year')}, ${value('hour')}:${value('minute')}:${value('second')}`
+  return formatDottedTimestamp(date, locale.value)
 }
 
 function clipped(values: number[], lo = 0.02, hi = 0.98): [number, number] {

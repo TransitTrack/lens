@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDottedTimestamp } from '~/utils/clock'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge, formatAdherence } from '../utils/adherence'
@@ -17,7 +18,7 @@ const emit = defineEmits<{
   (e: 'select' | 'openDetails', vehicleId: string): void
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const units = useUnits()
 const { feedPath } = useFeeds()
 const { showTripDetails } = useVehicleListPrefs()
@@ -91,19 +92,7 @@ function reportTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return t('vehicles.unknown')
 
-  const parts = new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date)
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? ''
-
-  return `${value('day')}.${value('month')}.${value('year')}, ${value('hour')}:${value('minute')}:${value('second')}`
+  return formatDottedTimestamp(date, locale.value)
 }
 
 function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {

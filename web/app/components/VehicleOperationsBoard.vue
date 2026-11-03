@@ -24,6 +24,8 @@ const props = defineProps<{
   directoryDefaultSize?: number
 }>()
 
+const { locale } = useI18n()
+
 const emit = defineEmits<{
   selectVehicle: [vehicleId: string]
 }>()
@@ -78,6 +80,7 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
       selectedVehicleResult.value?.vehiclePredictions ?? [],
       selectedPredictionAlgorithm.value,
       agencyTimezone.value,
+      locale.value,
     ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
   }

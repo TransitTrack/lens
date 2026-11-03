@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { formatTimeAgo } from '@vueuse/core'
 import type { VehicleRow } from '~/composables/useVehiclePolling'
 import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import VehicleMap from '~/components/VehicleMap.vue'
@@ -11,7 +10,8 @@ import {
 } from '~/utils/networkPulse'
 import type { VehicleState } from '~/utils/vehicleFilters'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const timeAgo = useRelativeTime()
 
 const props = defineProps<{
   vehicles: VehicleRow[]
@@ -86,7 +86,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
           <span class="dashboard-live-dot size-2 rounded-full bg-success" aria-hidden="true" />
           <span>{{
             $t('pulse.liveUpdated', {
-              time: updatedAt ? formatTimeAgo(new Date(updatedAt)) : '—',
+              time: updatedAt ? timeAgo(updatedAt) : '—',
             })
           }}</span>
         </template>
@@ -165,7 +165,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
             :disabled="!canViewVehicles(signal)"
             :aria-label="
               canViewVehicles(signal)
-                ? $t('pulse.viewVehicles', { signal: signal.label.toLocaleLowerCase() })
+                ? $t('pulse.viewVehicles', { signal: signal.label.toLocaleLowerCase(locale) })
                 : undefined
             "
             @click="emit('viewVehicles', signalState(signal))"

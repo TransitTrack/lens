@@ -6,7 +6,7 @@ import { useFeeds } from '~/composables/useFeeds'
 import { useExploreCalendarQuery, type ExploreCalendarQuery } from '~~/generated/graphql'
 import { activeDays, serviceDaysLabel, gtfsDate } from '~/utils/gtfs'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 
 const { result, loading } = useExploreCalendarQuery(
@@ -64,7 +64,7 @@ const exColumns = computed<TableColumn<Exception>[]>(() => [
           </div>
           <span class="text-xs text-muted">{{ serviceDaysLabel(cal, t) }}</span>
           <span class="text-xs text-dimmed">
-            {{ gtfsDate(cal.startDate) }} → {{ gtfsDate(cal.endDate) }}
+            {{ gtfsDate(cal.startDate, locale) }} → {{ gtfsDate(cal.endDate, locale) }}
           </span>
         </div>
         <p v-if="!calendars.length" class="py-3 text-sm text-dimmed">{{ t('explore.calendar.noCalendar') }}</p>
@@ -74,7 +74,7 @@ const exColumns = computed<TableColumn<Exception>[]>(() => [
         {{ t('explore.calendar.exceptions', { count: exceptions.length }) }}
       </div>
       <UTable v-if="exceptions.length" :data="exceptions" :columns="exColumns">
-        <template #date-cell="{ row }">{{ gtfsDate(row.original.date) }}</template>
+        <template #date-cell="{ row }">{{ gtfsDate(row.original.date, locale) }}</template>
         <template #exceptionType-cell="{ row }">
           <UBadge :color="row.original.exceptionType === 1 ? 'success' : 'error'" variant="subtle">
             {{ row.original.exceptionType === 1 ? t('explore.calendar.added') : t('explore.calendar.removed') }}
