@@ -1,4 +1,6 @@
 import {describe, expect, it} from 'vitest'
+import {createI18n} from 'vue-i18n'
+import en from '../../i18n/locales/en.json'
 import {ganttRows, layoverLabel, timelineBarHeight, timelineTicks, type TimelineSegment} from '../../app/utils/blocks'
 
 describe('timelineTicks', () => {
@@ -45,7 +47,8 @@ describe('ganttRows', () => {
 
 describe('layoverLabel', () => {
   it('formats the duration and calls out a following deadhead', () => {
-    expect(layoverLabel(600, false)).toBe('10 min layover')
-    expect(layoverLabel(600, true)).toBe('10 min layover · deadhead follows')
+    const t = createI18n({ legacy: false, locale: 'en', messages: { en } }).global.t
+    expect(layoverLabel(600, false, t)).toBe('10 min layover')
+    expect(layoverLabel(600, true, t)).toBe('10 min layover · deadhead follows')
   })
 })

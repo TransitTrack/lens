@@ -14,6 +14,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'select', stopId: string): void }>()
 
+const { t } = useI18n()
 const MAP_ID = 'stops-map'
 const mapStyle = useMapStyle()
 const map = useMglMap(MAP_ID)
@@ -230,7 +231,7 @@ async function onClusterClick(e: MapLayerMouseEvent) {
     </MglMap>
     <MapToolbox
       :tools="tools"
-      :layers="[{ id: 'stops', label: 'Stops', enabled: visibleLayers.stops }]"
+      :layers="[{ id: 'stops', label: t('map.layer.stops'), enabled: visibleLayers.stops }]"
       @update:layer="({ id, enabled }) => id === 'stops' && (visibleLayers.stops = enabled)"
     />
   </div>

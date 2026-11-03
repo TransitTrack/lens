@@ -6,6 +6,7 @@ import { useFeeds } from '~/composables/useFeeds'
 import { useExploreCalendarQuery, type ExploreCalendarQuery } from '~~/generated/graphql'
 import { activeDays, serviceDaysLabel, gtfsDate } from '~/utils/gtfs'
 
+const { t } = useI18n()
 const { selectedFeedCode } = useFeeds()
 
 const { result, loading } = useExploreCalendarQuery(
@@ -13,7 +14,8 @@ const { result, loading } = useExploreCalendarQuery(
   () => ({ enabled: !!selectedFeedCode.value }),
 )
 
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+// i18n-keys: explore.dayInitial.*
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 const calendars = computed(() =>
   [...(result.value?.calendars ?? [])].sort((a, b) => a.serviceId.localeCompare(b.serviceId)),
@@ -24,20 +26,20 @@ const exceptions = computed(() =>
   [...(result.value?.calendarDates ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
 )
 
-const exColumns: TableColumn<Exception>[] = [
-  { accessorKey: 'date', header: 'Date' },
-  { accessorKey: 'serviceId', header: 'Service' },
-  { accessorKey: 'exceptionType', header: 'Change' },
-]
+const exColumns = computed<TableColumn<Exception>[]>(() => [
+  { accessorKey: 'date', header: t('explore.col.date') },
+  { accessorKey: 'serviceId', header: t('explore.col.service') },
+  { accessorKey: 'exceptionType', header: t('explore.col.change') },
+])
 </script>
 
 <template>
-  <AppPage title="Calendar" description="Service calendars and exceptions">
+  <AppPage :title="t('nav.calendar')" :description="t('explore.calendar.description')">
     <template #toolbar>
       <ExploreToolbar :show-agency="false" />
     </template>
     <div class="border border-default p-4">
-      <div class="text-sm font-medium text-muted">Services</div>
+      <div class="text-sm font-medium text-muted">{{ t('explore.calendar.services') }}</div>
       <div v-if="loading && !calendars.length" class="flex flex-col gap-2">
         <USkeleton v-for="i in 4" :key="i" class="h-12 w-full" />
       </div>
@@ -57,27 +59,29 @@ const exColumns: TableColumn<Exception>[] = [
               class="flex size-6 items-center justify-center rounded text-xs font-medium"
               :class="on ? 'bg-primary text-inverted' : 'bg-elevated text-dimmed'"
             >
-              {{ DAY_LABELS[i] }}
+              {{ t(`explore.dayInitial.${DAY_KEYS[i]}`) }}
             </span>
           </div>
-          <span class="text-xs text-muted">{{ serviceDaysLabel(cal) }}</span>
+          <span class="text-xs text-muted">{{ serviceDaysLabel(cal, t) }}</span>
           <span class="text-xs text-dimmed">
             {{ gtfsDate(cal.startDate) }} → {{ gtfsDate(cal.endDate) }}
           </span>
         </div>
-        <p v-if="!calendars.length" class="py-3 text-sm text-dimmed">No calendar.txt entries.</p>
+        <p v-if="!calendars.length" class="py-3 text-sm text-dimmed">{{ t('explore.calendar.noCalendar') }}</p>
       </div>
 
-      <div class="mt-2 text-sm font-medium text-muted">Exceptions ({{ exceptions.length }})</div>
+      <div class="mt-2 text-sm font-medium text-muted">
+        {{ t('explore.calendar.exceptions', { count: exceptions.length }) }}
+      </div>
       <UTable v-if="exceptions.length" :data="exceptions" :columns="exColumns">
         <template #date-cell="{ row }">{{ gtfsDate(row.original.date) }}</template>
         <template #exceptionType-cell="{ row }">
           <UBadge :color="row.original.exceptionType === 1 ? 'success' : 'error'" variant="subtle">
-            {{ row.original.exceptionType === 1 ? 'Added' : 'Removed' }}
+            {{ row.original.exceptionType === 1 ? t('explore.calendar.added') : t('explore.calendar.removed') }}
           </UBadge>
         </template>
       </UTable>
-      <p v-else class="text-sm text-dimmed">No calendar_dates.txt entries.</p>
+      <p v-else class="text-sm text-dimmed">{{ t('explore.calendar.noDates') }}</p>
     </div>
   </AppPage>
 </template>

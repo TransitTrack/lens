@@ -2,15 +2,16 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 import { useFeeds } from '~/composables/useFeeds'
 
+const { t } = useI18n()
 const { feedPath } = useFeeds()
 
 const items = computed<NavigationMenuItem[]>(() => [
-  { label: 'Routes', icon: 'i-lucide-route', to: feedPath('/explore/routes') },
-  { label: 'Stops', icon: 'i-lucide-map-pin', to: feedPath('/explore/stops') },
-  { label: 'Trips', icon: 'i-lucide-git-branch', to: feedPath('/explore/trips') },
-  { label: 'Blocks', icon: 'i-lucide-layers', to: feedPath('/explore/blocks') },
-  { label: 'Calendar', icon: 'i-lucide-calendar-days', to: feedPath('/explore/calendar') },
-  { label: 'Feed', icon: 'i-lucide-database', to: feedPath('/explore/feed') },
+  { label: t('nav.routes'), icon: 'i-lucide-route', to: feedPath('/explore/routes') },
+  { label: t('nav.stops'), icon: 'i-lucide-map-pin', to: feedPath('/explore/stops') },
+  { label: t('nav.trips'), icon: 'i-lucide-git-branch', to: feedPath('/explore/trips') },
+  { label: t('nav.blocks'), icon: 'i-lucide-layers', to: feedPath('/explore/blocks') },
+  { label: t('nav.calendar'), icon: 'i-lucide-calendar-days', to: feedPath('/explore/calendar') },
+  { label: t('nav.feed'), icon: 'i-lucide-database', to: feedPath('/explore/feed') },
 ])
 </script>
 

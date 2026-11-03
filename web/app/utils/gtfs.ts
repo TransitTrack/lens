@@ -1,6 +1,6 @@
 const KNOWN_ROUTE_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7, 11, 12])
 
-type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+export type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
 
 export function routeTypeLabel(type: number | null | undefined, t: Translate): string {
   if (type == null) return '—'
@@ -62,13 +62,14 @@ export function activeDays(cal: DayFlags): boolean[] {
   return DAYS.map((d) => !!cal[d])
 }
 
-export function serviceDaysLabel(cal: DayFlags): string {
+export function serviceDaysLabel(cal: DayFlags, t: Translate): string {
   const on = DAYS.filter((d) => cal[d])
-  if (on.length === 7) return 'Every day'
-  if (on.length === 5 && !cal.saturday && !cal.sunday) return 'Weekdays'
-  if (on.length === 2 && cal.saturday && cal.sunday) return 'Weekends'
-  if (on.length === 0) return 'None'
-  return on.map((d) => d.slice(0, 3)).join(', ')
+  if (on.length === 7) return t('explore.serviceDays.everyDay')
+  if (on.length === 5 && !cal.saturday && !cal.sunday) return t('explore.serviceDays.weekdays')
+  if (on.length === 2 && cal.saturday && cal.sunday) return t('explore.serviceDays.weekends')
+  if (on.length === 0) return t('explore.serviceDays.none')
+  // i18n-keys: explore.dayShort.*
+  return on.map((d) => t(`explore.dayShort.${d}`)).join(', ')
 }
 
 /** GTFS date "YYYYMMDD" or ISO → short display */

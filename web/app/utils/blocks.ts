@@ -1,4 +1,4 @@
-import {hexColor, secToHm} from './gtfs'
+import {hexColor, secToHm, type Translate} from './gtfs'
 
 interface BlockLike {
   startTimeSec: number
@@ -99,9 +99,9 @@ export function ganttRows(segments: TimelineSegment[]): GanttRow[] {
     }))
 }
 
-export function layoverLabel(durationSec: number, deadheadFollows: boolean): string {
-  const label = `${Math.round(durationSec / 60)} min layover`
-  return deadheadFollows ? `${label} · deadhead follows` : label
+export function layoverLabel(durationSec: number, deadheadFollows: boolean, t: Translate): string {
+  const minutes = Math.round(durationSec / 60)
+  return t(deadheadFollows ? 'explore.block.layoverDeadhead' : 'explore.block.layover', { minutes })
 }
 
 /** Hourly timeline markers, always including the exact start and end of a duty. */

@@ -1,5 +1,6 @@
 import type {Pattern} from '~/composables/useExplorePatterns'
 import type {Bar} from './chart'
+import type {Translate} from './gtfs'
 
 export interface ServingPattern {
   pattern: Pattern
@@ -124,6 +125,7 @@ export function departureHistogram(
   tripsByPattern: DepartureInput[],
   kinds: Map<string, Set<ServiceKind>>,
   kind: ServiceKind,
+  t: Translate,
 ): { bars: Bar[], total: number, firstSec: number | null, lastSec: number | null } {
   const byPatternKey = new Map(tripsByPattern.map((t) => [t.patternKey, t.trips]))
   const hours = new Array(24).fill(0)
@@ -148,7 +150,7 @@ export function departureHistogram(
     label: h % 3 === 0 ? String(h) : '',
     value: count,
     color: '#3b82f6',
-    hint: `${h}:00–${h + 1}:00 · ${count} departures`,
+    hint: t('explore.stop.hourHint', { from: h, to: h + 1, count }, count),
   }))
   return {bars, total, firstSec, lastSec}
 }

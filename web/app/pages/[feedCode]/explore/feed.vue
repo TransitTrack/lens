@@ -17,7 +17,7 @@ import {
 import { gtfsDate } from '~/utils/gtfs'
 import { deriveFeatures } from '~/utils/feedFeatures'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
@@ -76,11 +76,19 @@ const statusChips = computed<StatusChip[]>(() => {
   if (!v) return []
   return [
     v.errorCount
-      ? { label: `${v.errorCount} errors`, color: 'error', icon: 'i-lucide-circle-x' }
-      : { label: 'No errors', color: 'success', icon: 'i-lucide-circle-check' },
+      ? {
+          label: t('feed.overview.errors', { count: v.errorCount }, v.errorCount),
+          color: 'error',
+          icon: 'i-lucide-circle-x',
+        }
+      : { label: t('explore.feed.noErrors'), color: 'success', icon: 'i-lucide-circle-check' },
     v.warningCount
-      ? { label: `${v.warningCount} warnings`, color: 'warning', icon: 'i-lucide-triangle-alert' }
-      : { label: 'No warnings', color: 'success', icon: 'i-lucide-circle-check' },
+      ? {
+          label: t('feed.overview.warnings', { count: v.warningCount }, v.warningCount),
+          color: 'warning',
+          icon: 'i-lucide-triangle-alert',
+        }
+      : { label: t('explore.feed.noWarnings'), color: 'success', icon: 'i-lucide-circle-check' },
   ]
 })
 
@@ -90,38 +98,47 @@ const { mutate: activate } = useActivateRevisionMutation()
 const { mutate: remove } = useDeleteRevisionMutation()
 const { mutate: update, loading: updating } = useUpdateFeedMutation()
 
+// i18n-keys: feed.dataset.statusValue.*
+function statusLabel(status: string): string {
+  const key = `feed.dataset.statusValue.${status}`
+  return te(key) ? t(key) : status
+}
+
 async function reingest() {
   try {
     const res = await ingest({ feedCode: selectedFeedCode.value ?? '' })
     toast.add({
-      title: 'Ingest triggered',
-      description: `Revision ${res?.data?.ingestFeed.id} · ${res?.data?.ingestFeed.status}`,
+      title: t('explore.feed.ingestTriggered'),
+      description: t('explore.feed.ingestRevision', {
+        id: res?.data?.ingestFeed.id,
+        status: statusLabel(String(res?.data?.ingestFeed.status)),
+      }),
       color: 'success',
       icon: 'i-lucide-download',
     })
     await refetch()
   } catch (e) {
-    toast.add({ title: 'Ingest failed', description: (e as Error).message, color: 'error' })
+    toast.add({ title: t('explore.feed.ingestFailed'), description: (e as Error).message, color: 'error' })
   }
 }
 
 async function activateRevision(id: string) {
   try {
     await activate({ revisionId: id })
-    toast.add({ title: `Revision ${id} activated`, color: 'success', icon: 'i-lucide-check' })
+    toast.add({ title: t('explore.feed.activated', { id }), color: 'success', icon: 'i-lucide-check' })
     await refetch()
   } catch (e) {
-    toast.add({ title: 'Activate failed', description: (e as Error).message, color: 'error' })
+    toast.add({ title: t('explore.feed.activateFailed'), description: (e as Error).message, color: 'error' })
   }
 }
 
 async function deleteRevision(id: string) {
   try {
     await remove({ revisionId: id })
-    toast.add({ title: `Revision ${id} deleted`, color: 'success', icon: 'i-lucide-trash-2' })
+    toast.add({ title: t('explore.feed.deleted', { id }), color: 'success', icon: 'i-lucide-trash-2' })
     await refetch()
   } catch (e) {
-    toast.add({ title: 'Delete failed', description: (e as Error).message, color: 'error' })
+    toast.add({ title: t('explore.feed.deleteFailed'), description: (e as Error).message, color: 'error' })
   }
 }
 
@@ -151,24 +168,24 @@ async function saveFeed() {
         enabled: form.enabled,
       },
     })
-    toast.add({ title: 'Feed updated', color: 'success', icon: 'i-lucide-check' })
+    toast.add({ title: t('explore.feed.updated'), color: 'success', icon: 'i-lucide-check' })
     editOpen.value = false
     await refetch()
   } catch (e) {
-    toast.add({ title: 'Update failed', description: (e as Error).message, color: 'error' })
+    toast.add({ title: t('explore.feed.updateFailed'), description: (e as Error).message, color: 'error' })
   }
 }
 </script>
 
 <template>
-  <AppPage title="Feed" description="Feed metadata, revisions and quality report">
+  <AppPage :title="t('nav.feed')" :description="t('explore.feed.description')">
     <template #actions>
       <UButton
         icon="i-lucide-download"
         color="neutral"
         variant="soft"
         :loading="ingesting"
-        label="Re-ingest"
+        :label="t('explore.feed.reingest')"
         @click="reingest"
       />
       <NavbarActions />
@@ -201,7 +218,7 @@ async function saveFeed() {
               color="neutral"
               variant="soft"
               icon="i-lucide-pencil"
-              label="Edit"
+              :label="t('explore.feed.edit')"
               @click="editOpen = true"
             />
           </div>
@@ -218,8 +235,14 @@ async function saveFeed() {
             {{ chip.label }}
           </UBadge>
           <span v-if="rev" class="text-xs text-dimmed">
-            Latest dataset {{ gtfsDate(rev.activatedAt ?? rev.createdAt) }}
-            <template v-if="rev.byteSize"> · {{ (rev.byteSize / 1e6).toFixed(1) }} MB</template>
+            {{
+              rev.byteSize
+                ? t('explore.feed.latestDatasetSize', {
+                    date: gtfsDate(rev.activatedAt ?? rev.createdAt),
+                    size: (rev.byteSize / 1e6).toFixed(1),
+                  })
+                : t('explore.feed.latestDataset', { date: gtfsDate(rev.activatedAt ?? rev.createdAt) })
+            }}
           </span>
         </div>
       </div>
@@ -231,7 +254,7 @@ async function saveFeed() {
             v-if="rev && rowCounts.length"
             class="flex flex-col gap-3 border-b border-default p-4"
           >
-            <div class="text-sm font-medium text-muted">Active revision #{{ rev.id }}</div>
+            <div class="text-sm font-medium text-muted">{{ t('explore.feed.activeRevision', { id: rev.id }) }}</div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               <div
                 v-for="[name, count] in rowCounts"
@@ -255,17 +278,19 @@ async function saveFeed() {
 
         <div class="app-frame flex flex-col divide-y divide-default">
           <div class="flex flex-col gap-2 p-4">
-            <div class="text-sm font-medium text-muted">Feed details</div>
+            <div class="text-sm font-medium text-muted">
+              {{ t('explore.feed.details') }}
+            </div>
             <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-              <dt class="text-dimmed">Code</dt>
+              <dt class="text-dimmed">{{ t('explore.col.code') }}</dt>
               <dd>{{ feed.code }}</dd>
-              <dt class="text-dimmed">Source</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.source') }}</dt>
               <dd>{{ feed.source }}</dd>
-              <dt class="text-dimmed">Enabled</dt>
-              <dd>{{ feed.enabled ? 'Yes' : 'No' }}</dd>
-              <dt class="text-dimmed">Polling</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.enabled') }}</dt>
+              <dd>{{ feed.enabled ? t('explore.feed.yes') : t('explore.feed.no') }}</dd>
+              <dt class="text-dimmed">{{ t('explore.feed.polling') }}</dt>
               <dd>{{ feed.pollingCron ?? '—' }}</dd>
-              <dt class="text-dimmed">URL</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.url') }}</dt>
               <dd class="truncate">
                 <a :href="feed.url" target="_blank" class="text-primary hover:underline">{{
                   feed.url
@@ -277,22 +302,24 @@ async function saveFeed() {
           <div class="flex flex-col gap-2 p-4">
             <div class="text-sm font-medium text-muted">feed_info.txt</div>
             <dl v-if="info" class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-              <dt class="text-dimmed">Publisher</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.publisher') }}</dt>
               <dd>{{ info.feedPublisherName ?? '—' }}</dd>
-              <dt class="text-dimmed">Version</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.version') }}</dt>
               <dd>{{ info.feedVersion ?? '—' }}</dd>
-              <dt class="text-dimmed">Language</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.language') }}</dt>
               <dd>{{ info.feedLang ?? '—' }}</dd>
-              <dt class="text-dimmed">Valid</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.valid') }}</dt>
               <dd>{{ gtfsDate(info.feedStartDate) }} → {{ gtfsDate(info.feedEndDate) }}</dd>
-              <dt class="text-dimmed">Contact</dt>
+              <dt class="text-dimmed">{{ t('explore.feed.contact') }}</dt>
               <dd>{{ info.feedContactEmail ?? info.feedContactUrl ?? '—' }}</dd>
             </dl>
-            <p v-else class="text-sm text-dimmed">No feed_info.txt in this feed.</p>
+            <p v-else class="text-sm text-dimmed">{{ t('explore.feed.noFeedInfo') }}</p>
           </div>
 
           <div class="flex flex-col gap-2 p-4">
-            <div class="text-sm font-medium text-muted">Agencies ({{ agencies.length }})</div>
+            <div class="text-sm font-medium text-muted">
+              {{ t('explore.feed.agencies', { count: agencies.length }) }}
+            </div>
             <div class="flex flex-col divide-y divide-default">
               <div
                 v-for="a in agencies"
@@ -309,13 +336,15 @@ async function saveFeed() {
                   </div>
                 </div>
                 <div class="flex items-center gap-3 text-xs">
-                  <span class="text-muted">{{ a.routeCount }} routes</span>
+                  <span class="text-muted">{{
+                    t('feed.overview.routes', { count: a.routeCount }, a.routeCount)
+                  }}</span>
                   <a
                     v-if="a.agencyUrl"
                     :href="a.agencyUrl"
                     target="_blank"
                     class="text-primary hover:underline"
-                    >site</a
+                    >{{ t('explore.feed.site') }}</a
                   >
                 </div>
               </div>
@@ -327,28 +356,28 @@ async function saveFeed() {
       </div>
     </template>
 
-    <UModal v-model:open="editOpen" title="Edit feed">
+    <UModal v-model:open="editOpen" :title="t('explore.feed.editTitle')">
       <template #body>
         <div class="flex flex-col gap-3">
-          <UFormField label="Name">
+          <UFormField :label="t('explore.col.name')">
             <UInput v-model="form.name" class="w-full" />
           </UFormField>
-          <UFormField label="Description">
+          <UFormField :label="t('explore.feed.formDescription')">
             <UInput v-model="form.description" class="w-full" />
           </UFormField>
-          <UFormField label="URL">
+          <UFormField :label="t('explore.feed.url')">
             <UInput v-model="form.url" class="w-full" />
           </UFormField>
-          <UFormField label="Polling cron">
+          <UFormField :label="t('explore.feed.pollingCron')">
             <UInput v-model="form.pollingCron" placeholder="0 */15 * * * *" class="w-full" />
           </UFormField>
-          <USwitch v-model="form.enabled" label="Enabled" />
+          <USwitch v-model="form.enabled" :label="t('explore.feed.enabled')" />
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="editOpen = false" />
-          <UButton :loading="updating" label="Save" @click="saveFeed" />
+          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="editOpen = false" />
+          <UButton :loading="updating" :label="t('common.save')" @click="saveFeed" />
         </div>
       </template>
     </UModal>

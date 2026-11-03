@@ -13,6 +13,7 @@ import {
 } from '~~/generated/graphql'
 import { formatHm, parseHm, inWindow } from '~/utils/tripFilters'
 
+const { t } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
 const { param } = useExploreQuery()
@@ -58,8 +59,8 @@ const directionItems = computed(() => {
   const set = new Set<number>()
   for (const t of result.value?.trips ?? []) if (t.directionId != null) set.add(t.directionId)
   return [
-    { label: 'Both directions', value: null },
-    ...[...set].sort((a, b) => a - b).map((d) => ({ label: `Direction ${d}`, value: String(d) })),
+    { label: t('explore.trips.bothDirections'), value: null },
+    ...[...set].sort((a, b) => a - b).map((d) => ({ label: t('explore.trips.direction', { dir: d }), value: String(d) })),
   ]
 })
 
@@ -106,14 +107,14 @@ const tripStats = computed(() => {
   }
 })
 
-const columns: TableColumn<Trip>[] = [
-  { accessorKey: 'tripId', header: 'Trip' },
-  { accessorKey: 'tripHeadsign', header: 'Headsign' },
-  { accessorKey: 'directionId', header: 'Dir' },
-  { accessorKey: 'startTimeSec', header: 'Start' },
-  { accessorKey: 'endTimeSec', header: 'End' },
-  { accessorKey: 'serviceId', header: 'Service' },
-]
+const columns = computed<TableColumn<Trip>[]>(() => [
+  { accessorKey: 'tripId', header: t('explore.col.trip') },
+  { accessorKey: 'tripHeadsign', header: t('explore.col.headsign') },
+  { accessorKey: 'directionId', header: t('explore.col.dir') },
+  { accessorKey: 'startTimeSec', header: t('explore.col.start') },
+  { accessorKey: 'endTimeSec', header: t('explore.col.end') },
+  { accessorKey: 'serviceId', header: t('explore.col.service') },
+])
 
 function onSelect(_e: Event, row: { original: Trip }) {
   navigateTo(feedPath(`/explore/trips/${row.original.tripId}`))
@@ -122,9 +123,9 @@ function onSelect(_e: Event, row: { original: Trip }) {
 
 <template>
   <AppPage
-    title="Trips"
+    :title="t('nav.trips')"
     class="scroll"
-    description="Scheduled journeys, service coverage, and stop-level timetable detail"
+    :description="t('explore.trips.description')"
   >
     <template #toolbar>
       <ExploreToolbar />
@@ -136,7 +137,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
           :model-value="routeId"
           :items="routeItems"
           value-key="value"
-          placeholder="Pick a route"
+          :placeholder="t('explore.trips.pickRoute')"
           icon="i-lucide-route"
           class="w-72"
           @update:model-value="routeId = $event"
@@ -152,7 +153,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
           <UInput
             v-model="search"
             icon="i-lucide-search"
-            placeholder="Filter trips…"
+            :placeholder="t('explore.trips.filterPlaceholder')"
             class="w-72"
           />
         </template>
@@ -170,10 +171,11 @@ function onSelect(_e: Event, row: { original: Trip }) {
       <div class="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
         <UIcon name="i-lucide-route" class="size-6" />
       </div>
-      <div class="text-base font-medium text-highlighted">Choose a route to analyse</div>
+      <div class="text-base font-medium text-highlighted">
+        {{ t('explore.trips.choose') }}
+      </div>
       <p class="text-sm text-muted">
-        Review scheduled journeys, operating span, service calendars, and stop-level timetable
-        detail.
+        {{ t('explore.trips.chooseBody') }}
       </p>
     </div>
 
@@ -184,7 +186,9 @@ function onSelect(_e: Event, row: { original: Trip }) {
     <template v-else>
       <section class="app-frame grid sm:grid-cols-2 xl:grid-cols-4">
         <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
-          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Visible trips</span>
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{
+            t('explore.trips.visibleTrips')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             tripStats.trips
           }}</span>
@@ -193,41 +197,49 @@ function onSelect(_e: Event, row: { original: Trip }) {
           }}</span>
         </div>
         <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
-          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Directions</span>
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{
+            t('explore.trips.directions')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             tripStats.directions
           }}</span>
-          <span class="text-xs text-muted">In the selected view</span>
+          <span class="text-xs text-muted">{{ t('explore.trips.inSelectedView') }}</span>
         </div>
         <div
           class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r"
         >
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
-            >Service calendars</span
-          >
+            >{{
+            t('explore.trips.serviceCalendars')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             tripStats.services
           }}</span>
-          <span class="text-xs text-muted">Distinct service IDs</span>
+          <span class="text-xs text-muted">{{ t('explore.trips.distinctServiceIds') }}</span>
         </div>
         <div class="flex flex-col gap-1 p-4">
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
-            >Operating span</span
-          >
+            >{{
+            t('explore.trips.operatingSpan')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             tripStats.span
           }}</span>
-          <span class="text-xs text-muted">First to last departure</span>
+          <span class="text-xs text-muted">{{ t('explore.trips.firstToLast') }}</span>
         </div>
       </section>
 
       <section class="app-frame">
         <div class="flex items-center justify-between border-b border-default px-4 py-3">
           <div>
-            <div class="text-sm font-medium text-highlighted">Scheduled journeys</div>
-            <div class="text-xs text-muted">Select a trip to inspect its timetable and shape.</div>
+            <div class="text-sm font-medium text-highlighted">
+              {{ t('explore.trips.journeys') }}
+            </div>
+            <div class="text-xs text-muted">{{ t('explore.trips.selectTrip') }}</div>
           </div>
-          <span class="text-xs text-dimmed">{{ rows.length }} trips</span>
+          <span class="text-xs text-dimmed">{{
+            t('feed.overview.trips', { count: rows.length }, rows.length)
+          }}</span>
         </div>
         <UTable :data="rows" :columns="columns" @select="onSelect">
           <template #directionId-cell="{ row }">{{ row.original.directionId ?? '—' }}</template>

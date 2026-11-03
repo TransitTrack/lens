@@ -7,6 +7,7 @@ import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useTripDetailQuery } from '~~/generated/graphql'
 import type { LngLat } from '~/utils/gtfs'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -75,18 +76,21 @@ const stops = computed(
     }) as GeoJSON.FeatureCollection,
 )
 
-function hm(t: string | null | undefined): string {
-  return t ? t.slice(0, 5) : '—'
+function hm(time: string | null | undefined): string {
+  return time ? time.slice(0, 5) : '—'
 }
 
 const runtimeSec = computed(() => {
-  const t = trip.value
-  return t?.startTimeSec != null && t?.endTimeSec != null ? t.endTimeSec - t.startTimeSec : null
+  const tr = trip.value
+  return tr?.startTimeSec != null && tr?.endTimeSec != null ? tr.endTimeSec - tr.startTimeSec : null
 })
 
 const tripStats = computed(() => ({
   stops: stopTimes.value.length,
-  runtime: runtimeSec.value != null ? `${Math.round(runtimeSec.value / 60)}m` : '—',
+  runtime:
+    runtimeSec.value != null
+      ? t('explore.minutesShort', { n: Math.round(runtimeSec.value / 60) })
+      : '—',
   length: trip.value?.pattern?.lengthM
     ? `${(trip.value.pattern.lengthM / 1000).toFixed(1)} km`
     : '—',
@@ -130,7 +134,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        aria-label="Go back"
+        :aria-label="t('common.goBack')"
         @click="router.back()"
       />
     </template>
@@ -145,7 +149,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       color="error"
       variant="soft"
       icon="i-lucide-alert-triangle"
-      title="Trip unavailable"
+      :title="t('explore.trip.unavailable')"
       :description="error.message"
       class="m-4"
     />
@@ -170,11 +174,16 @@ const splitterItems = computed<SplitterItem[]>(() =>
           <section class="app-frame shrink-0">
             <header class="border-b border-default px-3 py-2.5">
               <div class="text-xs font-semibold uppercase tracking-wide text-dimmed">
-                Trip profile
+                {{ t('explore.trip.profile') }}
               </div>
               <div class="mt-1 text-xs text-muted">
-                {{ trip?.tripId }} · direction {{ trip?.directionId ?? '?' }} · service
-                {{ trip?.serviceId }}
+                {{
+                  t('explore.trip.meta', {
+                    id: trip?.tripId,
+                    dir: trip?.directionId ?? '?',
+                    service: trip?.serviceId,
+                  })
+                }}
               </div>
             </header>
             <div class="flex flex-wrap items-center gap-1.5 p-3 text-xs">
@@ -184,10 +193,14 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 variant="subtle"
                 icon="i-lucide-git-branch"
               >
-                {{ trip.pattern.stopCount }} stops
-                <template v-if="trip.pattern.lengthM">
-                  · {{ (trip.pattern.lengthM / 1000).toFixed(1) }} km
-                </template>
+                {{
+                  trip.pattern.lengthM
+                    ? t('explore.trip.stopsLength', {
+                        stops: t('feed.overview.stops', { count: trip.pattern.stopCount }, trip.pattern.stopCount),
+                        km: (trip.pattern.lengthM / 1000).toFixed(1),
+                      })
+                    : t('feed.overview.stops', { count: trip.pattern.stopCount }, trip.pattern.stopCount)
+                }}
               </UBadge>
               <NuxtLink
                 v-if="trip?.block"
@@ -198,42 +211,50 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 "
               >
                 <UBadge color="primary" variant="subtle" icon="i-lucide-layers">
-                  Block {{ trip.block.blockId }}
+                  {{ t('explore.trip.block', { id: trip.block.blockId }) }}
                 </UBadge>
               </NuxtLink>
               <UBadge v-if="trip?.frequencyBased" color="warning" variant="subtle">
-                frequency-based
+                {{ t('explore.trip.frequencyBased') }}
               </UBadge>
               <UBadge v-if="trip?.noSchedule" color="warning" variant="subtle">
-                no schedule
+                {{ t('explore.trip.noSchedule') }}
               </UBadge>
               <span v-if="runtimeSec != null" class="text-dimmed">
-                run {{ Math.round(runtimeSec / 60) }} min
+                {{ t('explore.trip.run', { minutes: Math.round(runtimeSec / 60) }) }}
               </span>
             </div>
           </section>
 
           <section class="app-frame shrink-0 grid grid-cols-2">
             <div class="border-b border-r border-default p-2">
-              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">
+                {{ t('nav.stops') }}
+              </div>
               <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
                 {{ tripStats.stops }}
               </div>
             </div>
             <div class="border-b border-default p-2">
-              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Runtime</div>
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">
+                {{ t('explore.trip.runtime') }}
+              </div>
               <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
                 {{ tripStats.runtime }}
               </div>
             </div>
             <div class="border-r border-default p-2">
-              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Length</div>
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">
+                {{ t('explore.trip.length') }}
+              </div>
               <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
                 {{ tripStats.length }}
               </div>
             </div>
             <div class="p-2">
-              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">Starts</div>
+              <div class="text-[10px] font-medium uppercase tracking-wide text-dimmed">
+                {{ t('explore.trip.starts') }}
+              </div>
               <div class="mt-1 text-lg font-semibold tabular-nums text-highlighted">
                 {{ tripStats.start }}
               </div>
@@ -242,15 +263,19 @@ const splitterItems = computed<SplitterItem[]>(() =>
 
           <section class="app-frame shrink-0">
             <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
-              <span class="text-sm font-medium text-highlighted">Stop timetable</span>
-              <span class="text-xs text-dimmed">Scheduled times</span>
+              <span class="text-sm font-medium text-highlighted">{{
+                t('explore.trip.stopTimetable')
+              }}</span>
+              <span class="text-xs text-dimmed">{{ t('explore.trip.scheduledTimes') }}</span>
             </div>
             <table class="w-full text-sm">
               <thead>
                 <tr class="text-left text-xs text-dimmed">
-                  <th class="py-1 pl-2 pr-2 font-medium">Stop</th>
-                  <th class="py-1 text-right font-medium">Arr</th>
-                  <th class="py-1 pr-2 text-right font-medium">Dep</th>
+                  <th class="py-1 pl-2 pr-2 font-medium">
+                    {{ t('explore.col.stop') }}
+                  </th>
+                  <th class="py-1 text-right font-medium">{{ t('explore.trip.arr') }}</th>
+                  <th class="py-1 pr-2 text-right font-medium">{{ t('explore.trip.dep') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -274,12 +299,16 @@ const splitterItems = computed<SplitterItem[]>(() =>
                     <span
                       v-if="schedByIndex.get(st.stopSequence - 1)?.interpolated"
                       class="ml-1 rounded-sm bg-elevated px-1 text-[10px] text-dimmed"
-                      >interp</span
+                      >{{ t('explore.trip.interp') }}</span
                     >
                     <span
                       v-if="(schedByIndex.get(st.stopSequence - 1)?.schedDwellTimeSec ?? 0) > 0"
                       class="ml-1 text-[10px] text-dimmed"
-                      >dwell {{ schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec }}s</span
+                      >{{
+                        t('explore.trip.dwell', {
+                          seconds: schedByIndex.get(st.stopSequence - 1)!.schedDwellTimeSec,
+                        })
+                      }}</span
                     >
                   </td>
                   <td class="py-1 text-right tabular-nums">
@@ -294,7 +323,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                       v-if="schedByIndex.has(st.stopSequence - 1)"
                       class="text-[10px] text-dimmed"
                     >
-                      gtfs {{ hm(st.arrivalTime) }}
+                      {{ t('explore.trip.gtfsTime', { time: hm(st.arrivalTime) }) }}
                     </div>
                   </td>
                   <td class="py-1 pr-2 text-right tabular-nums text-muted">

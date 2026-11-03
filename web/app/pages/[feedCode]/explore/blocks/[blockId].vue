@@ -4,8 +4,9 @@ import BlockTimeline from '~/components/BlockTimeline.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useBlockDetailQuery } from '~~/generated/graphql'
 import { hexColor, routeTextColor } from '~/utils/gtfs'
-import { timeSplit, timelineSegments } from '~/utils/blocks'
+import { layoverLabel, timeSplit, timelineSegments } from '~/utils/blocks'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -39,7 +40,7 @@ const durationSec = computed(() =>
 )
 
 function fmtDur(sec: number): string {
-  return `${Math.floor(sec / 3600)}h ${Math.round((sec % 3600) / 60)}m`
+  return t('explore.duration', { hours: Math.floor(sec / 3600), minutes: Math.round((sec % 3600) / 60) })
 }
 
 function pct(sec: number): number {
@@ -48,13 +49,16 @@ function pct(sec: number): number {
 </script>
 
 <template>
-  <AppPage :title="`Block ${blockId}`" description="Vehicle duty and scheduled trip sequence">
+  <AppPage
+    :title="t('explore.block.title', { id: blockId })"
+    :description="t('explore.block.description')"
+  >
     <template #leading>
       <UButton
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        aria-label="Go back"
+        :aria-label="t('common.goBack')"
         @click="router.back()"
       />
     </template>
@@ -64,7 +68,7 @@ function pct(sec: number): number {
       color="error"
       variant="soft"
       icon="i-lucide-alert-triangle"
-      title="Block unavailable"
+      :title="t('explore.block.unavailable')"
       :description="error.message"
     />
     <UAlert
@@ -72,8 +76,8 @@ function pct(sec: number): number {
       color="warning"
       variant="soft"
       icon="i-lucide-help-circle"
-      title="Missing service"
-      description="Open a block from the Blocks list so its service is known."
+      :title="t('explore.block.missingService')"
+      :description="t('explore.block.missingServiceBody')"
     />
     <div v-else-if="loading && !block" class="flex flex-col gap-4">
       <USkeleton class="h-24 w-full" />
@@ -82,12 +86,12 @@ function pct(sec: number): number {
     </div>
 
     <template v-else-if="block">
-      <section class="grid sm:grid-cols-2 xl:grid-cols-4" aria-label="Block summary">
+      <section class="grid sm:grid-cols-2 xl:grid-cols-4" :aria-label="t('explore.block.summary')">
         <div class="border border-default bg-elevated/35 p-4">
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
-            <UIcon name="i-lucide-calendar-days" class="size-3.5" /> Service
+            <UIcon name="i-lucide-calendar-days" class="size-3.5" /> {{ t('explore.col.service') }}
           </div>
           <p class="mt-2 truncate font-mono text-lg font-semibold text-highlighted">
             {{ block.serviceId }}
@@ -97,7 +101,7 @@ function pct(sec: number): number {
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
-            <UIcon name="i-lucide-clock-3" class="size-3.5" /> Duty span
+            <UIcon name="i-lucide-clock-3" class="size-3.5" /> {{ t('explore.block.dutySpan') }}
           </div>
           <p class="mt-2 text-lg font-semibold tabular-nums text-highlighted">
             {{ fmtDur(durationSec) }}
@@ -110,19 +114,19 @@ function pct(sec: number): number {
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
-            <UIcon name="i-lucide-route" class="size-3.5" /> Scheduled trips
+            <UIcon name="i-lucide-route" class="size-3.5" /> {{ t('explore.block.scheduledTrips') }}
           </div>
           <p class="mt-2 text-lg font-semibold text-highlighted">{{ block.tripCount }}</p>
-          <p class="mt-0.5 text-xs text-muted">Revenue legs in this duty</p>
+          <p class="mt-0.5 text-xs text-muted">{{ t('explore.block.revenueLegs') }}</p>
         </div>
         <div class="border border-default bg-elevated/35 p-4">
           <div
             class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-dimmed"
           >
-            <UIcon name="i-lucide-arrow-right-left" class="size-3.5" /> Deadhead moves
+            <UIcon name="i-lucide-arrow-right-left" class="size-3.5" /> {{ t('explore.block.deadheadMoves') }}
           </div>
           <p class="mt-2 text-lg font-semibold text-highlighted">{{ split.deadheadLegs }}</p>
-          <p class="mt-0.5 text-xs text-muted">Between-trip transitions</p>
+          <p class="mt-0.5 text-xs text-muted">{{ t('explore.block.betweenTrips') }}</p>
         </div>
       </section>
 
@@ -130,11 +134,11 @@ function pct(sec: number): number {
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 id="duty-composition" class="text-sm font-semibold text-highlighted">
-              Duty composition
+              {{ t('explore.block.dutyComposition') }}
             </h2>
-            <p class="mt-0.5 text-xs text-dimmed">How the scheduled span is allocated.</p>
+            <p class="mt-0.5 text-xs text-dimmed">{{ t('explore.block.howAllocated') }}</p>
           </div>
-          <span class="text-xs text-muted">{{ pct(split.revenueSec) }}% in service</span>
+          <span class="text-xs text-muted">{{ t('explore.block.inService', { percent: pct(split.revenueSec) }) }}</span>
         </div>
         <div class="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-muted/30">
           <div class="bg-primary" :style="{ width: `${pct(split.revenueSec)}%` }" />
@@ -142,14 +146,14 @@ function pct(sec: number): number {
         </div>
         <div class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
           <div class="rounded-md bg-default/50 px-3 py-2">
-            <p class="text-xs text-dimmed">Revenue service</p>
+            <p class="text-xs text-dimmed">{{ t('explore.block.revenueService') }}</p>
             <p class="mt-1 font-medium tabular-nums text-highlighted">
               {{ fmtDur(split.revenueSec) }}
               <span class="font-normal text-muted">· {{ pct(split.revenueSec) }}%</span>
             </p>
           </div>
           <div class="rounded-md bg-default/50 px-3 py-2">
-            <p class="text-xs text-dimmed">Layover & recovery</p>
+            <p class="text-xs text-dimmed">{{ t('explore.block.layoverRecovery') }}</p>
             <p class="mt-1 font-medium tabular-nums text-highlighted">
               {{ fmtDur(split.layoverSec) }}
               <span class="font-normal text-muted">· {{ pct(split.layoverSec) }}%</span>
@@ -164,14 +168,18 @@ function pct(sec: number): number {
       >
         <div class="flex items-center justify-between border-b border-default px-4 py-3">
           <div>
-            <h2 id="trip-sequence" class="text-sm font-semibold text-highlighted">Trip sequence</h2>
-            <p class="mt-0.5 text-xs text-dimmed">Ordered as the vehicle works this block.</p>
+            <h2 id="trip-sequence" class="text-sm font-semibold text-highlighted">
+              {{ t('explore.block.tripSequence') }}
+            </h2>
+            <p class="mt-0.5 text-xs text-dimmed">{{ t('explore.block.orderedAs') }}</p>
           </div>
           <div class="flex items-center gap-3">
-            <span class="hidden text-xs text-muted sm:inline">{{ trips.length }} legs</span>
+            <span class="hidden text-xs text-muted sm:inline">{{
+              t('explore.count.legs', { count: trips.length }, trips.length)
+            }}</span>
             <UButton
               icon="i-lucide-gantt-chart"
-              label="View timeline"
+              :label="t('explore.block.viewTimeline')"
               color="neutral"
               variant="soft"
               size="sm"
@@ -222,8 +230,9 @@ function pct(sec: number): number {
               v-if="bt.layoverAfterSec"
               class="col-span-full ml-9 flex items-center gap-1.5 pt-1 text-xs text-dimmed"
             >
-              <span class="h-px w-4 bg-muted" />{{ Math.round(bt.layoverAfterSec / 60) }} min
-              layover{{ bt.deadheadAfter ? ' · deadhead follows' : '' }}
+              <span class="h-px w-4 bg-muted" />{{
+                layoverLabel(bt.layoverAfterSec, !!bt.deadheadAfter, t)
+              }}
             </p>
           </li>
         </ol>
@@ -231,8 +240,18 @@ function pct(sec: number): number {
 
       <UModal
         v-model:open="timelineOpen"
-        title="Duty timeline"
-        :description="`${trips.length} trips · ${secToHm(block.startTimeSec)}–${secToHm(block.endTimeSec)}`"
+        :title="t('explore.block.dutyTimeline')"
+        :description="
+          t(
+            'explore.block.timelineDescription',
+            {
+              count: trips.length,
+              from: secToHm(block.startTimeSec),
+              to: secToHm(block.endTimeSec),
+            },
+            trips.length,
+          )
+        "
         scrollable
         fullscreen
       >
