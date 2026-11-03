@@ -85,6 +85,10 @@ data class VehiclePredictionUpsert(
     val actualArrivalTs: Instant?,
     val actualDepartureTs: Instant?,
     val confidenceSec: Int?,
+    val rangeLowSec: Int? = null,
+    val rangeHighSec: Int? = null,
+    val lateProbability: Double? = null,
+    val late: Boolean? = null,
     val computedAt: Instant,
     val sourceReportTs: Instant = computedAt,
     val serviceDate: LocalDate? = null,
@@ -106,6 +110,10 @@ data class CheckpointCandidate(
     val computedAt: Instant,
     val sampleSlot: Instant,
     val confidenceSec: Int? = null,
+    val rangeLowSec: Int? = null,
+    val rangeHighSec: Int? = null,
+    val lateProbability: Double? = null,
+    val late: Boolean? = null,
     val serviceDate: LocalDate? = null,
     val producedAt: Instant = computedAt,
 )
@@ -356,6 +364,10 @@ class PredictionWriter {
                 it[t.actualDepartureTs] = insertValue(t.actualDepartureTs)
                 it[t.actualReportGapSec] = null
                 it[t.confidenceSec] = insertValue(t.confidenceSec)
+                it[t.rangeLowSec] = insertValue(t.rangeLowSec)
+                it[t.rangeHighSec] = insertValue(t.rangeHighSec)
+                it[t.lateProbability] = insertValue(t.lateProbability)
+                it[t.late] = insertValue(t.late)
                 it[t.computedAt] = insertValue(t.computedAt)
                 it[t.sourceReportTs] = insertValue(t.sourceReportTs)
                 it[t.serviceDate] = insertValue(t.serviceDate)
@@ -392,6 +404,10 @@ class PredictionWriter {
             this[t.actualArrivalTs] = p.actualArrivalTs
             this[t.actualDepartureTs] = p.actualDepartureTs
             this[t.confidenceSec] = p.confidenceSec
+            this[t.rangeLowSec] = p.rangeLowSec
+            this[t.rangeHighSec] = p.rangeHighSec
+            this[t.lateProbability] = p.lateProbability
+            this[t.late] = p.late
             this[t.computedAt] = p.computedAt
             this[t.sourceReportTs] = p.sourceReportTs
             this[t.serviceDate] = p.serviceDate
@@ -567,7 +583,7 @@ internal fun checkpointInsert(k: CheckpointCandidate): InsertSelectOnConflictDoN
     val columns =
         listOf(
             c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.predictedTs, c.computedAt,
-            c.sampleSlot, c.confidenceSec, c.serviceDate, c.producedAt, c.id,
+            c.sampleSlot, c.confidenceSec, c.rangeLowSec, c.rangeHighSec, c.lateProbability, c.late, c.serviceDate, c.producedAt, c.id,
         )
     val passed =
         p.select(intLiteral(1)).where {
@@ -594,6 +610,10 @@ internal fun checkpointInsert(k: CheckpointCandidate): InsertSelectOnConflictDoN
                 param(c.computedAt, k.computedAt),
                 param(c.sampleSlot, k.sampleSlot),
                 param(c.confidenceSec, k.confidenceSec),
+                param(c.rangeLowSec, k.rangeLowSec),
+                param(c.rangeHighSec, k.rangeHighSec),
+                param(c.lateProbability, k.lateProbability),
+                param(c.late, k.late),
                 param(c.serviceDate, k.serviceDate),
                 param(c.producedAt, k.producedAt),
                 c.idSequence.nextLongVal(),
