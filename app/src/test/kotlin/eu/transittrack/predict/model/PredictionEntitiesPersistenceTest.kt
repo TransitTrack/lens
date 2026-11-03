@@ -8,6 +8,7 @@ import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.springframework.beans.factory.annotation.Autowired
 
@@ -24,6 +25,7 @@ class PredictionEntitiesPersistenceTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictions: VehiclePredictionRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
+    @Autowired val models: PredictionModelRepository,
     @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
     // Committed on its own transaction: the test itself runs outside any Spring transaction
@@ -125,5 +127,54 @@ class PredictionEntitiesPersistenceTest(
         assertThat(
             accuracies.aggregateAccuracy("feed-1", emptyList(), 0, Instant.EPOCH, null, null, null, null),
         ).isEqualTo(emptyList())
+    }
+
+    @Test
+    fun `range and lateness round-trip on prediction and accuracy`() {
+        predictions.save(
+            VehiclePrediction(
+                feedCode = "feed-1", vehicleId = "v3", tripRowId = 9L, blockPk = null, tripPatternId = 4L,
+                stopPathIndex = 1, algorithm = PredictionAlgorithm.SMILE_GBM,
+                predictedArrivalTs = Instant.parse("2026-09-04T10:01:00Z"), predictedDepartureTs = null,
+                actualArrivalTs = null, actualDepartureTs = null, confidenceSec = 30,
+                computedAt = Instant.parse("2026-09-04T10:00:00Z"),
+                rangeLowSec = -40, rangeHighSec = 90, lateProbability = 0.25, late = false,
+            ),
+        )
+        val p = predictions.findByVehicleTrip("feed-1", "v3", 9L).single()
+        assertThat(p.rangeLowSec).isEqualTo(-40)
+        assertThat(p.rangeHighSec).isEqualTo(90)
+        assertThat(p.lateProbability).isEqualTo(0.25)
+        assertThat(p.late).isEqualTo(false)
+
+        accuracies.save(
+            PredictionAccuracy(
+                feedCode = "feed-1", vehicleId = "v3", tripRowId = 9L, stopPathIndex = 1,
+                algorithm = PredictionAlgorithm.SMILE_GBM,
+                predictedTs = Instant.parse("2026-09-04T10:00:00Z"),
+                actualTs = Instant.parse("2026-09-04T10:00:10Z"),
+                errorSec = 10, absErrorSec = 10,
+                createdAt = Instant.parse("2026-09-04T09:00:00Z"),
+                rangeLowSec = -5, rangeHighSec = 15, predictedLate = false, actualLate = true,
+            ),
+        )
+        val a = accuracies.findAll().single { it.vehicleId == "v3" }
+        assertThat(a.rangeLowSec).isEqualTo(-5)
+        assertThat(a.rangeHighSec).isEqualTo(15)
+        assertThat(a.predictedLate).isEqualTo(false)
+        assertThat(a.actualLate).isEqualTo(true)
+    }
+
+    @Test
+    fun `prediction_model upserts and reads back`() {
+        assertThat(models.find("feed-1", PredictionAlgorithm.SMILE_GBM)).isNull()
+        assertThat(models.trainedAt("feed-1", PredictionAlgorithm.SMILE_GBM)).isNull()
+        val t1 = Instant.parse("2026-09-04T10:00:00Z")
+        models.save(PredictionModelRow("feed-1", PredictionAlgorithm.SMILE_GBM, t1, 10, byteArrayOf(1, 2, 3)))
+        val t2 = Instant.parse("2026-09-05T10:00:00Z")
+        models.save(PredictionModelRow("feed-1", PredictionAlgorithm.SMILE_GBM, t2, 20, byteArrayOf(9)))
+        val found = models.find("feed-1", PredictionAlgorithm.SMILE_GBM)
+        assertThat(found).isEqualTo(PredictionModelRow("feed-1", PredictionAlgorithm.SMILE_GBM, t2, 20, byteArrayOf(9)))
+        assertThat(models.trainedAt("feed-1", PredictionAlgorithm.SMILE_GBM)).isEqualTo(t2)
     }
 }

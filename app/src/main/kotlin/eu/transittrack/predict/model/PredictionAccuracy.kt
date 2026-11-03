@@ -55,6 +55,10 @@ class PredictionAccuracy(
     var directionId: Int? = null,
     var dayType: DayType? = null,
     var timeBand: TimeBand? = null,
+    var rangeLowSec: Int? = null,
+    var rangeHighSec: Int? = null,
+    var predictedLate: Boolean? = null,
+    var actualLate: Boolean? = null,
     var id: Long? = null,
 )
 
@@ -100,6 +104,10 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
     val directionId = short("direction_id").nullable()
     val dayType = shortOrdinal<DayType>("day_type").nullable()
     val timeBand = shortOrdinal<TimeBand>("time_band").nullable()
+    val rangeLowSec = integer("range_low_sec").nullable()
+    val rangeHighSec = integer("range_high_sec").nullable()
+    val predictedLate = bool("predicted_late").nullable()
+    val actualLate = bool("actual_late").nullable()
 
     override val primaryKey = PrimaryKey(id, name = "prediction_accuracy_pkey")
 
@@ -130,6 +138,10 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
             directionId = row[directionId]?.toInt(),
             dayType = row[dayType],
             timeBand = row[timeBand],
+            rangeLowSec = row[rangeLowSec],
+            rangeHighSec = row[rangeHighSec],
+            predictedLate = row[predictedLate],
+            actualLate = row[actualLate],
             id = row[id],
         )
 
@@ -156,6 +168,10 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
         s[directionId] = row.directionId?.toShort()
         s[dayType] = row.dayType
         s[timeBand] = row.timeBand
+        s[rangeLowSec] = row.rangeLowSec
+        s[rangeHighSec] = row.rangeHighSec
+        s[predictedLate] = row.predictedLate
+        s[actualLate] = row.actualLate
     }
 }
 

@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0021-prediction-range-and-lateness
+      author: transittrack
+      changes:
+        - addColumn:
+            tableName: vehicle_prediction
+            columns:
+              - column: { name: range_low_sec, type: INT }
+              - column: { name: range_high_sec, type: INT }
+              - column: { name: late_probability, type: "DOUBLE PRECISION" }
+              - column: { name: late, type: BOOLEAN }
+        - addColumn:
+            tableName: prediction_checkpoint
+            columns:
+              - column: { name: range_low_sec, type: INT }
+              - column: { name: range_high_sec, type: INT }
+              - column: { name: late_probability, type: "DOUBLE PRECISION" }
+              - column: { name: late, type: BOOLEAN }
+        - addColumn:
+            tableName: prediction_accuracy
+            columns:
+              - column: { name: range_low_sec, type: INT }
+              - column: { name: range_high_sec, type: INT }
+              - column: { name: predicted_late, type: BOOLEAN }
+              - column: { name: actual_late, type: BOOLEAN }
+
+  - changeSet:
+      id: 0021-prediction-model
+      author: transittrack
+      changes:
+        - createTable:
+            tableName: prediction_model
+            columns:
+              - column: { name: feed_code, type: "VARCHAR(64)", constraints: { nullable: false } }
+              - column: { name: algorithm, type: SMALLINT, constraints: { nullable: false } }
+              - column: { name: trained_at, type: "TIMESTAMP WITH TIME ZONE", constraints: { nullable: false } }
+              - column: { name: sample_count, type: INT, constraints: { nullable: false } }
+              - column: { name: payload, type: BYTEA, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: prediction_model
+            columnNames: feed_code, algorithm
+            constraintName: prediction_model_pkey
+        - addForeignKeyConstraint:
+            baseTableName: prediction_model
+            baseColumnNames: feed_code
+            referencedTableName: avl_feed
+            referencedColumnNames: code
+            constraintName: fk_prediction_model_feed
+            onDelete: CASCADE

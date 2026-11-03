@@ -40,6 +40,10 @@ class VehiclePrediction(
     var sourceReportTs: Instant? = computedAt,
     var serviceDate: LocalDate? = null,
     var actualReportGapSec: Int? = null,
+    var rangeLowSec: Int? = null,
+    var rangeHighSec: Int? = null,
+    var lateProbability: Double? = null,
+    var late: Boolean? = null,
     var id: Long? = null,
 )
 
@@ -67,6 +71,10 @@ object VehiclePredictionTable : RowTable<VehiclePrediction>("vehicle_prediction"
     val sourceReportTs = timestampTz("source_report_ts").nullable()
     val serviceDate = date("service_date").nullable()
     val actualReportGapSec = integer("actual_report_gap_sec").nullable()
+    val rangeLowSec = integer("range_low_sec").nullable()
+    val rangeHighSec = integer("range_high_sec").nullable()
+    val lateProbability = double("late_probability").nullable()
+    val late = bool("late").nullable()
 
     override val primaryKey = PrimaryKey(id, name = "vehicle_prediction_pkey")
 
@@ -95,6 +103,10 @@ object VehiclePredictionTable : RowTable<VehiclePrediction>("vehicle_prediction"
             sourceReportTs = row[sourceReportTs],
             serviceDate = row[serviceDate],
             actualReportGapSec = row[actualReportGapSec],
+            rangeLowSec = row[rangeLowSec],
+            rangeHighSec = row[rangeHighSec],
+            lateProbability = row[lateProbability],
+            late = row[late],
             id = row[id],
         )
 
@@ -118,6 +130,10 @@ object VehiclePredictionTable : RowTable<VehiclePrediction>("vehicle_prediction"
         s[sourceReportTs] = row.sourceReportTs
         s[serviceDate] = row.serviceDate
         s[actualReportGapSec] = row.actualReportGapSec
+        s[rangeLowSec] = row.rangeLowSec
+        s[rangeHighSec] = row.rangeHighSec
+        s[lateProbability] = row.lateProbability
+        s[late] = row.late
     }
 }
 
