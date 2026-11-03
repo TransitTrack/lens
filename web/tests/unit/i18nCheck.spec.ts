@@ -116,4 +116,10 @@ describe('checkLocales', () => {
     writeFileSync(join(src, 'pages', '[feedCode]', 'x.vue'), `<script>t('a')</script>`)
     expect((await run()).errors).toEqual([])
   })
+
+  it('only treats the first token and ternary operands as keys', async () => {
+    locale('en', { a: { b: 'B', c: 'C', d: 'D' } })
+    code('x.ts', `t(status === 'ok' ? 'a.b' : 'a.c'); t(msg || 'Hello world'); t('a.d' + 'x')`)
+    expect((await run()).errors).toEqual([])
+  })
 })

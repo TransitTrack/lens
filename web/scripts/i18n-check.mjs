@@ -29,15 +29,21 @@ async function walk(dir) {
   return out
 }
 
-// Returns the string literals at depth 0 of the first argument starting at `i`
-// (just after the opening paren), up to a depth-0 `,` or the closing paren. This
-// captures both branches of `t(cond ? 'a.b' : 'c.d')`. Template literals with
-// `${` interpolation are skipped (dynamic keys need an `i18n-keys` marker).
+// Returns the key literals of the first argument starting at `i` (just after the
+// opening paren): the literal that is the first token, and the literals that are
+// direct operands of a depth-0 ternary `?` / `:`. Literals in comparisons or
+// logical/concat expressions (=== 'ok', || 'x y', + 'x') are not keys. The scan
+// stops at a depth-0 `,` or `)`, or after 2000 characters. Template literals with
+// `${` are skipped (dynamic keys need an `i18n-keys` marker).
 function firstArgLiterals(text, i) {
   const out = []
+  const end = Math.min(text.length, i + 2000)
   let depth = 0
-  for (; i < text.length; i++) {
+  let prev = '' // last non-space char outside strings
+  let prev2 = ''
+  for (; i < end; i++) {
     const c = text[i]
+    if (/\s/.test(c)) continue
     if (c === "'" || c === '"' || c === '`') {
       let j = i + 1
       let dynamic = false
@@ -45,13 +51,20 @@ function firstArgLiterals(text, i) {
         if (text[j] === '\\') j++
         else if (c === '`' && text[j] === '$' && text[j + 1] === '{') dynamic = true
       }
-      if (depth === 0 && !dynamic) out.push(text.slice(i + 1, j))
+      const isOperand = prev === '' || (prev === '?' && prev2 !== '?') || prev === ':'
+      if (depth === 0 && !dynamic && isOperand) out.push(text.slice(i + 1, j))
       i = j
-    } else if ('([{'.includes(c)) depth++
+      prev2 = prev
+      prev = c
+      continue
+    }
+    if ('([{'.includes(c)) depth++
     else if (')]}'.includes(c)) {
       if (depth === 0) break
       depth--
     } else if (c === ',' && depth === 0) break
+    prev2 = prev
+    prev = c
   }
   return out
 }
