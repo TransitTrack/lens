@@ -60,7 +60,10 @@ updates, no production build/deploy strategy yet.
    pnpm i18n:translate --locale de --provider deepl   # needs DEEPL_API_KEY
    ```
 
-   Providers: `google-free` (default, no key), `deepl` (`DEEPL_API_KEY`),
+   Provider precedence: `--provider` flag, then `I18N_PROVIDER` env, then
+   `google-free`. Providers: `google-free` (default, no key), `deepl`
+   (`DEEPL_API_KEY`; `:fx` keys use the free API, others the Pro API, or set
+   `DEEPL_API_URL`),
    `google-cloud` (`GOOGLE_TRANSLATE_API_KEY`). Existing values are never
    overwritten, so the command is safe to rerun after adding new `en` keys.
    Keys whose `{placeholders}` the provider mangled are skipped and reported

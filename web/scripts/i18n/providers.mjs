@@ -31,6 +31,7 @@ async function okJson(res) {
 }
 
 function googleFree({ fetch, sleep }) {
+  // One string per request, at most 1 request/second, 3 retries with backoff.
   let last = 0
   const throttle = async () => {
     const wait = last + 1000 - Date.now()
@@ -49,36 +50,36 @@ function googleFree({ fetch, sleep }) {
   return {
     async translate(texts, from, to) {
       const out = []
-      for (let i = 0; i < texts.length; i += 20) {
-        const batch = texts.slice(i, i + 20)
-        // Newline-joined batch; if the response does not split back into the
-        // same number of lines, fall back to one request per string.
-        const lines = (await request(batch.join('\n'), from, to)).split('\n')
-        if (lines.length === batch.length) out.push(...lines)
-        else for (const text of batch) out.push(await request(text, from, to))
-      }
+      for (const text of texts) out.push(await request(text, from, to))
       return out
     },
   }
+}
+
+// Free keys end in ":fx" and use api-free.deepl.com; Pro keys use api.deepl.com.
+// DEEPL_API_URL overrides the endpoint entirely.
+function deeplUrl(env) {
+  if (env.DEEPL_API_URL) return env.DEEPL_API_URL
+  const host = env.DEEPL_API_KEY.endsWith(':fx') ? 'api-free.deepl.com' : 'api.deepl.com'
+  return `https://${host}/v2/translate`
 }
 
 function deepl({ fetch, sleep, env }) {
   const key = env.DEEPL_API_KEY
   return {
     async translate(texts, from, to) {
-      // tag_handling=xml so <tag> placeholders are left alone; the ⟦n⟧ masks are
-      // plain text and normally survive untouched. If a mask is mangled, lib's
-      // restore throws and the CLI skips that key.
+      // Placeholders are protected by the ⟦n⟧ masks (plain text, normally left
+      // untouched). If a mask is mangled, lib's restore throws and the CLI skips
+      // that key.
       return withRetry(async () => {
         const data = await okJson(
-          await fetch('https://api-free.deepl.com/v2/translate', {
+          await fetch(deeplUrl(env), {
             method: 'POST',
             headers: { Authorization: `DeepL-Auth-Key ${key}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
               text: texts,
               source_lang: from.toUpperCase(),
               target_lang: to.toUpperCase(),
-              tag_handling: 'xml',
             }),
           }),
         )
@@ -107,6 +108,15 @@ function googleCloud({ fetch, sleep, env }) {
       }, sleep)
     },
   }
+}
+
+const PROVIDERS = ['google-free', 'deepl', 'google-cloud']
+
+// Precedence: --provider flag > I18N_PROVIDER env > google-free.
+export function resolveProviderName(flag, env) {
+  const name = flag || env.I18N_PROVIDER || 'google-free'
+  if (!PROVIDERS.includes(name)) throw new Error(`Unknown provider "${name}". Use ${PROVIDERS.join(', ')}.`)
+  return name
 }
 
 export function getProvider(name, env, opts = {}) {

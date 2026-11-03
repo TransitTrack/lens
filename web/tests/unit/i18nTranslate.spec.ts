@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdi
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runTranslate } from '../../scripts/i18n-translate.mjs'
-import { getProvider, ProviderError } from '../../scripts/i18n/providers.mjs'
+import { getProvider, resolveProviderName, ProviderError } from '../../scripts/i18n/providers.mjs'
 
 const EN = { a: { hello: 'Hello {name}', stop: 'Stop list' }, b: 'World' }
 const echo = { translate: async (texts: string[]) => texts.map((t) => `«${t}»`) }
@@ -20,6 +20,7 @@ describe('runTranslate', () => {
   it('creates a new locale with every en key and is idempotent', async () => {
     const r = await runTranslate({ locale: 'de', dir, provider: echo, log: () => {} })
     expect(r.added).toBe(3)
+    expect(process.exitCode ?? 0).toBe(0)
     const de = JSON.parse(read('de.json'))
     expect(de).toEqual({ a: { hello: '«Hello {name}»', stop: '«Stop list»' }, b: '«World»' })
     const before = read('de.json')
@@ -33,6 +34,7 @@ describe('runTranslate', () => {
     await runTranslate({ locale: 'pl', dir, provider: echo, log: () => {} })
     const pl = JSON.parse(read('pl.json'))
     expect(pl.b).toBe('Świat')
+    expect(read('pl.json')).toContain('"b": "Świat"')
     expect(pl.a.stop).toBe('«Stop list»')
   })
 
@@ -55,6 +57,8 @@ describe('runTranslate', () => {
     }
     const logs: string[] = []
     const r = await runTranslate({ locale: 'de', dir, provider: mangler, log: (m: string) => logs.push(m) })
+    expect(process.exitCode).toBe(1)
+    process.exitCode = 0
     expect(r.failed.map((f: { key: string }) => f.key)).toEqual(['a.hello'])
     expect(logs.join('\n')).toContain('a.hello')
     const de = JSON.parse(read('de.json'))
@@ -62,8 +66,13 @@ describe('runTranslate', () => {
     expect(de.b).toBe('World')
   })
 
-  it('dry run writes nothing', async () => {
-    await runTranslate({ locale: 'de', dir, provider: echo, dryRun: true, log: () => {} })
+  it('dry run writes nothing and never calls the provider', async () => {
+    const never = {
+      translate: async () => {
+        throw new Error('provider must not be called')
+      },
+    }
+    await runTranslate({ locale: 'de', dir, provider: never, dryRun: true, log: () => {} })
     expect(existsSync(join(dir, 'de.json'))).toBe(false)
   })
 
@@ -78,13 +87,84 @@ describe('runTranslate', () => {
     expect(JSON.parse(read('pl.json')).a.stop).toBe('«Przystanek list»')
   })
 
+  it('does not match plurals or ALL-CAPS words', async () => {
+    writeFileSync(join(dir, 'en.json'), JSON.stringify({ x: 'All stops', y: 'STOP now' }))
+    await runTranslate({ locale: 'pl', dir, provider: echo, glossary: { stop: { pl: 'przystanek' } }, log: () => {} })
+    expect(JSON.parse(read('pl.json'))).toEqual({ x: '«All stops»', y: '«STOP now»' })
+  })
+
+  it.each([
+    ['drops the glossary mask', (t: string) => t.replace(/⟦G\d+⟧/g, '')],
+    ['mangles the glossary mask', (t: string) => t.replace(/⟦G(\d+)⟧/g, '[G$1]')],
+  ])('skips the key when the provider %s', async (_n, mutate) => {
+    const bad = { translate: async (t: string[]) => t.map(mutate) }
+    const r = await runTranslate({
+      locale: 'pl',
+      dir,
+      provider: bad,
+      glossary: { stop: { pl: 'przystanek' } },
+      log: () => {},
+    })
+    process.exitCode = 0
+    expect(r.failed.map((f: { key: string }) => f.key)).toEqual(['a.stop'])
+    expect(read('pl.json')).not.toContain('⟦')
+    expect(JSON.parse(read('pl.json')).a.stop).toBeUndefined()
+  })
+
   it('leaves glossary terms to the provider when the locale has no entry', async () => {
     await runTranslate({ locale: 'de', dir, provider: echo, glossary: { stop: { pl: 'przystanek' } }, log: () => {} })
     expect(JSON.parse(read('de.json')).a.stop).toBe('«Stop list»')
   })
 })
 
+describe('resolveProviderName', () => {
+  it('flag > env > google-free, unknown throws', () => {
+    expect(resolveProviderName('deepl', { I18N_PROVIDER: 'google-cloud' })).toBe('deepl')
+    expect(resolveProviderName(undefined, { I18N_PROVIDER: 'google-cloud' })).toBe('google-cloud')
+    expect(resolveProviderName(undefined, {})).toBe('google-free')
+    expect(() => resolveProviderName(undefined, { I18N_PROVIDER: 'bogus' })).toThrow('Unknown provider "bogus"')
+  })
+})
+
 describe('getProvider', () => {
+  type Seen = { url?: string; body?: Record<string, unknown> }
+  const okFetch = (payload: unknown, seen: Seen) =>
+    (async (url: string, init?: { body: string }) => {
+      seen.url = url
+      seen.body = init ? JSON.parse(init.body) : undefined
+      return { ok: true, json: async () => payload }
+    }) as unknown as typeof fetch
+
+  it.each([
+    ['abc:fx', undefined, 'https://api-free.deepl.com/v2/translate'],
+    ['abc', undefined, 'https://api.deepl.com/v2/translate'],
+    ['abc', 'https://custom.example/v2/translate', 'https://custom.example/v2/translate'],
+  ])('deepl host for key %s override %s', async (key, override, expected) => {
+    const seen: Seen = {}
+    const env = { DEEPL_API_KEY: key, ...(override ? { DEEPL_API_URL: override } : {}) }
+    const p = getProvider('deepl', env, { fetch: okFetch({ translations: [{ text: 'x' }] }, seen) })
+    await p.translate(['a'], 'en', 'de')
+    expect(seen.url).toBe(expected)
+    expect(seen.body?.tag_handling).toBeUndefined()
+  })
+
+  it('google-free joins multi-segment responses', async () => {
+    const seen: Seen = {}
+    const payload = [[['Hello ', 'Hi ', null], ['world', 'world', null]]]
+    const p = getProvider('google-free', {}, { fetch: okFetch(payload, seen), sleep: async () => {} })
+    expect(await p.translate(['Hi world'], 'en', 'de')).toEqual(['Hello world'])
+    expect(seen.url).toContain('sl=en&tl=de&dt=t&q=Hi%20world')
+  })
+
+  it('google-cloud request shape', async () => {
+    const seen: Seen = {}
+    const payload = { data: { translations: [{ translatedText: 'Hallo' }] } }
+    const p = getProvider('google-cloud', { GOOGLE_TRANSLATE_API_KEY: 'k1' }, { fetch: okFetch(payload, seen) })
+    expect(await p.translate(['Hello'], 'en', 'de')).toEqual(['Hallo'])
+    expect(seen.url).toBe('https://translation.googleapis.com/language/translate/v2?key=k1')
+    expect(seen.body).toEqual({ q: ['Hello'], source: 'en', target: 'de', format: 'text' })
+  })
+
   it('requires keys and known names', () => {
     expect(() => getProvider('deepl', {})).toThrow('DEEPL_API_KEY')
     expect(() => getProvider('google-cloud', {})).toThrow('GOOGLE_TRANSLATE_API_KEY')
@@ -97,7 +177,7 @@ describe('getProvider', () => {
       seen = { url, body: JSON.parse(init.body) }
       return { ok: true, json: async () => ({ translations: [{ text: 'Hallo' }] }) }
     }) as unknown as typeof fetch
-    const p = getProvider('deepl', { DEEPL_API_KEY: 'k' }, { fetch })
+    const p = getProvider('deepl', { DEEPL_API_KEY: 'k:fx' }, { fetch })
     expect(await p.translate(['Hello'], 'en', 'de')).toEqual(['Hallo'])
     expect(seen!.url).toBe('https://api-free.deepl.com/v2/translate')
     expect(seen!.body.target_lang).toBe('DE')

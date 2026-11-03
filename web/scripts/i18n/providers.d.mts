@@ -7,3 +7,4 @@ export function getProvider(
   env: Record<string, string | undefined>,
   opts?: { fetch?: typeof fetch; sleep?: (ms: number) => Promise<void> },
 ): Provider
+export function resolveProviderName(flag: string | undefined, env: Record<string, string | undefined>): string
