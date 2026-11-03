@@ -72,3 +72,9 @@ updates, no production build/deploy strategy yet.
 3. Review the output: it is machine-quality.
 4. Optionally add the matching Nuxt UI locale in `app.vue` so built-in
    component strings are translated too.
+
+Run `pnpm i18n:check` (add `--strict` to fail on missing translations) to
+verify locale consistency: keys used in code exist in `en`, `en` keys are
+used, and `{placeholders}` match across locales. Dynamic keys are not
+detected; declare them with a `// i18n-keys: a.b.*` comment (or
+`<!-- i18n-keys: a.b.* -->` in templates).
