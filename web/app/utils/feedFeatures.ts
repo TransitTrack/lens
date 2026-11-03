@@ -1,5 +1,7 @@
 import { routeTypeLabel } from '~/utils/gtfs'
 
+type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
 export interface DerivedFeature {
   key: string
   label: string
@@ -23,27 +25,27 @@ interface FeatureInput {
  * Only signals we can read confidently are reported — anything ambiguous is
  * left off rather than guessed.
  */
-export function deriveFeatures(input: FeatureInput): DerivedFeature[] {
+export function deriveFeatures(input: FeatureInput, t: Translate): DerivedFeature[] {
   const files = new Set(input.filesPresent ?? [])
   const has = (name: string) => files.has(name)
   const anyFile = (...names: string[]) => names.some((n) => files.has(n))
   const routes = input.routes ?? []
 
   return [
-    { key: 'colors', label: 'Route colors', present: routes.some((r) => !!r.routeColor) },
-    { key: 'shapes', label: 'Shapes', present: has('shapes.txt') },
+    { key: 'colors', label: t('feed.feature.colors'), present: routes.some((r) => !!r.routeColor) },
+    { key: 'shapes', label: t('feed.feature.shapes'), present: has('shapes.txt') },
     {
       key: 'calendar',
-      label: 'Service calendar',
+      label: t('feed.feature.calendar'),
       present: anyFile('calendar.txt', 'calendar_dates.txt'),
     },
-    { key: 'frequencies', label: 'Frequency-based trips', present: has('frequencies.txt') },
-    { key: 'transfers', label: 'Transfers', present: has('transfers.txt') },
-    { key: 'pathways', label: 'Pathways', present: has('pathways.txt') },
-    { key: 'levels', label: 'Levels', present: has('levels.txt') },
+    { key: 'frequencies', label: t('feed.feature.frequencies'), present: has('frequencies.txt') },
+    { key: 'transfers', label: t('feed.feature.transfers'), present: has('transfers.txt') },
+    { key: 'pathways', label: t('feed.feature.pathways'), present: has('pathways.txt') },
+    { key: 'levels', label: t('feed.feature.levels'), present: has('levels.txt') },
     {
       key: 'fares',
-      label: 'Fare information',
+      label: t('feed.feature.fares'),
       present: anyFile(
         'fare_attributes.txt',
         'fare_rules.txt',
@@ -54,9 +56,9 @@ export function deriveFeatures(input: FeatureInput): DerivedFeature[] {
         'fare_media.txt',
       ),
     },
-    { key: 'translations', label: 'Translations', present: has('translations.txt') },
-    { key: 'feedinfo', label: 'Feed info', present: has('feed_info.txt') },
-    { key: 'attributions', label: 'Attributions', present: has('attributions.txt') },
+    { key: 'translations', label: t('feed.feature.translations'), present: has('translations.txt') },
+    { key: 'feedinfo', label: t('feed.feature.feedinfo'), present: has('feed_info.txt') },
+    { key: 'attributions', label: t('feed.feature.attributions'), present: has('attributions.txt') },
   ]
 }
 

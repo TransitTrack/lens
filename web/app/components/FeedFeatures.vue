@@ -9,7 +9,7 @@ const absent = computed(() => props.features.filter((f) => !f.present))
 
 <template>
   <div class="flex flex-col gap-3 p-4">
-    <div class="text-sm font-medium text-muted">Features</div>
+    <div class="text-sm font-medium text-muted">{{ $t('feed.features.title') }}</div>
 
     <div v-if="present.length" class="flex flex-wrap gap-1.5">
       <UBadge
@@ -22,7 +22,7 @@ const absent = computed(() => props.features.filter((f) => !f.present))
         {{ f.label }}
       </UBadge>
     </div>
-    <p v-else class="text-sm text-dimmed">No optional features detected.</p>
+    <p v-else class="text-sm text-dimmed">{{ $t('feed.features.none') }}</p>
 
     <div v-if="absent.length" class="flex flex-wrap gap-1.5">
       <UBadge

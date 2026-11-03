@@ -7,6 +7,7 @@ import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useVehiclePolling } from '~/composables/useVehiclePolling'
 
+const { t } = useI18n()
 const { selectedFeedCode, selectedAvlFeedCode, feedPath } = useFeeds()
 const { vehicles, loading, error } = useVehiclePolling(selectedAvlFeedCode)
 const { extent } = useFeedExtent(selectedFeedCode)
@@ -21,11 +22,11 @@ const newestReport = computed(() =>
 
 <template>
   <AppPage full-width>
-    <NoRealtimeState v-if="!selectedAvlFeedCode" what="live vehicle operations" />
+    <NoRealtimeState v-if="!selectedAvlFeedCode" :what="t('noRealtime.liveVehicleOperations')" />
     <VehicleOperationsBoard
       v-else
-      title="Operations overview"
-      description="Live vehicle positions, trip matching, and service status"
+      :title="t('home.operationsOverview')"
+      :description="t('home.operationsDescription')"
       :vehicles="vehicles"
       :loading="loading"
       :error="error"

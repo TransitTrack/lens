@@ -11,6 +11,8 @@ import {
 } from '~/utils/networkPulse'
 import type { VehicleState } from '~/utils/vehicleFilters'
 
+const { t } = useI18n()
+
 const props = defineProps<{
   vehicles: VehicleRow[]
   loading: boolean
@@ -31,7 +33,7 @@ const emit = defineEmits<{
 
 const showSkeleton = computed(() => props.loading && props.vehicles.length === 0)
 const signals = computed(() =>
-  buildNetworkPulseSignals(props.vehicles, props.feeds, props.selectedAvlFeedCode),
+  buildNetworkPulseSignals(props.vehicles, props.feeds, props.selectedAvlFeedCode, t),
 )
 const hasLivePositions = computed(() => props.hasRealtimeSource && !props.error)
 
@@ -73,22 +75,24 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
     >
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-primary">
-          Operations overview
+          {{ $t('home.operationsOverview') }}
         </p>
         <h2 id="network-pulse-heading" class="mt-1 text-2xl font-semibold text-highlighted">
-          Network pulse
+          {{ $t('pulse.title') }}
         </h2>
       </div>
       <div class="flex items-center gap-2 text-sm text-muted">
         <template v-if="hasLivePositions">
           <span class="dashboard-live-dot size-2 rounded-full bg-success" aria-hidden="true" />
-          <span
-            >Live positions updated {{ updatedAt ? formatTimeAgo(new Date(updatedAt)) : '—' }}</span
-          >
+          <span>{{
+            $t('pulse.liveUpdated', {
+              time: updatedAt ? formatTimeAgo(new Date(updatedAt)) : '—',
+            })
+          }}</span>
         </template>
         <template v-else>
           <span class="size-2 rounded-full bg-neutral" aria-hidden="true" />
-          <span>Live positions unavailable</span>
+          <span>{{ $t('pulse.liveUnavailable') }}</span>
         </template>
       </div>
     </header>
@@ -99,7 +103,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
       <NoRealtimeState
         v-if="!hasRealtimeSource"
         class="min-h-112 lg:col-span-2"
-        what="the live network"
+        :what="$t('noRealtime.liveNetwork')"
       />
 
       <div v-else-if="error" class="flex min-h-112 items-center p-4 lg:col-span-2">
@@ -108,7 +112,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
           color="error"
           variant="soft"
           icon="i-lucide-alert-triangle"
-          title="Vehicle feed unavailable"
+          :title="$t('pulse.feedUnavailable')"
           :description="error.message"
         />
       </div>
@@ -121,7 +125,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
         </div>
         <aside
           class="network-pulse__signals flex min-h-80 flex-col gap-3 p-4 sm:p-5"
-          aria-label="Operating signals"
+          :aria-label="$t('pulse.operatingSignals')"
         >
           <div v-for="index in 3" :key="index" class="rounded-md border border-default p-4">
             <USkeleton class="h-4 w-28" />
@@ -147,9 +151,9 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
         >
           <div>
             <h3 id="network-pulse-signals-heading" class="text-sm font-semibold text-highlighted">
-              Operating signals
+              {{ $t('pulse.operatingSignals') }}
             </h3>
-            <p class="mt-1 text-xs text-muted">Current fleet health from live vehicle reports</p>
+            <p class="mt-1 text-xs text-muted">{{ $t('pulse.fleetHealth') }}</p>
           </div>
 
           <button
@@ -161,7 +165,7 @@ function canViewVehicles(signal: NetworkPulseSignal): boolean {
             :disabled="!canViewVehicles(signal)"
             :aria-label="
               canViewVehicles(signal)
-                ? `View ${signal.label.toLocaleLowerCase()} vehicles`
+                ? $t('pulse.viewVehicles', { signal: signal.label.toLocaleLowerCase() })
                 : undefined
             "
             @click="emit('viewVehicles', signalState(signal))"

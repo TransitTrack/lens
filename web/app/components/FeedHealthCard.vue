@@ -15,7 +15,7 @@ function healthy(status: string | null | undefined): boolean {
   <UCard :ui="{ body: 'flex flex-col gap-3' }">
     <div class="flex items-center gap-2 text-sm font-medium text-muted">
       <UIcon name="i-lucide-rss" class="size-4"/>
-      Feed health
+      {{ $t('feed.health.title') }}
     </div>
 
     <div v-if="loading && !feeds.length" class="flex flex-col gap-2">
@@ -31,17 +31,17 @@ function healthy(status: string | null | undefined): boolean {
         <div class="min-w-0">
           <div class="truncate text-sm font-medium text-highlighted">{{ feed.name }}</div>
           <div class="text-xs text-dimmed">
-            {{ feed.lastPollReportCount ?? 0 }} reports ·
-            {{ feed.lastPollAt ? formatTimeAgo(new Date(feed.lastPollAt)) : 'never' }}
+            {{ $t('feed.reports', { count: feed.lastPollReportCount ?? 0 }, feed.lastPollReportCount ?? 0) }} ·
+            {{ feed.lastPollAt ? formatTimeAgo(new Date(feed.lastPollAt)) : $t('common.never') }}
           </div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
-          <UBadge v-if="!feed.enabled" color="neutral" variant="subtle">Disabled</UBadge>
+          <UBadge v-if="!feed.enabled" color="neutral" variant="subtle">{{ $t('feed.health.disabled') }}</UBadge>
           <UBadge
             :color="healthy(feed.lastPollStatus) ? 'success' : 'error'"
             variant="subtle"
           >
-            {{ feed.lastPollStatus ?? 'unknown' }}
+            {{ feed.lastPollStatus ?? $t('common.unknown') }}
           </UBadge>
         </div>
       </div>

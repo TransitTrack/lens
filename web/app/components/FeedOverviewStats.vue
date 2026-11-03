@@ -5,6 +5,7 @@ import { useFeedDetailQuery } from '~~/generated/graphql'
 import { gtfsDate } from '~/utils/gtfs'
 import { revisionStatusMeta, rowCount } from '~/utils/feedStatus'
 
+const { t } = useI18n()
 const { selectedFeedCode } = useFeeds()
 
 const { result, loading, error } = useFeedDetailQuery(
@@ -17,7 +18,7 @@ const info = computed(() => result.value?.feedInfo ?? null)
 const rev = computed(() => feed.value?.activeRevision ?? null)
 const counts = computed(() => (rev.value?.rowCounts ?? null) as Record<string, number> | null)
 
-const statusMeta = computed(() => revisionStatusMeta(rev.value?.status))
+const statusMeta = computed(() => revisionStatusMeta(rev.value?.status, t))
 
 const daysLeft = computed(() => {
   const raw = rev.value?.feedEndDate
@@ -95,6 +96,23 @@ const validationNotices = computed(() =>
     .map((notice) => ({ ...notice, sampleDetails: parseValidationSample(notice.sample) })),
 )
 
+// Counts keep the existing "N errors" wording; the plural forms are locale data.
+const errorsText = computed(() => {
+  const count = validation.value ? validation.value.errorCount : 0
+  return t('feed.overview.errors', { count }, count)
+})
+const warningsText = computed(() => {
+  const count = validation.value?.warningCount ?? 0
+  return t('feed.overview.warnings', { count }, count)
+})
+
+function noticeCountText(notice: { severity: string; count: number }): string {
+  const params = { count: notice.count.toLocaleString() }
+  return notice.severity === 'ERROR'
+    ? t('feed.overview.noticeError', params, notice.count)
+    : t('feed.overview.noticeWarning', params, notice.count)
+}
+
 const n = (v: number | null) => (v == null ? '—' : v.toLocaleString())
 
 function noticeColor(severity: string): 'error' | 'warning' {
@@ -106,7 +124,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
   <div class="flex flex-col gap-3">
     <div class="flex items-center gap-2 text-sm font-medium text-muted">
       <UIcon name="i-lucide-database" class="size-4" />
-      Feed
+      {{ $t('feed.overview.title') }}
       <span v-if="feed" class="text-dimmed">· {{ feed.source }}</span>
     </div>
 
@@ -114,92 +132,98 @@ function noticeColor(severity: string): 'error' | 'warning' {
       <USkeleton v-for="i in 4" :key="i" class="h-26 w-full" />
     </div>
 
-    <p v-else-if="error || !feed" class="text-sm text-dimmed">Feed metadata unavailable.</p>
+    <p v-else-if="error || !feed" class="text-sm text-dimmed">{{ $t('feed.metadataUnavailable') }}</p>
 
     <div v-else class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <UCard :ui="{ body: 'flex flex-col gap-2' }">
         <div class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-git-commit-horizontal" class="size-4 shrink-0" />
-          Active revision
+          {{ $t('feed.overview.activeRevision') }}
         </div>
         <div class="flex items-center gap-2">
           <UBadge :color="statusMeta.color" variant="subtle">{{ statusMeta.label }}</UBadge>
           <span v-if="rev" class="text-sm text-highlighted">#{{ rev.id }}</span>
         </div>
         <div v-if="rev?.activatedAt" class="text-xs text-dimmed">
-          activated {{ formatTimeAgo(new Date(rev.activatedAt)) }}
+          {{ $t('feed.overview.activated', { time: formatTimeAgo(new Date(rev.activatedAt)) }) }}
         </div>
       </UCard>
 
       <UCard :ui="{ body: 'flex flex-col gap-2' }">
         <div class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-calendar-range" class="size-4 shrink-0" />
-          Service window
+          {{ $t('feed.overview.serviceWindow') }}
         </div>
         <div class="text-sm font-semibold text-highlighted">
           {{ gtfsDate(rev?.feedStartDate) }} → {{ gtfsDate(rev?.feedEndDate) }}
         </div>
         <div v-if="daysLeft != null" class="text-xs text-dimmed">
-          {{ daysLeft >= 0 ? `${daysLeft} days left` : `expired ${-daysLeft} days ago` }}
+          {{
+            daysLeft >= 0
+              ? $t('feed.overview.daysLeft', { count: daysLeft }, daysLeft)
+              : $t('feed.overview.expired', { count: -daysLeft }, -daysLeft)
+          }}
         </div>
       </UCard>
 
       <UCard :ui="{ body: 'flex flex-col gap-2' }">
         <div class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-route" class="size-4 shrink-0" />
-          Content
+          {{ $t('feed.overview.content') }}
         </div>
         <div class="text-2xl font-semibold text-highlighted">
-          {{ n(rowCount(counts, 'route')) }} routes
+          {{ $t('feed.overview.routes', { count: n(rowCount(counts, 'route')) }, rowCount(counts, 'route') ?? 0) }}
         </div>
         <div class="text-xs text-dimmed">
-          {{ n(rowCount(counts, 'stop')) }} stops · {{ n(rowCount(counts, 'trip')) }} trips ·
-          {{ n(rowCount(counts, 'agency')) }} agencies
+          {{ $t('feed.overview.stops', { count: n(rowCount(counts, 'stop')) }, rowCount(counts, 'stop') ?? 0) }}
+          · {{ $t('feed.overview.trips', { count: n(rowCount(counts, 'trip')) }, rowCount(counts, 'trip') ?? 0) }}
+          ·
+          {{ $t('feed.overview.agencies', { count: n(rowCount(counts, 'agency')) }, rowCount(counts, 'agency') ?? 0) }}
         </div>
       </UCard>
 
       <UCard :ui="{ body: 'flex flex-col gap-2' }">
         <div class="flex items-center gap-2 text-sm text-muted">
           <UIcon name="i-lucide-shield-check" class="size-4 shrink-0" />
-          Validation
+          {{ $t('feed.overview.validation') }}
         </div>
         <div class="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             class="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label="View validation problems"
+            :aria-label="$t('feed.overview.viewProblems')"
             @click="validationOpen = true"
           >
             <UBadge :color="validation?.errorCount ? 'error' : 'success'" variant="subtle">
-              {{ validation ? validation.errorCount : 0 }} errors
+              {{ errorsText }}
             </UBadge>
           </button>
           <button
             v-if="validation?.warningCount"
             type="button"
             class="rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label="View validation problems"
+            :aria-label="$t('feed.overview.viewProblems')"
             @click="validationOpen = true"
           >
             <UBadge color="warning" variant="subtle">
-              {{ validation.warningCount }} warnings
+              {{ warningsText }}
             </UBadge>
           </button>
         </div>
         <div class="text-xs text-dimmed">
           <template v-if="info?.feedVersion">v{{ info.feedVersion }} · </template>
-          {{ info?.feedPublisherName ?? 'no feed_info.txt' }}
+          {{ info?.feedPublisherName ?? $t('feed.overview.noFeedInfo') }}
         </div>
       </UCard>
     </div>
 
     <UModal
       v-model:open="validationOpen"
-      title="Validation problems"
+      :title="$t('feed.overview.validationProblems')"
       :description="
         validation
-          ? `${validation.errorCount} errors · ${validation.warningCount} warnings`
-          : 'No validation report is available for this revision.'
+          ? $t('feed.overview.validationSummary', { errors: errorsText, warnings: warningsText })
+          : $t('feed.overview.noReport')
       "
     >
       <template #body>
@@ -212,8 +236,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
             <div class="flex flex-wrap items-center justify-between gap-2">
               <div class="min-w-0 font-medium text-highlighted">{{ notice.rule }}</div>
               <UBadge :color="noticeColor(notice.severity)" variant="subtle">
-                {{ notice.count.toLocaleString() }} {{ notice.severity.toLocaleLowerCase()
-                }}{{ notice.count === 1 ? '' : 's' }}
+                {{ noticeCountText(notice) }}
               </UBadge>
             </div>
             <div
@@ -229,7 +252,7 @@ function noticeColor(severity: string): 'error' | 'warning' {
                   :key="field.label"
                   class="font-medium text-muted"
                 >
-                  {{ field.label === 'Csv Row Number' ? `row ${field.value}` : field.value }}
+                  {{ field.label === 'Csv Row Number' ? $t('feed.overview.row', { n: field.value }) : field.value }}
                 </span>
               </div>
               <dl v-if="notice.sampleDetails.fields.length" class="space-y-2">
@@ -252,15 +275,15 @@ function noticeColor(severity: string): 'error' | 'warning' {
               {{ notice.sampleDetails.fallback }}
             </p>
             <p v-else class="mt-2 text-sm text-dimmed">
-              No sample details were provided by the validator.
+              {{ $t('feed.overview.noSample') }}
             </p>
           </article>
         </div>
         <div v-else class="rounded-md border border-default bg-elevated/30 p-4 text-sm text-muted">
           {{
             validation
-              ? 'This revision has no stored validation problems.'
-              : 'Run or ingest a revision to see validation results here.'
+              ? $t('feed.overview.noProblems')
+              : $t('feed.overview.runIngest')
           }}
         </div>
       </template>

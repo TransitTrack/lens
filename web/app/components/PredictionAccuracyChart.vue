@@ -3,6 +3,8 @@ import BarChart from './BarChart.vue'
 import type { Bar } from '../utils/chart'
 import { usePredictionAccuracyQuery } from '../../generated/graphql'
 
+const { t } = useI18n()
+
 const props = defineProps<{ feedCode: string | null }>()
 
 const { result, loading } = usePredictionAccuracyQuery(
@@ -28,9 +30,16 @@ const bars = computed<Bar[]>(() =>
     label: short(r.algorithm),
     value: r.meanAbsErrorSec,
     color: i === 0 ? '#22c55e' : i === rows.value.length - 1 ? '#ef4444' : '#f59e0b',
-    hint: `${r.algorithm}: ±${Math.round(r.meanAbsErrorSec)}s abs error, bias ${
-      r.meanErrorSec >= 0 ? '+' : '−'
-    }${Math.abs(Math.round(r.meanErrorSec))}s (${r.sampleCount.toLocaleString()} samples)`,
+    hint: t('feed.accuracy.hint', {
+      algorithm: r.algorithm,
+      error: Math.round(r.meanAbsErrorSec),
+      bias: `${r.meanErrorSec >= 0 ? '+' : '−'}${Math.abs(Math.round(r.meanErrorSec))}`,
+      samples: t(
+        'feed.accuracy.samples',
+        { count: r.sampleCount.toLocaleString() },
+        r.sampleCount,
+      ),
+    }),
   })),
 )
 </script>
@@ -39,17 +48,17 @@ const bars = computed<Bar[]>(() =>
   <UCard :ui="{ body: 'flex flex-col gap-3' }">
     <div class="flex items-center gap-2 text-sm font-medium text-muted">
       <UIcon name="i-lucide-target" class="size-4" />
-      Prediction accuracy · 7d
+      {{ $t('feed.accuracy.title') }}
     </div>
     <USkeleton v-if="loading && !rows.length" class="h-32.5 w-full" />
-    <p v-else-if="!rows.length" class="text-sm text-dimmed">No prediction samples yet.</p>
+    <p v-else-if="!rows.length" class="text-sm text-dimmed">{{ $t('feed.accuracy.none') }}</p>
     <BarChart
       v-else
       :bars="bars"
       :height="130"
-      :format="(n) => `±${Math.round(n)}s`"
+      :format="(n) => $t('feed.accuracy.errorSeconds', { value: Math.round(n) })"
       animate-updates
     />
-    <p class="text-[11px] text-dimmed">Mean absolute arrival error — lower is better.</p>
+    <p class="text-[11px] text-dimmed">{{ $t('feed.accuracy.note') }}</p>
   </UCard>
 </template>

@@ -16,6 +16,7 @@ import {
   type VehicleState,
 } from '~/utils/vehicleFilters'
 
+const { t } = useI18n()
 const { selectedAvlFeedCode, feedPath } = useFeeds()
 const route = useRoute()
 const router = useRouter()
@@ -56,7 +57,7 @@ const activeFilterCount = computed(
   () => (filters.value.state ? 1 : 0) + filters.value.routeIds.length,
 )
 
-const stats = computed(() => buildOverviewStats(vehicles.value, feedsResult.value?.avlFeeds ?? []))
+const stats = computed(() => buildOverviewStats(vehicles.value, feedsResult.value?.avlFeeds ?? [], t))
 const newestReport = computed(() =>
   vehicles.value.reduce<string | null>(
     (max, v) => (!max || v.reportTs > max ? v.reportTs : max),

@@ -4,7 +4,9 @@
     "cancel": "Anuluj",
     "loading": "Ładowanie",
     "error": "Błąd",
-    "noFeedsConfigured": "Nie skonfigurowano żadnych źródeł danych."
+    "noFeedsConfigured": "Nie skonfigurowano żadnych źródeł danych.",
+    "unknown": "nieznany",
+    "never": "nigdy"
   },
   "nav": {
     "overview": "Przegląd",
@@ -93,7 +95,9 @@
     "body": "{name} nie ma powiązanego źródła AVL, więc {what} jest niedostępne. Zamiast tego przeglądaj statyczne dane GTFS.",
     "thisFeed": "To źródło danych",
     "liveVehicleData": "dane pojazdów na żywo",
-    "explore": "Przeglądaj źródło danych"
+    "explore": "Przeglądaj źródło danych",
+    "liveVehicleOperations": "operacje pojazdów na żywo",
+    "liveNetwork": "sieć na żywo"
   },
   "filters": {
     "allAgencies": "Wszyscy przewoźnicy",
@@ -108,6 +112,178 @@
       "pm": "Szczyt popołudniowy",
       "evening": "Wieczór",
       "late": "Późno (24h+)"
+    }
+  },
+  "login": {
+    "signIn": "Zaloguj się",
+    "subtitle": "Dostęp do przestrzeni roboczej operacji.",
+    "username": "Nazwa użytkownika",
+    "password": "Hasło",
+    "incorrect": "Nieprawidłowa nazwa użytkownika lub hasło."
+  },
+  "home": {
+    "loadingFeeds": "Ładowanie źródeł danych…",
+    "operationsOverview": "Przegląd operacji",
+    "operationsDescription": "Pozycje pojazdów na żywo, dopasowanie kursów i stan usług"
+  },
+  "feed": {
+    "reports": "{count} raport | {count} raporty | {count} raportów",
+    "metadataUnavailable": "Metadane źródła danych niedostępne.",
+    "health": {
+      "title": "Stan źródeł danych",
+      "disabled": "Wyłączone"
+    },
+    "processing": {
+      "title": "Przetwarzanie",
+      "pipeline": "Ostatni potok importu",
+      "lastIngest": "Ostatni import",
+      "revisions": "{count} rewizja | {count} rewizje | {count} rewizji",
+      "failed": "{count} nieudanych",
+      "schedule": "Harmonogram",
+      "disabled": "wyłączone",
+      "realtimeFeed": "Źródło czasu rzeczywistego · {format}",
+      "polled": "odpytano",
+      "every": "co {seconds} s",
+      "noRealtime": "Brak powiązanego źródła czasu rzeczywistego."
+    },
+    "status": {
+      "PENDING": "W kolejce",
+      "DOWNLOADING": "Pobieranie",
+      "VALIDATING": "Walidacja",
+      "PARSING": "Analiza",
+      "DERIVING": "Wyliczanie",
+      "READY": "Gotowe",
+      "ACTIVE": "Aktywne",
+      "SUPERSEDED": "Zastąpione",
+      "UNCHANGED": "Bez zmian",
+      "FAILED": "Niepowodzenie",
+      "DRAFT": "Wersja robocza"
+    },
+    "step": {
+      "download": "Pobranie",
+      "validate": "Walidacja",
+      "parse": "Analiza",
+      "derive": "Wyliczenie",
+      "ready": "Gotowe",
+      "active": "Aktywne"
+    },
+    "cron": {
+      "notScheduled": "brak harmonogramu",
+      "everyMin": "co {n} min",
+      "everyHour": "co {n} godz.",
+      "daily": "codziennie o {time}"
+    },
+    "overview": {
+      "title": "Źródło danych",
+      "activeRevision": "Aktywna rewizja",
+      "activated": "aktywowano {time}",
+      "serviceWindow": "Okres obowiązywania",
+      "daysLeft": "został {count} dzień | zostały {count} dni | zostało {count} dni",
+      "expired": "wygasło {count} dzień temu | wygasło {count} dni temu | wygasło {count} dni temu",
+      "content": "Zawartość",
+      "routes": "{count} linia | {count} linie | {count} linii",
+      "stops": "{count} przystanek | {count} przystanki | {count} przystanków",
+      "trips": "{count} kurs | {count} kursy | {count} kursów",
+      "agencies": "{count} przewoźnik | {count} przewoźników | {count} przewoźników",
+      "validation": "Walidacja",
+      "viewProblems": "Pokaż problemy walidacji",
+      "errors": "{count} błąd | {count} błędy | {count} błędów",
+      "warnings": "{count} ostrzeżenie | {count} ostrzeżenia | {count} ostrzeżeń",
+      "noFeedInfo": "brak feed_info.txt",
+      "validationProblems": "Problemy walidacji",
+      "validationSummary": "{errors} · {warnings}",
+      "noReport": "Dla tej rewizji nie ma raportu walidacji.",
+      "noticeError": "{count} błąd | {count} błędy | {count} błędów",
+      "noticeWarning": "{count} ostrzeżenie | {count} ostrzeżenia | {count} ostrzeżeń",
+      "row": "wiersz {n}",
+      "noSample": "Walidator nie podał szczegółów próbki.",
+      "noProblems": "Ta rewizja nie ma zapisanych problemów walidacji.",
+      "runIngest": "Uruchom lub zaimportuj rewizję, aby zobaczyć tutaj wyniki walidacji."
+    },
+    "dataset": {
+      "title": "Zbiory danych",
+      "date": "Data",
+      "serviceRange": "Okres obowiązywania",
+      "status": "Status",
+      "size": "Rozmiar",
+      "validation": "Walidacja",
+      "activate": "Aktywuj",
+      "validationShort": "{errors}b / {warnings}o",
+      "statusValue": {
+        "PENDING": "OCZEKUJE",
+        "DOWNLOADING": "POBIERANIE",
+        "VALIDATING": "WALIDACJA",
+        "PARSING": "ANALIZA",
+        "DERIVING": "WYLICZANIE",
+        "READY": "GOTOWE",
+        "ACTIVE": "AKTYWNE",
+        "SUPERSEDED": "ZASTĄPIONE",
+        "UNCHANGED": "BEZ ZMIAN",
+        "FAILED": "NIEPOWODZENIE",
+        "DRAFT": "WERSJA ROBOCZA"
+      }
+    },
+    "features": {
+      "title": "Funkcje",
+      "none": "Nie wykryto opcjonalnych funkcji."
+    },
+    "feature": {
+      "colors": "Kolory linii",
+      "shapes": "Przebiegi tras",
+      "calendar": "Kalendarz kursowania",
+      "frequencies": "Kursy oparte na częstotliwości",
+      "transfers": "Przesiadki",
+      "pathways": "Ścieżki dojścia",
+      "levels": "Poziomy",
+      "fares": "Informacje o taryfach",
+      "translations": "Tłumaczenia",
+      "feedinfo": "Informacje o źródle danych",
+      "attributions": "Atrybucje"
+    },
+    "accuracy": {
+      "title": "Dokładność prognoz · 7 dni",
+      "none": "Brak próbek prognoz.",
+      "note": "Średni bezwzględny błąd przyjazdu — im niższy, tym lepiej.",
+      "errorSeconds": "±{value} s",
+      "hint": "{algorithm}: ±{error} s błędu bezwzględnego, odchylenie {bias} s ({samples})",
+      "samples": "{count} próbka | {count} próbki | {count} próbek"
+    }
+  },
+  "pulse": {
+    "title": "Puls sieci",
+    "liveUpdated": "Pozycje na żywo zaktualizowano {time}",
+    "liveUnavailable": "Pozycje na żywo niedostępne",
+    "feedUnavailable": "Źródło danych o pojazdach niedostępne",
+    "operatingSignals": "Wskaźniki operacyjne",
+    "fleetHealth": "Aktualny stan floty na podstawie raportów pojazdów na żywo",
+    "viewVehicles": "Pokaż pojazdy: {signal}",
+    "onTime": "Punktualność",
+    "needsAttention": "Wymaga uwagi",
+    "coverage": "Pokrycie czasu rzeczywistego",
+    "noVehicles": "Brak dostępnych pojazdów",
+    "sourceUnhealthy": "Wybrane źródło czasu rzeczywistego nie zgłasza poprawnego stanu",
+    "sourceUnavailable": "Wybrane źródło czasu rzeczywistego niedostępne",
+    "onTimeDetail": "{onTime} z {total} dopasowanego pojazdu w granicach 1 minuty | {onTime} z {total} dopasowanych pojazdów w granicach 1 minuty | {onTime} z {total} dopasowanych pojazdów w granicach 1 minuty",
+    "noAdherence": "Brak dopasowanych pojazdów z dostępną punktualnością",
+    "attentionDetail": "nieaktualny lub niedopasowany pojazd | {count} nieaktualne lub niedopasowane pojazdy | {count} nieaktualnych lub niedopasowanych pojazdów",
+    "coverageDetail": "{reporting} z {tracked} pojazdu zgłasza pozycję | {reporting} z {tracked} pojazdów zgłasza pozycję | {reporting} z {tracked} pojazdów zgłasza pozycję"
+  },
+  "overviewStats": {
+    "vehiclesTracked": "Śledzone pojazdy",
+    "matchedToTrip": "Dopasowane do kursu",
+    "matchedOf": "{matched} z {tracked}",
+    "stalePositions": "Nieaktualne pozycje",
+    "activeFeeds": "Aktywne źródła danych",
+    "reportingOk": "{count} zgłasza poprawny stan",
+    "binHint": "{label}: {count} pojazd | {label}: {count} pojazdy | {label}: {count} pojazdów",
+    "bin": {
+      "early5": "≥5 min przed czasem",
+      "early2to5": "2–5 min przed czasem",
+      "early1to2": "1–2 min przed czasem",
+      "onTime": "Punktualnie",
+      "late1to2": "1–2 min opóźnienia",
+      "late2to5": "2–5 min opóźnienia",
+      "late5": "≥5 min opóźnienia"
     }
   }
 }

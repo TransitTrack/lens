@@ -70,19 +70,19 @@ async function submit() {
     <section class="relative z-1 w-full max-w-sm border border-default bg-default/92 backdrop-blur-sm">
       <header class="border-b border-default p-5">
         <UIcon name="i-lucide-shield-check" class="size-5 text-primary" />
-        <h1 class="mt-4 text-2xl font-semibold tracking-tight text-highlighted">Sign in</h1>
-        <p class="mt-1 text-sm text-muted">Access the operations workspace.</p>
+        <h1 class="mt-4 text-2xl font-semibold tracking-tight text-highlighted">{{ $t('login.signIn') }}</h1>
+        <p class="mt-1 text-sm text-muted">{{ $t('login.subtitle') }}</p>
       </header>
 
       <form class="space-y-4 p-5" @submit.prevent="submit">
-        <UFormField label="Username" name="username">
+        <UFormField :label="$t('login.username')" name="username">
           <UInput v-model="username" autocomplete="username" autofocus class="w-full" />
         </UFormField>
-        <UFormField label="Password" name="password">
+        <UFormField :label="$t('login.password')" name="password">
           <UInput v-model="password" type="password" autocomplete="current-password" class="w-full" />
         </UFormField>
-        <p v-if="error" class="text-sm text-error">Incorrect username or password.</p>
-        <UButton type="submit" block :loading="submitting" label="Sign in" />
+        <p v-if="error" class="text-sm text-error">{{ $t('login.incorrect') }}</p>
+        <UButton type="submit" block :loading="submitting" :label="$t('login.signIn')" />
       </form>
     </section>
   </main>

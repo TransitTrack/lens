@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { createI18n } from 'vue-i18n'
+import en from '../../i18n/locales/en.json'
 import { deriveFeatures, routeTypeBreakdown } from '../../app/utils/feedFeatures'
+
+const t = createI18n({ legacy: false, locale: 'en', messages: { en } }).global.t
 
 describe('deriveFeatures', () => {
   const feature = (out: ReturnType<typeof deriveFeatures>, key: string) =>
@@ -10,7 +14,7 @@ describe('deriveFeatures', () => {
       filesPresent: ['shapes.txt', 'fare_products.txt', 'pathways.txt'],
       rowCounts: {},
       routes: [],
-    })
+    }, t)
     expect(feature(out, 'shapes').present).toBe(true)
     expect(feature(out, 'fares').present).toBe(true)
     expect(feature(out, 'pathways').present).toBe(true)
@@ -19,24 +23,24 @@ describe('deriveFeatures', () => {
 
   it('service calendar is present when either calendar file exists', () => {
     expect(
-      feature(deriveFeatures({ filesPresent: ['calendar_dates.txt'], rowCounts: {}, routes: [] }), 'calendar')
+      feature(deriveFeatures({ filesPresent: ['calendar_dates.txt'], rowCounts: {}, routes: [] }, t), 'calendar')
         .present,
     ).toBe(true)
   })
 
   it('route colors come from parsed routes, not files', () => {
     expect(
-      feature(deriveFeatures({ filesPresent: [], rowCounts: {}, routes: [{ routeColor: 'FF0000' }] }), 'colors')
+      feature(deriveFeatures({ filesPresent: [], rowCounts: {}, routes: [{ routeColor: 'FF0000' }] }, t), 'colors')
         .present,
     ).toBe(true)
     expect(
-      feature(deriveFeatures({ filesPresent: [], rowCounts: {}, routes: [{ routeColor: null }] }), 'colors')
+      feature(deriveFeatures({ filesPresent: [], rowCounts: {}, routes: [{ routeColor: null }] }, t), 'colors')
         .present,
     ).toBe(false)
   })
 
   it('tolerates null inputs', () => {
-    const out = deriveFeatures({ filesPresent: null, rowCounts: null, routes: [] })
+    const out = deriveFeatures({ filesPresent: null, rowCounts: null, routes: [] }, t)
     expect(out.every((f) => f.present === false)).toBe(true)
   })
 })

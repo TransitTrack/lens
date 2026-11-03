@@ -17,6 +17,7 @@ import {
 import { gtfsDate } from '~/utils/gtfs'
 import { deriveFeatures } from '~/utils/feedFeatures'
 
+const { t } = useI18n()
 const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
@@ -61,7 +62,7 @@ const features = computed(() =>
     filesPresent: rev.value?.filesPresent,
     rowCounts: (rev.value?.rowCounts ?? null) as Record<string, number> | null,
     routes: routes.value,
-  }),
+  }, t),
 )
 
 interface StatusChip {

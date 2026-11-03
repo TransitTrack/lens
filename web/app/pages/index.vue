@@ -24,7 +24,7 @@ watchEffect(() => {
   <div class="flex h-svh items-center justify-center">
     <div class="flex items-center gap-2 text-sm text-muted">
       <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-      Loading feeds…
+      {{ $t('home.loadingFeeds') }}
     </div>
   </div>
 </template>
