@@ -602,6 +602,25 @@
     },
     "routeTypeOther": "Tip {type}"
   },
+  "findings": {
+    "title": "Constatări privind calitatea datelor",
+    "showAll": "Arată toate ({count})",
+    "showLess": "Arată mai puține",
+    "analyticsTitle": "Analize",
+    "filterWith": "Cu constatări ({count})",
+    "qualityShort": "Calitatea datelor",
+    "whatToDo": "Ce de făcut",
+    "observed": "Observat",
+    "expected": "Așteptat",
+    "location": "{file}, rândul {line}",
+    "severity": {
+      "CRITICAL": "Critică",
+      "HIGH": "Ridicată",
+      "MEDIUM": "Medie",
+      "LOW": "Scăzută",
+      "INFO": "Informativă"
+    }
+  },
   "explore": {
     "duration": "{hours} h {minutes} min",
     "minutesShort": "{n} min",

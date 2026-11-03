@@ -602,6 +602,25 @@
     },
     "routeTypeOther": "Type {type}"
   },
+  "findings": {
+    "title": "Constats de qualité des données",
+    "showAll": "Afficher les {count}",
+    "showLess": "Afficher moins",
+    "analyticsTitle": "Analyses",
+    "filterWith": "Avec constats ({count})",
+    "qualityShort": "Qualité des données",
+    "whatToDo": "Que faire",
+    "observed": "Observé",
+    "expected": "Attendu",
+    "location": "{file}, ligne {line}",
+    "severity": {
+      "CRITICAL": "Critique",
+      "HIGH": "Élevée",
+      "MEDIUM": "Moyenne",
+      "LOW": "Faible",
+      "INFO": "Information"
+    }
+  },
   "explore": {
     "duration": "{hours} h {minutes} min",
     "minutesShort": "{n} min",

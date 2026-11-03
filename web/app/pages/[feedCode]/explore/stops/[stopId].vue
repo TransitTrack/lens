@@ -4,6 +4,7 @@ import type { SplitterItem } from '@nuxt/ui'
 import gql from 'graphql-tag'
 import { useApolloClient } from '@vue/apollo-composable'
 import AppPage from '~/components/AppPage.vue'
+import ValidationFindingsPanel from '~/components/ValidationFindingsPanel.vue'
 import StopsMap from '~/components/StopsMap.vue'
 import BarChart from '~/components/BarChart.vue'
 import { useFeeds } from '~/composables/useFeeds'
@@ -192,8 +193,13 @@ const splitterItems = computed<SplitterItem[]>(() =>
         @click="router.back()"
       />
     </template>
-    <template v-if="stop?.stopCode || stop?.platformCode" #actions>
-      <UBadge color="neutral" variant="subtle" icon="i-lucide-map-pin">
+    <template #actions>
+      <ValidationFindingsPanel
+        :feed-code="selectedFeedCode"
+        entity-type="Stop"
+        :entity-id="stopId"
+      />
+      <UBadge v-if="stop?.stopCode || stop?.platformCode" color="neutral" variant="subtle" icon="i-lucide-map-pin">
         {{ stop.platformCode ? t('explore.stop.platform', { code: stop.platformCode }) : stop.stopCode }}
       </UBadge>
     </template>

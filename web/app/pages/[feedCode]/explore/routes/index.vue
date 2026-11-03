@@ -27,6 +27,10 @@ const agencyName = computed(() => {
   return map
 })
 
+const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(
+  selectedFeedCode,
+  'Route',
+)
 const search = ref('')
 const rows = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -37,9 +41,10 @@ const rows = computed(() => {
   )
   if (agencyId.value) all = all.filter((r) => r.agencyId === agencyId.value)
   if (typeId.value) all = all.filter((r) => String(r.routeType) === typeId.value)
-  if (!q) return all
-  return all.filter((r) =>
-    [r.routeShortName, r.routeLongName, r.routeId].some((v) => v?.toLowerCase().includes(q)),
+  return all.filter(
+    (r) =>
+      hasFindings(r.routeId) &&
+      (!q || [r.routeShortName, r.routeLongName, r.routeId].some((v) => v?.toLowerCase().includes(q))),
   )
 })
 
@@ -128,12 +133,20 @@ function onSelect(_e: Event, row: { original: Row }) {
               {{ t('explore.routes.selectRoute') }}
             </div>
           </div>
-          <UInput
-            v-model="search"
-            icon="i-lucide-search"
-            :placeholder="t('explore.routes.searchPlaceholder')"
-            class="w-64 max-w-full"
-          />
+          <div class="flex flex-wrap items-center gap-3">
+            <USwitch
+              v-if="findingsCount > 0 || onlyWithFindings"
+              v-model="onlyWithFindings"
+              size="sm"
+              :label="t('findings.filterWith', { count: findingsCount })"
+            />
+            <UInput
+              v-model="search"
+              icon="i-lucide-search"
+              :placeholder="t('explore.routes.searchPlaceholder')"
+              class="w-64 max-w-full"
+            />
+          </div>
         </div>
 
         <div v-if="loading && !rows.length" class="flex flex-col gap-2 p-3">

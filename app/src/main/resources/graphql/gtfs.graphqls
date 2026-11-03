@@ -131,6 +131,50 @@ type ValidationNotice {
     sample: String!
 }
 
+"The analyzer's own severity scale (the API's `Severity` collapses it to three levels)."
+enum FindingSeverity {
+    CRITICAL
+    HIGH
+    MEDIUM
+    LOW
+    INFO
+}
+
+"""
+One analyzer finding on a specific GTFS entity (not rolled up per rule): where it is, what was
+observed versus expected, and how to fix it.
+"""
+type ValidationFinding {
+    ruleId: String!
+    title: String!
+    severity: FindingSeverity!
+    "SPEC, INTEROP, QUALITY or ANALYTICS."
+    ruleClass: String!
+    "Feed, File, Agency, Stop, Route, Trip, Shape, Service, Fare, Transfer, Pathway, Level, ..."
+    entityType: String!
+    entityId: String
+    "Set on trip-scoped findings."
+    serviceId: String
+    "Source GTFS file, e.g. stop_times.txt."
+    file: String
+    "1-based row in `file`."
+    line: Int
+    field: String
+    observedValue: String
+    expectedValue: String
+    "Rule-specific context, e.g. distances or speeds."
+    details: JSON
+    message: String!
+    remediation: String!
+}
+
+"How many analyzer findings one entity has, and the most severe of them."
+type EntityFindingCount {
+    entityId: String!
+    count: Int!
+    worstSeverity: FindingSeverity!
+}
+
 input RegisterFeedInput {
     code: String!
     name: String!
@@ -152,6 +196,10 @@ input UpdateFeedInput {
 }
 
 extend type Query {
+    "Analyzer findings from the feed's active (or given) revision, most severe first. Filter by entityType (e.g. Trip) and/or entityId."
+    validationFindings(feedCode: String!, entityType: String, entityId: String, revisionId: ID): [ValidationFinding!]!
+    "Which entities of one type (Trip, Stop, Route, ...) have analyzer findings, with counts, for filtering lists to the ones with problems."
+    validationFindingCounts(feedCode: String!, entityType: String!, revisionId: ID): [EntityFindingCount!]!
     "Transit agencies defined in the feed's active (or given) revision."
     agencies(feedCode: String!, revisionId: ID): [Agency!]!
     "Routes defined in the feed's active (or given) revision."

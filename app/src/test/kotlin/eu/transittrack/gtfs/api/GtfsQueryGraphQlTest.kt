@@ -1,5 +1,6 @@
 package eu.transittrack.gtfs.api
 
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -51,6 +52,60 @@ class GtfsQueryGraphQlTest(
         truncateBeforeFixture()
         feedService.register(FeedInput("w", "W", null, "http://x/g.zip", null))
         ingestion.ingestBlocking("w")
+    }
+
+    @Test
+    fun `validationFindings returns the stored analyzer notices with entity detail`() {
+        val all =
+            tester
+                .document(
+                    "{ validationFindings(feedCode:\"w\"){ ruleId title severity entityType entityId file message remediation } }",
+                ).execute()
+                .errors()
+                .verify()
+                .path("validationFindings")
+                .entityList(Map::class.java)
+                .get()
+
+        // Every finding carries the analyzer's detail, not just a rule code.
+        assertThat(all).allSatisfy {
+            assertThat(it["ruleId"] as String).isNotBlank()
+            assertThat(it["entityType"] as String).isNotBlank()
+            assertThat(it["severity"] as String).isIn("CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO")
+        }
+
+        // Filtering narrows to that entity type only.
+        val stops =
+            tester
+                .document("{ validationFindings(feedCode:\"w\", entityType:\"Stop\"){ entityType } }")
+                .execute()
+                .path("validationFindings[*].entityType")
+                .entityList(String::class.java)
+                .get()
+        assertThat(stops).allMatch { it == "Stop" }
+    }
+
+    @Test
+    fun `validationFindingCounts matches the findings listed for the same entity type`() {
+        val counts =
+            tester
+                .document("{ validationFindingCounts(feedCode:\"w\", entityType:\"Stop\"){ entityId count worstSeverity } }")
+                .execute()
+                .errors()
+                .verify()
+                .path("validationFindingCounts")
+                .entityList(Map::class.java)
+                .get()
+        val listed =
+            tester
+                .document("{ validationFindings(feedCode:\"w\", entityType:\"Stop\"){ entityId } }")
+                .execute()
+                .path("validationFindings[*].entityId")
+                .entityList(String::class.java)
+                .get()
+
+        assertThat(counts.map { it["entityId"] }).containsExactlyInAnyOrderElementsOf(listed.toSet())
+        assertThat(counts.sumOf { (it["count"] as Number).toInt() }).isEqualTo(listed.size)
     }
 
     @Test

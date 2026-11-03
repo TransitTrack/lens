@@ -48,6 +48,10 @@ const stats = computed(() => {
   ]
 })
 
+const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(
+  selectedFeedCode,
+  'Stop',
+)
 const search = ref('')
 const focusId = ref<string | null>(null)
 
@@ -56,9 +60,10 @@ const rows = computed(() => {
   const list = [...inAgency.value].sort((a, b) =>
     (a.stopName ?? a.stopId).localeCompare(b.stopName ?? b.stopId),
   )
-  if (!q) return list
-  return list.filter((s) =>
-    [s.stopName, s.stopCode, s.stopId].some((v) => v?.toLowerCase().includes(q)),
+  return list.filter(
+    (s) =>
+      hasFindings(s.stopId) &&
+      (!q || [s.stopName, s.stopCode, s.stopId].some((v) => v?.toLowerCase().includes(q))),
   )
 })
 
@@ -166,6 +171,12 @@ const splitterItems = computed<SplitterItem[]>(() =>
               v-model="search"
               icon="i-lucide-search"
               :placeholder="t('explore.stops.searchPlaceholder')"
+            />
+            <USwitch
+              v-if="findingsCount > 0 || onlyWithFindings"
+              v-model="onlyWithFindings"
+              size="sm"
+              :label="t('findings.filterWith', { count: findingsCount })"
             />
           </div>
           <div
