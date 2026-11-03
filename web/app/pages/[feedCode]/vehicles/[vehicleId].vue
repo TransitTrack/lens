@@ -24,6 +24,8 @@ import {
   avgIntervalSec,
   blockTripProgress,
   currentStatusLabel,
+  occupancyLabel,
+  ageLabel,
 } from '~/utils/vehicleTelemetry'
 import {
   routeLine,
@@ -36,6 +38,7 @@ import {
 } from '~/utils/vehicleDetail'
 import type { GeoJSON } from 'geojson'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath } = useFeeds()
@@ -184,7 +187,7 @@ watch(
 
 const title = computed(() => {
   const v = vehicle.value
-  return v ? `Vehicle ${v.label ?? v.vehicleId}` : `Vehicle ${vehicleId.value}`
+  return t('vehicles.detail.title', { name: v ? (v.label ?? v.vehicleId) : vehicleId.value })
 })
 
 const description = computed(() => {
@@ -197,7 +200,7 @@ const blockProgress = computed(() =>
   blockTripProgress(vehicle.value?.block?.blockTrips, vehicle.value?.trip?.tripId),
 )
 
-const currentStatus = computed(() => currentStatusLabel(latestReport.value?.currentStatus))
+const currentStatus = computed(() => currentStatusLabel(latestReport.value?.currentStatus, t))
 
 const descMismatch = computed(() => {
   const declared = latestReport.value?.descTripId
@@ -238,10 +241,8 @@ const reportAgeSec = computed(() => {
 
 const reportAgeLabel = computed(() => {
   const seconds = reportAgeSec.value
-  if (seconds == null) return 'No recent report'
-  if (seconds < 45) return `${Math.round(seconds)}s ago`
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`
-  return `${Math.round(seconds / 3600)}h ago`
+  if (seconds == null) return t('vehicles.detail.noRecentReport')
+  return ageLabel(seconds, t)
 })
 
 const coords = computed(() => {
@@ -253,9 +254,9 @@ async function copyCoords() {
   if (!coords.value) return
   try {
     await navigator.clipboard.writeText(coords.value)
-    toast.add({ title: 'Coordinates copied', color: 'success', icon: 'i-lucide-check' })
+    toast.add({ title: t('vehicles.detail.coordsCopied'), color: 'success', icon: 'i-lucide-check' })
   } catch {
-    toast.add({ title: 'Copy failed', color: 'error' })
+    toast.add({ title: t('vehicles.detail.copyFailed'), color: 'error' })
   }
 }
 
@@ -264,20 +265,32 @@ const facts = computed<Fact[]>(() => {
   if (!v) return []
   const dir = v.trip?.directionId
   return [
-    { label: 'Vehicle ID', value: v.vehicleId },
-    { label: 'Label', value: v.label ?? undefined },
-    { label: 'Route', value: v.trip?.route?.routeShortName ?? v.trip?.routeId ?? undefined },
-    { label: 'Direction', value: dir == null ? undefined : `Direction ${dir}` },
-    { label: 'Headsign', value: v.trip?.tripHeadsign ?? undefined },
-    { label: 'Block', value: v.block?.blockId ?? undefined },
+    { label: t('vehicles.field.vehicleId'), value: v.vehicleId },
+    { label: t('vehicles.detail.fact.label'), value: v.label ?? undefined },
     {
-      label: 'Trip',
+      label: t('vehicles.field.route'),
+      value: v.trip?.route?.routeShortName ?? v.trip?.routeId ?? undefined,
+    },
+    {
+      label: t('vehicles.detail.fact.direction'),
+      value: dir == null ? undefined : t('vehicles.detail.fact.directionN', { n: dir }),
+    },
+    { label: t('vehicles.detail.fact.headsign'), value: v.trip?.tripHeadsign ?? undefined },
+    { label: t('vehicles.field.block'), value: v.block?.blockId ?? undefined },
+    {
+      label: t('vehicles.field.trip'),
       value: blockProgress.value
-        ? `${blockProgress.value.index} of ${blockProgress.value.total}`
+        ? t('vehicles.detail.fact.tripOf', {
+            index: blockProgress.value.index,
+            total: blockProgress.value.total,
+          })
         : undefined,
     },
-    { label: 'Occupancy', value: v.occupancyStatus ?? undefined },
-    { label: 'Status', value: currentStatus.value ?? undefined },
+    {
+      label: t('vehicles.detail.fact.occupancy'),
+      value: v.occupancyStatus ? occupancyLabel(v.occupancyStatus, t) : undefined,
+    },
+    { label: t('vehicles.detail.fact.status'), value: currentStatus.value ?? undefined },
   ]
 })
 
@@ -288,9 +301,9 @@ function hhmm(iso: string | null): string {
 function relative(iso: string | null): string {
   if (!iso) return ''
   const deltaSec = Math.round((new Date(iso).getTime() - now.value) / 1000)
-  if (deltaSec < -30) return `${Math.round(-deltaSec / 60)}m ago`
-  if (deltaSec < 45) return 'now'
-  return `in ${Math.round(deltaSec / 60)}m`
+  if (deltaSec < -30) return t('poll.minutesAgo', { count: Math.round(-deltaSec / 60) })
+  if (deltaSec < 45) return t('vehicles.detail.now')
+  return t('vehicles.detail.inMinutes', { count: Math.round(deltaSec / 60) })
 }
 
 function signedSec(sec: number | null): string {
@@ -320,7 +333,7 @@ function adherenceTextClass(sec: number | null): string {
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        aria-label="Go back"
+        :aria-label="t('vehicles.detail.goBack')"
         @click="router.back()"
       />
     </template>
@@ -336,23 +349,23 @@ function adherenceTextClass(sec: number | null): string {
       >
         {{ vehicle.trip.route.routeShortName }}
       </UBadge>
-      <UTooltip :text="follow ? 'Stop following' : 'Follow vehicle'">
+      <UTooltip :text="follow ? t('vehicles.detail.stopFollowing') : t('vehicles.detail.followVehicle')">
         <UButton
           :color="follow ? 'primary' : 'neutral'"
           :variant="follow ? 'soft' : 'ghost'"
           icon="i-lucide-locate-fixed"
           square
-          aria-label="Follow vehicle"
+          :aria-label="t('vehicles.detail.followVehicle')"
           @click="follow = !follow"
         />
       </UTooltip>
-      <UTooltip text="AVL log">
+      <UTooltip :text="t('vehicles.avl.title')">
         <UButton
           color="neutral"
           variant="ghost"
           icon="i-lucide-list"
           square
-          aria-label="AVL log"
+          :aria-label="t('vehicles.avl.title')"
           @click="avlLogOpen = true"
         />
       </UTooltip>
@@ -364,7 +377,7 @@ function adherenceTextClass(sec: number | null): string {
       color="error"
       variant="soft"
       icon="i-lucide-alert-triangle"
-      title="Vehicle unavailable"
+      :title="t('vehicles.detail.unavailable')"
       :description="error.message"
       class="m-4"
     />
@@ -384,8 +397,8 @@ function adherenceTextClass(sec: number | null): string {
       color="warning"
       variant="soft"
       icon="i-lucide-search-x"
-      title="Not tracked"
-      :description="`No live data for ${vehicleId} on this feed.`"
+      :title="t('vehicles.detail.notTracked')"
+      :description="t('vehicles.detail.notTrackedBody', { id: vehicleId })"
       class="m-4"
     />
 
@@ -404,21 +417,21 @@ function adherenceTextClass(sec: number | null): string {
             v-if="descMismatch"
             color="warning"
             icon="i-lucide-git-compare-arrows"
-            title="Descriptor mismatch"
-            :description="`Feed reports trip ${descMismatch.declared}; matched to ${descMismatch.matched}.`"
+            :title="t('vehicles.detail.mismatchTitle')"
+            :description="t('vehicles.detail.mismatchBody', descMismatch)"
           />
 
           <section class="app-frame">
             <header class="flex items-start justify-between gap-3 border-b border-default p-3">
               <div class="min-w-0">
                 <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
-                  Live service
+                  {{ t('vehicles.detail.liveService') }}
                 </div>
                 <div class="mt-1 truncate text-base font-semibold text-highlighted">
                   {{
                     vehicle.trip?.tripHeadsign ??
                     vehicle.trip?.route?.routeLongName ??
-                    'No active trip'
+                    t('vehicles.detail.noActiveTrip')
                   }}
                 </div>
               </div>
@@ -435,7 +448,9 @@ function adherenceTextClass(sec: number | null): string {
                 >
                   {{ adherenceBadge(vehicle.scheduleAdherenceSec).label }}
                 </UBadge>
-                <UBadge v-if="vehicle.stale" color="warning" variant="subtle">Stale</UBadge>
+                <UBadge v-if="vehicle.stale" color="warning" variant="subtle">{{
+                  t('vehicles.detail.stale')
+                }}</UBadge>
               </div>
             </header>
 
@@ -443,31 +458,33 @@ function adherenceTextClass(sec: number | null): string {
               <div class="col-span-2 border-b border-default p-3">
                 <div class="flex items-center gap-1.5 text-xs font-medium text-dimmed">
                   <UIcon name="i-lucide-map-pin" class="size-3.5 text-primary" />
-                  Next stop
+                  {{ t('vehicles.field.nextStop') }}
                 </div>
                 <div class="mt-1 truncate text-base font-semibold text-highlighted">
-                  {{ vehicle.currentStop?.stopName ?? 'No next stop identified' }}
+                  {{ vehicle.currentStop?.stopName ?? t('vehicles.detail.noNextStop') }}
                 </div>
               </div>
               <div class="border-r border-default p-3">
-                <div class="text-xs font-medium text-dimmed">Position</div>
+                <div class="text-xs font-medium text-dimmed">{{ t('vehicles.field.position') }}</div>
                 <div class="mt-1 text-sm font-semibold text-highlighted">
                   {{
                     distToNextStopM == null
-                      ? 'Distance unavailable'
-                      : `${units.distance(distToNextStopM)} to stop`
+                      ? t('vehicles.detail.distanceUnavailable')
+                      : t('vehicles.detail.distanceToStop', {
+                          distance: units.distance(distToNextStopM),
+                        })
                   }}
                 </div>
               </div>
               <div class="p-3">
-                <div class="text-xs font-medium text-dimmed">Last report</div>
+                <div class="text-xs font-medium text-dimmed">{{ t('vehicles.field.lastReport') }}</div>
                 <div class="mt-1 text-sm font-semibold text-highlighted">{{ reportAgeLabel }}</div>
               </div>
             </div>
 
             <div v-if="sparkValues.length >= 2" class="border-t border-default p-3">
               <div class="flex items-center justify-between text-xs text-dimmed">
-                <span>Adherence trend</span>
+                <span>{{ t('vehicles.detail.adherenceTrend') }}</span>
                 <span>{{ signedSec(sparkValues[sparkValues.length - 1] ?? null) }}</span>
               </div>
               <SparklineChart
@@ -487,19 +504,19 @@ function adherenceTextClass(sec: number | null): string {
 
           <!-- Position & progress -->
           <section class="app-frame flex flex-col gap-2 p-3">
-            <div class="text-sm font-medium text-highlighted">Position</div>
+            <div class="text-sm font-medium text-highlighted">{{ t('vehicles.field.position') }}</div>
             <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-              <dt class="text-dimmed">Along trip</dt>
+              <dt class="text-dimmed">{{ t('vehicles.detail.alongTrip') }}</dt>
               <dd class="text-muted">{{ units.distance(vehicle.distanceAlongTripM) }}</dd>
-              <dt class="text-dimmed">To next stop</dt>
+              <dt class="text-dimmed">{{ t('vehicles.detail.toNextStop') }}</dt>
               <dd class="text-muted">{{ units.distance(distToNextStopM) }}</dd>
-              <dt class="text-dimmed">GPS offset</dt>
+              <dt class="text-dimmed">{{ t('vehicles.detail.gpsOffset') }}</dt>
               <dd class="text-muted">
                 {{
                   gpsOffsetM == null
                     ? '—'
                     : gpsOffsetM <= 15
-                      ? 'on route'
+                      ? t('vehicles.field.onRoute')
                       : units.distance(gpsOffsetM)
                 }}
               </dd>
@@ -525,7 +542,7 @@ function adherenceTextClass(sec: number | null): string {
           </section>
 
           <section class="app-frame p-3">
-            <div class="mb-2 text-sm font-medium text-highlighted">Vehicle &amp; trip</div>
+            <div class="mb-2 text-sm font-medium text-highlighted">{{ t('vehicles.detail.vehicleAndTrip') }}</div>
             <VehicleFactsGrid :items="facts" />
           </section>
         </aside>
@@ -565,7 +582,7 @@ function adherenceTextClass(sec: number | null): string {
                       </span>
                       <div class="min-w-0">
                         <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
-                          Current trip
+                          {{ t('vehicles.detail.currentTrip') }}
                         </div>
                         <h2 class="mt-0.5 truncate text-base font-semibold tracking-tight">
                           <template v-if="vehicle.trip?.tripId">
@@ -576,13 +593,14 @@ function adherenceTextClass(sec: number | null): string {
                                 )
                               "
                               class="text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:rounded focus-visible:ring-2 focus-visible:ring-primary"
-                              :title="`Open trip ${vehicle.trip.tripId}`"
+                              :title="t('vehicles.detail.openTrip', { id: vehicle.trip.tripId })"
                             >
                               #{{ vehicle.trip.tripId }}
                             </NuxtLink>
-                            <span class="text-highlighted"> · {{ rows.length }} stops</span>
+                            <span class="text-highlighted">
+                              · {{ t('vehicles.detail.stopsHeader', { count: rows.length }, rows.length) }}</span>
                           </template>
-                          <template v-else>Trip stops</template>
+                          <template v-else>{{ t('vehicles.detail.tripStops') }}</template>
                         </h2>
                       </div>
                     </div>
@@ -590,32 +608,39 @@ function adherenceTextClass(sec: number | null): string {
                       class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted"
                     >
                       <span>
-                        Vehicle
+                        {{ t('vehicles.field.vehicle') }}
                         <strong class="font-medium text-highlighted">{{
                           vehicle.vehicleId
                         }}</strong>
                       </span>
                       <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
                       <span v-if="vehicle.block">
-                        Block
+                        {{ t('vehicles.field.block') }}
                         <strong class="font-medium text-highlighted">{{
                           vehicle.block.blockId
                         }}</strong>
                         <template v-if="blockProgress">
-                          trip {{ blockProgress.index }} of {{ blockProgress.total }}</template
+                          {{
+                            t('vehicles.detail.blockProgress', {
+                              index: blockProgress.index,
+                              total: blockProgress.total,
+                            })
+                          }}</template
                         >
                       </span>
-                      <span v-else>Block unavailable</span>
+                      <span v-else>{{ t('vehicles.detail.blockUnavailable') }}</span>
                     </div>
                     <div
                       class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dimmed"
                     >
                       <span class="inline-flex items-center gap-1">
                         <UIcon name="i-lucide-clock-3" class="size-3" />
-                        {{ agencyTimezone ? `${agencyTimezone}` : 'Service time unavailable' }}
+                        {{ agencyTimezone ? `${agencyTimezone}` : t('vehicles.detail.serviceTimeUnavailable') }}
                       </span>
                       <span class="hidden h-3 w-px bg-accented sm:block" aria-hidden="true" />
-                      <span>{{ rows.length }} {{ rows.length === 1 ? 'stop' : 'stops' }}</span>
+                      <span>{{
+                        t('vehicles.detail.stopsCount', { count: rows.length }, rows.length)
+                      }}</span>
                     </div>
                   </div>
 
@@ -623,12 +648,12 @@ function adherenceTextClass(sec: number | null): string {
                     class="flex w-full max-w-xl flex-col gap-2 sm:flex-row sm:items-end sm:justify-end"
                   >
                     <label class="min-w-56 flex-1 text-xs font-medium text-muted sm:max-w-64">
-                      Prediction model
+                      {{ t('vehicles.detail.predictionModel') }}
                       <USelectMenu
                         v-model="algorithm"
                         :items="algorithmOptions"
                         value-key="value"
-                        placeholder="Prediction algorithm"
+                        :placeholder="t('vehicles.detail.predictionAlgorithm')"
                         class="mt-1 w-full"
                       />
                     </label>
@@ -637,10 +662,10 @@ function adherenceTextClass(sec: number | null): string {
                       class="flex min-w-56 flex-wrap items-center gap-x-3 gap-y-1 border-l border-default pl-3 text-xs"
                     >
                       <span class="w-full font-medium text-muted"
-                        >Feed-wide quality · last 7 days</span
+                        >{{ t('vehicles.detail.quality.title') }}</span
                       >
                       <span class="text-dimmed">
-                        Paired MAE
+                        {{ t('vehicles.detail.quality.pairedMae') }}
                         <strong class="font-semibold text-highlighted">{{
                           selectedAccuracy.meanAbsErrorSec == null
                             ? '—'
@@ -648,7 +673,7 @@ function adherenceTextClass(sec: number | null): string {
                         }}</strong>
                       </span>
                       <span class="text-dimmed">
-                        Bias
+                        {{ t('vehicles.detail.quality.bias') }}
                         <strong class="font-semibold text-highlighted">{{
                           selectedAccuracy.meanErrorSec == null
                             ? '—'
@@ -656,7 +681,7 @@ function adherenceTextClass(sec: number | null): string {
                         }}</strong>
                       </span>
                       <span class="text-dimmed">
-                        P90 / P95
+                        {{ t('vehicles.detail.quality.p90p95') }}
                         <strong class="font-semibold text-highlighted"
                           >{{
                             selectedAccuracy.p90AbsErrorSec == null
@@ -672,7 +697,7 @@ function adherenceTextClass(sec: number | null): string {
                         >
                       </span>
                       <span class="text-dimmed"
-                        >Coverage
+                        >{{ t('vehicles.detail.quality.coverage') }}
                         <strong class="font-semibold text-highlighted"
                           >{{ Math.round(selectedAccuracy.predictionCoverage * 100) }}%</strong
                         ></span
@@ -680,29 +705,39 @@ function adherenceTextClass(sec: number | null): string {
                       <span
                         v-if="selectedAccuracy.confidenceCoverage != null"
                         class="text-dimmed"
-                        :title="`${selectedAccuracy.confidenceSampleCount} forecasts with an estimated spread`"
-                        >Within ±1 SD
+                        :title="
+                          t(
+                            'vehicles.detail.quality.spread',
+                            { count: selectedAccuracy.confidenceSampleCount },
+                            selectedAccuracy.confidenceSampleCount,
+                          )
+                        "
+                        >{{ t('vehicles.detail.quality.withinSd') }}
                         <strong class="font-semibold text-highlighted"
                           >{{ Math.round(selectedAccuracy.confidenceCoverage * 100) }}%</strong
                         ></span
                       >
                       <span class="text-dimmed"
-                        >{{ selectedAccuracy.pairedSampleCount.toLocaleString() }} paired /
-                        {{ selectedAccuracy.eligibleCount.toLocaleString() }} eligible</span
+                        >{{
+                          t('vehicles.detail.quality.pairedEligible', {
+                            paired: selectedAccuracy.pairedSampleCount.toLocaleString(),
+                            eligible: selectedAccuracy.eligibleCount.toLocaleString(),
+                          })
+                        }}</span
                       >
                     </div>
                     <p v-else class="border-l border-default pl-3 text-xs text-dimmed">
-                      No comparable forecast samples for this feed.
+                      {{ t('vehicles.detail.quality.none') }}
                     </p>
                   </div>
                 </div>
                 <div
                   class="hidden grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] gap-3 bg-default/35 px-4 py-1.5 text-xs font-medium text-muted lg:grid"
                 >
-                  <span>Stop</span>
-                  <span>Scheduled</span>
-                  <span>Live time</span>
-                  <span class="text-right">Adherence</span>
+                  <span>{{ t('vehicles.field.stop') }}</span>
+                  <span>{{ t('vehicles.field.scheduled') }}</span>
+                  <span>{{ t('vehicles.detail.liveTime') }}</span>
+                  <span class="text-right">{{ t('vehicles.field.adherence') }}</span>
                 </div>
               </header>
               <ol class="divide-y divide-default">
@@ -728,24 +763,26 @@ function adherenceTextClass(sec: number | null): string {
                       class="mt-0.5 flex flex-wrap items-center gap-2 text-xs leading-4 text-muted"
                     >
                       <span v-if="r.state === 'current'" class="font-medium text-primary"
-                        >Next stop</span
+                        >{{ t('vehicles.field.nextStop') }}</span
                       >
-                      <span v-else-if="r.state === 'passed'">Passed</span>
-                      <span v-else>Upcoming</span>
-                      <span v-if="r.confidenceSec != null" class="text-dimmed"
-                        >±{{ r.confidenceSec }}s (1 SD)</span
-                      >
+                      <span v-else-if="r.state === 'passed'">{{ t('vehicles.detail.passed') }}</span>
+                      <span v-else>{{ t('vehicles.detail.upcoming') }}</span>
+                      <span v-if="r.confidenceSec != null" class="text-dimmed">{{
+                        t('vehicles.detail.confidence', { seconds: r.confidenceSec })
+                      }}</span>
                       <span
                         v-if="r.arrived && r.actualReliable === false"
                         class="text-warning"
-                        :title="`Interpolated between reports ${r.actualReportGapSec}s apart`"
-                        >Sparse GPS estimate</span
+                        :title="t('vehicles.detail.interpolated', { seconds: r.actualReportGapSec })"
+                        >{{ t('vehicles.detail.sparseGps') }}</span
                       >
                     </div>
                   </div>
 
                   <div class="min-w-0">
-                    <div class="text-xs font-medium text-dimmed lg:hidden">Scheduled</div>
+                    <div class="text-xs font-medium text-dimmed lg:hidden">
+                      {{ t('vehicles.field.scheduled') }}
+                    </div>
                     <time
                       class="block text-sm font-semibold leading-4 tabular-nums text-highlighted"
                     >
@@ -758,11 +795,11 @@ function adherenceTextClass(sec: number | null): string {
                       {{
                         r.arrived
                           ? r.stopPathIndex === 0
-                            ? 'Departed'
-                            : 'Arrived'
+                            ? t('vehicles.detail.departed')
+                            : t('vehicles.detail.arrived')
                           : r.state === 'passed'
-                            ? 'Was due'
-                            : 'Predicted'
+                            ? t('vehicles.detail.wasDue')
+                            : t('vehicles.detail.predicted')
                       }}
                     </div>
                     <time
@@ -788,15 +825,25 @@ function adherenceTextClass(sec: number | null): string {
                         {{ signedAdherence(r.deltaVsScheduleSec) }}
                       </div>
                       <div v-if="!r.arrived" class="text-xs leading-4 text-muted">
-                        {{ r.arrived ? 'actual vs schedule' : 'no computation yet' }}
+                        {{
+                          r.arrived
+                            ? t('vehicles.detail.actualVsSchedule')
+                            : t('vehicles.detail.noComputation')
+                        }}
                       </div>
                     </template>
-                    <span v-else class="text-xs text-dimmed">No schedule comparison</span>
+                    <span v-else class="text-xs text-dimmed">{{
+                      t('vehicles.detail.noScheduleComparison')
+                    }}</span>
                     <span
                       v-if="r.errorVsPredictionSec != null"
                       class="block text-xs leading-4 text-red-500"
                     >
-                      vs prediction {{ signedAdherence(r.errorVsPredictionSec) }}
+                      {{
+                        t('vehicles.detail.vsPrediction', {
+                          value: signedAdherence(r.errorVsPredictionSec),
+                        })
+                      }}
                     </span>
                   </div>
                 </li>

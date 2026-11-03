@@ -53,7 +53,7 @@ describe('routeTypeBreakdown', () => {
       { routeType: 0 },
       { routeType: 11 },
       { routeType: 3 },
-    ])
+    ], t)
     expect(out).toEqual([
       { type: 3, label: 'Bus', count: 3 },
       { type: 0, label: 'Tram', count: 1 },
@@ -62,6 +62,6 @@ describe('routeTypeBreakdown', () => {
   })
 
   it('ignores null route types', () => {
-    expect(routeTypeBreakdown([{ routeType: null }, { routeType: undefined }])).toEqual([])
+    expect(routeTypeBreakdown([{ routeType: null }, { routeType: undefined }], t)).toEqual([])
   })
 })

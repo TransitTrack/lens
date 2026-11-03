@@ -8,6 +8,7 @@ import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
 import { useExploreRoutesQuery, type ExploreRoutesQuery } from '~~/generated/graphql'
 import { routeTextColor, routeTypeLabel, hexColor } from '~/utils/gtfs'
 
+const { t } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
 const { typeId } = useRouteTypeFilter()
@@ -155,7 +156,7 @@ function onSelect(_e: Event, row: { original: Row }) {
             <div class="text-xs text-dimmed">{{ row.original.routeId }}</div>
           </template>
           <template #routeType-cell="{ row }">{{
-            routeTypeLabel(row.original.routeType)
+            routeTypeLabel(row.original.routeType, t)
           }}</template>
           <template #agency-cell="{ row }">
             {{

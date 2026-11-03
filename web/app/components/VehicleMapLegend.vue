@@ -1,9 +1,10 @@
 <script setup lang="ts">
-const items = [
-  { color: '#22c55e', label: 'Matched' },
-  { color: '#f59e0b', label: 'Stale' },
-  { color: '#9ca3af', label: 'Unmatched' },
-]
+const { t } = useI18n()
+const items = computed(() => [
+  { color: '#22c55e', label: t('vehicles.legend.matched') },
+  { color: '#f59e0b', label: t('vehicles.legend.stale') },
+  { color: '#9ca3af', label: t('vehicles.legend.unmatched') },
+])
 </script>
 
 <template>
@@ -19,7 +20,7 @@ const items = [
     </div>
     <div class="mt-0.5 flex items-center gap-2 border-t border-default pt-1">
       <UIcon name="i-lucide-navigation" class="size-3 text-dimmed" />
-      <span class="text-muted">Heading</span>
+      <span class="text-muted">{{ $t('vehicles.legend.heading') }}</span>
     </div>
   </div>
 </template>

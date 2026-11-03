@@ -4,6 +4,7 @@ import {
   VEHICLE_STATES,
   routeFacets,
   stateCounts,
+  vehicleStateLabel,
   type VehicleFilterState,
   type VehicleState,
 } from '../utils/vehicleFilters'
@@ -14,6 +15,7 @@ import { hexColor, routeTextColor } from '~/utils/gtfs'
  * number of routes (counted for the chosen state). Search lives with the list, not here.
  */
 const props = defineProps<{ vehicles: VehicleRow[] }>()
+const { t } = useI18n()
 const model = defineModel<VehicleFilterState>({ required: true })
 
 const counts = computed(() => stateCounts(props.vehicles, model.value))
@@ -31,8 +33,12 @@ function toggleRoute(routeId: string) {
 }
 
 const stateItems = computed(() => [
-  { value: null, label: 'All', dotClass: null, count: counts.value.all },
-  ...VEHICLE_STATES.map((s) => ({ ...s, count: counts.value[s.value] })),
+  { value: null, label: t('vehicles.facets.all'), dotClass: null, count: counts.value.all },
+  ...VEHICLE_STATES.map((s) => ({
+    ...s,
+    label: vehicleStateLabel(s.value, t),
+    count: counts.value[s.value],
+  })),
 ])
 
 function badgeStyle(color: string | null, textColor: string | null) {
@@ -48,7 +54,7 @@ function badgeStyle(color: string | null, textColor: string | null) {
         id="vehicle-facets-state"
         class="mb-1.5 px-2 text-xs font-semibold uppercase tracking-wide text-dimmed"
       >
-        State
+        {{ $t('vehicles.facets.state') }}
       </h3>
       <ul class="space-y-0.5">
         <li v-for="item in stateItems" :key="item.value ?? 'all'">
@@ -86,7 +92,7 @@ function badgeStyle(color: string | null, textColor: string | null) {
           id="vehicle-facets-routes"
           class="text-xs font-semibold uppercase tracking-wide text-dimmed"
         >
-          Routes
+          {{ $t('vehicles.facets.routes') }}
         </h3>
         <button
           v-if="model.routeIds.length"
@@ -94,10 +100,10 @@ function badgeStyle(color: string | null, textColor: string | null) {
           class="text-xs text-muted hover:text-primary"
           @click="model = { ...model, routeIds: [] }"
         >
-          Clear
+          {{ $t('vehicles.facets.clear') }}
         </button>
       </div>
-      <p v-if="!routes.length" class="px-2 text-xs text-dimmed">No vehicle is on a trip.</p>
+      <p v-if="!routes.length" class="px-2 text-xs text-dimmed">{{ $t('vehicles.facets.noTrips') }}</p>
       <ul v-else class="space-y-0.5">
         <li v-for="route in routes" :key="route.routeId">
           <label

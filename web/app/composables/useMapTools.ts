@@ -75,9 +75,10 @@ function polygonFeature(points: MapToolPoint[], properties: Record<string, unkno
  */
 export function useMapTools(): MapTools {
   const units = useUnits()
+  const { t } = useI18n()
   const activeTool = ref<MapToolMode | null>(null)
   const activePoints = ref<MapToolPoint[]>([])
-  const noteLabel = ref('Note')
+  const noteLabel = ref(t('map.defaultNote'))
   const drawings = ref<GeoJSON.Feature[]>([])
   const measurements = ref<GeoJSON.Feature[]>([])
 
@@ -174,7 +175,7 @@ export function useMapTools(): MapTools {
     if (tool === 'note') {
       drawings.value = [
         ...drawings.value,
-        pointFeature(point, { kind: 'shape-note', label: noteLabel.value.trim() || 'Note' }),
+        pointFeature(point, { kind: 'shape-note', label: noteLabel.value.trim() || t('map.defaultNote') }),
       ]
       return true
     }

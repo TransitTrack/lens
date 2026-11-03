@@ -69,13 +69,13 @@ export interface RouteTypeTally {
 }
 
 /** Count routes per GTFS route_type, ordered most common first. */
-export function routeTypeBreakdown(routes: RouteLike[]): RouteTypeTally[] {
+export function routeTypeBreakdown(routes: RouteLike[], t: Translate): RouteTypeTally[] {
   const counts = new Map<number, number>()
   for (const r of routes ?? []) {
     if (r.routeType == null) continue
     counts.set(r.routeType, (counts.get(r.routeType) ?? 0) + 1)
   }
   return [...counts.entries()]
-    .map(([type, count]) => ({ type, label: routeTypeLabel(type), count }))
+    .map(([type, count]) => ({ type, label: routeTypeLabel(type, t), count }))
     .sort((a, b) => b.count - a.count || a.type - b.type)
 }

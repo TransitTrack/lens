@@ -6,6 +6,7 @@ import { usePollControl } from '../composables/usePollControl'
 import { useUnits } from '../composables/useUnits'
 import { adherenceBadge } from '../utils/adherence'
 import { formatClock } from '../utils/clock'
+import { matchStatusLabel } from '../utils/vehicleTelemetry'
 
 const props = defineProps<{
   feedCode: string
@@ -13,6 +14,7 @@ const props = defineProps<{
 }>()
 const open = defineModel<boolean>('open', { default: false })
 
+const { t } = useI18n()
 const units = useUnits()
 const { intervalMs } = usePollControl()
 
@@ -36,15 +38,15 @@ function hhmmss(iso: string): string {
   return formatClock(iso, { seconds: true })
 }
 
-const columns: TableColumn<AvlLogRow>[] = [
+const columns = computed<TableColumn<AvlLogRow>[]>(() => [
   {
     accessorKey: 'ts',
-    header: 'Time',
+    header: t('vehicles.avl.column.time'),
     cell: ({ row }) => hhmmss(row.original.ts),
   },
   {
     id: 'position',
-    header: 'Position',
+    header: t('vehicles.field.position'),
     cell: ({ row }) =>
       h(
         'span',
@@ -54,17 +56,17 @@ const columns: TableColumn<AvlLogRow>[] = [
   },
   {
     id: 'status',
-    header: 'Status',
+    header: t('vehicles.avl.column.status'),
     cell: ({ row }) =>
       h(
         resolveComponent('UBadge'),
         { color: STATUS_COLOR[row.original.matchStatus] ?? 'neutral', variant: 'subtle' },
-        () => row.original.matchStatus,
+        () => matchStatusLabel(row.original.matchStatus, t),
       ),
   },
   {
     id: 'route',
-    header: 'Route',
+    header: t('vehicles.field.route'),
     cell: ({ row }) => {
       const trip = row.original.match?.trip
       if (!trip) return h('span', { class: 'text-dimmed' }, '—')
@@ -73,12 +75,12 @@ const columns: TableColumn<AvlLogRow>[] = [
   },
   {
     id: 'trip',
-    header: 'Trip',
+    header: t('vehicles.field.trip'),
     cell: ({ row }) => {
       const trip = row.original.match?.trip
       if (!trip) {
         return h('div', { class: 'min-w-0' }, [
-          h('span', { class: 'block text-xs text-dimmed' }, 'Unmatched descriptor'),
+          h('span', { class: 'block text-xs text-dimmed' }, t('vehicles.avl.unmatchedDescriptor')),
           h('span', { class: 'mt-0.5 block truncate font-mono text-xs text-muted' }, row.original.descTripId ?? '—'),
         ])
       }
@@ -92,7 +94,7 @@ const columns: TableColumn<AvlLogRow>[] = [
   },
   {
     id: 'deviation',
-    header: 'Deviation',
+    header: t('vehicles.avl.column.deviation'),
     cell: ({ row }) => {
       const m = row.original.match?.deviationM
       return m == null ? '—' : units.distance(m)
@@ -100,7 +102,7 @@ const columns: TableColumn<AvlLogRow>[] = [
   },
   {
     id: 'adherence',
-    header: 'Adherence',
+    header: t('vehicles.field.adherence'),
     cell: ({ row }) => {
       if (!row.original.match) return '—'
       const badge = adherenceBadge(row.original.match.scheduleAdherenceSec)
@@ -109,22 +111,22 @@ const columns: TableColumn<AvlLogRow>[] = [
   },
   {
     id: 'score',
-    header: 'Score',
+    header: t('vehicles.avl.column.score'),
     cell: ({ row }) => row.original.match?.score?.toFixed(2) ?? '—',
   },
   {
     accessorKey: 'speedMps',
-    header: 'Speed',
+    header: t('vehicles.field.speed'),
     cell: ({ row }) => units.speed(row.original.speedMps),
   },
-]
+])
 </script>
 
 <template>
   <USlideover
     v-model:open="open"
-    title="AVL log"
-    description="Raw AVL reports for this vehicle, newest first, with the match each one produced."
+:title="t('vehicles.avl.title')"
+    :description="t('vehicles.avl.description')"
     :ui="{ content: 'sm:w-[min(94vw,88rem)] sm:max-w-none' }"
   >
     <template #body>
@@ -133,13 +135,13 @@ const columns: TableColumn<AvlLogRow>[] = [
         color="error"
         variant="soft"
         icon="i-lucide-alert-triangle"
-        title="Couldn't load the AVL log"
+        :title="t('vehicles.avl.loadError')"
         :description="error.message"
       />
       <div v-else-if="loading && !rows.length" class="flex flex-col gap-2">
         <USkeleton v-for="i in 8" :key="i" class="h-10 w-full"/>
       </div>
-      <p v-else-if="!rows.length" class="text-sm text-muted">No AVL reports for this vehicle yet.</p>
+      <p v-else-if="!rows.length" class="text-sm text-muted">{{ t('vehicles.avl.empty') }}</p>
       <UTable v-else :data="rows" :columns="columns"/>
     </template>
   </USlideover>

@@ -1,20 +1,17 @@
-const ROUTE_TYPES: Record<number, string> = {
-  0: 'Tram',
-  1: 'Subway',
-  2: 'Rail',
-  3: 'Bus',
-  4: 'Ferry',
-  5: 'Cable tram',
-  6: 'Aerial lift',
-  7: 'Funicular',
-  11: 'Trolleybus',
-  12: 'Monorail',
-}
+const KNOWN_ROUTE_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7, 11, 12])
 
-export function routeTypeLabel(type: number | null | undefined): string {
+type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
+export function routeTypeLabel(type: number | null | undefined, t: Translate): string {
   if (type == null) return '—'
   // extended route types collapse to their hundreds bucket
-  return ROUTE_TYPES[type] ?? ROUTE_TYPES[Math.floor(type / 100)] ?? `Type ${type}`
+  const known = KNOWN_ROUTE_TYPES.has(type)
+    ? type
+    : KNOWN_ROUTE_TYPES.has(Math.floor(type / 100))
+      ? Math.floor(type / 100)
+      : null
+  // i18n-keys: gtfs.routeType.*
+  return known != null ? t(`gtfs.routeType.${known}`) : t('gtfs.routeTypeOther', { type })
 }
 
 export function hexColor(raw: string | null | undefined, fallback = '#64748b'): string {

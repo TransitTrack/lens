@@ -7,6 +7,7 @@ import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useRouteDetailQuery } from '~~/generated/graphql'
 import { routeTypeLabel, patternLine, patternStopFeatures } from '~/utils/gtfs'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -150,7 +151,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
           <div>
             <div class="text-sm font-medium text-highlighted">{{ gtfsRoute?.routeLongName }}</div>
             <div class="text-xs text-muted">
-              {{ routeTypeLabel(gtfsRoute?.routeType) }} · {{ patterns.length }} pattern(s)
+              {{ routeTypeLabel(gtfsRoute?.routeType, t) }} · {{ patterns.length }} pattern(s)
             </div>
           </div>
 

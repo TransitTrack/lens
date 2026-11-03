@@ -33,6 +33,7 @@ function distinctRouteColor(routeId: string): string {
  * safe to mount behind a live-polling map as a static base layer.
  */
 export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
+  const { t } = useI18n()
   const { result, loading } = useFeedGeometryQuery(
     () => ({ feedCode: gtfsFeedCode.value ?? '' }),
     () => ({
@@ -60,7 +61,7 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
           distinctColor: distinctRouteColor(p.routeId),
           shortName: p.route?.routeShortName ?? '',
           longName: p.route?.routeLongName ?? '',
-          typeLabel: routeTypeLabel(p.route?.routeType),
+          typeLabel: routeTypeLabel(p.route?.routeType, t),
           headsign: p.headsign ?? '',
           tripCount: p.tripCount,
         }

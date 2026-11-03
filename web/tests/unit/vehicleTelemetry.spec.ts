@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { createI18n } from 'vue-i18n'
+import en from '../../i18n/locales/en.json'
 import {
   haversineM,
   avgIntervalSec,
   blockTripProgress,
   currentStatusLabel,
 } from '../../app/utils/vehicleTelemetry'
+
+const t = createI18n({ legacy: false, locale: 'en', messages: { en } }).global.t
 
 describe('haversineM', () => {
   it('~0 for identical points', () => {
@@ -61,11 +65,11 @@ describe('blockTripProgress', () => {
 
 describe('currentStatusLabel', () => {
   it('maps known statuses', () => {
-    expect(currentStatusLabel('STOPPED_AT')).toBe('Stopped at stop')
-    expect(currentStatusLabel('IN_TRANSIT_TO')).toBe('In transit')
+    expect(currentStatusLabel('STOPPED_AT', t)).toBe('Stopped at stop')
+    expect(currentStatusLabel('IN_TRANSIT_TO', t)).toBe('In transit')
   })
   it('passes through unknown, dashes on empty', () => {
-    expect(currentStatusLabel('WEIRD')).toBe('WEIRD')
-    expect(currentStatusLabel(null)).toBeNull()
+    expect(currentStatusLabel('WEIRD', t)).toBe('WEIRD')
+    expect(currentStatusLabel(null, t)).toBeNull()
   })
 })

@@ -5,6 +5,7 @@ import {
   emptyFilters,
   routeFacets,
   stateCounts,
+  vehicleStateLabel,
   type VehicleFilterState,
 } from '../utils/vehicleFilters'
 
@@ -13,21 +14,31 @@ import {
  * state and route filters as the Vehicles page's [VehicleFacets] column, as dropdowns.
  */
 const props = defineProps<{ vehicles: VehicleRow[] }>()
+const { t } = useI18n()
 const model = defineModel<VehicleFilterState>({ required: true })
 
 const counts = computed(() => stateCounts(props.vehicles, model.value))
 
 const stateItems = computed(() => [
-  { label: `All · ${counts.value.all}`, value: null },
+  {
+    label: t('vehicles.facets.withCount', {
+      label: t('vehicles.facets.all'),
+      count: counts.value.all,
+    }),
+    value: null,
+  },
   ...VEHICLE_STATES.map((s) => ({
-    label: `${s.label} · ${counts.value[s.value]}`,
+    label: t('vehicles.facets.withCount', {
+      label: vehicleStateLabel(s.value, t),
+      count: counts.value[s.value],
+    }),
     value: s.value,
   })),
 ])
 
 const routeItems = computed(() =>
   routeFacets(props.vehicles, model.value).map((r) => ({
-    label: `${r.label} · ${r.count}`,
+    label: t('vehicles.facets.withCount', { label: r.label, count: r.count }),
     value: r.routeId,
   })),
 )
@@ -45,7 +56,7 @@ const dirty = computed(
     <UInput
       :model-value="model.query"
       icon="i-lucide-search"
-      placeholder="Search vehicle, route, trip or block"
+      :placeholder="$t('vehicles.searchPlaceholder')"
       class="w-full"
       @update:model-value="model = { ...model, query: $event }"
     />
@@ -53,7 +64,7 @@ const dirty = computed(
       :model-value="model.state"
       :items="stateItems"
       value-key="value"
-      placeholder="State"
+      :placeholder="$t('vehicles.facets.state')"
       icon="i-lucide-filter"
       :search-input="false"
       class="w-40"
@@ -64,7 +75,7 @@ const dirty = computed(
       :items="routeItems"
       value-key="value"
       multiple
-      placeholder="Routes"
+      :placeholder="$t('vehicles.facets.routes')"
       icon="i-lucide-route"
       class="w-36"
       @update:model-value="model = { ...model, routeIds: $event }"
@@ -75,7 +86,7 @@ const dirty = computed(
       variant="soft"
       size="sm"
       icon="i-lucide-x"
-      aria-label="Clear filters"
+      :aria-label="$t('vehicles.clearFilters')"
       @click="model = emptyFilters()"
     />
   </div>
