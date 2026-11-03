@@ -57,6 +57,7 @@ val protobufVersion = project.property("protobufVersion") as String
 val shedlockVersion = project.property("shedlockVersion") as String
 val kotlinxBenchmarkVersion = project.property("kotlinxBenchmarkVersion") as String
 val exposedVersion = project.property("exposedVersion") as String
+val smileVersion = project.property("smileVersion") as String
 
 dependencies {
     // Source: https://mvnrepository.com/artifact/org.jetbrains.exposed/exposed-bom
@@ -77,6 +78,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
     implementation("com.google.guava:guava:$guavaVersion")
+    implementation("com.github.haifengl:smile-core:$smileVersion")
 
     implementation("org.jetbrains.exposed:exposed-spring-boot4-starter")
     implementation("org.jetbrains.exposed:exposed-java-time")

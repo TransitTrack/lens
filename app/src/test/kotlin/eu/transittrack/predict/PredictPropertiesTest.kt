@@ -61,4 +61,31 @@ class PredictPropertiesTest {
         val avl = p.feeds.single().avl!!
         assertThat(avl.predictionAlgorithms).isEqualTo(listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.KALMAN))
     }
+
+    @Test
+    fun `smileGbmIsLastAndBindsFromConfig`() {
+        assertThat(PredictionAlgorithm.entries).isEqualTo(
+            listOf(
+                PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                PredictionAlgorithm.HISTORICAL_AVERAGE,
+                PredictionAlgorithm.KALMAN,
+                PredictionAlgorithm.SMILE_GBM,
+            ),
+        )
+        val p = bindFeeds(
+            mapOf(
+                "transittrack.feed.feeds[0].code" to "mbta",
+                "transittrack.feed.feeds[0].name" to "MBTA",
+                "transittrack.feed.feeds[0].url" to "https://example.test/gtfs.zip",
+                "transittrack.feed.feeds[0].avl.url" to "https://example.test/vp.pb",
+                "transittrack.feed.feeds[0].avl.prediction-algorithms[0]" to "smile_gbm",
+            ),
+        )
+        assertThat(
+            p.feeds
+                .single()
+                .avl!!
+                .predictionAlgorithms,
+        ).isEqualTo(listOf(PredictionAlgorithm.SMILE_GBM))
+    }
 }

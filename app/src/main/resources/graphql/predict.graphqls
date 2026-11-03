@@ -31,6 +31,8 @@ enum PredictionAlgorithm {
     HISTORICAL_AVERAGE
     "Predicts using a Kalman filter over observed travel times."
     KALMAN
+    "Predicts with gradient-boosted trees trained on past stop crossings; also gives a confidence range and a late assessment."
+    SMILE_GBM
 }
 
 "A predicted (and, once reached, actual) arrival/departure at one scheduled stop of a vehicle's current trip."
