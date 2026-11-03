@@ -60,3 +60,30 @@ describe('report plurals', () => {
     expect(make('pl').t('reports.headway.recentGaps', { count: 3 }, 3)).toBe('Próbka: 3 ostatnie przerwy')
   })
 })
+
+describe('noRealtime.body agreement', () => {
+  const whats = ['noRealtime.liveVehicleData', 'noRealtime.liveVehicleOperations', 'noRealtime.liveNetwork', 'vehicles.noRealtimeWhat', 'reports.noRealtime.adherence', 'reports.noRealtime.avl', 'reports.noRealtime.headway']
+  const render = (loc: 'en' | 'pl' | 'fr', key: string) => {
+    const i = make(loc)
+    return i.t('noRealtime.body', { name: 'X', what: i.t(key) })
+  }
+
+  it('keeps the English sentence', () => {
+    expect(render('en', 'noRealtime.liveNetwork')).toBe(
+      "X has no linked AVL feed, so the live network isn't available. Explore the static GTFS data instead.",
+    )
+  })
+
+  it('uses a verb-neutral structure in pl and fr for every caller phrase', () => {
+    for (const key of whats) {
+      const p = make('pl').t(key)
+      const f = make('fr').t(key)
+      expect(render('pl', key)).toBe(
+        `X nie ma powiązanego źródła AVL, więc niedostępne: ${p}. Zamiast tego przeglądaj statyczne dane GTFS.`,
+      )
+      expect(render('fr', key)).toBe(
+        `X n'a pas de flux AVL associé, donc indisponible : ${f}. Explorez plutôt les données GTFS statiques.`,
+      )
+    }
+  })
+})

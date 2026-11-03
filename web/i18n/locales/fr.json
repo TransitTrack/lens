@@ -113,7 +113,7 @@
   },
   "noRealtime": {
     "title": "Aucune source temps réel pour ce flux",
-    "body": "{name} n'a pas de flux AVL associé, donc {what} n'est pas disponible. Explorez plutôt les données GTFS statiques.",
+    "body": "{name} n'a pas de flux AVL associé, donc indisponible : {what}. Explorez plutôt les données GTFS statiques.",
     "thisFeed": "Ce flux",
     "liveVehicleData": "les données des véhicules en direct",
     "explore": "Explorer le flux",
