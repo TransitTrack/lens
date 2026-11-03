@@ -60,6 +60,10 @@ glossary in `i18n/glossary.json`). Conventions:
   `useRelativeTime()` composable instead of vueuse `formatTimeAgo` (messages live under `timeAgo.*`).
   Machine formats (ISO `en-CA` dates for the API) stay hardcoded with a comment.
 - **Leave alone**: docs pages, GTFS/API free text (names, headsigns), identifiers, CSS, routes.
+- **Lint**: `pnpm lint` enforces `@intlify/vue-i18n/no-raw-text` (no untranslated text in templates
+  outside the docs areas; the small ignore list is in `eslint.config.mjs`) and `no-missing-keys`.
+  CI runs both `pnpm lint` and `pnpm i18n:check --strict` in the Lint workflow, and
+  `tests/unit/i18nLocales.spec.ts` checks key/placeholder/plural-form parity and untranslated values.
 - **Check** with `pnpm i18n:check` (add `--strict` to fail on warnings): reports missing/extra keys
   across locales, unused keys and keys used in code but not defined. `pnpm i18n:translate` can
   draft translations for new keys.

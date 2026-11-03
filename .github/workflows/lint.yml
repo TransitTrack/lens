@@ -71,6 +71,11 @@ jobs:
         id: eslint
         run: pnpm run lint
 
+      # Locale files in sync (missing/extra keys), no unused keys, no keys used in code but undefined.
+      - name: Check i18n locales
+        id: i18n
+        run: pnpm i18n:check --strict
+
       - name: Summary
         if: always()
         run: |
@@ -78,4 +83,9 @@ jobs:
             echo "### eslint: no issues ✅" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "### eslint: issues found ❌" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${{ steps.i18n.outcome }}" = "success" ]; then
+            echo "### i18n:check: locales consistent ✅" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### i18n:check: locale problems found ❌ (run \`pnpm i18n:check --strict\` in web/)" >> "$GITHUB_STEP_SUMMARY"
           fi
