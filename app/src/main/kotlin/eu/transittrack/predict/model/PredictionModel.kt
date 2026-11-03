@@ -110,4 +110,11 @@ class PredictionModelRepository {
             .where { (PredictionModelTable.feedCode eq feedCode) and (PredictionModelTable.algorithm eq algorithm) }
             .singleOrNull()
             ?.get(PredictionModelTable.trainedAt)
+
+    /** When each feed's stored [algorithm] model was trained, by feed code, without loading payloads. */
+    fun trainedAts(algorithm: PredictionAlgorithm): Map<String, Instant> =
+        PredictionModelTable
+            .select(PredictionModelTable.feedCode, PredictionModelTable.trainedAt)
+            .where { PredictionModelTable.algorithm eq algorithm }
+            .associate { it[PredictionModelTable.feedCode] to it[PredictionModelTable.trainedAt] }
 }
