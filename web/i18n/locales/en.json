@@ -1241,7 +1241,7 @@
     "revisionWithLabel": "{label} (#{id})",
     "revisionWithStatus": "{status} · {date} (#{id})",
     "tripChanges": "Trip changes",
-    "showingFirst": "Showing first {shown} of {count} changed trip | Showing first {shown} of {count} changed trips",
+    "showingFirst": "Showing first {shown} of {count} changed trips. | Showing first {shown} of {count} changed trips.",
     "noTripDiff": "No trip differences in this filter.",
     "runTimeDelta": "{delta}s run time",
     "fieldLabel": "{field}:",

@@ -51,8 +51,22 @@ describe('draft validation and compare labels', () => {
     const t = make('en').t
     expect(t('compare.tripsChanged', { count: 1 }, 1)).toBe('1 trip changed')
     expect(t('compare.calendarsChanged', { count: 0 }, 0)).toBe('0 calendars changed')
-    expect(t('compare.showingFirst', { shown: 200, count: 350 }, 350)).toBe('Showing first 200 of 350 changed trips')
+    expect(t('compare.showingFirst', { shown: 200, count: 350 }, 350)).toBe('Showing first 200 of 350 changed trips.')
     expect(t('drafts.previewShift', { count: 4, delta: '+0:03' }, 4)).toBe('≈4 trips currently shown in the grid would shift by +0:03.')
     expect(make('pl').t('compare.tripsChanged', { count: 3 }, 3)).toBe('3 zmienione kursy')
+  })
+})
+
+describe('compare and terminology fixes', () => {
+  it('keeps the trailing period of the original English showing-first sentence', () => {
+    const t = make('en').t
+    expect(t('compare.showingFirst', { shown: 200, count: 1 }, 1)).toBe('Showing first 200 of 1 changed trips.')
+    expect(t('compare.showingFirst', { shown: 3, count: 5 }, 5)).toBe('Showing first 3 of 5 changed trips.')
+  })
+
+  it('uses rewizja for revision in Polish', () => {
+    const text = make('pl').t('explore.feed.activeRevision', { id: 4 })
+    expect(text).toContain('rewizja')
+    expect(text).not.toContain('wersja')
   })
 })

@@ -1241,7 +1241,7 @@
     "revisionWithLabel": "{label} (n°{id})",
     "revisionWithStatus": "{status} · {date} (n°{id})",
     "tripChanges": "Modifications des voyages",
-    "showingFirst": "Affichage des {shown} premiers sur {count} voyage modifié | Affichage des {shown} premiers sur {count} voyages modifiés",
+    "showingFirst": "Affichage des {shown} premiers sur {count} voyage modifié. | Affichage des {shown} premiers sur {count} voyages modifiés.",
     "noTripDiff": "Aucune différence de voyage pour ce filtre.",
     "runTimeDelta": "{delta} s de durée de parcours",
     "fieldLabel": "{field} :",
