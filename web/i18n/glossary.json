@@ -1,0 +1,10 @@
+{
+  "stop": { "pl": "przystanek", "fr": "arrêt" },
+  "trip": { "pl": "kurs", "fr": "voyage" },
+  "headway": { "pl": "odstęp", "fr": "intervalle" },
+  "block": { "pl": "brygada", "fr": "bloc" },
+  "route": { "pl": "linia", "fr": "ligne" },
+  "vehicle": { "pl": "pojazd", "fr": "véhicule" },
+  "feed": { "pl": "źródło danych", "fr": "flux" },
+  "adherence": { "pl": "punktualność", "fr": "respect de l'horaire" }
+}

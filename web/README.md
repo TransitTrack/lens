@@ -47,3 +47,25 @@ Run `npm run codegen` whenever a `.graphql` operation file under
 
 See the design spec's §8 — no headway screen, no auth, polling not push
 updates, no production build/deploy strategy yet.
+
+## Adding a language
+
+1. Add an entry to `i18n.locales` in `nuxt.config.ts`, e.g.
+   `{ code: 'de', language: 'de-DE', name: 'Deutsch', file: 'de.json' }`.
+2. Generate the translations from `i18n/locales/en.json`:
+
+   ```bash
+   pnpm i18n:translate --locale de --dry-run   # preview the keys to be added
+   pnpm i18n:translate --locale de             # write i18n/locales/de.json
+   pnpm i18n:translate --locale de --provider deepl   # needs DEEPL_API_KEY
+   ```
+
+   Providers: `google-free` (default, no key), `deepl` (`DEEPL_API_KEY`),
+   `google-cloud` (`GOOGLE_TRANSLATE_API_KEY`). Existing values are never
+   overwritten, so the command is safe to rerun after adding new `en` keys.
+   Keys whose `{placeholders}` the provider mangled are skipped and reported
+   (non-zero exit); fix them by hand or rerun. Domain terms come from
+   `i18n/glossary.json`.
+3. Review the output: it is machine-quality.
+4. Optionally add the matching Nuxt UI locale in `app.vue` so built-in
+   component strings are translated too.

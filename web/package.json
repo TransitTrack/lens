@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:e2e": "playwright test",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "i18n:translate": "node scripts/i18n-translate.mjs"
   },
   "dependencies": {
     "@apollo/client": "^3.14.1",
