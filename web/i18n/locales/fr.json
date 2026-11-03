@@ -1068,7 +1068,7 @@
     "deltaHintAdd": "Saisissez un écart signé : +30m, -90, +1:30",
     "example": "p. ex. {value}",
     "newTripId": "Identifiant du nouveau voyage",
-    "auto": "auto",
+    "auto": "automatique",
     "rebuildFirstAdd": "Reconstruisez d'abord le brouillon pour ajouter un voyage à partir d'une variante.",
     "pickPattern": "Choisissez une variante",
     "pickService": "Choisissez un service",

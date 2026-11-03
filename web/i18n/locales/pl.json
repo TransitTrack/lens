@@ -1068,7 +1068,7 @@
     "deltaHintAdd": "Podaj przesunięcie ze znakiem: +30m, -90, +1:30",
     "example": "np. {value}",
     "newTripId": "Identyfikator nowego kursu",
-    "auto": "auto",
+    "auto": "automatycznie",
     "rebuildFirstAdd": "Najpierw przebuduj wersję roboczą, aby dodać kurs z wariantu.",
     "pickPattern": "Wybierz wariant",
     "pickService": "Wybierz rozkład",
