@@ -54,6 +54,11 @@ glossary in `i18n/glossary.json`). Conventions:
 - **Dynamic keys** (`t(`ns.${value}`)`) are invisible to the checker: declare them with a marker
   comment, `// i18n-keys: ns.status.*` in scripts or `<!-- i18n-keys: ns.* -->` in templates.
   Map API enum/status values through keys with a fallback to the raw value when unknown.
+- **Dates, numbers, relative time**: utils take the app locale as an argument and map it with
+  `intlLocale()` / `displayLocale()` (`app/utils/intlLocale.ts`; English maps to `en-GB` to keep 24h,
+  day-first output). Use `formatNumber(n, locale)` instead of `toLocaleString()` and the
+  `useRelativeTime()` composable instead of vueuse `formatTimeAgo` (messages live under `timeAgo.*`).
+  Machine formats (ISO `en-CA` dates for the API) stay hardcoded with a comment.
 - **Leave alone**: docs pages, GTFS/API free text (names, headsigns), identifiers, CSS, routes.
 - **Check** with `pnpm i18n:check` (add `--strict` to fail on warnings): reports missing/extra keys
   across locales, unused keys and keys used in code but not defined. `pnpm i18n:translate` can

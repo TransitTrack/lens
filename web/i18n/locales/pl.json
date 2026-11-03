@@ -2,8 +2,6 @@
   "common": {
     "save": "Zapisz",
     "cancel": "Anuluj",
-    "loading": "Ładowanie",
-    "error": "Błąd",
     "noFeedsConfigured": "Nie skonfigurowano żadnych źródeł danych.",
     "unknown": "nieznany",
     "never": "nigdy",

@@ -2,8 +2,6 @@
   "common": {
     "save": "Enregistrer",
     "cancel": "Annuler",
-    "loading": "Chargement",
-    "error": "Erreur",
     "noFeedsConfigured": "Aucun flux configuré.",
     "unknown": "inconnu",
     "never": "jamais",

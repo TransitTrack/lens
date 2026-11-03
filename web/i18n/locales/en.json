@@ -2,8 +2,6 @@
   "common": {
     "save": "Save",
     "cancel": "Cancel",
-    "loading": "Loading",
-    "error": "Error",
     "noFeedsConfigured": "No feeds configured.",
     "unknown": "unknown",
     "never": "never",
