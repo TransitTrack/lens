@@ -14,6 +14,12 @@ describe('useLocaleSwitcher', () => {
     expect(locale.value).toBe('pl')
   })
 
+  it('switches to Romanian', async () => {
+    const { locale, setLocale } = useLocaleSwitcher()
+    await setLocale('ro')
+    expect(locale.value).toBe('ro')
+  })
+
   it('ignores unsupported codes', async () => {
     const { locale, setLocale } = useLocaleSwitcher()
     await setLocale('xx')
@@ -22,7 +28,7 @@ describe('useLocaleSwitcher', () => {
 
   it('exposes one option per configured locale', () => {
     const { options } = useLocaleSwitcher()
-    expect(options.map((o) => o.code)).toEqual(['en', 'pl', 'fr'])
+    expect(options.map((o) => o.code)).toEqual(['en', 'pl', 'fr', 'ro'])
   })
 
   it('does not throw with an invalid tt_locale cookie', () => {

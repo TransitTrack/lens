@@ -5,18 +5,19 @@ import { pluralRules } from '../../i18n/pluralRules'
 import en from '../../i18n/locales/en.json'
 import pl from '../../i18n/locales/pl.json'
 import fr from '../../i18n/locales/fr.json'
+import ro from '../../i18n/locales/ro.json'
 import { displayLocale, formatNumber, intlLocale } from '../../app/utils/intlLocale'
 import { formatCalendarDate, formatClock, formatDottedTimestamp } from '../../app/utils/clock'
 import { formatReportTimestamp } from '../../app/utils/avlReport'
 import { gtfsDate } from '../../app/utils/gtfs'
 import { timeAgoMessages } from '../../app/utils/timeAgo'
 
-function make(locale: 'en' | 'pl' | 'fr') {
+function make(locale: 'en' | 'pl' | 'fr' | 'ro') {
   return createI18n({
     legacy: false,
     locale,
     fallbackLocale: 'en',
-    messages: { en, pl, fr },
+    messages: { en, pl, fr, ro },
     pluralRules,
   }).global
 }
@@ -87,6 +88,7 @@ describe('formatCalendarDate', () => {
     const date = new Date(2026, 10, 3, 12, 0, 0)
     expect(formatCalendarDate(date, 'pl')).toBe('wt., 03.11.2026')
     expect(formatCalendarDate(date, 'fr')).toBe('mar., 03.11.2026')
+    expect(formatCalendarDate(date, 'ro')).toBe('mar., 03.11.2026')
   })
 })
 
@@ -111,6 +113,10 @@ describe('formatNumber', () => {
   it('uses pl/fr separators', () => {
     expect(formatNumber(1234567.5, 'pl').replace(/\s/g, ' ')).toBe('1 234 567,5')
     expect(formatNumber(1234567.5, 'fr').replace(/\s/g, ' ')).toBe('1 234 567,5')
+  })
+  it('uses ro separators', () => {
+    expect(intlLocale('ro')).toBe('ro-RO')
+    expect(formatNumber(1234567.5, 'ro')).toBe('1.234.567,5')
   })
 })
 

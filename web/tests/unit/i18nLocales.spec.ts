@@ -19,6 +19,7 @@ const load = (name: string): Messages =>
 const en = load('en')
 const pl = load('pl')
 const fr = load('fr')
+const ro = load('ro')
 const keys = Object.keys(en)
 
 const placeholders = (s: string) => [...new Set([...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]!))].sort().join(',')
@@ -30,6 +31,8 @@ const INVARIANT_ALL = new Set(['GTFS', 'ID', 'URL', 'P90 / P95', 'S', 'gtfs {tim
 const INVARIANT_BY_LOCALE: Record<string, Set<string>> = {
   // Polish shares these words with English.
   pl: new Set(['Operator', 'Status', 'Start']),
+  // Romanian loanwords spelled identically.
+  ro: new Set(['Operator', 'Contact', 'Funicular', 'Calendar']),
   // French cognates / loanwords spelled identically (GTFS field names, transit modes, UI labels).
   fr: new Set([
     'Validation', 'Date', 'Attributions', 'Position', 'Score', 'Direction', 'Direction {n}', 'Note', 'note',
@@ -49,6 +52,7 @@ const PLURALISED_ONLY_IN_TARGET = new Set(['feed.processing.failed'])
 describe.each([
   ['pl', pl],
   ['fr', fr],
+  ['ro', ro],
 ] as const)('locale %s', (name, messages) => {
   it('has the same keys as en', () => {
     const own = Object.keys(messages)
@@ -62,7 +66,7 @@ describe.each([
   })
 
   it('has the expected number of plural forms', () => {
-    const expected = name === 'pl' ? 3 : 2
+    const expected = name === 'pl' || name === 'ro' ? 3 : 2
     const bad = keys.filter((k) => en[k]!.includes('|') && messages[k] !== undefined && forms(messages[k]!) !== expected)
     expect(bad).toEqual([])
   })
