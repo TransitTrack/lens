@@ -26,6 +26,7 @@ class PredictionEntitiesPersistenceTest(
     @Autowired val predictions: VehiclePredictionRepository,
     @Autowired val accuracies: PredictionAccuracyRepository,
     @Autowired val models: PredictionModelRepository,
+    @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val db: Database,
 ) : PostgresPerMethodTest() {
     // Committed on its own transaction: the test itself runs outside any Spring transaction
@@ -176,5 +177,36 @@ class PredictionEntitiesPersistenceTest(
         val found = models.find("feed-1", PredictionAlgorithm.SMILE_GBM)
         assertThat(found).isEqualTo(PredictionModelRow("feed-1", PredictionAlgorithm.SMILE_GBM, t2, 20, byteArrayOf(9)))
         assertThat(models.trainedAt("feed-1", PredictionAlgorithm.SMILE_GBM)).isEqualTo(t2)
+    }
+
+    private fun crossing(
+        at: String,
+        travel: Double?,
+        gap: Int?,
+    ) = AvlStopCrossing(
+        feedCode = "feed-1", vehicleId = "v1", tripRowId = 1L, tripPatternId = 1L, stopPathIndex = 1,
+        observedAt = Instant.parse(at), observedTravelTimeSec = travel, serviceId = null, tripStartSec = null,
+        routeId = null, directionId = null, revisionId = 1L, reportGapSec = gap,
+    )
+
+    @Test
+    fun `training returns newest rows within limit`() {
+        crossings.save(crossing("2026-09-01T10:00:00Z", 30.0, 10))
+        crossings.save(crossing("2026-09-02T10:00:00Z", 31.0, 10))
+        crossings.save(crossing("2026-09-03T10:00:00Z", 32.0, 10))
+        val rows = crossings.training("feed-1", Instant.parse("2026-08-01T00:00:00Z"), 60, 600, 2)
+        assertThat(rows.map { it.observedTravelTimeSec }).isEqualTo(listOf(32.0, 31.0))
+    }
+
+    @Test
+    fun `training skips implausible and unreliable rows`() {
+        crossings.save(crossing("2026-09-01T10:00:00Z", 30.0, 10))
+        crossings.save(crossing("2026-09-01T11:00:00Z", 30.5, null))
+        crossings.save(crossing("2026-09-01T12:00:00Z", null, 10))
+        crossings.save(crossing("2026-09-01T13:00:00Z", 9999.0, 10))
+        crossings.save(crossing("2026-09-01T14:00:00Z", 30.0, 500))
+        crossings.save(crossing("2026-07-01T10:00:00Z", 30.0, 10))
+        val rows = crossings.training("feed-1", Instant.parse("2026-08-01T00:00:00Z"), 60, 600, 100)
+        assertThat(rows.map { it.observedTravelTimeSec }).isEqualTo(listOf(30.5, 30.0))
     }
 }

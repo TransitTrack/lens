@@ -12,8 +12,10 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -175,6 +177,28 @@ class AvlStopCrossingRepository {
             .limit(1)
             .singleOrNull()
             ?.let(AvlStopCrossingTable::read)
+
+    /**
+     * Newest [limit] plausible crossings of [feedCode] observed at or after [since]: travel time
+     * known and at most [maxTravelSec], report gap unknown or at most [maxReportGapSec].
+     */
+    fun training(
+        feedCode: String,
+        since: Instant,
+        maxReportGapSec: Int,
+        maxTravelSec: Int,
+        limit: Int,
+    ): List<AvlStopCrossing> =
+        AvlStopCrossingTable
+            .selectAll()
+            .where {
+                (AvlStopCrossingTable.feedCode eq feedCode) and (AvlStopCrossingTable.observedAt greaterEq since) and
+                    AvlStopCrossingTable.observedTravelTimeSec.isNotNull() and
+                    (AvlStopCrossingTable.observedTravelTimeSec lessEq maxTravelSec.toDouble()) and
+                    (AvlStopCrossingTable.reportGapSec.isNull() or (AvlStopCrossingTable.reportGapSec lessEq maxReportGapSec))
+            }.orderBy(AvlStopCrossingTable.observedAt, SortOrder.DESC)
+            .limit(limit)
+            .map(AvlStopCrossingTable::read)
 
     fun findAll(): List<AvlStopCrossing> = AvlStopCrossingTable.selectAll().map(AvlStopCrossingTable::read)
 
