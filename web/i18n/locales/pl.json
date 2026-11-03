@@ -1,1 +1,11 @@
-{"common":{"save":"Zapisz","cancel":"Anuluj","loading":"Ładowanie","error":"Błąd"}}
+{
+  "common": {
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "loading": "Ładowanie",
+    "error": "Błąd"
+  },
+  "userMenu": {
+    "language": "Język"
+  }
+}

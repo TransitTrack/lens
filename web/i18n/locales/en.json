@@ -1,1 +1,11 @@
-{"common":{"save":"Save","cancel":"Cancel","loading":"Loading","error":"Error"}}
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading",
+    "error": "Error"
+  },
+  "userMenu": {
+    "language": "Language"
+  }
+}

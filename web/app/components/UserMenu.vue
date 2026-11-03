@@ -8,6 +8,8 @@ defineProps<{
 }>()
 
 const colorMode = useColorMode()
+const { t } = useI18n()
+const { locale, options: localeOptions, setLocale } = useLocaleSwitcher()
 const { name: editorName } = useEditorIdentity()
 const { signOut } = useDemoAuth()
 const identityOpen = ref(false)
@@ -72,6 +74,19 @@ const items = computed<DropdownMenuItem[][]>(() => [
           },
         },
       ],
+    },
+    {
+      label: t('userMenu.language'),
+      icon: 'i-lucide-languages',
+      children: localeOptions.map((o) => ({
+        label: o.name,
+        type: 'checkbox' as const,
+        checked: locale.value === o.code,
+        onSelect(e: Event) {
+          e.preventDefault()
+          void setLocale(o.code)
+        },
+      })),
     },
     {
       label: 'Sign out',
