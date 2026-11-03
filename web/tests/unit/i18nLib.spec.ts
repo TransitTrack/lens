@@ -103,6 +103,6 @@ describe('unflatten safety', () => {
   it('rejects prototype-polluting segments', () => {
     expect(() => unflatten({ '__proto__.x': 'y' })).toThrow()
     expect(() => unflatten({ 'a.constructor.b': 'y' })).toThrow()
-    expect(({} as any).x).toBeUndefined()
+    expect(({} as Record<string, unknown>).x).toBeUndefined()
   })
 })
