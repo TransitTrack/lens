@@ -449,7 +449,13 @@
       "viewTrip": "View trip",
       "viewBlock": "View block",
       "viewRoute": "View route",
-      "viewVehicle": "View vehicle"
+      "viewVehicle": "View vehicle",
+      "cardLabel": "Vehicle {id} details",
+      "stops": "Stops and estimates",
+      "noStops": "No stop sequence available for this trip.",
+      "expand": "Expand details",
+      "collapse": "Collapse details",
+      "close": "Close"
     },
     "detail": {
       "title": "Vehicle {name}",

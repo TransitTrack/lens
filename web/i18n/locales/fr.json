@@ -449,7 +449,13 @@
       "viewTrip": "Voir le voyage",
       "viewBlock": "Voir le bloc",
       "viewRoute": "Voir la ligne",
-      "viewVehicle": "Voir le véhicule"
+      "viewVehicle": "Voir le véhicule",
+      "cardLabel": "Détails du véhicule {id}",
+      "stops": "Arrêts et estimations",
+      "noStops": "Aucune séquence d'arrêts disponible pour ce trajet.",
+      "expand": "Développer les détails",
+      "collapse": "Réduire les détails",
+      "close": "Fermer"
     },
     "detail": {
       "title": "Véhicule {name}",

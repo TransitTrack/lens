@@ -449,7 +449,13 @@
       "viewTrip": "Zobacz kurs",
       "viewBlock": "Zobacz brygadę",
       "viewRoute": "Zobacz linię",
-      "viewVehicle": "Zobacz pojazd"
+      "viewVehicle": "Zobacz pojazd",
+      "cardLabel": "Szczegóły pojazdu {id}",
+      "stops": "Przystanki i szacunki",
+      "noStops": "Brak sekwencji przystanków dla tego kursu.",
+      "expand": "Rozwiń szczegóły",
+      "collapse": "Zwiń szczegóły",
+      "close": "Zamknij"
     },
     "detail": {
       "title": "Pojazd {name}",

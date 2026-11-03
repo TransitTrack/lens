@@ -449,7 +449,13 @@
       "viewTrip": "Vezi cursa",
       "viewBlock": "Vezi blocul",
       "viewRoute": "Vezi linia",
-      "viewVehicle": "Vezi vehiculul"
+      "viewVehicle": "Vezi vehiculul",
+      "cardLabel": "Detalii vehicul {id}",
+      "stops": "Stații și estimări",
+      "noStops": "Nu există secvență de stații pentru această cursă.",
+      "expand": "Extinde detaliile",
+      "collapse": "Restrânge detaliile",
+      "close": "Închide"
     },
     "detail": {
       "title": "Vehiculul {name}",
