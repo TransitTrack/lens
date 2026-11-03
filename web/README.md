@@ -36,6 +36,29 @@ to `0.0.0.0` — some environments only resolve the IPv6 loopback for a plain
 `nuxt dev`, which Playwright's readiness probe and browser can't reach over
 `127.0.0.1`.
 
+## Translating UI text
+
+The dashboard is translated with `@nuxtjs/i18n` (en, pl, fr; messages in `i18n/locales/*.json`,
+glossary in `i18n/glossary.json`). Conventions:
+
+- **Keys** are `area.thing` (`nav.vehicles`, `userMenu.signOut`, `notifications.title`), grouped
+  by area, with the three locale files kept structurally identical. Cross-cutting words live in
+  `common.*`. English text must stay exactly as written in the source before translation.
+- **Use** `$t('area.key')` in templates and `const { t } = useI18n()` in `<script setup>` and
+  composables. Never concatenate sentences: use `{name}` / `{count}` parameters.
+- **Plurals** use vue-i18n pipes: `"{count} issue | {count} issues"`, called as
+  `t(key, { count: n }, n)`. Polish needs three forms (`one | few | many`); the rules live in
+  `i18n/pluralRules.ts` (pl: 1 / 2-4 except 12-14 / rest; fr: 0 and 1 are singular for 2-form messages).
+- **Utils** that build display strings must not import global i18n state; they take an injected
+  `t: (key: string, params?: Record<string, unknown>) => string` argument and the caller passes `t`.
+- **Dynamic keys** (`t(`ns.${value}`)`) are invisible to the checker: declare them with a marker
+  comment, `// i18n-keys: ns.status.*` in scripts or `<!-- i18n-keys: ns.* -->` in templates.
+  Map API enum/status values through keys with a fallback to the raw value when unknown.
+- **Leave alone**: docs pages, GTFS/API free text (names, headsigns), identifiers, CSS, routes.
+- **Check** with `pnpm i18n:check` (add `--strict` to fail on warnings): reports missing/extra keys
+  across locales, unused keys and keys used in code but not defined. `pnpm i18n:translate` can
+  draft translations for new keys.
+
 ## Regenerating types
 
 Run `npm run codegen` whenever a `.graphql` operation file under

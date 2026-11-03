@@ -3,9 +3,111 @@
     "save": "Save",
     "cancel": "Cancel",
     "loading": "Loading",
-    "error": "Error"
+    "error": "Error",
+    "noFeedsConfigured": "No feeds configured."
+  },
+  "nav": {
+    "overview": "Overview",
+    "liveService": "Live service",
+    "gtfs": "GTFS",
+    "changes": "Changes",
+    "reports": "Reports",
+    "vehicles": "Vehicles",
+    "headway": "Headway",
+    "avlHistory": "AVL history",
+    "adherenceByRoute": "Adherence by route",
+    "routeAdherenceSummary": "Route adherence summary",
+    "adherenceByTrip": "Adherence by trip",
+    "tripAdherenceSummary": "Trip adherence summary",
+    "adherenceByStop": "Adherence by stop",
+    "feed": "Feed",
+    "routes": "Routes",
+    "stops": "Stops",
+    "trips": "Trips",
+    "blocks": "Blocks",
+    "calendar": "Calendar",
+    "drafts": "Drafts",
+    "compareRevisions": "Compare revisions",
+    "optimization": "Optimization",
+    "docs": "Docs",
+    "goTo": "Go to",
+    "overviewAria": "TransitTrack overview",
+    "searchAria": "Search TransitTrack",
+    "searchPlaceholder": "Search routes, stops, trips, and docs…",
+    "currentLocalTime": "Current local time",
+    "preparingFeed": "Preparing {name}",
+    "feedFallback": "feed",
+    "preparingDataset": "Preparing the first dataset. Browsing will unlock when it is ready.",
+    "loadingFeedStatus": "Loading feed status…"
   },
   "userMenu": {
-    "language": "Language"
+    "language": "Language",
+    "editorIdentity": "Editor identity",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "signOut": "Sign out",
+    "operator": "Operator",
+    "profileAndPreferences": "Profile & preferences",
+    "editorIdentityHelp": "Shown on draft changes and schedule actions.",
+    "namePlaceholder": "Your name",
+    "saveIdentity": "Save identity"
+  },
+  "feedSwitcher": {
+    "switchFeed": "Switch feed",
+    "selectFeed": "Select a feed",
+    "staticOnly": "static only",
+    "realtimeHealthy": "realtime · healthy",
+    "realtimeDegraded": "realtime · degraded"
+  },
+  "notifications": {
+    "title": "Feed status",
+    "openFeedStatus": "Open feed status",
+    "openWithIssues": "{count} feed issue — open feed status | {count} feed issues — open feed status",
+    "lastPoll": "Last poll: {status}",
+    "neverPolled": "never polled",
+    "unknown": "unknown",
+    "feedUnhealthy": "{name}: feed unhealthy",
+    "lastPollStatus": "Last poll status: {status}",
+    "feedRecovered": "{name}: feed recovered",
+    "backendUnreachable": "Cannot reach the backend"
+  },
+  "state": {
+    "loadingData": "Loading data",
+    "nothingYet": "Nothing to show yet",
+    "unavailable": "This data is unavailable",
+    "loadingPage": "Loading page"
+  },
+  "poll": {
+    "resume": "Resume live updates",
+    "pause": "Pause live updates",
+    "paused": "Paused",
+    "live": "Live",
+    "justNow": "just now",
+    "secondsAgo": "{count}s ago",
+    "minutesAgo": "{count}m ago"
+  },
+  "noRealtime": {
+    "title": "No realtime source for this feed",
+    "body": "{name} has no linked AVL feed, so {what} isn't available. Explore the static GTFS data instead.",
+    "thisFeed": "This feed",
+    "liveVehicleData": "live vehicle data",
+    "explore": "Explore feed"
+  },
+  "filters": {
+    "allAgencies": "All agencies",
+    "allTypes": "All types",
+    "fromTime": "From time",
+    "toTime": "To time",
+    "time": {
+      "all": "All day",
+      "early": "Early",
+      "am": "AM peak",
+      "midday": "Midday",
+      "pm": "PM peak",
+      "evening": "Evening",
+      "late": "Late (24h+)"
+    }
   }
 }

@@ -3,6 +3,7 @@ import { usePollControl } from '../composables/usePollControl'
 
 const props = defineProps<{ updatedAt?: string | number | null }>()
 
+const { t } = useI18n()
 const { paused, toggle } = usePollControl()
 
 const now = ref(Date.now())
@@ -17,14 +18,14 @@ const ago = computed(() => {
   const ms = now.value - new Date(props.updatedAt).getTime()
   if (!Number.isFinite(ms)) return null
   const s = Math.max(0, Math.round(ms / 1000))
-  if (s < 5) return 'just now'
-  if (s < 60) return `${s}s ago`
-  return `${Math.round(s / 60)}m ago`
+  if (s < 5) return t('poll.justNow')
+  if (s < 60) return t('poll.secondsAgo', { count: s })
+  return t('poll.minutesAgo', { count: Math.round(s / 60) })
 })
 </script>
 
 <template>
-  <UTooltip :text="paused ? 'Resume live updates' : 'Pause live updates'">
+  <UTooltip :text="paused ? $t('poll.resume') : $t('poll.pause')">
     <UButton
       :color="paused ? 'warning' : 'neutral'"
       variant="ghost"
@@ -37,7 +38,7 @@ const ago = computed(() => {
           :class="paused ? 'bg-warning' : 'animate-pulse bg-success'"
         />
         <span class="text-xs">
-          {{ paused ? 'Paused' : (ago ?? 'Live') }}
+          {{ paused ? $t('poll.paused') : (ago ?? $t('poll.live')) }}
         </span>
       </span>
     </UButton>

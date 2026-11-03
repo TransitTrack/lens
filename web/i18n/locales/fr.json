@@ -3,9 +3,111 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "loading": "Chargement",
-    "error": "Erreur"
+    "error": "Erreur",
+    "noFeedsConfigured": "Aucun flux configuré."
+  },
+  "nav": {
+    "overview": "Aperçu",
+    "liveService": "Service en direct",
+    "gtfs": "GTFS",
+    "changes": "Modifications",
+    "reports": "Rapports",
+    "vehicles": "Véhicules",
+    "headway": "Intervalles",
+    "avlHistory": "Historique AVL",
+    "adherenceByRoute": "Respect de l'horaire par ligne",
+    "routeAdherenceSummary": "Synthèse du respect de l'horaire par ligne",
+    "adherenceByTrip": "Respect de l'horaire par voyage",
+    "tripAdherenceSummary": "Synthèse du respect de l'horaire par voyage",
+    "adherenceByStop": "Respect de l'horaire par arrêt",
+    "feed": "Flux",
+    "routes": "Lignes",
+    "stops": "Arrêts",
+    "trips": "Voyages",
+    "blocks": "Blocs",
+    "calendar": "Calendrier",
+    "drafts": "Brouillons",
+    "compareRevisions": "Comparer les révisions",
+    "optimization": "Optimisation",
+    "docs": "Documentation",
+    "goTo": "Aller à",
+    "overviewAria": "Aperçu de TransitTrack",
+    "searchAria": "Rechercher dans TransitTrack",
+    "searchPlaceholder": "Rechercher des lignes, arrêts, voyages et de la documentation…",
+    "currentLocalTime": "Heure locale actuelle",
+    "preparingFeed": "Préparation de {name}",
+    "feedFallback": "flux",
+    "preparingDataset": "Préparation du premier jeu de données. La navigation sera débloquée lorsqu'il sera prêt.",
+    "loadingFeedStatus": "Chargement de l'état du flux…"
   },
   "userMenu": {
-    "language": "Langue"
+    "language": "Langue",
+    "editorIdentity": "Identité de l'éditeur",
+    "theme": "Thème",
+    "themeSystem": "Système",
+    "themeLight": "Clair",
+    "themeDark": "Sombre",
+    "signOut": "Se déconnecter",
+    "operator": "Opérateur",
+    "profileAndPreferences": "Profil et préférences",
+    "editorIdentityHelp": "Affichée sur les modifications de brouillon et les actions sur les horaires.",
+    "namePlaceholder": "Votre nom",
+    "saveIdentity": "Enregistrer l'identité"
+  },
+  "feedSwitcher": {
+    "switchFeed": "Changer de flux",
+    "selectFeed": "Sélectionner un flux",
+    "staticOnly": "statique uniquement",
+    "realtimeHealthy": "temps réel · sain",
+    "realtimeDegraded": "temps réel · dégradé"
+  },
+  "notifications": {
+    "title": "État des flux",
+    "openFeedStatus": "Ouvrir l'état des flux",
+    "openWithIssues": "{count} problème de flux — ouvrir l'état des flux | {count} problèmes de flux — ouvrir l'état des flux",
+    "lastPoll": "Dernière interrogation : {status}",
+    "neverPolled": "jamais interrogé",
+    "unknown": "inconnu",
+    "feedUnhealthy": "{name} : flux défaillant",
+    "lastPollStatus": "Statut de la dernière interrogation : {status}",
+    "feedRecovered": "{name} : flux rétabli",
+    "backendUnreachable": "Impossible de joindre le backend"
+  },
+  "state": {
+    "loadingData": "Chargement des données",
+    "nothingYet": "Rien à afficher pour l'instant",
+    "unavailable": "Ces données sont indisponibles",
+    "loadingPage": "Chargement de la page"
+  },
+  "poll": {
+    "resume": "Reprendre les mises à jour en direct",
+    "pause": "Suspendre les mises à jour en direct",
+    "paused": "En pause",
+    "live": "En direct",
+    "justNow": "à l'instant",
+    "secondsAgo": "il y a {count} s",
+    "minutesAgo": "il y a {count} min"
+  },
+  "noRealtime": {
+    "title": "Aucune source temps réel pour ce flux",
+    "body": "{name} n'a pas de flux AVL associé, donc {what} n'est pas disponible. Explorez plutôt les données GTFS statiques.",
+    "thisFeed": "Ce flux",
+    "liveVehicleData": "les données des véhicules en direct",
+    "explore": "Explorer le flux"
+  },
+  "filters": {
+    "allAgencies": "Toutes les agences",
+    "allTypes": "Tous les types",
+    "fromTime": "Heure de début",
+    "toTime": "Heure de fin",
+    "time": {
+      "all": "Toute la journée",
+      "early": "Tôt",
+      "am": "Pointe du matin",
+      "midday": "Midi",
+      "pm": "Pointe du soir",
+      "evening": "Soirée",
+      "late": "Tard (24h+)"
+    }
   }
 }

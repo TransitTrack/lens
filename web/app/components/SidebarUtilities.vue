@@ -37,7 +37,7 @@ onBeforeUnmount(() => {
     <time
       :datetime="currentTime.toISOString()"
       class="min-w-0 leading-tight"
-      aria-label="Current local time"
+      :aria-label="$t('nav.currentLocalTime')"
     >
       <span
         class="block text-3xl tracking-tighter leading-tight font-semibold tabular-nums text-highlighted"

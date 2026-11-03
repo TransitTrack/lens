@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import {useRouteTypeFilter} from '~/composables/useRouteTypeFilter'
 
+const { t } = useI18n()
 const {types, hasMultiple, typeId, setType} = useRouteTypeFilter()
 
 const items = computed(() => [
-  {label: 'All types', value: null},
-  ...types.value.map((t) => ({label: `${t.label} (${t.count})`, value: String(t.type)})),
+  {label: t('filters.allTypes'), value: null},
+  ...types.value.map((rt) => ({label: `${rt.label} (${rt.count})`, value: String(rt.type)})),
 ])
 </script>
 

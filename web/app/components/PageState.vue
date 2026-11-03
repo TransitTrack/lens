@@ -13,11 +13,13 @@ withDefaults(
   },
 )
 
-const defaults = {
-  loading: { title: 'Loading data', icon: 'i-lucide-loader-circle' },
-  empty: { title: 'Nothing to show yet', icon: 'i-lucide-inbox' },
-  error: { title: 'This data is unavailable', icon: 'i-lucide-triangle-alert' },
-}
+const { t } = useI18n()
+
+const defaults = computed(() => ({
+  loading: { title: t('state.loadingData'), icon: 'i-lucide-loader-circle' },
+  empty: { title: t('state.nothingYet'), icon: 'i-lucide-inbox' },
+  error: { title: t('state.unavailable'), icon: 'i-lucide-triangle-alert' },
+}))
 </script>
 
 <template>

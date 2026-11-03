@@ -12,10 +12,10 @@ const { isLoading } = useLoadingIndicator({
       class="pointer-events-none fixed top-3 left-1/2 z-60 -translate-x-1/2 border border-default bg-default p-2 shadow-lg"
       role="status"
       aria-live="polite"
-      aria-label="Loading page"
+      :aria-label="$t('state.loadingPage')"
     >
       <UIcon name="i-lucide-globe-2" class="size-5 animate-spin text-primary" />
-      <span class="sr-only">Loading page</span>
+      <span class="sr-only">{{ $t('state.loadingPage') }}</span>
     </div>
   </Transition>
 </template>

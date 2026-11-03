@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import {useAgencyFilter} from '~/composables/useAgencyFilter'
 
+const { t } = useI18n()
 const {agencies, hasMultiple, agencyId, setAgency} = useAgencyFilter()
 
 const items = computed(() => [
-  {label: 'All agencies', value: null},
+  {label: t('filters.allAgencies'), value: null},
   ...agencies.value.map((a) => ({label: a.agencyName ?? a.agencyId ?? '—', value: a.agencyId})),
 ])
 </script>

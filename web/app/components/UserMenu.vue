@@ -16,7 +16,7 @@ const identityOpen = ref(false)
 const identityInput = ref('')
 
 const avatar = { icon: 'i-lucide-user-round', size: 'sm' }
-const displayName = computed(() => editorName.value?.trim() || 'Operator')
+const displayName = computed(() => editorName.value?.trim() || t('userMenu.operator'))
 
 watch(identityOpen, (open) => {
   if (open) identityInput.value = editorName.value ?? ''
@@ -33,18 +33,18 @@ const items = computed<DropdownMenuItem[][]>(() => [
   [{ type: 'label', label: displayName.value, avatar }],
   [
     {
-      label: 'Editor identity',
+      label: t('userMenu.editorIdentity'),
       icon: 'i-lucide-user-round-pen',
       onSelect() {
         identityOpen.value = true
       },
     },
     {
-      label: 'Theme',
+      label: t('userMenu.theme'),
       icon: 'i-lucide-palette',
       children: [
         {
-          label: 'System',
+          label: t('userMenu.themeSystem'),
           icon: 'i-lucide-monitor',
           type: 'checkbox',
           checked: colorMode.preference === 'system',
@@ -54,7 +54,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
           },
         },
         {
-          label: 'Light',
+          label: t('userMenu.themeLight'),
           icon: 'i-lucide-sun',
           type: 'checkbox',
           checked: colorMode.preference === 'light',
@@ -64,7 +64,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
           },
         },
         {
-          label: 'Dark',
+          label: t('userMenu.themeDark'),
           icon: 'i-lucide-moon',
           type: 'checkbox',
           checked: colorMode.preference === 'dark',
@@ -89,7 +89,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
       })),
     },
     {
-      label: 'Sign out',
+      label: t('userMenu.signOut'),
       icon: 'i-lucide-log-out',
       onSelect() {
         signOut()
@@ -125,18 +125,18 @@ const items = computed<DropdownMenuItem[][]>(() => [
       <UAvatar :icon="avatar.icon" size="sm" />
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate text-sm font-medium text-highlighted">{{ displayName }}</span>
-        <span class="block truncate text-[10px] text-dimmed">Profile &amp; preferences</span>
+        <span class="block truncate text-[10px] text-dimmed">{{ $t('userMenu.profileAndPreferences') }}</span>
       </span>
       <UIcon name="i-lucide-chevrons-up-down" class="size-4 shrink-0 text-dimmed" />
     </UButton>
   </UDropdownMenu>
 
-  <UModal v-model:open="identityOpen" title="Editor identity">
+  <UModal v-model:open="identityOpen" :title="$t('userMenu.editorIdentity')">
     <template #body>
-      <p class="mb-3 text-sm text-muted">Shown on draft changes and schedule actions.</p>
+      <p class="mb-3 text-sm text-muted">{{ $t('userMenu.editorIdentityHelp') }}</p>
       <UInput
         v-model="identityInput"
-        placeholder="Your name"
+        :placeholder="$t('userMenu.namePlaceholder')"
         autofocus
         class="w-full"
         @keydown.enter="saveIdentity"
@@ -144,8 +144,8 @@ const items = computed<DropdownMenuItem[][]>(() => [
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" label="Cancel" @click="identityOpen = false" />
-        <UButton :disabled="!identityInput.trim()" label="Save identity" @click="saveIdentity" />
+        <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="identityOpen = false" />
+        <UButton :disabled="!identityInput.trim()" :label="$t('userMenu.saveIdentity')" @click="saveIdentity" />
       </div>
     </template>
   </UModal>

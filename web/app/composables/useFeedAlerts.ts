@@ -11,6 +11,7 @@ function isHealthy(status: string | null | undefined): boolean {
  */
 export function useFeedAlerts() {
   const toast = useToast()
+  const { t } = useI18n()
   const { result, error } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
 
   const unhealthy = new Set<string>()
@@ -25,15 +26,17 @@ export function useFeedAlerts() {
         if (!healthy && !unhealthy.has(feed.code)) {
           unhealthy.add(feed.code)
           toast.add({
-            title: `${feed.name}: feed unhealthy`,
-            description: `Last poll status: ${feed.lastPollStatus ?? 'unknown'}`,
+            title: t('notifications.feedUnhealthy', { name: feed.name }),
+            description: t('notifications.lastPollStatus', {
+              status: feed.lastPollStatus ?? t('notifications.unknown'),
+            }),
             color: 'warning',
             icon: 'i-lucide-triangle-alert',
           })
         } else if (healthy && unhealthy.has(feed.code)) {
           unhealthy.delete(feed.code)
           toast.add({
-            title: `${feed.name}: feed recovered`,
+            title: t('notifications.feedRecovered', { name: feed.name }),
             color: 'success',
             icon: 'i-lucide-check',
           })
@@ -47,7 +50,7 @@ export function useFeedAlerts() {
     if (err && !queryErrored) {
       queryErrored = true
       toast.add({
-        title: 'Cannot reach the backend',
+        title: t('notifications.backendUnreachable'),
         description: err.message,
         color: 'error',
         icon: 'i-lucide-wifi-off',

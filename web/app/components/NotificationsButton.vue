@@ -1,11 +1,12 @@
 <script setup lang="ts">
 const props = defineProps<{ count?: number }>()
+const { t } = useI18n()
 const { isNotificationsSlideoverOpen } = useDashboard()
 
 const label = computed(() =>
   props.count
-    ? `${props.count} feed ${props.count === 1 ? 'issue' : 'issues'} — open feed status`
-    : 'Open feed status',
+    ? t('notifications.openWithIssues', { count: props.count }, props.count)
+    : t('notifications.openFeedStatus'),
 )
 </script>
 

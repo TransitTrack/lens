@@ -3,9 +3,111 @@
     "save": "Zapisz",
     "cancel": "Anuluj",
     "loading": "Ładowanie",
-    "error": "Błąd"
+    "error": "Błąd",
+    "noFeedsConfigured": "Nie skonfigurowano żadnych źródeł danych."
+  },
+  "nav": {
+    "overview": "Przegląd",
+    "liveService": "Ruch na żywo",
+    "gtfs": "GTFS",
+    "changes": "Zmiany",
+    "reports": "Raporty",
+    "vehicles": "Pojazdy",
+    "headway": "Odstępy",
+    "avlHistory": "Historia AVL",
+    "adherenceByRoute": "Punktualność wg linii",
+    "routeAdherenceSummary": "Podsumowanie punktualności linii",
+    "adherenceByTrip": "Punktualność wg kursu",
+    "tripAdherenceSummary": "Podsumowanie punktualności kursów",
+    "adherenceByStop": "Punktualność wg przystanku",
+    "feed": "Źródło danych",
+    "routes": "Linie",
+    "stops": "Przystanki",
+    "trips": "Kursy",
+    "blocks": "Brygady",
+    "calendar": "Kalendarz",
+    "drafts": "Wersje robocze",
+    "compareRevisions": "Porównaj rewizje",
+    "optimization": "Optymalizacja",
+    "docs": "Dokumentacja",
+    "goTo": "Przejdź do",
+    "overviewAria": "Przegląd TransitTrack",
+    "searchAria": "Szukaj w TransitTrack",
+    "searchPlaceholder": "Szukaj linii, przystanków, kursów i dokumentacji…",
+    "currentLocalTime": "Aktualny czas lokalny",
+    "preparingFeed": "Przygotowywanie: {name}",
+    "feedFallback": "źródło danych",
+    "preparingDataset": "Przygotowywanie pierwszego zestawu danych. Przeglądanie zostanie odblokowane, gdy będzie gotowy.",
+    "loadingFeedStatus": "Ładowanie stanu źródła danych…"
   },
   "userMenu": {
-    "language": "Język"
+    "language": "Język",
+    "editorIdentity": "Tożsamość edytora",
+    "theme": "Motyw",
+    "themeSystem": "Systemowy",
+    "themeLight": "Jasny",
+    "themeDark": "Ciemny",
+    "signOut": "Wyloguj się",
+    "operator": "Operator",
+    "profileAndPreferences": "Profil i preferencje",
+    "editorIdentityHelp": "Wyświetlana przy zmianach w wersjach roboczych i działaniach na rozkładzie.",
+    "namePlaceholder": "Twoje imię i nazwisko",
+    "saveIdentity": "Zapisz tożsamość"
+  },
+  "feedSwitcher": {
+    "switchFeed": "Przełącz źródło danych",
+    "selectFeed": "Wybierz źródło danych",
+    "staticOnly": "tylko statyczne",
+    "realtimeHealthy": "czas rzeczywisty · sprawne",
+    "realtimeDegraded": "czas rzeczywisty · pogorszone"
+  },
+  "notifications": {
+    "title": "Stan źródeł danych",
+    "openFeedStatus": "Otwórz stan źródeł danych",
+    "openWithIssues": "{count} problem ze źródłem danych — otwórz stan źródeł danych | {count} problemy ze źródłami danych — otwórz stan źródeł danych | {count} problemów ze źródłami danych — otwórz stan źródeł danych",
+    "lastPoll": "Ostatnie odpytanie: {status}",
+    "neverPolled": "nigdy nie odpytywano",
+    "unknown": "nieznany",
+    "feedUnhealthy": "{name}: źródło danych niesprawne",
+    "lastPollStatus": "Stan ostatniego odpytania: {status}",
+    "feedRecovered": "{name}: źródło danych znów sprawne",
+    "backendUnreachable": "Nie można połączyć się z backendem"
+  },
+  "state": {
+    "loadingData": "Ładowanie danych",
+    "nothingYet": "Na razie nic do wyświetlenia",
+    "unavailable": "Te dane są niedostępne",
+    "loadingPage": "Ładowanie strony"
+  },
+  "poll": {
+    "resume": "Wznów aktualizacje na żywo",
+    "pause": "Wstrzymaj aktualizacje na żywo",
+    "paused": "Wstrzymano",
+    "live": "Na żywo",
+    "justNow": "przed chwilą",
+    "secondsAgo": "{count} s temu",
+    "minutesAgo": "{count} min temu"
+  },
+  "noRealtime": {
+    "title": "Brak źródła czasu rzeczywistego dla tego źródła danych",
+    "body": "{name} nie ma powiązanego źródła AVL, więc {what} jest niedostępne. Zamiast tego przeglądaj statyczne dane GTFS.",
+    "thisFeed": "To źródło danych",
+    "liveVehicleData": "dane pojazdów na żywo",
+    "explore": "Przeglądaj źródło danych"
+  },
+  "filters": {
+    "allAgencies": "Wszyscy przewoźnicy",
+    "allTypes": "Wszystkie typy",
+    "fromTime": "Od godziny",
+    "toTime": "Do godziny",
+    "time": {
+      "all": "Cały dzień",
+      "early": "Wcześnie",
+      "am": "Szczyt poranny",
+      "midday": "Południe",
+      "pm": "Szczyt popołudniowy",
+      "evening": "Wieczór",
+      "late": "Późno (24h+)"
+    }
   }
 }

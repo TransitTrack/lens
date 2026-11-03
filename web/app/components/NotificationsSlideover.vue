@@ -3,6 +3,7 @@ import { formatTimeAgo } from '@vueuse/core'
 import { useAvlFeedsQuery } from '../../generated/graphql'
 import { useDashboard } from '../composables/useDashboard'
 
+const { t } = useI18n()
 const { isNotificationsSlideoverOpen } = useDashboard()
 
 const { result } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
@@ -17,20 +18,20 @@ interface FeedNotification {
 
 const notifications = computed<FeedNotification[]>(() =>
   (result.value?.avlFeeds ?? []).map((f) => {
-    const status = f.lastPollStatus ?? 'never polled'
+    const status = f.lastPollStatus ?? t('notifications.neverPolled')
     return {
       code: f.code,
       name: f.name,
       status,
       date: f.lastPollAt ?? null,
-      healthy: /ok|success|healthy/i.test(status),
+      healthy: /ok|success|healthy/i.test(f.lastPollStatus ?? ''),
     }
   }),
 )
 </script>
 
 <template>
-  <USlideover v-model:open="isNotificationsSlideoverOpen" title="Feed status">
+  <USlideover v-model:open="isNotificationsSlideoverOpen" :title="$t('notifications.title')">
     <template #body>
       <NuxtLink
         v-for="n in notifications"
@@ -55,11 +56,11 @@ const notifications = computed<FeedNotification[]>(() =>
               v-text="formatTimeAgo(new Date(n.date))"
             />
           </p>
-          <p class="text-dimmed">Last poll: {{ n.status }}</p>
+          <p class="text-dimmed">{{ $t('notifications.lastPoll', { status: n.status }) }}</p>
         </div>
       </NuxtLink>
 
-      <p v-if="!notifications.length" class="p-3 text-sm text-muted">No feeds configured.</p>
+      <p v-if="!notifications.length" class="p-3 text-sm text-muted">{{ $t('common.noFeedsConfigured') }}</p>
     </template>
   </USlideover>
 </template>
