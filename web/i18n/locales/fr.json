@@ -818,5 +818,144 @@
       "dwell": "arrêt {seconds} s",
       "gtfsTime": "gtfs {time}"
     }
+  },
+  "reports": {
+    "adherence": {
+      "unscheduled": "Hors horaire",
+      "onTime": "À l'heure",
+      "minutesLate": "{n} min de retard",
+      "minutesEarly": "{n} min d'avance",
+      "notObserved": "Non observé"
+    },
+    "notAvailable": "n/d",
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{m} min",
+      "minutesSeconds": "{m} min {s} s"
+    },
+    "filters": {
+      "title": "Filtres du rapport",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "endBeforeStart": "La date de fin doit être égale ou postérieure à la date de début.",
+      "startTime": "Heure de début",
+      "endTime": "Heure de fin",
+      "endTimeBeforeStart": "L'heure de fin doit être postérieure à l'heure de début à la date sélectionnée.",
+      "run": "Lancer le rapport",
+      "loadingRoutes": "Chargement des lignes…",
+      "loadingStops": "Chargement des arrêts…",
+      "loadingVehicleHistory": "Chargement de l'historique des véhicules…",
+      "agencyTime": "Heure de l'agence : {zone}",
+      "routeOptional": "Ligne (facultatif)",
+      "allRoutes": "Toutes les lignes",
+      "selectRoute": "Sélectionner une ligne",
+      "selectStop": "Sélectionner un arrêt",
+      "selectTrip": "Sélectionner un voyage",
+      "selectVehicle": "Sélectionner un véhicule"
+    },
+    "error": {
+      "routes": "Impossible de charger les lignes",
+      "stops": "Impossible de charger les arrêts",
+      "adherence": "Impossible de charger le respect de l'horaire",
+      "vehicleHistory": "Impossible de charger l'historique des véhicules",
+      "avl": "Impossible de charger les rapports AVL"
+    },
+    "noRealtime": {
+      "adherence": "le suivi du respect de l'horaire",
+      "avl": "le reporting AVL",
+      "headway": "le suivi des intervalles"
+    },
+    "col": {
+      "serviceDate": "Date de service",
+      "sampleCount": "Nombre d'échantillons",
+      "meanAdherence": "Respect moyen de l'horaire",
+      "onTimePct": "% à l'heure",
+      "scheduledTime": "Heure prévue",
+      "observedTime": "Heure observée",
+      "arrival": "Arrivée",
+      "departure": "Départ",
+      "schedule": "Horaire",
+      "passengerCount": "Nombre de passagers",
+      "change": "Variation",
+      "busFilling": "Remplissage du bus",
+      "occupancyStatus": "Statut d'occupation",
+      "stopWithId": "{name}, ID : {id}",
+      "location": "Position",
+      "processingTime": "Heure de traitement",
+      "source": "Source",
+      "assignment": "Affectation"
+    },
+    "pagination": {
+      "showing": "Affichage de {start}–{end} sur {count} rapport | Affichage de {start}–{end} sur {count} rapports",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "routes": {
+      "title": "Respect de l'horaire pour toutes les lignes",
+      "description": "Respect moyen de l'horaire et taux de ponctualité par ligne sur une période",
+      "empty": "Aucune donnée de respect de l'horaire pour cette période."
+    },
+    "trips": {
+      "title": "Rapport de respect de l'horaire pour tous les voyages",
+      "description": "Respect moyen de l'horaire et taux de ponctualité par voyage, filtrables par ligne"
+    },
+    "route": {
+      "title": "Respect de l'horaire pour une ligne",
+      "description": "Respect de l'horaire à chaque arrêt pour chaque voyage d'une ligne sur une période",
+      "empty": "Aucune donnée de respect de l'horaire pour cette ligne et cette période."
+    },
+    "trip": {
+      "title": "Respect de l'horaire pour un voyage",
+      "description": "Respect de l'horaire à chaque arrêt pour un voyage, pour chaque date de service d'une période",
+      "empty": "Aucune donnée de respect de l'horaire pour ce voyage et cette période."
+    },
+    "stop": {
+      "title": "Respect de l'horaire pour un arrêt",
+      "description": "Respect de l'horaire à chaque passage à un arrêt sur une période",
+      "empty": "Aucune donnée de respect de l'horaire pour cet arrêt et cette période."
+    },
+    "avl": {
+      "title": "Rapport AVL",
+      "description": "Rapports AVL historiques d'un véhicule, à l'heure locale de l'agence sélectionnée",
+      "empty": "Aucun rapport AVL pour cette plage horaire."
+    },
+    "headway": {
+      "description": "Espacement en direct et fiabilité des arrivées à un arrêt sélectionné",
+      "analyseService": "Analyser le service",
+      "selectRoute": "Sélectionner une ligne",
+      "selectStop": "Sélectionner un arrêt",
+      "algorithm": "Algorithme",
+      "eitherDirection": "Les deux sens",
+      "chooseTitle": "Choisir un point de service",
+      "chooseBody": "Choisissez une ligne et un arrêt pour consulter l'espacement actuel, les écarts récents et les prochaines arrivées.",
+      "unavailable": "Intervalle indisponible",
+      "currentWait": "Attente actuelle",
+      "sinceLastArrival": "Depuis la dernière arrivée observée",
+      "scheduledHeadway": "Intervalle prévu",
+      "plannedInterval": "Intervalle de service prévu",
+      "spacingVariance": "Écart d'espacement",
+      "aboveSpacing": "Au-dessus de l'espacement prévu",
+      "againstSpacing": "Par rapport à l'espacement prévu",
+      "nextArrival": "Prochaine arrivée",
+      "recentGaps": "{count} écart récent échantillonné | {count} écarts récents échantillonnés",
+      "currentSpacing": "Espacement actuel",
+      "overHeadway": "Au-dessus de l'intervalle prévu ({pct}%)",
+      "underHeadway": "En dessous de l'intervalle prévu ({pct}%)",
+      "waiting": "En attente d'assez d'arrivées en direct pour comparer l'espacement.",
+      "gapsTitle": "Écarts récents entre les arrivées",
+      "noGaps": "Aucun écart enregistré pour l'instant.",
+      "referenceLabel": "intervalle prévu",
+      "gapHint": "Écart {gap}",
+      "gapHintScheduled": "Écart {gap} (prévu {scheduled})",
+      "upcoming": "Prochaines arrivées",
+      "upcomingBody": "Prévisions en temps réel pour la ligne et l'arrêt sélectionnés",
+      "arrivalsCount": "{count} arrivée | {count} arrivées",
+      "colAlgorithm": "Algorithme",
+      "colSpread": "Dispersion (1 écart type)",
+      "confidenceTitle": "Incertitude ±1σ de l'arrivée prévue : ±{sec} s",
+      "confidenceSmall": "Faible",
+      "confidenceMedium": "Moyenne",
+      "confidenceLarge": "Grande"
+    }
   }
 }

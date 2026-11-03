@@ -818,5 +818,144 @@
       "dwell": "dwell {seconds}s",
       "gtfsTime": "gtfs {time}"
     }
+  },
+  "reports": {
+    "adherence": {
+      "unscheduled": "Unscheduled",
+      "onTime": "On time",
+      "minutesLate": "{n}m late",
+      "minutesEarly": "{n}m early",
+      "notObserved": "Not observed"
+    },
+    "notAvailable": "n/a",
+    "duration": {
+      "seconds": "{n}s",
+      "minutes": "{m}m",
+      "minutesSeconds": "{m}m {s}s"
+    },
+    "filters": {
+      "title": "Report filters",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "endBeforeStart": "End date must be on or after the start date.",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "endTimeBeforeStart": "End time must be after start time on the selected date.",
+      "run": "Run report",
+      "loadingRoutes": "Loading routes…",
+      "loadingStops": "Loading stops…",
+      "loadingVehicleHistory": "Loading vehicle history…",
+      "agencyTime": "Agency time: {zone}",
+      "routeOptional": "Route (optional)",
+      "allRoutes": "All routes",
+      "selectRoute": "Select route",
+      "selectStop": "Select stop",
+      "selectTrip": "Select trip",
+      "selectVehicle": "Select vehicle"
+    },
+    "error": {
+      "routes": "Couldn't load routes",
+      "stops": "Couldn't load stops",
+      "adherence": "Couldn't load schedule adherence",
+      "vehicleHistory": "Couldn't load vehicle history",
+      "avl": "Couldn't load AVL reports"
+    },
+    "noRealtime": {
+      "adherence": "schedule adherence reports",
+      "avl": "AVL reports",
+      "headway": "headway analysis"
+    },
+    "col": {
+      "serviceDate": "Service date",
+      "sampleCount": "Sample count",
+      "meanAdherence": "Mean adherence",
+      "onTimePct": "On-time %",
+      "scheduledTime": "Scheduled time",
+      "observedTime": "Observed time",
+      "arrival": "Arrival",
+      "departure": "Departure",
+      "schedule": "Schedule",
+      "passengerCount": "Passenger count",
+      "change": "Change",
+      "busFilling": "Bus filling",
+      "occupancyStatus": "Occupancy Status",
+      "stopWithId": "{name}, Id: {id}",
+      "location": "Location",
+      "processingTime": "Processing time",
+      "source": "Source",
+      "assignment": "Assignment"
+    },
+    "pagination": {
+      "showing": "Showing {start}–{end} of {count} reports | Showing {start}–{end} of {count} reports",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "routes": {
+      "title": "Schedule Adherence for all Routes",
+      "description": "Mean adherence and on-time rate per route over a date range",
+      "empty": "No schedule adherence data for this date range."
+    },
+    "trips": {
+      "title": "Schedule Adherence Report for all Trips",
+      "description": "Mean adherence and on-time rate per trip, optionally filtered by route"
+    },
+    "route": {
+      "title": "Schedule Adherence for a Route",
+      "description": "Per-stop adherence for every trip on a route over a date range",
+      "empty": "No schedule adherence data for this route and date range."
+    },
+    "trip": {
+      "title": "Schedule Adherence for a Trip",
+      "description": "Per-stop adherence for one trip across every service date in a date range",
+      "empty": "No schedule adherence data for this trip and date range."
+    },
+    "stop": {
+      "title": "Schedule Adherence for a Stop",
+      "description": "Per-visit adherence for one stop across a date range",
+      "empty": "No schedule adherence data for this stop and date range."
+    },
+    "avl": {
+      "title": "AVL report",
+      "description": "Historical AVL reports for one vehicle in the selected agency's local time",
+      "empty": "No AVL reports match this time range."
+    },
+    "headway": {
+      "description": "Live spacing and arrival reliability at a selected stop",
+      "analyseService": "Analyse service",
+      "selectRoute": "Select a route",
+      "selectStop": "Select a stop",
+      "algorithm": "Algorithm",
+      "eitherDirection": "Either direction",
+      "chooseTitle": "Choose a service point",
+      "chooseBody": "Pick a route and stop to review current spacing, recent gaps, and upcoming arrivals.",
+      "unavailable": "Headway unavailable",
+      "currentWait": "Current wait",
+      "sinceLastArrival": "Since the last observed arrival",
+      "scheduledHeadway": "Scheduled headway",
+      "plannedInterval": "Planned service interval",
+      "spacingVariance": "Spacing variance",
+      "aboveSpacing": "Above planned spacing",
+      "againstSpacing": "Against planned spacing",
+      "nextArrival": "Next arrival",
+      "recentGaps": "{count} recent gap sampled | {count} recent gaps sampled",
+      "currentSpacing": "Current spacing",
+      "overHeadway": "Over scheduled headway ({pct}%)",
+      "underHeadway": "Under scheduled headway ({pct}%)",
+      "waiting": "Waiting for enough live arrivals to compare spacing.",
+      "gapsTitle": "Recent gaps between arrivals",
+      "noGaps": "No gaps recorded yet.",
+      "referenceLabel": "scheduled headway",
+      "gapHint": "Gap {gap}",
+      "gapHintScheduled": "Gap {gap} (scheduled {scheduled})",
+      "upcoming": "Upcoming arrivals",
+      "upcomingBody": "Realtime predictions for the selected route and stop",
+      "arrivalsCount": "{count} arrivals | {count} arrivals",
+      "colAlgorithm": "Algorithm",
+      "colSpread": "Spread (1 SD)",
+      "confidenceTitle": "±1σ uncertainty of the predicted arrival: ±{sec}s",
+      "confidenceSmall": "Small",
+      "confidenceMedium": "Medium",
+      "confidenceLarge": "Large"
+    }
   }
 }

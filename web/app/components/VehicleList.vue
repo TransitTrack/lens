@@ -50,7 +50,7 @@ watch(
 )
 
 function adherenceDotClass(vehicle: VehicleRow) {
-  const color = adherenceBadge(vehicle.scheduleAdherenceSec).color
+  const color = adherenceBadge(vehicle.scheduleAdherenceSec, t).color
   return {
     'bg-error': color === 'error',
     'bg-warning': color === 'warning',
@@ -60,7 +60,7 @@ function adherenceDotClass(vehicle: VehicleRow) {
 }
 
 function adherenceTextClass(vehicle: VehicleRow) {
-  const color = adherenceBadge(vehicle.scheduleAdherenceSec).color
+  const color = adherenceBadge(vehicle.scheduleAdherenceSec, t).color
   return {
     'text-error': color === 'error',
     'text-warning': color === 'warning',
@@ -277,7 +277,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
 
       <div class="flex flex-col items-end gap-0.5">
         <span class="text-sm font-medium tabular-nums" :class="adherenceTextClass(vehicle)">
-          {{ formatAdherence(vehicle.scheduleAdherenceSec) }}
+          {{ formatAdherence(vehicle.scheduleAdherenceSec, t) }}
         </span>
         <span class="text-xs text-dimmed">{{ units.speed(vehicle.speedMps) }}</span>
       </div>

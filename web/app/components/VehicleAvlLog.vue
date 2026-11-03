@@ -105,7 +105,7 @@ const columns = computed<TableColumn<AvlLogRow>[]>(() => [
     header: t('vehicles.field.adherence'),
     cell: ({ row }) => {
       if (!row.original.match) return '—'
-      const badge = adherenceBadge(row.original.match.scheduleAdherenceSec)
+      const badge = adherenceBadge(row.original.match.scheduleAdherenceSec, t)
       return h(resolveComponent('UBadge'), { color: badge.color, variant: 'subtle' }, () => badge.label)
     },
   },

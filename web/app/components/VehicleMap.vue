@@ -330,7 +330,7 @@ watch(
 )
 
 function badge(v: VehicleRow) {
-  return adherenceBadge(v.scheduleAdherenceSec)
+  return adherenceBadge(v.scheduleAdherenceSec, t)
 }
 
 // A fleet of ~150 `MglMarker`s is 150 real Vue components + DOM nodes, all

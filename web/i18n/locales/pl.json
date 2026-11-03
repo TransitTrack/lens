@@ -818,5 +818,144 @@
       "dwell": "postój {seconds} s",
       "gtfsTime": "gtfs {time}"
     }
+  },
+  "reports": {
+    "adherence": {
+      "unscheduled": "Poza rozkładem",
+      "onTime": "Punktualnie",
+      "minutesLate": "{n} min opóźnienia",
+      "minutesEarly": "{n} min przed czasem",
+      "notObserved": "Nie zaobserwowano"
+    },
+    "notAvailable": "b/d",
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{m} min",
+      "minutesSeconds": "{m} min {s} s"
+    },
+    "filters": {
+      "title": "Filtry raportu",
+      "startDate": "Data początkowa",
+      "endDate": "Data końcowa",
+      "endBeforeStart": "Data końcowa nie może być wcześniejsza niż data początkowa.",
+      "startTime": "Godzina początkowa",
+      "endTime": "Godzina końcowa",
+      "endTimeBeforeStart": "Godzina końcowa musi być późniejsza niż początkowa w wybranym dniu.",
+      "run": "Uruchom raport",
+      "loadingRoutes": "Ładowanie linii…",
+      "loadingStops": "Ładowanie przystanków…",
+      "loadingVehicleHistory": "Ładowanie historii pojazdów…",
+      "agencyTime": "Czas przewoźnika: {zone}",
+      "routeOptional": "Linia (opcjonalnie)",
+      "allRoutes": "Wszystkie linie",
+      "selectRoute": "Wybierz linię",
+      "selectStop": "Wybierz przystanek",
+      "selectTrip": "Wybierz kurs",
+      "selectVehicle": "Wybierz pojazd"
+    },
+    "error": {
+      "routes": "Nie udało się załadować linii",
+      "stops": "Nie udało się załadować przystanków",
+      "adherence": "Nie udało się załadować punktualności rozkładowej",
+      "vehicleHistory": "Nie udało się załadować historii pojazdów",
+      "avl": "Nie udało się załadować raportów AVL"
+    },
+    "noRealtime": {
+      "adherence": "raportowanie punktualności",
+      "avl": "raportowanie AVL",
+      "headway": "analizowanie odstępów"
+    },
+    "col": {
+      "serviceDate": "Dzień kursowania",
+      "sampleCount": "Liczba próbek",
+      "meanAdherence": "Średnia punktualność",
+      "onTimePct": "% punktualnych",
+      "scheduledTime": "Godzina rozkładowa",
+      "observedTime": "Godzina zaobserwowana",
+      "arrival": "Przyjazd",
+      "departure": "Odjazd",
+      "schedule": "Rozkład",
+      "passengerCount": "Liczba pasażerów",
+      "change": "Zmiana",
+      "busFilling": "Zapełnienie autobusu",
+      "occupancyStatus": "Stan zapełnienia",
+      "stopWithId": "{name}, ID: {id}",
+      "location": "Lokalizacja",
+      "processingTime": "Czas przetwarzania",
+      "source": "Źródło",
+      "assignment": "Przypisanie"
+    },
+    "pagination": {
+      "showing": "Pokazano {start}–{end} z {count} raportu | Pokazano {start}–{end} z {count} raportów | Pokazano {start}–{end} z {count} raportów",
+      "previous": "Poprzednia",
+      "next": "Następna"
+    },
+    "routes": {
+      "title": "Punktualność rozkładowa dla wszystkich linii",
+      "description": "Średnia punktualność i odsetek punktualnych przejazdów na linię w wybranym zakresie dat",
+      "empty": "Brak danych o punktualności rozkładowej dla tego zakresu dat."
+    },
+    "trips": {
+      "title": "Raport punktualności rozkładowej dla wszystkich kursów",
+      "description": "Średnia punktualność i odsetek punktualnych przejazdów na kurs, opcjonalnie filtrowane według linii"
+    },
+    "route": {
+      "title": "Punktualność rozkładowa dla linii",
+      "description": "Punktualność na każdym przystanku dla każdego kursu linii w wybranym zakresie dat",
+      "empty": "Brak danych o punktualności rozkładowej dla tej linii i zakresu dat."
+    },
+    "trip": {
+      "title": "Punktualność rozkładowa dla kursu",
+      "description": "Punktualność na każdym przystanku dla jednego kursu we wszystkich dniach kursowania z wybranego zakresu dat",
+      "empty": "Brak danych o punktualności rozkładowej dla tego kursu i zakresu dat."
+    },
+    "stop": {
+      "title": "Punktualność rozkładowa dla przystanku",
+      "description": "Punktualność przy każdym postoju na jednym przystanku w wybranym zakresie dat",
+      "empty": "Brak danych o punktualności rozkładowej dla tego przystanku i zakresu dat."
+    },
+    "avl": {
+      "title": "Raport AVL",
+      "description": "Historyczne raporty AVL jednego pojazdu w czasie lokalnym wybranego przewoźnika",
+      "empty": "Brak raportów AVL w tym przedziale czasu."
+    },
+    "headway": {
+      "description": "Bieżące odstępy i niezawodność przyjazdów na wybranym przystanku",
+      "analyseService": "Analizuj usługę",
+      "selectRoute": "Wybierz linię",
+      "selectStop": "Wybierz przystanek",
+      "algorithm": "Algorytm",
+      "eitherDirection": "Dowolny kierunek",
+      "chooseTitle": "Wybierz punkt obsługi",
+      "chooseBody": "Wybierz linię i przystanek, aby zobaczyć bieżące odstępy, ostatnie przerwy i nadchodzące przyjazdy.",
+      "unavailable": "Odstępy niedostępne",
+      "currentWait": "Bieżące oczekiwanie",
+      "sinceLastArrival": "Od ostatniego zaobserwowanego przyjazdu",
+      "scheduledHeadway": "Odstęp rozkładowy",
+      "plannedInterval": "Planowany odstęp między kursami",
+      "spacingVariance": "Odchylenie odstępu",
+      "aboveSpacing": "Powyżej planowanego odstępu",
+      "againstSpacing": "W stosunku do planowanego odstępu",
+      "nextArrival": "Następny przyjazd",
+      "recentGaps": "Próbka: {count} ostatnia przerwa | Próbka: {count} ostatnie przerwy | Próbka: {count} ostatnich przerw",
+      "currentSpacing": "Bieżący odstęp",
+      "overHeadway": "Powyżej odstępu rozkładowego ({pct}%)",
+      "underHeadway": "Poniżej odstępu rozkładowego ({pct}%)",
+      "waiting": "Oczekiwanie na wystarczającą liczbę przyjazdów na żywo, aby porównać odstępy.",
+      "gapsTitle": "Ostatnie przerwy między przyjazdami",
+      "noGaps": "Nie zarejestrowano jeszcze żadnych przerw.",
+      "referenceLabel": "odstęp rozkładowy",
+      "gapHint": "Przerwa {gap}",
+      "gapHintScheduled": "Przerwa {gap} (rozkładowo {scheduled})",
+      "upcoming": "Nadchodzące przyjazdy",
+      "upcomingBody": "Prognozy czasu rzeczywistego dla wybranej linii i przystanku",
+      "arrivalsCount": "{count} przyjazd | {count} przyjazdy | {count} przyjazdów",
+      "colAlgorithm": "Algorytm",
+      "colSpread": "Rozrzut (1 SD)",
+      "confidenceTitle": "Niepewność ±1σ przewidywanego przyjazdu: ±{sec} s",
+      "confidenceSmall": "Mała",
+      "confidenceMedium": "Średnia",
+      "confidenceLarge": "Duża"
+    }
   }
 }

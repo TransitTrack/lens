@@ -313,7 +313,7 @@ function signedSec(sec: number | null): string {
 }
 
 function adherenceTextClass(sec: number | null): string {
-  switch (adherenceBadge(sec).color) {
+  switch (adherenceBadge(sec, t).color) {
     case 'error':
       return 'text-error'
     case 'warning':
@@ -443,10 +443,10 @@ function adherenceTextClass(sec: number | null): string {
                   {{ vehicle.trip.route.routeShortName }}
                 </UBadge>
                 <UBadge
-                  :color="adherenceBadge(vehicle.scheduleAdherenceSec).color"
+                  :color="adherenceBadge(vehicle.scheduleAdherenceSec, t).color"
                   variant="subtle"
                 >
-                  {{ adherenceBadge(vehicle.scheduleAdherenceSec).label }}
+                  {{ adherenceBadge(vehicle.scheduleAdherenceSec, t).label }}
                 </UBadge>
                 <UBadge v-if="vehicle.stale" color="warning" variant="subtle">{{
                   t('vehicles.detail.stale')
@@ -492,9 +492,9 @@ function adherenceTextClass(sec: number | null): string {
                 zero-baseline
                 :height="30"
                 :color="
-                  adherenceBadge(vehicle.scheduleAdherenceSec).color === 'error'
+                  adherenceBadge(vehicle.scheduleAdherenceSec, t).color === 'error'
                     ? '#ef4444'
-                    : adherenceBadge(vehicle.scheduleAdherenceSec).color === 'warning'
+                    : adherenceBadge(vehicle.scheduleAdherenceSec, t).color === 'warning'
                       ? '#f59e0b'
                       : '#22c55e'
                 "

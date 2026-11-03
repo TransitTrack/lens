@@ -11,8 +11,11 @@ export function isValidReportRange(date: string, startTime: string, endTime: str
   return /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(startTime) && startTime < endTime
 }
 
-export function assignmentLabel(report: ReportAssignment): string {
-  return report.match?.trip?.tripId ?? report.descTripId ?? 'n/a'
+export function assignmentLabel(
+  report: ReportAssignment,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): string {
+  return report.match?.trip?.tripId ?? report.descTripId ?? t('reports.notAvailable')
 }
 
 export function formatReportTimestamp(iso: string, timeZone: string): string {

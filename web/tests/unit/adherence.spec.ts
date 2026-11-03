@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { adherenceBadge, formatAdherence } from '../../app/utils/adherence'
+import { createI18n } from 'vue-i18n'
+import en from '../../i18n/locales/en.json'
+import { adherenceBadge as badgeWith, formatAdherence as formatWith } from '../../app/utils/adherence'
+
+const { t } = createI18n({ legacy: false, locale: 'en', messages: { en } }).global
+const adherenceBadge = (sec: number | null | undefined) => badgeWith(sec, t)
+const formatAdherence = (sec: number | null | undefined) => formatWith(sec, t)
 
 describe('adherenceBadge', () => {
   it('null/undefined -> neutral Unscheduled', () => {
