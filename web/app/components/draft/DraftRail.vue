@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
 import type {DraftGridQuery} from '~~/generated/graphql'
 import type {useDraftEditor} from '~/composables/useDraftEditor'
 import DraftTripPanel from '~/components/draft/DraftTripPanel.vue'
@@ -7,6 +7,8 @@ import DraftHistoryPanel from '~/components/draft/DraftHistoryPanel.vue'
 import DraftValidationPanel from '~/components/draft/DraftValidationPanel.vue'
 
 type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
+
+const { t } = useI18n()
 
 const props = defineProps<{
   draftId: string
@@ -52,11 +54,11 @@ watch(
   },
 )
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  {id: 'trip', label: 'Trip', icon: 'i-lucide-info'},
-  {id: 'history', label: 'History', icon: 'i-lucide-history'},
-  {id: 'validation', label: 'Validation', icon: 'i-lucide-triangle-alert'},
-]
+const tabs = computed<{ id: Tab; label: string; icon: string }[]>(() => [
+  {id: 'trip', label: t('explore.col.trip'), icon: 'i-lucide-info'},
+  {id: 'history', label: t('drafts.tabHistory'), icon: 'i-lucide-history'},
+  {id: 'validation', label: t('drafts.col.validation'), icon: 'i-lucide-triangle-alert'},
+])
 </script>
 
 <template>
@@ -68,7 +70,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
         color="neutral"
         variant="ghost"
         icon="i-lucide-info"
-        :aria-label="'Trip'"
+        :aria-label="$t('explore.col.trip')"
         @click="reveal('trip')"
       />
       <UChip :show="undoneCount > 0" :text="undoneCount" color="neutral">
@@ -77,7 +79,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
           color="neutral"
           variant="ghost"
           icon="i-lucide-history"
-          :aria-label="'History'"
+          :aria-label="$t('drafts.tabHistory')"
           @click="reveal('history')"
         />
       </UChip>
@@ -87,7 +89,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
           color="neutral"
           variant="ghost"
           icon="i-lucide-triangle-alert"
-          :aria-label="'Validation'"
+          :aria-label="$t('drafts.col.validation')"
           @click="reveal('validation')"
         />
       </UChip>
@@ -98,15 +100,15 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
       <div class="flex items-center justify-between border-b border-default px-1 py-1">
         <div class="flex gap-0.5">
           <UButton
-            v-for="t in tabs"
-            :key="t.id"
+            v-for="item in tabs"
+            :key="item.id"
             size="xs"
-            :color="tab === t.id ? 'primary' : 'neutral'"
-            :variant="tab === t.id ? 'soft' : 'ghost'"
-            :icon="t.icon"
-            :label="t.label"
+            :color="tab === item.id ? 'primary' : 'neutral'"
+            :variant="tab === item.id ? 'soft' : 'ghost'"
+            :icon="item.icon"
+            :label="item.label"
             :ui="{ label: 'text-xs' }"
-            @click="tab = t.id"
+            @click="tab = item.id"
           />
         </div>
         <UButton
@@ -114,7 +116,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
           color="neutral"
           variant="ghost"
           icon="i-lucide-x"
-          aria-label="Collapse"
+          :aria-label="$t('drafts.collapse')"
           @click="emit('collapse')"
         />
       </div>
@@ -136,7 +138,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
             @duplicate="(id) => emit('duplicate', id)"
             @deleted="(id) => emit('deleted', id)"
           />
-          <p v-else class="p-3 text-xs text-muted">Select a trip to inspect it.</p>
+          <p v-else class="p-3 text-xs text-muted">{{ $t('drafts.selectTrip') }}</p>
         </template>
 
         <DraftHistoryPanel

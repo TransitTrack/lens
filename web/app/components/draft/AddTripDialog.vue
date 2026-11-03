@@ -175,90 +175,90 @@ async function submit() {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Add trip">
+  <UModal v-model:open="open" :title="$t('drafts.addTrip')">
     <template #body>
       <div class="flex flex-col gap-3">
         <div class="flex gap-2">
           <UButton
             :color="mode === 'new' ? 'primary' : 'neutral'"
             :variant="mode === 'new' ? 'soft' : 'ghost'"
-            label="New"
+            :label="$t('drafts.modeNew')"
             :disabled="derivationStale"
             @click="mode = 'new'"
           />
           <UButton
             :color="mode === 'duplicate' ? 'primary' : 'neutral'"
             :variant="mode === 'duplicate' ? 'soft' : 'ghost'"
-            label="Duplicate"
+            :label="$t('drafts.duplicate')"
             @click="mode = 'duplicate'"
           />
         </div>
 
         <template v-if="mode === 'duplicate'">
-          <UFormField label="Source trip">
+          <UFormField :label="$t('drafts.sourceTrip')">
             <USelectMenu
               v-model="sourceTripId"
               :items="tripItems"
               value-key="value"
-              placeholder="Pick a trip"
+              :placeholder="$t('drafts.pickTrip')"
               class="w-full"
             />
           </UFormField>
           <UFormField
-            label="Offset"
-            :error="offsetInvalid ? 'Enter a signed delta: +30m, -90, +1:30' : undefined"
+            :label="$t('drafts.offset')"
+            :error="offsetInvalid ? $t('drafts.deltaHintAdd') : undefined"
           >
             <UInput
               v-model="offsetRaw"
-              placeholder="e.g. +30m"
+              :placeholder="$t('drafts.example', { value: '+30m' })"
               :color="offsetInvalid ? 'error' : undefined"
               class="w-full"
             />
           </UFormField>
-          <UFormField label="New trip id" hint="optional">
-            <UInput v-model="newTripId" placeholder="auto" class="w-full"/>
+          <UFormField :label="$t('drafts.newTripId')" :hint="$t('drafts.optional')">
+            <UInput v-model="newTripId" :placeholder="$t('drafts.auto')" class="w-full"/>
           </UFormField>
         </template>
 
         <template v-else>
           <p v-if="derivationStale" class="text-sm text-warning">
-            Rebuild the draft first to add a trip from a pattern.
+            {{ $t('drafts.rebuildFirstAdd') }}
           </p>
           <template v-else>
-            <UFormField label="Pattern">
+            <UFormField :label="$t('explore.routes.pattern')">
               <USelectMenu
                 v-model="patternKey"
                 :items="patternItems"
                 value-key="value"
-                placeholder="Pick a pattern"
+                :placeholder="$t('drafts.pickPattern')"
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="Service">
+            <UFormField :label="$t('explore.col.service')">
               <USelectMenu
                 v-model="serviceSel"
                 :items="serviceItems ?? []"
                 value-key="value"
-                placeholder="Pick a service"
+                :placeholder="$t('drafts.pickService')"
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="Base departure">
-              <UInput v-model="baseRaw" placeholder="e.g. 06:15" class="w-full"/>
+            <UFormField :label="$t('drafts.baseDeparture')">
+              <UInput v-model="baseRaw" :placeholder="$t('drafts.example', { value: '06:15' })" class="w-full"/>
             </UFormField>
             <div class="grid grid-cols-3 gap-2">
-              <UFormField label="Headsign" hint="opt">
+              <UFormField :label="$t('explore.col.headsign')" :hint="$t('drafts.optionalShort')">
                 <UInput v-model="headsign" class="w-full"/>
               </UFormField>
-              <UFormField label="Direction" hint="opt">
+              <UFormField :label="$t('vehicles.detail.fact.direction')" :hint="$t('drafts.optionalShort')">
                 <UInput v-model.number="directionRaw" type="number" class="w-full"/>
               </UFormField>
-              <UFormField label="Block" hint="opt">
+              <UFormField :label="$t('explore.col.block')" :hint="$t('drafts.optionalShort')">
                 <UInput v-model="blockId" class="w-full"/>
               </UFormField>
             </div>
             <p v-if="selectedPattern && patternHasUnknownTimes" class="text-xs text-warning">
-              Some segment times unknown — verify after adding.
+              {{ $t('drafts.unknownTimes') }}
             </p>
           </template>
         </template>
@@ -266,11 +266,11 @@ async function submit() {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false"/>
+        <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="open = false"/>
         <UButton
           :loading="submitting"
           :disabled="!canSubmit"
-          :label="mode === 'duplicate' ? 'Duplicate trip' : 'Add trip'"
+          :label="mode === 'duplicate' ? $t('drafts.duplicateTrip') : $t('drafts.addTrip')"
           @click="submit"
         />
       </div>

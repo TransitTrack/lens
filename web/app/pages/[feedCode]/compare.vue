@@ -9,6 +9,7 @@ import CompareHeadwaySummary from '~/components/compare/CompareHeadwaySummary.vu
 import { gtfsDate } from '~/utils/gtfs'
 
 const { selectedFeedCode } = useFeeds()
+const { t, te } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -47,18 +48,26 @@ const { result: draftsResult } = useDraftsQuery(
   () => ({ enabled: !!selectedFeedCode.value }),
 )
 
+// i18n-keys: feed.dataset.statusValue.*
+function statusLabel(status: string): string {
+  const key = `feed.dataset.statusValue.${status}`
+  return te(key) ? t(key) : status
+}
+
 interface RevisionOption {
   label: string
   value: string
 }
 const revisionOptions = computed<RevisionOption[]>(() => {
   const draftLabels = new Map(
-    (draftsResult.value?.drafts ?? []).map((d) => [d.id, d.label ?? `(untitled) v${d.version}`]),
+    (draftsResult.value?.drafts ?? []).map((d) => [d.id, d.label ?? t('compare.untitledVersion', { version: d.version })]),
   )
   return (revisionsResult.value?.revisions ?? []).map((r) => {
     const label = draftLabels.get(r.id)
     return {
-      label: label ? `${label} (#${r.id})` : `${r.status} · ${gtfsDate(r.createdAt)} (#${r.id})`,
+      label: label
+        ? t('compare.revisionWithLabel', { label, id: r.id })
+        : t('compare.revisionWithStatus', { status: statusLabel(r.status), date: gtfsDate(r.createdAt), id: r.id }),
       value: r.id,
     }
   })
@@ -81,14 +90,14 @@ const comparison = computed(() => result.value?.compareRevisions ?? null)
 </script>
 
 <template>
-  <AppPage title="Compare revisions">
+  <AppPage :title="$t('nav.compareRevisions')">
     <template #toolbar>
       <div class="flex flex-wrap items-center gap-2 py-2">
         <USelectMenu
           v-model="fromId"
           :items="revisionOptions"
           value-key="value"
-          placeholder="From revision"
+          :placeholder="$t('compare.fromRevision')"
           class="w-56"
         />
         <UIcon name="i-lucide-arrow-right" class="text-dimmed" />
@@ -96,52 +105,51 @@ const comparison = computed(() => result.value?.compareRevisions ?? null)
           v-model="toId"
           :items="revisionOptions"
           value-key="value"
-          placeholder="To revision"
+          :placeholder="$t('compare.toRevision')"
           class="w-56"
         />
-        <UInput v-model="routeFilter" placeholder="Route id (optional)" class="w-40" />
+        <UInput v-model="routeFilter" :placeholder="$t('compare.routeIdOptional')" class="w-40" />
         <UInput
           :model-value="dirFilter == null ? '' : String(dirFilter)"
-          placeholder="Direction (optional)"
+          :placeholder="$t('compare.directionOptional')"
           class="w-32"
           @update:model-value="(v: string) => (dirFilter = v === '' ? null : Number(v))"
         />
-        <UInput v-model="serviceFilter" placeholder="Service id (optional)" class="w-40" />
+        <UInput v-model="serviceFilter" :placeholder="$t('compare.serviceIdOptional')" class="w-40" />
       </div>
     </template>
 
     <PageState
       v-if="!fromId || !toId"
       state="empty"
-      title="Choose two revisions"
-      description="Select a source and destination revision to review schedule changes."
+      :title="$t('compare.chooseTitle')"
+      :description="$t('compare.chooseBody')"
       icon="i-lucide-git-compare"
     />
 
-    <PageState v-else-if="loading" state="loading" title="Comparing revisions" />
+    <PageState v-else-if="loading" state="loading" :title="$t('compare.comparing')" />
 
     <PageState
       v-else-if="error"
       state="error"
-      title="Comparison unavailable"
+      :title="$t('compare.unavailable')"
       :description="error.message"
     />
 
     <div v-else-if="comparison" class="flex flex-col gap-6 py-6">
       <div class="flex flex-wrap gap-2">
         <UBadge color="neutral" variant="soft">
-          {{ comparison.tripChangeCount }} trip{{ comparison.tripChangeCount === 1 ? '' : 's' }} changed
+          {{ $t('compare.tripsChanged', { count: comparison.tripChangeCount }, comparison.tripChangeCount) }}
         </UBadge>
         <UBadge color="neutral" variant="soft">
-          {{ comparison.calendarChanges.length }} calendar{{ comparison.calendarChanges.length === 1 ? '' : 's' }} changed
+          {{ $t('compare.calendarsChanged', { count: comparison.calendarChanges.length }, comparison.calendarChanges.length) }}
         </UBadge>
         <UBadge
           v-if="comparison.fromDerivationStale || comparison.toDerivationStale"
           color="warning"
           variant="subtle"
         >
-          rebuild {{ comparison.fromDerivationStale && comparison.toDerivationStale ? 'both revisions' : 'the stale revision' }}
-          to see run-time / headway impact
+          {{ comparison.fromDerivationStale && comparison.toDerivationStale ? $t('compare.rebuildBoth') : $t('compare.rebuildStale') }}
         </UBadge>
       </div>
 

@@ -4,6 +4,7 @@ import type { CompareRevisionsQuery } from '~~/generated/graphql'
 type TripChange = CompareRevisionsQuery['compareRevisions']['tripChanges'][number]
 
 const props = defineProps<{ changes: TripChange[]; totalCount?: number }>()
+const { t, te } = useI18n()
 
 const expanded = ref<Set<string>>(new Set())
 function toggle(tripId: string) {
@@ -26,6 +27,12 @@ function fieldEntries(
   return Object.entries(fieldChanges as Record<string, { from?: string | null; to?: string | null }>)
 }
 
+// i18n-keys: compare.kind.*
+function kindLabel(kind: string): string {
+  const key = `compare.kind.${kind}`
+  return te(key) ? t(key) : kind
+}
+
 function kindColor(kind: string): 'success' | 'error' | 'neutral' {
   if (kind === 'ADDED') return 'success'
   if (kind === 'REMOVED') return 'error'
@@ -35,11 +42,11 @@ function kindColor(kind: string): 'success' | 'error' | 'neutral' {
 
 <template>
   <div>
-    <h2 class="mb-2 text-sm font-semibold text-highlighted">Trip changes</h2>
+    <h2 class="mb-2 text-sm font-semibold text-highlighted">{{ $t('compare.tripChanges') }}</h2>
     <p v-if="truncated" class="mb-2 text-xs text-dimmed">
-      Showing first {{ changes.length }} of {{ totalCount }} changed trips.
+      {{ $t('compare.showingFirst', { shown: changes.length, count: totalCount }, totalCount ?? 0) }}
     </p>
-    <div v-if="!changes.length" class="text-sm text-muted">No trip differences in this filter.</div>
+    <div v-if="!changes.length" class="text-sm text-muted">{{ $t('compare.noTripDiff') }}</div>
     <div v-else class="divide-y divide-default rounded-md border border-default">
       <div v-for="c in changes" :key="c.tripId">
         <button
@@ -55,34 +62,34 @@ function kindColor(kind: string): 'success' | 'error' | 'neutral' {
               class="size-4 text-dimmed"
             />
             <span class="font-mono text-sm">{{ c.tripId }}</span>
-            <UBadge size="xs" :color="kindColor(c.kind)" variant="subtle">{{ c.kind }}</UBadge>
+            <UBadge size="xs" :color="kindColor(c.kind)" variant="subtle">{{ kindLabel(c.kind) }}</UBadge>
           </div>
           <span
             v-if="c.runTimeDeltaSec != null"
             class="text-xs"
             :class="c.runTimeDeltaSec > 0 ? 'text-error' : c.runTimeDeltaSec < 0 ? 'text-success' : 'text-dimmed'"
           >
-            {{ c.runTimeDeltaSec > 0 ? '+' : '' }}{{ c.runTimeDeltaSec }}s run time
+            {{ $t('compare.runTimeDelta', { delta: (c.runTimeDeltaSec > 0 ? '+' : '') + c.runTimeDeltaSec }) }}
           </span>
         </button>
         <div v-if="isExpandable(c) && expanded.has(c.tripId)" class="space-y-2 bg-elevated/50 px-6 py-3 text-xs">
           <div v-for="[field, v] in fieldEntries(c.fieldChanges)" :key="field">
-            <span class="text-muted">{{ field }}:</span> {{ v.from ?? '—' }} → {{ v.to ?? '—' }}
+            <span class="text-muted">{{ $t('compare.fieldLabel', { field }) }}</span> {{ v.from ?? '—' }} → {{ v.to ?? '—' }}
           </div>
           <table v-if="c.stopChanges.length" class="w-full text-left">
             <thead class="text-dimmed">
               <tr>
-                <th class="pr-3">Seq</th>
-                <th class="pr-3">Kind</th>
-                <th class="pr-3">Stop</th>
-                <th class="pr-3">Arr Δ</th>
-                <th>Dep Δ</th>
+                <th class="pr-3">{{ $t('compare.seq') }}</th>
+                <th class="pr-3">{{ $t('compare.kindCol') }}</th>
+                <th class="pr-3">{{ $t('explore.col.stop') }}</th>
+                <th class="pr-3">{{ $t('compare.arrDelta') }}</th>
+                <th>{{ $t('compare.depDelta') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="s in c.stopChanges" :key="s.stopSequence">
                 <td class="pr-3">{{ s.stopSequence }}</td>
-                <td class="pr-3">{{ s.kind }}</td>
+                <td class="pr-3">{{ kindLabel(s.kind) }}</td>
                 <td class="pr-3">{{ s.stopId ?? '—' }}</td>
                 <td class="pr-3">{{ s.arrivalDeltaSec ?? '—' }}</td>
                 <td>{{ s.departureDeltaSec ?? '—' }}</td>

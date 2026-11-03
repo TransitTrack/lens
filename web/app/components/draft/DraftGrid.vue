@@ -81,15 +81,15 @@ defineExpose({
   <div class="grid-root">
     <div v-if="loading && trips.length === 0" class="grid-state">
       <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin" />
-      <span class="text-sm">Loading timetable…</span>
+      <span class="text-sm">{{ $t('drafts.loadingTimetable') }}</span>
     </div>
     <div v-else-if="error && !trips.length" class="grid-state text-error">
       <UIcon name="i-lucide-triangle-alert" class="size-5" />
-      <span class="text-sm">Failed to load timetable: {{ error.message }}</span>
+      <span class="text-sm">{{ $t('drafts.timetableFailed', { message: error.message }) }}</span>
     </div>
     <div v-else-if="isEmpty" class="grid-state">
       <UIcon name="i-lucide-table" class="size-5" />
-      <span class="text-sm">No trips for this route / direction / service.</span>
+      <span class="text-sm">{{ $t('drafts.noTrips') }}</span>
     </div>
 
     <div v-else class="grid-scroll">
@@ -97,7 +97,7 @@ defineExpose({
       <table class="grid-table">
         <thead>
           <tr>
-            <th class="corner-cell">Stop</th>
+            <th class="corner-cell">{{ $t('explore.col.stop') }}</th>
             <th
               v-for="trip in trips"
               :key="trip.tripId"
@@ -115,7 +115,7 @@ defineExpose({
                 color="neutral"
                 variant="soft"
                 :disabled="readOnly"
-                aria-label="Add trip"
+                :aria-label="$t('drafts.addTrip')"
                 @click="emit('add-trip')"
               />
             </th>
@@ -125,7 +125,7 @@ defineExpose({
           <tr v-for="stop in stops" :key="stop.stopSequence">
             <th class="stop-cell" scope="row">
               <span class="stop-name">{{ stop.stopName ?? stop.stopId }}</span>
-              <span v-if="stop.timepoint" class="stop-marker" title="Timepoint">⏱</span>
+              <span v-if="stop.timepoint" class="stop-marker" :title="$t('explore.routes.timepoint')">⏱</span>
             </th>
             <DraftGridCell
               v-for="trip in trips"

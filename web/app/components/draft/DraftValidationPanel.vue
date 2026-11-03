@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+const { te, t } = useI18n()
+
 const props = defineProps<{
   lastValidation: unknown
   derivationStale: boolean
@@ -60,24 +62,30 @@ const groups = computed(() => {
 })
 
 const order = ['ERROR', 'WARNING', 'INFO']
+
+// i18n-keys: drafts.severity.*
+function severityLabel(sev: string): string {
+  const key = `drafts.severity.${sev}`
+  return te(key) ? t(key) : sev
+}
 </script>
 
 <template>
   <div class="flex flex-col gap-3 p-3 text-sm">
-    <p v-if="derivationStale" class="text-xs text-muted">Rebuild to refresh validation.</p>
+    <p v-if="derivationStale" class="text-xs text-muted">{{ $t('drafts.rebuildValidation') }}</p>
 
     <template v-else-if="parsed">
       <div class="flex gap-2 text-xs">
-        <UBadge color="error" variant="subtle">{{ parsed.errorCount }} errors</UBadge>
-        <UBadge color="warning" variant="subtle">{{ parsed.warningCount }} warnings</UBadge>
+        <UBadge color="error" variant="subtle">{{ $t('drafts.errors', { count: parsed.errorCount }, parsed.errorCount) }}</UBadge>
+        <UBadge color="warning" variant="subtle">{{ $t('drafts.warnings', { count: parsed.warningCount }, parsed.warningCount) }}</UBadge>
       </div>
 
-      <p v-if="parsed.notices.length === 0" class="text-xs text-muted">No notices.</p>
+      <p v-if="parsed.notices.length === 0" class="text-xs text-muted">{{ $t('drafts.noNotices') }}</p>
 
       <!-- FOLLOW-UP: per-notice go-to once backend enriches notices with tripId/stopSequence -->
       <div v-for="sev in order" :key="sev">
         <div v-if="groups[sev]?.length" class="mb-1 text-xs font-semibold uppercase text-muted">
-          {{ sev }}
+          {{ severityLabel(sev) }}
         </div>
         <ul class="flex flex-col gap-1">
           <li v-for="(n, i) in groups[sev] ?? []" :key="sev + i" class="text-xs">
@@ -88,6 +96,6 @@ const order = ['ERROR', 'WARNING', 'INFO']
       </div>
     </template>
 
-    <p v-else class="text-xs text-muted">No validation run yet.</p>
+    <p v-else class="text-xs text-muted">{{ $t('drafts.noValidation') }}</p>
   </div>
 </template>

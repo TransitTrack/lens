@@ -11,6 +11,7 @@ import { useEditorIdentity } from '~/composables/useEditorIdentity'
 const { selectedFeedCode, feedPath } = useFeeds()
 const { name: editorName } = useEditorIdentity()
 const toast = useToast()
+const { t } = useI18n()
 
 const newOpen = ref(false)
 
@@ -46,19 +47,19 @@ function parseValidation(raw: unknown): ValidationSummary | null {
 function validationLabel(raw: unknown): string {
   const v = parseValidation(raw)
   if (!v) return '—'
-  return `E${v.errorCount ?? 0}/W${v.warningCount ?? 0}`
+  return t('drafts.validationShort', { errors: v.errorCount ?? 0, warnings: v.warningCount ?? 0 })
 }
 
-const columns: TableColumn<Draft>[] = [
-  { accessorKey: 'label', header: 'Label' },
-  { accessorKey: 'baseRevisionId', header: 'Base rev' },
-  { id: 'version', header: 'Version' },
-  { id: 'stale', header: 'Stale' },
-  { id: 'validation', header: 'Validation' },
-  { id: 'lock', header: 'Lock' },
-  { id: 'created', header: 'Created' },
+const columns = computed<TableColumn<Draft>[]>(() => [
+  { accessorKey: 'label', header: t('drafts.col.label') },
+  { accessorKey: 'baseRevisionId', header: t('drafts.col.baseRev') },
+  { id: 'version', header: t('drafts.col.version') },
+  { id: 'stale', header: t('drafts.col.stale') },
+  { id: 'validation', header: t('drafts.col.validation') },
+  { id: 'lock', header: t('drafts.col.lock') },
+  { id: 'created', header: t('drafts.col.created') },
   { id: 'actions', header: '' },
-]
+])
 
 function onSelect(_e: Event, row: { original: Draft }) {
   navigateTo(feedPath('/drafts/' + row.original.id))
@@ -93,7 +94,7 @@ async function confirmDiscard() {
   try {
     await discard({ id: target.id, editor: editorName.value ?? '' })
     toast.add({
-      title: `Draft ${target.label ?? target.id} discarded`,
+      title: t('drafts.discardedNamed', { name: target.label ?? target.id }),
       color: 'success',
       icon: 'i-lucide-trash-2',
     })
@@ -107,12 +108,12 @@ async function confirmDiscard() {
     const code = (err?.graphQLErrors ?? err?.cause?.graphQLErrors)?.[0]?.extensions?.code
     if (code === 'LOCK_LOST') {
       toast.add({
-        title: 'Someone is editing this draft — ask them to discard it',
+        title: t('drafts.lockLost'),
         color: 'error',
         icon: 'i-lucide-lock',
       })
     } else {
-      toast.add({ title: 'Discard failed', description: (e as Error).message, color: 'error' })
+      toast.add({ title: t('drafts.discardFailed'), description: (e as Error).message, color: 'error' })
     }
   }
 }
@@ -120,10 +121,10 @@ async function confirmDiscard() {
 function rowActions(row: Draft): DropdownMenuItem[][] {
   return [
     [
-      { label: 'Open', icon: 'i-lucide-square-pen', onSelect: () => openDraft(row) },
-      { label: 'Export', icon: 'i-lucide-download', onSelect: () => exportDraft(row) },
+      { label: t('drafts.open'), icon: 'i-lucide-square-pen', onSelect: () => openDraft(row) },
+      { label: t('drafts.export'), icon: 'i-lucide-download', onSelect: () => exportDraft(row) },
       {
-        label: 'Compare',
+        label: t('drafts.compare'),
         icon: 'i-lucide-git-compare',
         disabled: !row.baseRevisionId,
         onSelect: () => compareDraft(row),
@@ -131,7 +132,7 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
     ],
     [
       {
-        label: 'Discard',
+        label: t('drafts.discard'),
         icon: 'i-lucide-trash-2',
         color: 'error',
         onSelect: () => (discardTarget.value = row),
@@ -142,46 +143,46 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
 </script>
 
 <template>
-  <AppPage title="Drafts" description="Edit and activate schedule drafts">
+  <AppPage :title="$t('nav.drafts')" :description="$t('drafts.description')">
     <template #actions>
       <UButton
         icon="i-lucide-plus"
         color="neutral"
         variant="soft"
-        label="New draft"
+        :label="$t('drafts.newDraft')"
         @click="newOpen = true"
       />
     </template>
 
-    <PageState v-if="loading && !drafts.length" state="loading" title="Loading drafts" />
+    <PageState v-if="loading && !drafts.length" state="loading" :title="$t('drafts.loading')" />
 
     <PageState
       v-else-if="error"
       state="error"
-      title="Drafts unavailable"
+      :title="$t('drafts.unavailable')"
       :description="error.message"
     />
 
     <PageState
       v-else-if="!drafts.length"
       state="empty"
-      title="No drafts yet"
-      description="Create a draft to make and validate schedule changes before activation."
+      :title="$t('drafts.emptyTitle')"
+      :description="$t('drafts.emptyBody')"
       icon="i-lucide-file-pen-line"
     >
       <template #action>
-        <UButton icon="i-lucide-plus" label="New draft" @click="newOpen = true" />
+        <UButton icon="i-lucide-plus" :label="$t('drafts.newDraft')" @click="newOpen = true" />
       </template>
     </PageState>
 
     <section v-else class="app-frame">
       <UTable :data="drafts" :columns="columns" @select="onSelect">
-        <template #label-cell="{ row }">{{ row.original.label ?? '(untitled)' }}</template>
+        <template #label-cell="{ row }">{{ row.original.label ?? $t('drafts.untitled') }}</template>
         <template #baseRevisionId-cell="{ row }">{{ row.original.baseRevisionId ?? '—' }}</template>
         <template #version-cell="{ row }">v{{ row.original.version }}</template>
         <template #stale-cell="{ row }">
           <UBadge v-if="row.original.derivationStale" color="warning" variant="subtle">
-            stale
+            {{ $t('drafts.staleBadge') }}
           </UBadge>
           <span v-else class="text-dimmed">—</span>
         </template>
@@ -211,20 +212,20 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
       </UTable>
     </section>
 
-    <UModal v-model:open="discardOpen" title="Discard draft?">
+    <UModal v-model:open="discardOpen" :title="$t('drafts.discardTitle')">
       <template #body>
-        <p class="text-sm text-muted">
-          This permanently discards
-          <span class="font-medium text-highlighted">{{
-            discardTarget?.label ?? discardTarget?.id
-          }}</span>
-          and its edits. This cannot be undone.
-        </p>
+        <i18n-t keypath="drafts.discardNamed" tag="p" class="text-sm text-muted">
+          <template #name>
+            <span class="font-medium text-highlighted">{{
+              discardTarget?.label ?? discardTarget?.id
+            }}</span>
+          </template>
+        </i18n-t>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="discardTarget = null" />
-          <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard" />
+          <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="discardTarget = null" />
+          <UButton color="error" :loading="discarding" :label="$t('drafts.discard')" @click="confirmDiscard" />
         </div>
       </template>
     </UModal>

@@ -49,18 +49,18 @@ watchEffect(() => {
 </script>
 
 <template>
-  <AppPage title="Draft editor">
+  <AppPage :title="$t('drafts.editorTitle')">
     <PageState
       v-if="noRoutes"
       state="empty"
-      title="This draft has no routes"
-      description="Return to drafts to select or create a schedule draft with route data."
+      :title="$t('drafts.noRoutesTitle')"
+      :description="$t('drafts.noRoutesBody')"
       icon="i-lucide-route-off"
     >
       <template #action>
-        <UButton variant="soft" label="Back to drafts" :to="feedPath('/drafts')" />
+        <UButton variant="soft" :label="$t('drafts.backToDrafts')" :to="feedPath('/drafts')" />
       </template>
     </PageState>
-    <PageState v-else state="loading" title="Loading editor" />
+    <PageState v-else state="loading" :title="$t('drafts.loadingEditor')" />
   </AppPage>
 </template>

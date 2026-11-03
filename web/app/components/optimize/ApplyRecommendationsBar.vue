@@ -12,6 +12,7 @@ const emit = defineEmits<{
 const {feedPath} = useFeeds()
 const {name: editorName} = useEditorIdentity()
 const toast = useToast()
+const {t} = useI18n()
 
 const label = ref('')
 const editor = ref('')
@@ -48,12 +49,12 @@ async function submit() {
     })
     const draft = res?.data?.applyOptimizationRecommendations
     toast.add({
-      title: 'Applied',
-      description: draft ? `Created draft #${draft.id}` : undefined,
+      title: t('optimize.applied'),
+      description: draft ? t('optimize.createdDraft', {id: draft.id}) : undefined,
       color: 'success',
       icon: 'i-lucide-check',
       actions: draft
-        ? [{label: 'View draft', onClick: () => navigateTo(feedPath('/drafts/' + draft.id))}]
+        ? [{label: t('optimize.viewDraft'), onClick: () => navigateTo(feedPath('/drafts/' + draft.id))}]
         : undefined,
     })
     emit('applied')
@@ -63,12 +64,12 @@ async function submit() {
       const ids = (first.extensions.conflictingRecommendationIds ?? []).map(String)
       emit('conflict', ids)
       toast.add({
-        title: 'Selection conflicts',
-        description: 'Two selected recommendations propose different values for the same target.',
+        title: t('optimize.conflictTitle'),
+        description: t('optimize.conflictBody'),
         color: 'error',
       })
     } else {
-      toast.add({title: 'Apply failed', description: (e as Error).message, color: 'error'})
+      toast.add({title: t('optimize.applyFailed'), description: (e as Error).message, color: 'error'})
     }
   }
 }
@@ -82,17 +83,17 @@ async function submit() {
           <UIcon name="i-lucide-list-checks" class="size-5" />
         </div>
         <div>
-          <p class="text-sm font-semibold text-highlighted">Ready to apply</p>
-          <p class="text-sm text-muted">{{ selectedIds.length }} {{ selectedIds.length === 1 ? 'change' : 'changes' }} selected</p>
+          <p class="text-sm font-semibold text-highlighted">{{ $t('optimize.ready') }}</p>
+          <p class="text-sm text-muted">{{ $t('optimize.changesSelected', {count: selectedIds.length}, selectedIds.length) }}</p>
         </div>
       </div>
       <div class="grid flex-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(10rem,1fr)_12rem_auto]">
-        <UInput v-model="label" placeholder="Draft label (optional)" />
-        <UInput v-model="editor" placeholder="Your name" />
+        <UInput v-model="label" :placeholder="$t('optimize.labelPlaceholder')" />
+        <UInput v-model="editor" :placeholder="$t('drafts.yourName')" />
         <UButton
           :loading="applying"
           :disabled="!selectedIds.length || !editor.trim()"
-          label="Apply to new draft"
+          :label="$t('optimize.applyToDraft')"
           icon="i-lucide-arrow-right"
           class="justify-center"
           @click="submit"
