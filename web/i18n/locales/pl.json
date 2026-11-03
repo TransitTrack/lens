@@ -113,7 +113,7 @@
   },
   "noRealtime": {
     "title": "Brak źródła czasu rzeczywistego dla tego źródła danych",
-    "body": "{name} nie ma powiązanego źródła AVL, więc {what} jest niedostępne. Zamiast tego przeglądaj statyczne dane GTFS.",
+    "body": "{name} nie ma powiązanego źródła AVL, więc niedostępne: {what}. Zamiast tego przeglądaj statyczne dane GTFS.",
     "thisFeed": "To źródło danych",
     "liveVehicleData": "dane pojazdów na żywo",
     "explore": "Przeglądaj źródło danych",
@@ -973,9 +973,9 @@
       "colAlgorithm": "Algorytm",
       "colSpread": "Rozrzut (1 SD)",
       "confidenceTitle": "Niepewność ±1σ przewidywanego przyjazdu: ±{sec} s",
-      "confidenceSmall": "Mała",
-      "confidenceMedium": "Średnia",
-      "confidenceLarge": "Duża"
+      "confidenceSmall": "Mały",
+      "confidenceMedium": "Średni",
+      "confidenceLarge": "Duży"
     }
   },
   "drafts": {
