@@ -72,4 +72,48 @@ describe('checkLocales', () => {
     expect((await run()).errors).toHaveLength(1)
     expect(process.exitCode).toBe(before)
   })
+
+  it('detects i18n.t / $i18n.t / this.$t and I18nT, multi-line and plain backticks', async () => {
+    locale('en', { a: 'A', b: 'B', c: 'C', d: 'D', e: 'E', f: 'F' })
+    code('x.ts', `i18n.t('a'); nuxtApp.$i18n.t('b'); this.$i18n.t("c"); t(\n  'd')`)
+    code('y.vue', `<template><I18nT keypath="e" /></template><script>t(\`f\`)</script>`)
+    expect((await run()).errors).toEqual([])
+  })
+
+  it('does not treat other .t-ending calls as translate calls', async () => {
+    locale('en', { a: 'A' })
+    code('x.ts', `t('a'); format('x.y'); get('a.b'); ent('a.b'); list.concat('a.b'); split('.')`)
+    expect((await run()).errors).toEqual([])
+  })
+
+  it('captures both branches of a ternary key', async () => {
+    locale('en', { a: 'A', b: 'B' })
+    code('x.ts', `t(cond ? 'a' : 'b', { n: 1 })`)
+    expect((await run()).errors).toEqual([])
+  })
+
+  it('ignores keys ending in a dot (dynamic prefix) instead of reporting them missing', async () => {
+    locale('en', { status: { ok: 'OK' } })
+    code('x.ts', `t('status.' + s)\n// i18n-keys: status.*`)
+    expect((await run()).errors).toEqual([])
+  })
+
+  it('a status.* marker does not cover statusX.y', async () => {
+    locale('en', { status: { ok: 'OK' }, statusX: { y: 'Y' } })
+    code('x.ts', `// i18n-keys: status.*`)
+    expect((await run()).errors).toEqual(['Unused key in en: statusX.y'])
+  })
+
+  it('counts keys referenced by linked messages as used', async () => {
+    locale('en', { common: { save: 'Save' }, btn: 'Press @:common.save.' })
+    code('x.ts', `t('btn')`)
+    expect((await run()).errors).toEqual([])
+  })
+
+  it('scans inside bracket directories', async () => {
+    locale('en', { a: 'A' })
+    mkdirSync(join(src, 'pages', '[feedCode]'), { recursive: true })
+    writeFileSync(join(src, 'pages', '[feedCode]', 'x.vue'), `<script>t('a')</script>`)
+    expect((await run()).errors).toEqual([])
+  })
 })

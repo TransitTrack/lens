@@ -12,8 +12,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_DIR = join(ROOT, 'i18n/locales')
 const DEFAULT_SRC_DIRS = [join(ROOT, 'app')]
 
-const CALL_RE = /(?<![\w.])\$?t\(\s*(['"])([^'"\\\n]+)\1/g
-const I18N_T_RE = /<i18n-t\b[^>]*?\skeypath\s*=\s*(['"])([^'"\n]+)\1/g
+// Opener of a translate call: t( / $t( / this.$t( / i18n.t( / $i18n.t(. A bare
+// `.t(` (format('x'), get('a.b'), ent('a.b'), list.concat('a.b')) is not a match.
+const CALL_RE = /(?<![\w$.])\$?t\(|(?<=\bthis\.)\$?t\(|(?<![\w$])\$?i18n\.t\(/g
+const I18N_T_RE = /<(?:i18n-t|I18nT)\b[^>]*?\skeypath\s*=\s*(['"])([^'"\n]+)\1/g
 const MARKER_RE = /i18n-keys:([^\n]*)/g
 
 async function walk(dir) {
@@ -27,10 +29,38 @@ async function walk(dir) {
   return out
 }
 
-function scan(text, used, patterns) {
-  for (const re of [CALL_RE, I18N_T_RE]) {
-    for (const m of text.matchAll(re)) used.add(m[2])
+// Returns the string literals at depth 0 of the first argument starting at `i`
+// (just after the opening paren), up to a depth-0 `,` or the closing paren. This
+// captures both branches of `t(cond ? 'a.b' : 'c.d')`. Template literals with
+// `${` interpolation are skipped (dynamic keys need an `i18n-keys` marker).
+function firstArgLiterals(text, i) {
+  const out = []
+  let depth = 0
+  for (; i < text.length; i++) {
+    const c = text[i]
+    if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1
+      let dynamic = false
+      for (; j < text.length && text[j] !== c; j++) {
+        if (text[j] === '\\') j++
+        else if (c === '`' && text[j] === '$' && text[j + 1] === '{') dynamic = true
+      }
+      if (depth === 0 && !dynamic) out.push(text.slice(i + 1, j))
+      i = j
+    } else if ('([{'.includes(c)) depth++
+    else if (')]}'.includes(c)) {
+      if (depth === 0) break
+      depth--
+    } else if (c === ',' && depth === 0) break
   }
+  return out
+}
+
+function scan(text, used, patterns) {
+  for (const m of text.matchAll(CALL_RE)) {
+    for (const key of firstArgLiterals(text, m.index + m[0].length)) used.add(key)
+  }
+  for (const m of text.matchAll(I18N_T_RE)) used.add(m[2])
   for (const m of text.matchAll(MARKER_RE)) {
     const list = m[1].replace(/-->.*$|\*\/.*$/, '')
     for (const p of list.split(/[\s,]+/).filter(Boolean)) patterns.push(p)
@@ -58,17 +88,27 @@ export async function checkLocales({ dir = DEFAULT_DIR, srcDirs = DEFAULT_SRC_DI
     for (const file of await walk(srcDir)) scan(await readFile(file, 'utf8'), used, patterns)
   }
 
-  for (const key of [...used].sort()) {
+  const locales = []
+  for (const file of (await readdir(dir)).filter((f) => f.endsWith('.json')).sort()) {
+    const flat = await readLocale(join(dir, file))
+    locales.push([file, flat])
+    // Linked messages (@:a.b, @.upper:a.b) count as usage of the referenced key.
+    for (const value of Object.values(flat)) {
+      for (const m of value.matchAll(/@(?:\.\w+)?:([\w.]+)/g)) used.add(m[1].replace(/\.$/, ''))
+    }
+  }
+
+  // A key ending in `.` is a dynamic prefix (t('status.' + x)), not a usable key.
+  for (const key of [...used].filter((k) => !k.endsWith('.')).sort()) {
     if (!(key in en)) errors.push(`Key used in code but missing in en: ${key}`)
   }
   for (const key of enKeys) {
     if (!used.has(key) && !patterns.some((p) => covers(p, key))) errors.push(`Unused key in en: ${key}`)
   }
 
-  const files = (await readdir(dir)).filter((f) => f.endsWith('.json') && f !== 'en.json').sort()
-  for (const file of files) {
+  for (const [file, flat] of locales) {
+    if (file === 'en.json') continue
     const locale = file.slice(0, -'.json'.length)
-    const flat = await readLocale(join(dir, file))
     for (const key of enKeys) {
       if (!(key in flat)) (strict ? errors : warnings).push(`[${locale}] missing key: ${key}`)
       else if (placeholders(en[key]).join() !== placeholders(flat[key]).join()) {
