@@ -45,7 +45,7 @@ describe('checkLocales', () => {
     expect(await run()).toEqual({ errors: [], warnings: [] })
   })
 
-  it('warns on missing and extra keys in other locales; strict makes missing an error', async () => {
+  it('warns on missing and extra keys in other locales; strict makes both errors', async () => {
     locale('en', { a: 'A', b: 'B' })
     locale('pl', { a: 'A', z: 'Z' })
     code('x.ts', `t('a'); t('b')`)
@@ -53,8 +53,8 @@ describe('checkLocales', () => {
     expect(lax.errors).toEqual([])
     expect(lax.warnings).toEqual(['[pl] missing key: b', '[pl] key not in en: z'])
     const strict = await run(true)
-    expect(strict.errors).toEqual(['[pl] missing key: b'])
-    expect(strict.warnings).toEqual(['[pl] key not in en: z'])
+    expect(strict.errors).toEqual(['[pl] missing key: b', '[pl] key not in en: z'])
+    expect(strict.warnings).toEqual([])
   })
 
   it('errors when placeholder names differ from en, ignoring order', async () => {

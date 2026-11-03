@@ -18,7 +18,6 @@ export default defineNuxtConfig({
       { code: 'fr', language: 'fr-FR', name: 'Français', file: 'fr.json' },
     ],
     langDir: 'locales',
-    lazy: true,
     detectBrowserLanguage: { useCookie: true, cookieKey: 'tt_locale', fallbackLocale: 'en' },
   },
   // Renders the repo's docs/*.md (collection in content.config.ts) at build time.

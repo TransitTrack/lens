@@ -1,7 +1,7 @@
 // Checks locale consistency. Usage: pnpm i18n:check [--strict]
 //  - keys used in code (literal t('…'), $t('…'), <i18n-t keypath="…">) must exist in en
 //  - en keys must be used somewhere (dynamic keys: `// i18n-keys: a.b.*` or `<!-- i18n-keys: a.* -->`)
-//  - other locales: missing/extra keys are warnings (errors with --strict);
+//  - other locales: missing/extra keys are warnings (errors with --strict, so CI fails on both);
 //    differing {placeholder} names versus en are always errors
 import { readFile, readdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
@@ -131,7 +131,7 @@ export async function checkLocales({ dir = DEFAULT_DIR, srcDirs = DEFAULT_SRC_DI
       }
     }
     for (const key of Object.keys(flat)) {
-      if (!(key in en)) warnings.push(`[${locale}] key not in en: ${key}`)
+      if (!(key in en)) (strict ? errors : warnings).push(`[${locale}] key not in en: ${key}`)
     }
   }
 

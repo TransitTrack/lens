@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import * as uiLocales from '@nuxt/ui/locale'
+import { en, pl, fr } from '@nuxt/ui/locale'
+
+const uiLocales = { en, pl, fr } as const
 
 const { locale } = useLocaleSwitcher()
-const uiLocale = computed(() => uiLocales[locale.value as 'en' | 'pl' | 'fr'] ?? uiLocales.en)
+const uiLocale = computed(() => uiLocales[locale.value as keyof typeof uiLocales] ?? en)
 
 useHead({ htmlAttrs: { lang: computed(() => locale.value) } })
 </script>

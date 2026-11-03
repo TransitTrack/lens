@@ -74,6 +74,7 @@ jobs:
       # Locale files in sync (missing/extra keys), no unused keys, no keys used in code but undefined.
       - name: Check i18n locales
         id: i18n
+        if: ${{ !cancelled() }}
         run: pnpm i18n:check --strict
 
       - name: Summary
@@ -86,6 +87,8 @@ jobs:
           fi
           if [ "${{ steps.i18n.outcome }}" = "success" ]; then
             echo "### i18n:check: locales consistent ✅" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.i18n.outcome }}" = "skipped" ]; then
+            echo "### i18n:check: skipped ⏭️" >> "$GITHUB_STEP_SUMMARY"
           else
             echo "### i18n:check: locale problems found ❌ (run \`pnpm i18n:check --strict\` in web/)" >> "$GITHUB_STEP_SUMMARY"
           fi
