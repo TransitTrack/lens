@@ -12,10 +12,15 @@ export function flatten(obj, prefix = '') {
   return out
 }
 
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
 export function unflatten(flat) {
   const out = {}
   for (const [path, value] of Object.entries(flat)) {
     const parts = path.split('.')
+    if (parts.some((part) => FORBIDDEN_KEYS.has(part))) {
+      throw new Error(`Forbidden key segment in path: ${path}`)
+    }
     let node = out
     for (const part of parts.slice(0, -1)) {
       if (!isPlainObject(node[part])) node[part] = {}
@@ -47,7 +52,7 @@ export function maskPlaceholders(text) {
     const seen = new Set()
     const result = translated.replace(TOKEN, (whole, i) => {
       const idx = Number(i)
-      if (idx >= tokens.length) return whole
+      if (idx >= tokens.length) throw new Error(`Unknown placeholder token in translation: ${whole}`)
       seen.add(idx)
       return tokens[idx]
     })

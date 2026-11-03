@@ -71,3 +71,38 @@ describe('mergeTranslations', () => {
     expect(merged).toEqual({ a: 'manual', extra: 'keep', n: { x: 'filled', y: 'new' } })
   })
 })
+
+describe('provider contract', () => {
+  it('sends only masked text to the provider', async () => {
+    const spy = vi.fn(fake)
+    await translateValue('Hi {name} @:common.save <b>x</b> | more', spy)
+    expect(spy).toHaveBeenCalledTimes(2)
+    const sent = spy.mock.calls.map((c) => c[0]).join(' ')
+    expect(sent).not.toContain('{name}')
+    expect(sent).not.toContain('@:')
+    expect(sent).not.toContain('<b>')
+    expect(sent).toMatch(/⟦0⟧/)
+    expect(sent).toMatch(/⟦2⟧/)
+  })
+  it('tolerates whitespace inside mask tokens', async () => {
+    const out = await translateValue('Hi {name}', async () => 'Salut ⟦ 0 ⟧ !')
+    expect(out).toBe('Salut {name} !')
+  })
+  it('rejects altered mask brackets', async () => {
+    await expect(translateValue('Hi {name}', async () => 'Salut [0]')).rejects.toThrow()
+  })
+  it('rejects a stray out-of-range token', async () => {
+    await expect(translateValue('Hi {name}', async () => 'Salut ⟦0⟧ ⟦5⟧')).rejects.toThrow()
+  })
+  it('allows duplicated tokens', async () => {
+    expect(await translateValue('Hi {name}', async () => '⟦0⟧ ⟦0⟧')).toBe('{name} {name}')
+  })
+})
+
+describe('unflatten safety', () => {
+  it('rejects prototype-polluting segments', () => {
+    expect(() => unflatten({ '__proto__.x': 'y' })).toThrow()
+    expect(() => unflatten({ 'a.constructor.b': 'y' })).toThrow()
+    expect(({} as any).x).toBeUndefined()
+  })
+})
