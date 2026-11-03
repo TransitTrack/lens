@@ -11,7 +11,7 @@ export function useLocaleSwitcher() {
   async function setLocale(code: string): Promise<void> {
     if (!supported.includes(code)) return
     try {
-      await i18n.setLocale(code as 'en' | 'pl' | 'fr')
+      await i18n.setLocale(code as 'en' | 'pl' | 'fr' | 'ro')
     } catch {
       // Blocked storage/cookie: keep the current locale rather than breaking the UI.
     }

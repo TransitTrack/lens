@@ -38,7 +38,7 @@ to `0.0.0.0` — some environments only resolve the IPv6 loopback for a plain
 
 ## Translating UI text
 
-The dashboard is translated with `@nuxtjs/i18n` (en, pl, fr; messages in `i18n/locales/*.json`,
+The dashboard is translated with `@nuxtjs/i18n` (en, pl, fr, ro; messages in `i18n/locales/*.json`,
 glossary in `i18n/glossary.json`). Conventions:
 
 - **Keys** are `area.thing` (`nav.vehicles`, `userMenu.signOut`, `notifications.title`), grouped
@@ -47,8 +47,10 @@ glossary in `i18n/glossary.json`). Conventions:
 - **Use** `$t('area.key')` in templates and `const { t } = useI18n()` in `<script setup>` and
   composables. Never concatenate sentences: use `{name}` / `{count}` parameters.
 - **Plurals** use vue-i18n pipes: `"{count} issue | {count} issues"`, called as
-  `t(key, { count: n }, n)`. Polish needs three forms (`one | few | many`); the rules live in
-  `i18n/pluralRules.ts` (pl: 1 / 2-4 except 12-14 / rest; fr: 0 and 1 are singular for 2-form messages).
+  `t(key, { count: n }, n)`. Polish and Romanian need three forms (`one | few | many` and
+  `one | few | other`); the rules live in `i18n/pluralRules.ts` (pl: 1 / 2-4 except 12-14 / rest;
+  ro: 1 / 0 or n % 100 in 2-19 / rest, and the `other` form takes the "de" preposition, e.g.
+  `1 vehicul | 2 vehicule | 20 de vehicule`; fr: 0 and 1 are singular for 2-form messages).
 - **Utils** that build display strings must not import global i18n state; they take an injected
   `t: (key: string, params?: Record<string, unknown>) => string` argument and the caller passes `t`.
 - **Dynamic keys** (`t(`ns.${value}`)`) are invisible to the checker: declare them with a marker
@@ -106,12 +108,25 @@ updates, no production build/deploy strategy yet.
    (e.g. `de: 'de-DE'`); without it dates, weekdays and numbers silently
    fall back to `en-GB`.
 5. If the language has more than two plural forms (cs, ru, uk, ...), add a
-   rule for it in `i18n/pluralRules.ts`. The translate script only copies
-   the English two-form plurals, so adjust the `a | b | c` forms by hand.
+   rule for it in `i18n/pluralRules.ts` (`pl` and `ro` are the examples with a
+   3-form rule; give 2-form messages a graceful fallback) and cover it in a unit test.
+   The translate script only copies the English two-form plurals, so adjust the
+   `a | b | c` forms by hand.
 6. Optionally add the matching Nuxt UI locale in `app/app.vue` (import it
-   next to `en, pl, fr` from `@nuxt/ui/locale` and add it to the `uiLocales`
+   next to `en, pl, fr, ro` from `@nuxt/ui/locale` and add it to the `uiLocales`
    map) so built-in component strings are translated too; unknown codes
    fall back to `en`.
+
+7. Add the new code to the `setLocale` cast in `app/composables/useLocaleSwitcher.ts`,
+   add an entry for each term in `i18n/glossary.json`, and extend the locale tests
+   (`tests/unit/i18nLocales.spec.ts`, `i18nFormatting.spec.ts`, `useLocaleSwitcher.spec.ts`).
+   The language picker lists the configured `i18n.locales`, so it needs no change.
+
+Romanian (`ro`) was added exactly this way, but translated by hand instead of with
+`pnpm i18n:translate`: locale entry, `INTL_TAGS` (`ro: 'ro-RO'`), a 3-form plural rule
+(1 / 0 or 2-19 / rest, with "de" in the `other` form), the Nuxt UI `ro` locale, glossary
+entries, `ro.json`, and tests (including `tests/unit/i18nRomanian.spec.ts` for plural forms).
+Use comma-below diacritics (ș, ț), not cedilla (ş, ţ).
 
 Run `pnpm i18n:check` (add `--strict` to fail on missing translations) to
 verify locale consistency: keys used in code exist in `en`, `en` keys are
