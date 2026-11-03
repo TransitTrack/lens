@@ -97,3 +97,22 @@ describe('overview stats', () => {
     expect(stats[3]!.hint).toBe('1 reporting OK')
   })
 })
+
+describe('Polish plural forms of counted nouns', () => {
+  const t = make('pl')
+  const agencies = (n: number) => t('feed.overview.agencies', { count: n }, n)
+
+  it('uses nominative plural for the few form and genitive for many', () => {
+    expect(agencies(1)).toBe('1 przewoźnik')
+    expect(agencies(2)).toBe('2 przewoźnicy')
+    expect(agencies(5)).toBe('5 przewoźników')
+    expect(agencies(22)).toBe('22 przewoźnicy')
+    expect(agencies(12)).toBe('12 przewoźników')
+  })
+
+  it('agrees the verb and adjective in reportingOk and failed', () => {
+    expect(t('overviewStats.reportingOk', { count: 2 }, 2)).toBe('2 zgłaszają poprawny stan')
+    expect(t('feed.processing.failed', { count: 3 }, 3)).toBe('3 nieudane')
+    expect(make('fr')('overviewStats.reportingOk', { count: 2 }, 2)).toBe('2 signalent un état OK')
+  })
+})

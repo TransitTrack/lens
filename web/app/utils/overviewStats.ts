@@ -40,7 +40,7 @@ export function buildOverviewStats(
       label: t('overviewStats.activeFeeds'),
       value: String(activeFeeds),
       icon: 'i-lucide-rss',
-      hint: t('overviewStats.reportingOk', { count: healthyFeeds }),
+      hint: t('overviewStats.reportingOk', { count: healthyFeeds }, healthyFeeds),
     },
   ]
 }

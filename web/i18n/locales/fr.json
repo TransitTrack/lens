@@ -245,7 +245,7 @@
       "none": "Aucun échantillon de prévision pour le moment.",
       "note": "Erreur absolue moyenne d'arrivée — plus c'est bas, mieux c'est.",
       "errorSeconds": "±{value} s",
-      "hint": "{algorithm} : ±{error} s d’erreur absolue, biais {bias} s ({samples})",
+      "hint": "{algorithm} : ±{error} s d'erreur absolue, biais {bias} s ({samples})",
       "samples": "{count} échantillon | {count} échantillons"
     }
   },
@@ -274,12 +274,12 @@
     "matchedOf": "{matched} sur {tracked}",
     "stalePositions": "Positions obsolètes",
     "activeFeeds": "Flux actifs",
-    "reportingOk": "{count} signalent un état OK",
+    "reportingOk": "{count} signale un état OK | {count} signalent un état OK",
     "binHint": "{label} : {count} véhicule | {label} : {count} véhicules",
     "bin": {
-      "early5": "≥5 min d’avance",
-      "early2to5": "2–5 min d’avance",
-      "early1to2": "1–2 min d’avance",
+      "early5": "≥5 min d'avance",
+      "early2to5": "2–5 min d'avance",
+      "early1to2": "1–2 min d'avance",
       "onTime": "À l'heure",
       "late1to2": "1–2 min de retard",
       "late2to5": "2–5 min de retard",

@@ -274,7 +274,7 @@
     "matchedOf": "{matched} of {tracked}",
     "stalePositions": "Stale positions",
     "activeFeeds": "Active feeds",
-    "reportingOk": "{count} reporting OK",
+    "reportingOk": "{count} reporting OK | {count} reporting OK",
     "binHint": "{label}: {count} vehicles | {label}: {count} vehicles",
     "bin": {
       "early5": "≥5m early",

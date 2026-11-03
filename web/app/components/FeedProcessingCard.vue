@@ -86,7 +86,7 @@ const avlHealthy = computed(() => /ok|success|healthy/i.test(avl.value?.lastPoll
           <span class="text-dimmed">
             · {{ $t('feed.processing.revisions', { count: revisions.length }, revisions.length) }}
             <template v-if="failedCount">
-              ({{ $t('feed.processing.failed', { count: failedCount }) }})</template
+              ({{ $t('feed.processing.failed', { count: failedCount }, failedCount) }})</template
             >
           </span>
         </dd>
