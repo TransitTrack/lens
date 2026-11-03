@@ -26,13 +26,13 @@ function onOpenChange(isOpen: boolean) {
 <template>
   <UModal
     :open="open"
-    title="Who's editing?"
+    :title="$t('drafts.whosEditing')"
     @update:open="onOpenChange"
   >
     <template #body>
       <UInput
         v-model="value"
-        placeholder="Your name"
+        :placeholder="$t('drafts.yourName')"
         autofocus
         class="w-full"
         @keydown.enter="save"
@@ -40,8 +40,8 @@ function onOpenChange(isOpen: boolean) {
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" label="Cancel" @click="cancelEditorIdentity" />
-        <UButton :disabled="!value.trim()" label="Save" @click="save" />
+        <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="cancelEditorIdentity" />
+        <UButton :disabled="!value.trim()" :label="$t('common.save')" @click="save" />
       </div>
     </template>
   </UModal>

@@ -1,3 +1,5 @@
+import { intlLocale } from './intlLocale'
+
 export interface ReportAssignment {
   descTripId?: string | null
   match?: {
@@ -11,12 +13,15 @@ export function isValidReportRange(date: string, startTime: string, endTime: str
   return /^\d{4}-\d{2}-\d{2}$/.test(date) && /^\d{2}:\d{2}$/.test(startTime) && startTime < endTime
 }
 
-export function assignmentLabel(report: ReportAssignment): string {
-  return report.match?.trip?.tripId ?? report.descTripId ?? 'n/a'
+export function assignmentLabel(
+  report: ReportAssignment,
+  t: (key: string, params?: Record<string, unknown>) => string,
+): string {
+  return report.match?.trip?.tripId ?? report.descTripId ?? t('reports.notAvailable')
 }
 
-export function formatReportTimestamp(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('en-GB', {
+export function formatReportTimestamp(iso: string, timeZone: string, appLocale?: string): string {
+  return new Intl.DateTimeFormat(intlLocale(appLocale), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

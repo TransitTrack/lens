@@ -31,6 +31,7 @@ definePageMeta({
 
 const route = useRoute()
 const toast = useToast()
+const {t, locale} = useI18n()
 const {selectedFeedCode, feedPath} = useFeeds()
 
 const draftId = computed(() => String(route.params.draftId))
@@ -80,7 +81,7 @@ function parseValidation(raw: unknown): ValidationSummary | null {
 const lastValidation = computed(() => parseValidation(draft.value?.lastValidation))
 
 function formatTime(iso: string): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 
 // --- route / service pickers -------------------------------------------
@@ -113,11 +114,11 @@ const serviceItems = computed(() => {
     .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}))
     .map((id) => ({label: id, value: id}))
 })
-const directionItems = [
-  {label: 'All directions', value: ''},
-  {label: 'Direction 0', value: '0'},
-  {label: 'Direction 1', value: '1'},
-]
+const directionItems = computed(() => [
+  {label: t('drafts.allDirections'), value: ''},
+  {label: t('explore.trips.direction', {dir: 0}), value: '0'},
+  {label: t('explore.trips.direction', {dir: 1}), value: '1'},
+])
 
 function queryString(dir?: string, service?: string | null): string {
   const d = dir ?? (route.query.dir as string | undefined) ?? '0'
@@ -164,8 +165,8 @@ async function finishRebuild() {
   const fresh = await editor.refetchDraft()
   const v = parseValidation(fresh?.lastValidation)
   toast.add({
-    title: 'Rebuild complete',
-    description: v ? `${v.errorCount ?? 0} errors · ${v.warningCount ?? 0} warnings` : undefined,
+    title: t('drafts.rebuildComplete'),
+    description: v ? t('drafts.rebuildSummary', {errors: v.errorCount ?? 0, warnings: v.warningCount ?? 0}) : undefined,
     color: (v?.errorCount ?? 0) > 0 ? 'error' : 'success',
     icon: 'i-lucide-hammer',
   })
@@ -178,7 +179,7 @@ watch(
     rebuildPhase.value = job.phase
     if (job.state !== 'RUNNING') {
       if (job.error) {
-        toast.add({title: 'Rebuild failed', description: job.error, color: 'error'})
+        toast.add({title: t('drafts.rebuildFailed'), description: job.error, color: 'error'})
         rebuilding.value = false
         jobId.value = null
         rebuildPhase.value = null
@@ -203,7 +204,7 @@ async function onRebuild() {
     rebuildPhase.value = job.phase
     if (job.state !== 'RUNNING') {
       if (job.error) {
-        toast.add({title: 'Rebuild failed', description: job.error, color: 'error'})
+        toast.add({title: t('drafts.rebuildFailed'), description: job.error, color: 'error'})
         rebuilding.value = false
         rebuildPhase.value = null
       } else {
@@ -213,7 +214,7 @@ async function onRebuild() {
     }
     jobId.value = job.id
   } catch (e) {
-    toast.add({title: 'Rebuild failed', description: (e as Error).message, color: 'error'})
+    toast.add({title: t('drafts.rebuildFailed'), description: (e as Error).message, color: 'error'})
     rebuilding.value = false
     rebuildPhase.value = null
   }
@@ -249,18 +250,18 @@ const canActivate = computed(
 async function confirmActivate() {
   try {
     await activateDraft({id: draftId.value, editor: editor.me.value ?? '', force: force.value})
-    toast.add({title: 'Draft activated', color: 'success', icon: 'i-lucide-check'})
+    toast.add({title: t('drafts.activated'), color: 'success', icon: 'i-lucide-check'})
     activateOpen.value = false
     navigateTo(feedPath('/explore/feed'))
   } catch (e) {
     if (isLockLost(e)) {
       toast.add({
-        title: 'Your editing session was taken over — reload to continue',
+        title: t('drafts.sessionTakenOver'),
         color: 'error',
         icon: 'i-lucide-lock',
       })
     } else {
-      toast.add({title: 'Activation failed', description: (e as Error).message, color: 'error'})
+      toast.add({title: t('drafts.activationFailed'), description: (e as Error).message, color: 'error'})
     }
   }
 }
@@ -272,18 +273,18 @@ const discardOpen = ref(false)
 async function confirmDiscard() {
   try {
     await discardDraft({id: draftId.value, editor: editor.me.value ?? ''})
-    toast.add({title: 'Draft discarded', color: 'success', icon: 'i-lucide-trash-2'})
+    toast.add({title: t('drafts.discarded'), color: 'success', icon: 'i-lucide-trash-2'})
     discardOpen.value = false
     navigateTo(feedPath('/drafts'))
   } catch (e) {
     if (isLockLost(e)) {
       toast.add({
-        title: 'Your editing session was taken over — reload to continue',
+        title: t('drafts.sessionTakenOver'),
         color: 'error',
         icon: 'i-lucide-lock',
       })
     } else {
-      toast.add({title: 'Discard failed', description: (e as Error).message, color: 'error'})
+      toast.add({title: t('drafts.discardFailed'), description: (e as Error).message, color: 'error'})
     }
   }
 }
@@ -436,12 +437,12 @@ const draftSplitterItems: SplitterItem[] = [
   <AppPage full-width>
     <template #leading>
       <span class="flex items-center gap-2 text-lg font-semibold text-highlighted">
-        <span>{{ draft?.label ?? 'Draft' }}</span>
+        <span>{{ draft?.label ?? $t('drafts.draftFallback') }}</span>
         <UBadge v-if="draft" color="neutral" variant="subtle">
           v{{ draft.version }}
         </UBadge>
         <UBadge v-if="draft?.derivationStale" color="warning" variant="subtle">
-          derivation stale
+          {{ $t('drafts.derivationStale') }}
         </UBadge>
         <UBadge v-if="draft?.lock?.editor" color="neutral" variant="soft">
           🔒 {{ draft.lock.editor }}
@@ -456,14 +457,14 @@ const draftSplitterItems: SplitterItem[] = [
         icon="i-lucide-hammer"
         :loading="rebuilding"
         :disabled="rebuilding || !draft || readOnly"
-        :label="rebuilding ? (rebuildPhase ?? 'Rebuilding…') : 'Rebuild & validate'"
+        :label="rebuilding ? (rebuildPhase ?? $t('drafts.rebuilding')) : $t('drafts.rebuild')"
         @click="onRebuild"
       />
       <UButton
         color="neutral"
         variant="ghost"
         icon="i-lucide-download"
-        label="Export"
+        :label="$t('drafts.export')"
         :disabled="!draft"
         @click="onExport"
       />
@@ -471,7 +472,7 @@ const draftSplitterItems: SplitterItem[] = [
         color="primary"
         variant="soft"
         icon="i-lucide-rocket"
-        label="Activate"
+        :label="$t('drafts.activate')"
         :disabled="!draft || readOnly"
         @click="activateOpen = true"
       />
@@ -479,7 +480,7 @@ const draftSplitterItems: SplitterItem[] = [
         color="error"
         variant="ghost"
         icon="i-lucide-trash-2"
-        label="Discard"
+        :label="$t('drafts.discard')"
         :disabled="!draft || readOnly"
         @click="discardOpen = true"
       />
@@ -491,7 +492,7 @@ const draftSplitterItems: SplitterItem[] = [
           v-model="routeSel"
           :items="routeItems"
           value-key="value"
-          placeholder="Route"
+          :placeholder="$t('explore.col.route')"
           icon="i-lucide-route"
           class="w-64"
         />
@@ -506,7 +507,7 @@ const draftSplitterItems: SplitterItem[] = [
           :model-value="serviceId ?? ''"
           :items="serviceItems"
           value-key="value"
-          placeholder="Service"
+          :placeholder="$t('explore.col.service')"
           icon="i-lucide-calendar"
           class="w-48"
           @update:model-value="setService"
@@ -516,7 +517,7 @@ const draftSplitterItems: SplitterItem[] = [
             color="neutral"
             variant="ghost"
             icon="i-lucide-undo-2"
-            label="Undo"
+            :label="$t('drafts.undo')"
             :disabled="!canUndo || readOnly"
             @click="onUndo"
           />
@@ -524,7 +525,7 @@ const draftSplitterItems: SplitterItem[] = [
             color="neutral"
             variant="ghost"
             icon="i-lucide-redo-2"
-            label="Redo"
+            :label="$t('drafts.redo')"
             :disabled="!canRedo || readOnly"
             @click="onRedo"
           />
@@ -532,7 +533,7 @@ const draftSplitterItems: SplitterItem[] = [
             color="neutral"
             variant="soft"
             icon="i-lucide-plus"
-            label="Add trip"
+            :label="$t('drafts.addTrip')"
             :disabled="readOnly"
             @click="openAddTrip"
           />
@@ -540,7 +541,7 @@ const draftSplitterItems: SplitterItem[] = [
             color="neutral"
             variant="soft"
             icon="i-lucide-move-horizontal"
-            label="Bulk shift…"
+            :label="$t('drafts.bulkShift')"
             :disabled="readOnly"
             @click="bulkShiftOpen = true"
           />
@@ -555,7 +556,7 @@ const draftSplitterItems: SplitterItem[] = [
       class="flex items-center gap-3 py-16 justify-center text-muted"
     >
       <UIcon name="i-lucide-loader-circle" class="size-5 animate-spin"/>
-      <span class="text-sm">Loading editor…</span>
+      <span class="text-sm">{{ $t('drafts.loadingEditorInline') }}</span>
     </div>
 
     <div
@@ -563,12 +564,12 @@ const draftSplitterItems: SplitterItem[] = [
       class="flex flex-col items-center gap-3 py-16 justify-center text-muted"
     >
       <UIcon name="i-lucide-file-x" class="size-6"/>
-      <p class="text-sm">This draft no longer exists.</p>
+      <p class="text-sm">{{ $t('drafts.gone') }}</p>
       <UButton
         color="neutral"
         variant="soft"
         icon="i-lucide-arrow-left"
-        label="Back to drafts"
+        :label="$t('drafts.backToDrafts')"
         :to="feedPath('/drafts')"
       />
     </div>
@@ -580,8 +581,8 @@ const draftSplitterItems: SplitterItem[] = [
         variant="subtle"
         icon="i-lucide-user-x"
         class="m-4"
-        title="Not editing"
-        description="Reload the page and enter your name to edit this draft."
+        :title="$t('drafts.notEditing')"
+        :description="$t('drafts.notEditingBody')"
       />
       <UAlert
         v-if="readOnly"
@@ -589,15 +590,15 @@ const draftSplitterItems: SplitterItem[] = [
         variant="subtle"
         icon="i-lucide-lock"
         class="m-4"
-        :title="`Locked by ${lockBanner?.editor ?? 'another editor'}`"
-        :description="lockBanner ? `Lease expires ${formatTime(lockBanner.expiresAt)}` : undefined"
+        :title="lockBanner?.editor ? $t('drafts.lockedBy', {editor: lockBanner.editor}) : $t('drafts.lockedByAnother')"
+        :description="lockBanner ? $t('drafts.leaseExpires', {time: formatTime(lockBanner.expiresAt)}) : undefined"
       >
         <template #actions>
           <UButton
             size="xs"
             color="warning"
             variant="solid"
-            label="Take over"
+            :label="$t('drafts.takeOver')"
             @click="editor.takeOver().catch(() => {})"
           />
         </template>
@@ -679,43 +680,43 @@ const draftSplitterItems: SplitterItem[] = [
       />
     </template>
 
-    <UModal v-model:open="activateOpen" title="Activate draft?">
+    <UModal v-model:open="activateOpen" :title="$t('drafts.activateTitle')">
       <template #body>
         <div class="flex flex-col gap-4 text-sm text-muted">
-          <p>Activating publishes this draft as the feed's active revision.</p>
+          <p>{{ $t('drafts.activateBody') }}</p>
           <div v-if="draft?.derivationStale" class="text-warning">
-            Derivation is stale — rebuild before activating, or force.
+            {{ $t('drafts.staleWarning') }}
           </div>
           <div v-if="(lastValidation?.errorCount ?? 0) > 0" class="text-error">
-            {{ lastValidation?.errorCount }} validation error(s) outstanding.
+            {{ $t('drafts.outstandingErrors', {count: lastValidation?.errorCount ?? 0}, lastValidation?.errorCount ?? 0) }}
           </div>
-          <USwitch v-model="force" label="Force activation"/>
+          <USwitch v-model="force" :label="$t('drafts.force')"/>
         </div>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="activateOpen = false"/>
+          <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="activateOpen = false"/>
           <UButton
             color="primary"
             :loading="activating"
             :disabled="!canActivate"
-            label="Activate"
+            :label="$t('drafts.activate')"
             @click="confirmActivate"
           />
         </div>
       </template>
     </UModal>
 
-    <UModal v-model:open="discardOpen" title="Discard draft?">
+    <UModal v-model:open="discardOpen" :title="$t('drafts.discardTitle')">
       <template #body>
         <p class="text-sm text-muted">
-          This permanently discards this draft and its edits. This cannot be undone.
+          {{ $t('drafts.discardBody') }}
         </p>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="discardOpen = false"/>
-          <UButton color="error" :loading="discarding" label="Discard" @click="confirmDiscard"/>
+          <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="discardOpen = false"/>
+          <UButton color="error" :loading="discarding" :label="$t('drafts.discard')" @click="confirmDiscard"/>
         </div>
       </template>
     </UModal>

@@ -11,6 +11,7 @@ import { docSearchItems, type DocSearchSection } from '~/utils/docs'
 import { useFeedReadinessQuery } from '~~/generated/graphql'
 
 useFeedAlerts()
+const { t } = useI18n()
 
 const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
 
@@ -41,7 +42,7 @@ const feedIsBlocked = computed(() => {
   return feedIsLoading.value || feedIsPreparing.value
 })
 const preparingFeedName = computed(
-  () => readinessFeed.value?.name ?? selectedFeed.value?.name ?? 'feed',
+  () => readinessFeed.value?.name ?? selectedFeed.value?.name ?? t('nav.feedFallback'),
 )
 
 // If the URL points at a feed that doesn't exist, fall back to the first one.
@@ -64,19 +65,20 @@ function underPath(to: string): boolean {
 }
 
 interface NavLeaf {
-  label: string
+  labelKey: string
   icon: string
   path: string
 }
 
+// i18n-keys: nav.*
 const REALTIME: NavLeaf[] = [
   {
-    label: 'Vehicles',
+    labelKey: 'nav.vehicles',
     icon: 'i-lucide-bus',
     path: '/vehicles',
   },
   {
-    label: 'Headway',
+    labelKey: 'nav.headway',
     icon: 'i-lucide-clock',
     path: '/headway',
   },
@@ -84,32 +86,32 @@ const REALTIME: NavLeaf[] = [
 
 const REPORTS: NavLeaf[] = [
   {
-    label: 'AVL history',
+    labelKey: 'nav.avlHistory',
     icon: 'i-lucide-clipboard-list',
     path: '/reports/avl',
   },
   {
-    label: 'Adherence by route',
+    labelKey: 'nav.adherenceByRoute',
     icon: 'i-lucide-route',
     path: '/reports/adherence-route',
   },
   {
-    label: 'Route adherence summary',
+    labelKey: 'nav.routeAdherenceSummary',
     icon: 'i-lucide-list-tree',
     path: '/reports/adherence-routes',
   },
   {
-    label: 'Adherence by trip',
+    labelKey: 'nav.adherenceByTrip',
     icon: 'i-lucide-git-branch',
     path: '/reports/adherence-trip',
   },
   {
-    label: 'Trip adherence summary',
+    labelKey: 'nav.tripAdherenceSummary',
     icon: 'i-lucide-table',
     path: '/reports/adherence-trips',
   },
   {
-    label: 'Adherence by stop',
+    labelKey: 'nav.adherenceByStop',
     icon: 'i-lucide-map-pin',
     path: '/reports/adherence-stop',
   },
@@ -117,44 +119,44 @@ const REPORTS: NavLeaf[] = [
 
 const SCHEDULE: NavLeaf[] = [
   {
-    label: 'Feed',
+    labelKey: 'nav.feed',
     icon: 'i-lucide-file-text',
     path: '/explore/feed',
   },
   {
-    label: 'Routes',
+    labelKey: 'nav.routes',
     icon: 'i-lucide-route',
     path: '/explore/routes',
   },
   {
-    label: 'Stops',
+    labelKey: 'nav.stops',
     icon: 'i-lucide-map-pin',
     path: '/explore/stops',
   },
   {
-    label: 'Trips',
+    labelKey: 'nav.trips',
     icon: 'i-lucide-git-branch',
     path: '/explore/trips',
   },
   {
-    label: 'Blocks',
+    labelKey: 'nav.blocks',
     icon: 'i-lucide-layers',
     path: '/explore/blocks',
   },
   {
-    label: 'Calendar',
+    labelKey: 'nav.calendar',
     icon: 'i-lucide-calendar-days',
     path: '/explore/calendar',
   },
 ]
 
 const WORK: NavLeaf[] = [
-  { label: 'Drafts', icon: 'i-lucide-file-pen-line', path: '/drafts' },
-  { label: 'Compare revisions', icon: 'i-lucide-git-compare', path: '/compare' },
-  { label: 'Optimization', icon: 'i-lucide-sparkles', path: '/optimize' },
+  { labelKey: 'nav.drafts', icon: 'i-lucide-file-pen-line', path: '/drafts' },
+  { labelKey: 'nav.compareRevisions', icon: 'i-lucide-git-compare', path: '/compare' },
+  { labelKey: 'nav.optimization', icon: 'i-lucide-sparkles', path: '/optimize' },
 ]
 
-const DOCS: NavLeaf[] = [{ label: 'Docs', icon: 'i-lucide-book-open', path: '/docs' }]
+const DOCS: NavLeaf[] = [{ labelKey: 'nav.docs', icon: 'i-lucide-book-open', path: '/docs' }]
 
 function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
   // A leaf nested under a sibling's path (/docs/live-config under /docs) takes
@@ -163,7 +165,7 @@ function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
     underPath(feedPath(l.path)) &&
     !leaves.some((o) => o.path.startsWith(`${l.path}/`) && underPath(feedPath(o.path)))
   return leaves.map((l) => ({
-    label: l.label,
+    label: t(l.labelKey),
     icon: l.icon,
     to: feedPath(l.path),
     active: isActive(l),
@@ -173,14 +175,14 @@ function toItems(leaves: NavLeaf[]): NavigationMenuItem[] {
 
 const primaryNav = computed<NavigationMenuItem[]>(() => [
   {
-    label: 'Overview',
+    label: t('nav.overview'),
     icon: 'i-lucide-home',
     to: feedPath(),
     active: route.path === feedPath(),
     slot: 'item',
   },
   {
-    label: 'Live service',
+    label: t('nav.liveService'),
     icon: 'i-lucide-radio',
     defaultOpen: REALTIME.some((l) => underPath(feedPath(l.path))),
     active: REALTIME.some((l) => underPath(feedPath(l.path))),
@@ -188,7 +190,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     slot: 'group',
   },
   {
-    label: 'GTFS',
+    label: t('nav.gtfs'),
     icon: 'i-lucide-playing-cards-fan',
     defaultOpen: SCHEDULE.some((l) => underPath(feedPath(l.path))),
     active: SCHEDULE.some((l) => underPath(feedPath(l.path))),
@@ -196,7 +198,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     slot: 'group',
   },
   {
-    label: 'Changes',
+    label: t('nav.changes'),
     icon: 'i-lucide-file-pen-line',
     defaultOpen: WORK.some((l) => underPath(feedPath(l.path))),
     active: WORK.some((l) => underPath(feedPath(l.path))),
@@ -204,7 +206,7 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
     slot: 'group',
   },
   {
-    label: 'Reports',
+    label: t('nav.reports'),
     icon: 'i-lucide-chart-no-axes-combined',
     defaultOpen: REPORTS.some((l) => underPath(feedPath(l.path))),
     active: REPORTS.some((l) => underPath(feedPath(l.path))),
@@ -237,14 +239,14 @@ const searchFuse = { fuseOptions: { keys: ['content'] } }
 const groups = computed(() => [
   {
     id: 'links',
-    label: 'Go to',
+    label: t('nav.goTo'),
     items: feedIsBlocked.value
       ? []
       : [...primaryNav.value.flatMap((i) => i.children ?? [i]), ...docsNav.value],
   },
   {
     id: 'feeds',
-    label: 'Switch feed',
+    label: t('feedSwitcher.switchFeed'),
     items: feeds.value.map((f) => ({
       id: `feed-${f.code}`,
       label: f.name,
@@ -255,7 +257,7 @@ const groups = computed(() => [
   },
   {
     id: 'docs',
-    label: 'Docs',
+    label: t('nav.docs'),
     items: feedIsBlocked.value ? [] : docSearchItems(docSections.value, feedPath('/docs')),
     // only once something is typed — otherwise every docs section lists on open
     postFilter: (term: string, items: unknown[]) => (term ? items : []),
@@ -275,7 +277,7 @@ const groups = computed(() => [
         <NuxtLink
           :to="feedPath()"
           class="flex min-w-0 items-center gap-2.5 rounded-md px-1 py-1 transition-colors hover:bg-elevated mx-auto"
-          aria-label="TransitTrack overview"
+          :aria-label="$t('nav.overviewAria')"
         >
           <span
             class="flex size-8 shrink-0 items-center justify-center rounded-lg border border-primary/30 bg-primary/10 text-primary"
@@ -369,11 +371,11 @@ const groups = computed(() => [
             color="neutral"
             variant="soft"
             class="w-full max-w-lg mx-auto justify-start gap-2.5 text-left font-normal text-muted"
-            aria-label="Search TransitTrack"
+            :aria-label="$t('nav.searchAria')"
             @click="searchOpen = true"
           >
             <UIcon name="i-lucide-search" class="size-4 shrink-0" />
-            <span class="flex-1 truncate">Search routes, stops, trips, and docs…</span>
+            <span class="flex-1 truncate">{{ $t('nav.searchPlaceholder') }}</span>
             <span class="flex shrink-0 items-center gap-1 text-dimmed">
               <UKbd value="meta" />
               <UKbd value="K" />
@@ -393,14 +395,14 @@ const groups = computed(() => [
           <section class="w-full max-w-md space-y-3" aria-live="polite">
             <div class="flex items-center gap-2 text-sm font-medium text-muted">
               <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-              Preparing {{ preparingFeedName }}
+              {{ $t('nav.preparingFeed', { name: preparingFeedName }) }}
             </div>
             <UProgress color="primary" />
             <p class="text-sm text-dimmed">
               <template v-if="feedIsPreparing">
-                Preparing the first dataset. Browsing will unlock when it is ready.
+                {{ $t('nav.preparingDataset') }}
               </template>
-              <template v-else>Loading feed status…</template>
+              <template v-else>{{ $t('nav.loadingFeedStatus') }}</template>
             </p>
           </section>
         </UContainer>

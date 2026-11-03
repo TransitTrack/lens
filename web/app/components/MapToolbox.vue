@@ -28,24 +28,31 @@ const hovered = ref(false)
 const activeSection = ref<ToolboxSection | null>(null)
 const expanded = computed(() => hovered.value || activeSection.value !== null)
 
-const sections: { id: ToolboxSection; label: string; icon: string }[] = [
-  { id: 'layers', label: 'Layers', icon: 'i-lucide-layers-3' },
-  { id: 'filters', label: 'Filters', icon: 'i-lucide-filter' },
-  { id: 'shapes', label: 'Shapes', icon: 'i-lucide-mouse-pointer-2' },
-  { id: 'measure', label: 'Measure', icon: 'i-lucide-ruler' },
-  { id: 'colors', label: 'Route colors', icon: 'i-lucide-palette' },
-]
+const { t } = useI18n()
 
-const shapeTools: { id: Extract<MapToolMode, 'line' | 'polygon' | 'note'>; label: string; icon: string }[] = [
-  { id: 'line', label: 'Line', icon: 'i-lucide-spline' },
-  { id: 'polygon', label: 'Area shape', icon: 'i-lucide-pentagon' },
-  { id: 'note', label: 'Note', icon: 'i-lucide-message-square-plus' },
-]
-const measureTools: { id: Extract<MapToolMode, 'distance' | 'area' | 'radius'>; label: string; icon: string }[] = [
-  { id: 'distance', label: 'Distance', icon: 'i-lucide-ruler' },
-  { id: 'area', label: 'Area', icon: 'i-lucide-maximize-2' },
-  { id: 'radius', label: 'Radius', icon: 'i-lucide-circle-dot' },
-]
+// i18n-keys: map.section.*, map.sectionHint.*, map.tool.*, map.toolName.*
+const sections = computed<{ id: ToolboxSection; label: string; icon: string }[]>(() => [
+  { id: 'layers', label: t('map.section.layers'), icon: 'i-lucide-layers-3' },
+  { id: 'filters', label: t('map.section.filters'), icon: 'i-lucide-filter' },
+  { id: 'shapes', label: t('map.section.shapes'), icon: 'i-lucide-mouse-pointer-2' },
+  { id: 'measure', label: t('map.section.measure'), icon: 'i-lucide-ruler' },
+  { id: 'colors', label: t('map.section.colors'), icon: 'i-lucide-palette' },
+])
+
+const shapeTools = computed<
+  { id: Extract<MapToolMode, 'line' | 'polygon' | 'note'>; label: string; icon: string }[]
+>(() => [
+  { id: 'line', label: t('map.tool.line'), icon: 'i-lucide-spline' },
+  { id: 'polygon', label: t('map.tool.polygon'), icon: 'i-lucide-pentagon' },
+  { id: 'note', label: t('map.tool.note'), icon: 'i-lucide-message-square-plus' },
+])
+const measureTools = computed<
+  { id: Extract<MapToolMode, 'distance' | 'area' | 'radius'>; label: string; icon: string }[]
+>(() => [
+  { id: 'distance', label: t('map.tool.distance'), icon: 'i-lucide-ruler' },
+  { id: 'area', label: t('map.tool.area'), icon: 'i-lucide-maximize-2' },
+  { id: 'radius', label: t('map.tool.radius'), icon: 'i-lucide-circle-dot' },
+])
 
 function toggleSection(section: ToolboxSection) {
   activeSection.value = activeSection.value === section ? null : section
@@ -113,14 +120,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             {{ sections.find((section) => section.id === activeSection)?.label }}
           </h2>
           <p class="mt-0.5 text-xs text-muted">
-            <template v-if="activeSection === 'layers'">Choose what is visible on this map.</template>
-            <template v-else-if="activeSection === 'filters'">Narrow the map without leaving it.</template>
-            <template v-else-if="activeSection === 'shapes'">Draw temporary map annotations.</template>
-            <template v-else-if="activeSection === 'measure'">Measure distances, areas, and radii.</template>
-            <template v-else>Choose how route lines are coloured.</template>
+            {{ $t(`map.sectionHint.${activeSection}`) }}
           </p>
         </div>
-        <UButton color="neutral" variant="ghost" size="xs" icon="i-lucide-x" aria-label="Close" @click="activeSection = null" />
+        <UButton color="neutral" variant="ghost" size="xs" icon="i-lucide-x" :aria-label="$t('map.close')" @click="activeSection = null" />
       </div>
 
       <div v-if="activeSection === 'layers'" class="space-y-2">
@@ -131,13 +134,13 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
           :label="layer.label"
           @update:model-value="emit('update:layer', { id: layer.id, enabled: $event })"
         />
-        <p v-if="!layers.length" class="text-xs text-muted">This map has no optional layers.</p>
+        <p v-if="!layers.length" class="text-xs text-muted">{{ $t('map.noLayers') }}</p>
       </div>
 
       <div v-else-if="activeSection === 'filters'">
         <slot name="filters">
           <p class="text-sm text-muted">
-            {{ filtersAvailable ? 'Use the available map filters.' : 'This map has no additional filters.' }}
+            {{ filtersAvailable ? $t('map.useFilters') : $t('map.noFilters') }}
           </p>
         </slot>
       </div>
@@ -159,12 +162,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
         <UInput
           :model-value="tools.noteLabel.value"
           size="sm"
-          placeholder="Next note label"
+          :placeholder="$t('map.noteLabelPlaceholder')"
           @update:model-value="setNoteLabel"
         />
         <div class="flex justify-between gap-2">
-          <UButton color="neutral" variant="soft" size="sm" label="Finish" :disabled="!tools.activePoints.value.length" @click="tools.complete" />
-          <UButton color="neutral" variant="ghost" size="sm" label="Clear shapes" @click="tools.clear('drawing')" />
+          <UButton color="neutral" variant="soft" size="sm" :label="$t('map.finish')" :disabled="!tools.activePoints.value.length" @click="tools.complete" />
+          <UButton color="neutral" variant="ghost" size="sm" :label="$t('map.clearShapes')" @click="tools.clear('drawing')" />
         </div>
       </div>
 
@@ -182,10 +185,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             <span class="text-xs">{{ tool.label }}</span>
           </UButton>
         </div>
-        <p class="text-xs text-muted">Click the map to add points. Radius completes after its second point.</p>
+        <p class="text-xs text-muted">{{ $t('map.measureHelp') }}</p>
         <div class="flex justify-between gap-2">
-          <UButton color="neutral" variant="soft" size="sm" label="Finish" :disabled="!tools.activePoints.value.length" @click="tools.complete" />
-          <UButton color="neutral" variant="ghost" size="sm" label="Clear measures" @click="tools.clear('measurement')" />
+          <UButton color="neutral" variant="soft" size="sm" :label="$t('map.finish')" :disabled="!tools.activePoints.value.length" @click="tools.complete" />
+          <UButton color="neutral" variant="ghost" size="sm" :label="$t('map.clearMeasures')" @click="tools.clear('measurement')" />
         </div>
       </div>
 
@@ -199,7 +202,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             icon="i-lucide-palette"
             @click="emit('update:routeColorMode', 'official')"
           >
-            Official route colours
+            {{ $t('map.officialColors') }}
           </UButton>
           <UButton
             color="primary"
@@ -209,16 +212,18 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
             icon="i-lucide-swatch-book"
             @click="emit('update:routeColorMode', 'distinct')"
           >
-            Distinct colours
+            {{ $t('map.distinctColors') }}
           </UButton>
-          <p class="text-xs text-muted">Distinct colours help adjacent lines remain legible.</p>
+          <p class="text-xs text-muted">{{ $t('map.distinctHelp') }}</p>
         </template>
-        <p v-else class="text-sm text-muted">This map does not render route lines to recolour.</p>
+        <p v-else class="text-sm text-muted">{{ $t('map.noRecolor') }}</p>
       </div>
 
       <div v-if="tools.activeTool.value" class="mt-4 flex items-center justify-between border-t border-default pt-3">
-        <span class="text-xs text-muted">{{ tools.activeTool.value }} tool active</span>
-        <UButton color="neutral" variant="ghost" size="xs" label="Exit tool" @click="closeTools" />
+        <span class="text-xs text-muted">{{
+          $t('map.toolActive', { tool: $t(`map.toolName.${tools.activeTool.value}`) })
+        }}</span>
+        <UButton color="neutral" variant="ghost" size="xs" :label="$t('map.exitTool')" @click="closeTools" />
       </div>
     </section>
   </div>

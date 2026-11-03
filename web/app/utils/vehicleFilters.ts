@@ -6,14 +6,22 @@ import type { VehicleRow } from '../composables/useVehiclePolling'
  */
 export type VehicleState = 'unmatched' | 'stale' | 'terminus' | 'late' | 'early' | 'ontime'
 
-export const VEHICLE_STATES: { value: VehicleState; label: string; dotClass: string }[] = [
-  { value: 'ontime', label: 'On time', dotClass: 'bg-success' },
-  { value: 'late', label: 'Late', dotClass: 'bg-error' },
-  { value: 'early', label: 'Early', dotClass: 'bg-warning' },
-  { value: 'terminus', label: 'At terminus', dotClass: 'bg-info' },
-  { value: 'stale', label: 'Lost signal', dotClass: 'bg-neutral-500' },
-  { value: 'unmatched', label: 'Not matched', dotClass: 'bg-neutral-300 dark:bg-neutral-600' },
+export const VEHICLE_STATES: { value: VehicleState; dotClass: string }[] = [
+  { value: 'ontime', dotClass: 'bg-success' },
+  { value: 'late', dotClass: 'bg-error' },
+  { value: 'early', dotClass: 'bg-warning' },
+  { value: 'terminus', dotClass: 'bg-info' },
+  { value: 'stale', dotClass: 'bg-neutral-500' },
+  { value: 'unmatched', dotClass: 'bg-neutral-300 dark:bg-neutral-600' },
 ]
+
+type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
+/** Display label for a vehicle state. */
+export function vehicleStateLabel(state: VehicleState, t: Translate): string {
+  // i18n-keys: vehicles.state.*
+  return t(`vehicles.state.${state}`)
+}
 
 /** Same ±1 minute band as the adherence colours (see `adherenceBadge`). */
 const ON_TIME_WINDOW_SEC = 60

@@ -8,6 +8,7 @@ const open = defineModel<boolean>('open', { default: false })
 
 const { selectedFeedCode, feedPath } = useFeeds()
 const toast = useToast()
+const { t, locale } = useI18n()
 const { name: editorName } = useEditorIdentity()
 
 const label = ref('')
@@ -25,7 +26,9 @@ const { result: feedResult } = useFeedDetailQuery(
 // `baseRevisionId: null` so the backend uses ACTIVE.
 const activeRevisionLabel = computed(() => {
   const active = feedResult.value?.feed?.activeRevision
-  return active ? `#${active.id} · ${gtfsDate(active.createdAt)}` : 'Active revision'
+  return active
+    ? t('drafts.revisionLabel', { id: active.id, date: gtfsDate(active.createdAt, locale.value) })
+    : t('feed.overview.activeRevision')
 })
 
 watch(open, (isOpen) => {
@@ -41,7 +44,7 @@ async function submit() {
   const name = editor.value.trim()
   if (!name) return
   editorName.value = name
-  toast.add({ title: 'Forking draft…', description: 'Copying rows', color: 'info', icon: 'i-lucide-git-fork' })
+  toast.add({ title: t('drafts.forking'), description: t('drafts.copyingRows'), color: 'info', icon: 'i-lucide-git-fork' })
   try {
     const res = await fork({
       input: {
@@ -55,30 +58,30 @@ async function submit() {
     open.value = false
     if (id) await navigateTo(feedPath('/drafts/' + id))
   } catch (e) {
-    toast.add({ title: 'Fork failed', description: (e as Error).message, color: 'error' })
+    toast.add({ title: t('drafts.forkFailed'), description: (e as Error).message, color: 'error' })
   }
 }
 </script>
 
 <template>
-  <UModal v-model:open="open" title="New draft">
+  <UModal v-model:open="open" :title="$t('drafts.newDraft')">
     <template #body>
       <div class="flex flex-col gap-3">
-        <UFormField label="Label" hint="optional">
-          <UInput v-model="label" placeholder="e.g. Summer 2026 timetable" class="w-full" />
+        <UFormField :label="$t('drafts.col.label')" :hint="$t('drafts.optional')">
+          <UInput v-model="label" :placeholder="$t('drafts.labelPlaceholder')" class="w-full" />
         </UFormField>
-        <UFormField label="Base revision" hint="active revision">
+        <UFormField :label="$t('drafts.baseRevision')" :hint="$t('drafts.activeRevisionHint')">
           <UInput :model-value="activeRevisionLabel" readonly disabled class="w-full" />
         </UFormField>
-        <UFormField label="Your name">
-          <UInput v-model="editor" placeholder="Your name" class="w-full" />
+        <UFormField :label="$t('drafts.yourName')">
+          <UInput v-model="editor" :placeholder="$t('drafts.yourName')" class="w-full" />
         </UFormField>
       </div>
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false" />
-        <UButton :loading="forking" :disabled="!editor.trim()" label="Create draft" @click="submit" />
+        <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="open = false" />
+        <UButton :loading="forking" :disabled="!editor.trim()" :label="$t('drafts.createDraft')" @click="submit" />
       </div>
     </template>
   </UModal>

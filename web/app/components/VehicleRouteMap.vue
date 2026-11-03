@@ -259,10 +259,10 @@ watch(() => tools.activeTool.value, (active) => {
       route-colors-available
       :route-color-mode="routeColorMode"
       :layers="[
-        { id: 'routeLine', label: 'Route line', enabled: visibleLayers.routeLine },
-        { id: 'stops', label: 'Stops', enabled: visibleLayers.stops },
-        { id: 'trail', label: 'AVL trail', enabled: visibleLayers.trail },
-        { id: 'vehicle', label: 'Vehicle marker', enabled: visibleLayers.vehicle },
+        { id: 'routeLine', label: $t('map.layer.routeLine'), enabled: visibleLayers.routeLine },
+        { id: 'stops', label: $t('map.layer.stops'), enabled: visibleLayers.stops },
+        { id: 'trail', label: $t('map.layer.avlTrail'), enabled: visibleLayers.trail },
+        { id: 'vehicle', label: $t('map.layer.vehicleMarker'), enabled: visibleLayers.vehicle },
       ]"
       @update:layer="({ id, enabled }) => {
         if (id === 'routeLine') visibleLayers.routeLine = enabled

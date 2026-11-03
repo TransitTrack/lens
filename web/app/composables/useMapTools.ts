@@ -1,4 +1,5 @@
 import { haversineM, polygonAreaM2 } from '~/utils/vehicleTelemetry'
+import { formatNumber } from '~/utils/intlLocale'
 
 export type MapToolMode = 'distance' | 'area' | 'radius' | 'line' | 'polygon' | 'note'
 export type MapToolPoint = [number, number]
@@ -46,14 +47,14 @@ function circleCoordinates(center: MapToolPoint, radiusM: number, steps = 64): M
   })
 }
 
-function formatArea(squareMetres: number, system: 'metric' | 'imperial'): string {
+function formatArea(squareMetres: number, system: 'metric' | 'imperial', appLocale: string): string {
   if (system === 'imperial') {
     const acres = squareMetres / 4_046.8564224
     return acres >= 1 ? `${acres.toFixed(acres >= 10 ? 1 : 2)} ac` : `${Math.round(squareMetres * 10.7639)} ft²`
   }
   return squareMetres >= 1_000_000
     ? `${(squareMetres / 1_000_000).toFixed(2)} km²`
-    : `${Math.round(squareMetres).toLocaleString()} m²`
+    : `${formatNumber(Math.round(squareMetres), appLocale)} m²`
 }
 
 function pointFeature(point: MapToolPoint, properties: Record<string, unknown>): GeoJSON.Feature {
@@ -75,9 +76,10 @@ function polygonFeature(points: MapToolPoint[], properties: Record<string, unkno
  */
 export function useMapTools(): MapTools {
   const units = useUnits()
+  const { t, locale } = useI18n()
   const activeTool = ref<MapToolMode | null>(null)
   const activePoints = ref<MapToolPoint[]>([])
-  const noteLabel = ref('Note')
+  const noteLabel = ref(t('map.defaultNote'))
   const drawings = ref<GeoJSON.Feature[]>([])
   const measurements = ref<GeoJSON.Feature[]>([])
 
@@ -117,7 +119,7 @@ export function useMapTools(): MapTools {
       )
       return [
         polygonFeature(points, { kind: 'measure-area', active: true }),
-        pointFeature(center, { kind: 'measure-label', label: formatArea(area, units.system.value) }),
+        pointFeature(center, { kind: 'measure-label', label: formatArea(area, units.system.value, locale.value) }),
       ]
     }
 
@@ -174,7 +176,7 @@ export function useMapTools(): MapTools {
     if (tool === 'note') {
       drawings.value = [
         ...drawings.value,
-        pointFeature(point, { kind: 'shape-note', label: noteLabel.value.trim() || 'Note' }),
+        pointFeature(point, { kind: 'shape-note', label: noteLabel.value.trim() || t('map.defaultNote') }),
       ]
       return true
     }

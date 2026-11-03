@@ -8,7 +8,19 @@ export default defineNuxtConfig({
   // universal code (e.g. the Apollo plugin) runs during server rendering with no
   // browser origin to resolve relative GraphQL URIs against.
   ssr: false,
-  modules: ['@nuxt/ui', '@nuxt/eslint', 'nuxt-maplibre', '@vueuse/nuxt', '@nuxt/content'],
+  modules: ['@nuxt/ui', '@nuxt/eslint', 'nuxt-maplibre', '@vueuse/nuxt', '@nuxt/content', '@nuxtjs/i18n'],
+  i18n: {
+    strategy: 'no_prefix',
+    defaultLocale: 'en',
+    locales: [
+      { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
+      { code: 'pl', language: 'pl-PL', name: 'Polski', file: 'pl.json' },
+      { code: 'fr', language: 'fr-FR', name: 'Français', file: 'fr.json' },
+      { code: 'ro', language: 'ro-RO', name: 'Română', file: 'ro.json' },
+    ],
+    langDir: 'locales',
+    detectBrowserLanguage: { useCookie: true, cookieKey: 'tt_locale', fallbackLocale: 'en' },
+  },
   // Renders the repo's docs/*.md (collection in content.config.ts) at build time.
   // node:sqlite avoids a native better-sqlite3 build; the browser queries the
   // generated dump through WASM SQLite, which is what makes this work with ssr: false.

@@ -16,6 +16,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>()
 
+const { locale } = useI18n()
+
 const { result, refetch } = useDraftEditsQuery(
   () => ({ id: props.draftId, limit: 200 }),
   () => ({ enabled: !!props.draftId }),
@@ -103,7 +105,7 @@ async function undoToHere(targetSeq: number) {
 }
 
 function fmt(iso: string): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 </script>
 
@@ -115,7 +117,7 @@ function fmt(iso: string): string {
         color="neutral"
         variant="soft"
         icon="i-lucide-undo-2"
-        label="Undo"
+        :label="$t('drafts.undo')"
         :disabled="!editor.canUndo.value || editor.readOnly.value"
         @click="onUndo"
       />
@@ -124,13 +126,13 @@ function fmt(iso: string): string {
         color="neutral"
         variant="soft"
         icon="i-lucide-redo-2"
-        label="Redo"
+        :label="$t('drafts.redo')"
         :disabled="!editor.canRedo.value || editor.readOnly.value"
         @click="onRedo"
       />
     </div>
 
-    <p v-if="rows.length === 0" class="text-xs text-muted">No edits yet.</p>
+    <p v-if="rows.length === 0" class="text-xs text-muted">{{ $t('drafts.noEdits') }}</p>
 
     <ul class="flex flex-col gap-1">
       <li
@@ -151,7 +153,7 @@ function fmt(iso: string): string {
           :disabled="editor.readOnly.value"
           @click="undoToHere(row.seq)"
         >
-          undo to here
+          {{ $t('drafts.undoToHere') }}
         </button>
       </li>
     </ul>

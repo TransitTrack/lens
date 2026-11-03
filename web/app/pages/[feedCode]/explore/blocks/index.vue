@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
@@ -14,6 +15,7 @@ import {
 import { hexColor, routeTextColor, serviceDaysLabel } from '~/utils/gtfs'
 import { blockDurationSec, peakConcurrency } from '~/utils/blocks'
 
+const { t, locale } = useI18n()
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
@@ -47,14 +49,14 @@ const routeAgency = computed(() => {
 
 const calLabel = computed(() => {
   const m = new Map<string, string>()
-  for (const c of calResult.value?.calendars ?? []) m.set(c.serviceId, serviceDaysLabel(c))
+  for (const c of calResult.value?.calendars ?? []) m.set(c.serviceId, serviceDaysLabel(c, t))
   return m
 })
 
 const serviceItems = computed(() => {
   const ids = [...new Set(allBlocks.value.map((b) => b.serviceId))].sort()
   return [
-    { label: 'All services', value: null },
+    { label: t('explore.blocks.allServices'), value: null },
     ...ids.map((id) => ({
       label: calLabel.value.get(id) ? `${calLabel.value.get(id)} — ${id}` : id,
       value: id,
@@ -104,21 +106,24 @@ const stats = computed(() => {
   const totalSec = list.reduce((s, b) => s + blockDurationSec(b), 0)
   const trips = list.reduce((s, b) => s + b.tripCount, 0)
   return [
-    { label: 'Blocks', value: String(list.length) },
-    { label: 'Vehicle-hours', value: (totalSec / 3600).toFixed(0) },
-    { label: 'Avg trips/block', value: list.length ? (trips / list.length).toFixed(1) : '0' },
-    { label: 'Peak concurrent', value: String(peakConcurrency(list)) },
+    { label: t('nav.blocks'), value: String(list.length) },
+    { label: t('explore.blocks.vehicleHours'), value: (totalSec / 3600).toFixed(0) },
+    {
+      label: t('explore.blocks.avgTrips'),
+      value: list.length ? (trips / list.length).toFixed(1) : '0',
+    },
+    { label: t('explore.blocks.peakConcurrent'), value: String(peakConcurrency(list)) },
   ]
 })
 
-const columns: TableColumn<Block>[] = [
-  { accessorKey: 'blockId', header: 'Block' },
-  { accessorKey: 'serviceId', header: 'Service' },
-  { id: 'span', header: 'Span' },
-  { id: 'duration', header: 'Duration' },
-  { accessorKey: 'tripCount', header: 'Trips' },
-  { id: 'routes', header: 'Routes' },
-]
+const columns = computed<TableColumn<Block>[]>(() => [
+  { accessorKey: 'blockId', header: t('explore.col.block') },
+  { accessorKey: 'serviceId', header: t('explore.col.service') },
+  { id: 'span', header: t('explore.col.span') },
+  { id: 'duration', header: t('explore.col.duration') },
+  { accessorKey: 'tripCount', header: t('nav.trips') },
+  { id: 'routes', header: t('nav.routes') },
+])
 
 const routeName = computed(() => {
   const m = new Map<string, { name: string; color: string | null }>()
@@ -138,7 +143,7 @@ function onSelect(_e: Event, row: { original: Block }) {
 
 function durH(b: Block): string {
   const s = blockDurationSec(b)
-  return `${Math.floor(s / 3600)}h ${Math.round((s % 3600) / 60)}m`
+  return t('explore.duration', { hours: Math.floor(s / 3600), minutes: Math.round((s % 3600) / 60) })
 }
 
 function blockKey(b: Block): string {
@@ -161,7 +166,7 @@ function routeTripCount(b: Block, routeId: string): number {
 </script>
 
 <template>
-  <AppPage title="Blocks" description="Vehicle work assignments across the selected schedule">
+  <AppPage :title="t('nav.blocks')" :description="t('explore.blocks.description')">
     <template #toolbar>
       <ExploreToolbar />
     </template>
@@ -171,14 +176,14 @@ function routeTripCount(b: Block, routeId: string): number {
         <UInput
           v-model="search"
           icon="i-lucide-search"
-          placeholder="Find a block, service, or route…"
+          :placeholder="t('explore.blocks.searchPlaceholder')"
           class="w-full sm:max-w-sm"
         />
         <USelectMenu
           v-model="serviceId"
           :items="serviceItems"
           value-key="value"
-          placeholder="Service"
+          :placeholder="t('explore.col.service')"
           icon="i-lucide-calendar"
           class="w-full sm:w-64"
         />
@@ -187,12 +192,18 @@ function routeTripCount(b: Block, routeId: string): number {
           :items="routeItems"
           value-key="value"
           multiple
-          placeholder="Routes"
+          :placeholder="t('nav.routes')"
           icon="i-lucide-route"
           class="w-full sm:w-64"
         />
         <span class="text-xs text-dimmed sm:ml-auto">
-          {{ blocks.length.toLocaleString() }} matching blocks
+          {{
+            t(
+              'explore.blocks.matching',
+              { count: formatNumber(blocks.length, locale) },
+              blocks.length,
+            )
+          }}
         </span>
       </div>
       <div class="grid grid-cols-2 border-t border-default sm:grid-cols-4">
@@ -215,8 +226,12 @@ function routeTripCount(b: Block, routeId: string): number {
       <div
         class="flex items-center justify-between border-b border-default bg-elevated/30 px-4 py-2.5"
       >
-        <span class="text-sm font-medium text-highlighted">Block assignments</span>
-        <span class="text-xs text-dimmed">Select a row for its timeline</span>
+        <span class="text-sm font-medium text-highlighted">{{
+          t('explore.blocks.assignments')
+        }}</span>
+        <span class="text-xs text-dimmed">{{
+          t('explore.blocks.selectRow')
+        }}</span>
       </div>
       <UTable
         :data="blocks"

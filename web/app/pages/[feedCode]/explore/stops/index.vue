@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem, TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
 import ExploreToolbar from '~/components/ExploreToolbar.vue'
@@ -9,6 +10,7 @@ import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExplorePatterns } from '~/composables/useExplorePatterns'
 import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
 
+const { t, locale } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const { agencyId } = useAgencyFilter()
@@ -33,10 +35,16 @@ const inAgency = computed(() => {
 const stats = computed(() => {
   const list = inAgency.value
   return [
-    { label: 'Stops', value: list.length },
-    { label: 'Mapped', value: list.filter((s) => s.stopLat != null && s.stopLon != null).length },
-    { label: 'Stations', value: list.filter((s) => s.locationType === 1).length },
-    { label: 'Child platforms', value: list.filter((s) => !!s.parentStation).length },
+    { label: t('nav.stops'), value: list.length },
+    {
+      label: t('explore.stops.mapped'),
+      value: list.filter((s) => s.stopLat != null && s.stopLon != null).length,
+    },
+    { label: t('explore.stops.stations'), value: list.filter((s) => s.locationType === 1).length },
+    {
+      label: t('explore.stops.childPlatforms'),
+      value: list.filter((s) => !!s.parentStation).length,
+    },
   ]
 })
 
@@ -68,11 +76,11 @@ const stopFeatures = computed(
     }) as GeoJSON.FeatureCollection,
 )
 
-const columns: TableColumn<Stop>[] = [
-  { accessorKey: 'stopName', header: 'Stop' },
-  { accessorKey: 'stopCode', header: 'Code' },
-  { accessorKey: 'stopId', header: 'ID' },
-]
+const columns = computed<TableColumn<Stop>[]>(() => [
+  { accessorKey: 'stopName', header: t('explore.col.stop') },
+  { accessorKey: 'stopCode', header: t('explore.col.code') },
+  { accessorKey: 'stopId', header: t('explore.col.id') },
+])
 
 function onSelect(_e: Event, row: { original: Stop }) {
   focusId.value = row.original.stopId
@@ -115,8 +123,8 @@ const splitterItems = computed<SplitterItem[]>(() =>
 <template>
   <AppPage
     constrain-content
-    title="Stops"
-    description="Search the network and inspect each stop in context"
+    :title="t('nav.stops')"
+    :description="t('explore.stops.description')"
   >
     <template #toolbar>
       <ExploreToolbar />
@@ -129,7 +137,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
         class="border-b border-r border-default px-4 py-2.5 last:border-r-0 sm:border-b-0"
       >
         <div class="text-lg font-semibold tracking-tight text-highlighted">
-          {{ s.value.toLocaleString() }}
+          {{ formatNumber(s.value, locale) }}
         </div>
         <div class="text-xs text-muted">{{ s.label }}</div>
       </div>
@@ -147,25 +155,35 @@ const splitterItems = computed<SplitterItem[]>(() =>
         >
           <div class="flex shrink-0 flex-col gap-2">
             <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-highlighted">Stop directory</span>
-              <span class="text-xs text-dimmed">{{ rows.length.toLocaleString() }} shown</span>
+              <span class="text-sm font-medium text-highlighted">{{
+                t('explore.stops.directory')
+              }}</span>
+              <span class="text-xs text-dimmed">{{
+                t('explore.stops.shown', { count: formatNumber(rows.length, locale) })
+              }}</span>
             </div>
             <UInput
               v-model="search"
               icon="i-lucide-search"
-              placeholder="Search name, code, or ID…"
+              :placeholder="t('explore.stops.searchPlaceholder')"
             />
           </div>
           <div
             class="flex shrink-0 items-center justify-between border-y border-default py-2 text-xs text-dimmed"
           >
-            <span>{{ inAgency.length.toLocaleString() }} stops in this view</span>
+            <span>{{
+              t(
+                'explore.stops.inView',
+                { count: formatNumber(inAgency.length, locale) },
+                inAgency.length,
+              )
+            }}</span>
             <UButton
               v-if="focusId"
               size="xs"
               variant="soft"
               color="primary"
-              label="Open detail"
+              :label="t('explore.stops.openDetail')"
               trailing-icon="i-lucide-arrow-right"
               @click="openStop(focusId)"
             />
@@ -201,7 +219,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
           <div
             class="pointer-events-none absolute left-4 top-4 z-1 rounded-md border border-default bg-default/90 px-3 py-2 text-xs text-muted shadow-sm backdrop-blur"
           >
-            Select a stop, or choose a cluster to zoom in
+            {{ t('explore.stops.mapHint') }}
           </div>
           <StopsMap
             :stops="stopFeatures"

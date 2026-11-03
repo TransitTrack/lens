@@ -3,6 +3,8 @@ import { secToHm } from '#imports'
 import type { TimelineSegment } from '~/utils/blocks'
 import { ganttRows, layoverLabel, timelineTicks } from '~/utils/blocks'
 
+const { t } = useI18n()
+
 const props = defineProps<{
   segments: TimelineSegment[]
   spanStart: number
@@ -26,7 +28,7 @@ const rows = computed(() => ganttRows(props.segments))
     <div class="overflow-x-auto pb-1">
       <div class="min-w-152">
         <div class="grid grid-cols-[10rem_minmax(0,1fr)] border-b border-default pb-2">
-          <p class="text-xs font-medium text-dimmed">Trip</p>
+          <p class="text-xs font-medium text-dimmed">{{ t('explore.col.trip') }}</p>
           <div class="relative h-4">
             <span
               v-for="tick in ticks"
@@ -73,7 +75,7 @@ const rows = computed(() => ganttRows(props.segments))
                 left: `${row.layoverAfter.x * 100}%`,
                 width: `${row.layoverAfter.w * 100}%`,
               }"
-              :title="`Layover ${secToHm(row.layoverAfter.startSec)}–${secToHm(row.layoverAfter.endSec)}`"
+              :title="t('explore.block.layoverRange', { from: secToHm(row.layoverAfter.startSec), to: secToHm(row.layoverAfter.endSec) })"
             />
             <span
               v-if="row.layoverAfter"
@@ -83,12 +85,14 @@ const rows = computed(() => ganttRows(props.segments))
                 layoverLabel(
                   row.layoverAfter.endSec - row.layoverAfter.startSec,
                   row.trip.deadheadAfter,
+                  t,
                 )
               "
               >{{
                 layoverLabel(
                   row.layoverAfter.endSec - row.layoverAfter.startSec,
                   row.trip.deadheadAfter,
+                  t,
                 )
               }}</span
             >
@@ -96,14 +100,14 @@ const rows = computed(() => ganttRows(props.segments))
               v-if="row.trip.deadheadAfter"
               class="absolute top-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-warning ring-2 ring-elevated"
               :style="{ left: `${(row.trip.x + row.trip.w) * 100}%` }"
-              title="Deadhead after"
+              :title="t('explore.block.deadheadAfter')"
             />
           </div>
         </div>
       </div>
     </div>
     <p class="mt-3 text-xs text-dimmed">
-      Bars are revenue trips; dotted extensions show layovers; amber dots mark deadheads.
+      {{ t('explore.block.timelineLegend') }}
     </p>
   </div>
 </template>

@@ -1,20 +1,19 @@
-const ROUTE_TYPES: Record<number, string> = {
-  0: 'Tram',
-  1: 'Subway',
-  2: 'Rail',
-  3: 'Bus',
-  4: 'Ferry',
-  5: 'Cable tram',
-  6: 'Aerial lift',
-  7: 'Funicular',
-  11: 'Trolleybus',
-  12: 'Monorail',
-}
+import { displayLocale } from './intlLocale'
 
-export function routeTypeLabel(type: number | null | undefined): string {
+const KNOWN_ROUTE_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7, 11, 12])
+
+export type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
+export function routeTypeLabel(type: number | null | undefined, t: Translate): string {
   if (type == null) return '—'
   // extended route types collapse to their hundreds bucket
-  return ROUTE_TYPES[type] ?? ROUTE_TYPES[Math.floor(type / 100)] ?? `Type ${type}`
+  const known = KNOWN_ROUTE_TYPES.has(type)
+    ? type
+    : KNOWN_ROUTE_TYPES.has(Math.floor(type / 100))
+      ? Math.floor(type / 100)
+      : null
+  // i18n-keys: gtfs.routeType.*
+  return known != null ? t(`gtfs.routeType.${known}`) : t('gtfs.routeTypeOther', { type })
 }
 
 export function hexColor(raw: string | null | undefined, fallback = '#64748b'): string {
@@ -65,21 +64,22 @@ export function activeDays(cal: DayFlags): boolean[] {
   return DAYS.map((d) => !!cal[d])
 }
 
-export function serviceDaysLabel(cal: DayFlags): string {
+export function serviceDaysLabel(cal: DayFlags, t: Translate): string {
   const on = DAYS.filter((d) => cal[d])
-  if (on.length === 7) return 'Every day'
-  if (on.length === 5 && !cal.saturday && !cal.sunday) return 'Weekdays'
-  if (on.length === 2 && cal.saturday && cal.sunday) return 'Weekends'
-  if (on.length === 0) return 'None'
-  return on.map((d) => d.slice(0, 3)).join(', ')
+  if (on.length === 7) return t('explore.serviceDays.everyDay')
+  if (on.length === 5 && !cal.saturday && !cal.sunday) return t('explore.serviceDays.weekdays')
+  if (on.length === 2 && cal.saturday && cal.sunday) return t('explore.serviceDays.weekends')
+  if (on.length === 0) return t('explore.serviceDays.none')
+  // i18n-keys: explore.dayShort.*
+  return on.map((d) => t(`explore.dayShort.${d}`)).join(', ')
 }
 
 /** GTFS date "YYYYMMDD" or ISO → short display */
-export function gtfsDate(raw: string | null | undefined): string {
+export function gtfsDate(raw: string | null | undefined, appLocale?: string): string {
   if (!raw) return '—'
   const s = raw.length === 8 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}` : raw
   const d = new Date(s)
-  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(undefined, {dateStyle: 'medium'})
+  return Number.isNaN(d.getTime()) ? s : d.toLocaleDateString(displayLocale(appLocale), {dateStyle: 'medium'})
 }
 
 export type LngLat = [number, number]

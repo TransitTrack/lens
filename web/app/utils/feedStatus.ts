@@ -11,6 +11,8 @@ export type RevisionStatus =
   | 'UNCHANGED'
   | 'DRAFT'
 
+type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
 export type BadgeColor = 'neutral' | 'info' | 'warning' | 'success' | 'error'
 
 const IN_PROGRESS_REVISION_STATUSES = new Set<RevisionStatus>([
@@ -27,13 +29,14 @@ export function isInProgressRevisionStatus(status: string | null | undefined): b
 }
 
 /** Ordered ingestion pipeline stages, for the processing stepper. */
+// i18n-keys: feed.step.*
 export const PIPELINE_STEPS = [
-  { key: 'DOWNLOADING', label: 'Download' },
-  { key: 'VALIDATING', label: 'Validate' },
-  { key: 'PARSING', label: 'Parse' },
-  { key: 'DERIVING', label: 'Derive' },
-  { key: 'READY', label: 'Ready' },
-  { key: 'ACTIVE', label: 'Active' },
+  { key: 'DOWNLOADING', labelKey: 'feed.step.download' },
+  { key: 'VALIDATING', labelKey: 'feed.step.validate' },
+  { key: 'PARSING', labelKey: 'feed.step.parse' },
+  { key: 'DERIVING', labelKey: 'feed.step.derive' },
+  { key: 'READY', labelKey: 'feed.step.ready' },
+  { key: 'ACTIVE', labelKey: 'feed.step.active' },
 ] as const
 
 export interface RevisionStatusMeta {
@@ -44,44 +47,46 @@ export interface RevisionStatusMeta {
   terminal: boolean
 }
 
-const META: Record<RevisionStatus, RevisionStatusMeta> = {
-  PENDING: { label: 'Queued', color: 'neutral', step: -1, terminal: false },
-  DOWNLOADING: { label: 'Downloading', color: 'info', step: 0, terminal: false },
-  VALIDATING: { label: 'Validating', color: 'info', step: 1, terminal: false },
-  PARSING: { label: 'Parsing', color: 'info', step: 2, terminal: false },
-  DERIVING: { label: 'Deriving', color: 'info', step: 3, terminal: false },
-  READY: { label: 'Ready', color: 'success', step: 4, terminal: false },
-  ACTIVE: { label: 'Active', color: 'success', step: 5, terminal: true },
-  SUPERSEDED: { label: 'Superseded', color: 'neutral', step: 5, terminal: true },
-  UNCHANGED: { label: 'Unchanged', color: 'neutral', step: 5, terminal: true },
-  FAILED: { label: 'Failed', color: 'error', step: -1, terminal: true },
-  DRAFT: { label: 'Draft', color: 'neutral', step: -1, terminal: true },
+type StatusMetaEntry = Omit<RevisionStatusMeta, 'label'> & { labelKey: string }
+
+// i18n-keys: feed.status.*
+const META: Record<RevisionStatus, StatusMetaEntry> = {
+  PENDING: { labelKey: 'feed.status.PENDING', color: 'neutral', step: -1, terminal: false },
+  DOWNLOADING: { labelKey: 'feed.status.DOWNLOADING', color: 'info', step: 0, terminal: false },
+  VALIDATING: { labelKey: 'feed.status.VALIDATING', color: 'info', step: 1, terminal: false },
+  PARSING: { labelKey: 'feed.status.PARSING', color: 'info', step: 2, terminal: false },
+  DERIVING: { labelKey: 'feed.status.DERIVING', color: 'info', step: 3, terminal: false },
+  READY: { labelKey: 'feed.status.READY', color: 'success', step: 4, terminal: false },
+  ACTIVE: { labelKey: 'feed.status.ACTIVE', color: 'success', step: 5, terminal: true },
+  SUPERSEDED: { labelKey: 'feed.status.SUPERSEDED', color: 'neutral', step: 5, terminal: true },
+  UNCHANGED: { labelKey: 'feed.status.UNCHANGED', color: 'neutral', step: 5, terminal: true },
+  FAILED: { labelKey: 'feed.status.FAILED', color: 'error', step: -1, terminal: true },
+  DRAFT: { labelKey: 'feed.status.DRAFT', color: 'neutral', step: -1, terminal: true },
 }
 
-export function revisionStatusMeta(status: string | null | undefined): RevisionStatusMeta {
-  return (
-    META[status as RevisionStatus] ?? {
-      label: status ?? '—',
-      color: 'neutral',
-      step: -1,
-      terminal: false,
-    }
-  )
+export function revisionStatusMeta(
+  status: string | null | undefined,
+  t: Translate,
+): RevisionStatusMeta {
+  const entry = META[status as RevisionStatus]
+  if (!entry) return { label: status ?? '—', color: 'neutral', step: -1, terminal: false }
+  const { labelKey, ...rest } = entry
+  return { label: t(labelKey), ...rest }
 }
 
 /** Human summary of a common Spring 6-field cron; falls back to the raw string. */
-export function cronSummary(cron: string | null | undefined): string {
-  if (!cron || !cron.trim()) return 'not scheduled'
+export function cronSummary(cron: string | null | undefined, t: Translate): string {
+  if (!cron || !cron.trim()) return t('feed.cron.notScheduled')
   const p = cron.trim().split(/\s+/)
   // only summarise when day-of-month, month and day-of-week are unrestricted
   if (p.length === 6 && p[3] === '*' && p[4] === '*' && p[5] === '*') {
     const [, min, hour] = p
     const everyMin = /^\*\/(\d+)$/.exec(min)
-    if (everyMin && hour === '*') return `every ${everyMin[1]} min`
+    if (everyMin && hour === '*') return t('feed.cron.everyMin', { n: everyMin[1] })
     const everyHour = /^\*\/(\d+)$/.exec(hour)
-    if (everyHour && /^\d+$/.test(min)) return `every ${everyHour[1]} h`
+    if (everyHour && /^\d+$/.test(min)) return t('feed.cron.everyHour', { n: everyHour[1] })
     if (/^\d+$/.test(min) && /^\d+$/.test(hour)) {
-      return `daily at ${hour.padStart(2, '0')}:${min.padStart(2, '0')}`
+      return t('feed.cron.daily', { time: `${hour.padStart(2, '0')}:${min.padStart(2, '0')}` })
     }
   }
   return cron

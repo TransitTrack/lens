@@ -21,12 +21,14 @@ interface ReportFilters {
 }
 
 function today(): string {
+  // Machine format: 'en-CA' yields ISO yyyy-mm-dd for the API and date inputs, so it must not follow the UI locale.
   const parts = new Intl.DateTimeFormat('en-CA').formatToParts(new Date())
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? ''
   return `${value('year')}-${value('month')}-${value('day')}`
 }
 
+const { t } = useI18n()
 const { selectedFeedCode, selectedAvlFeedCode } = useFeeds()
 
 const filters = reactive<ReportFilters>({
@@ -40,7 +42,9 @@ const submitted = ref<ReportFilters | null>(null)
 // results get the room back; re-opening is still one click away via the
 // accordion header.
 const FILTERS_ACCORDION_VALUE = 'filters'
-const filtersAccordionItems = [{ label: 'Report filters', value: FILTERS_ACCORDION_VALUE }]
+const filtersAccordionItems = computed(() => [
+  { label: t('reports.filters.title'), value: FILTERS_ACCORDION_VALUE },
+])
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
@@ -104,47 +108,47 @@ const rows = computed<ReportRow[]>(() =>
 
 const UBadge = resolveComponent('UBadge')
 
-const columns: TableColumn<ReportRow>[] = [
-  { accessorKey: 'tripId', header: 'Trip' },
-  { accessorKey: 'routeId', header: 'Route' },
-  { accessorKey: 'serviceDate', header: 'Service date' },
+const columns = computed<TableColumn<ReportRow>[]>(() => [
+  { accessorKey: 'tripId', header: t('explore.col.trip') },
+  { accessorKey: 'routeId', header: t('explore.col.route') },
+  { accessorKey: 'serviceDate', header: t('reports.col.serviceDate') },
   {
     accessorKey: 'scheduledSec',
-    header: 'Scheduled time',
+    header: t('reports.col.scheduledTime'),
     cell: ({ row }) => formatHm(row.original.scheduledSec),
   },
   {
     accessorKey: 'observedSec',
-    header: 'Observed time',
+    header: t('reports.col.observedTime'),
     cell: ({ row }) => formatHm(row.original.observedSec),
   },
   {
     id: 'adherence',
-    header: 'Adherence',
+    header: t('vehicles.field.adherence'),
     cell: ({ row }) => {
       // Here, `null` means "this stop was scheduled but never observed in the AVL data" (a
       // reporting gap), not "not on a scheduled trip" - `adherenceBadge`'s live-tracking
       // "Unscheduled" label would be misleading next to a real Scheduled-time value.
       if (row.original.adherenceSec == null) {
-        return h(UBadge, { color: 'neutral', variant: 'subtle' }, { default: () => 'Not observed' })
+        return h(UBadge, { color: 'neutral', variant: 'subtle' }, { default: () => t('reports.adherence.notObserved') })
       }
-      const badge = adherenceBadge(row.original.adherenceSec)
+      const badge = adherenceBadge(row.original.adherenceSec, t)
       return h(UBadge, { color: badge.color, variant: 'subtle' }, { default: () => badge.label })
     },
   },
-]
+])
 </script>
 
 <template>
   <AppPage
-    title="Schedule Adherence for a Stop"
-    description="Per-visit adherence for one stop across a date range"
+    :title="$t('reports.stop.title')"
+    :description="$t('reports.stop.description')"
   >
     <template #actions>
       <NavbarActions />
     </template>
 
-    <NoRealtimeState v-if="!selectedAvlFeedCode" what="schedule adherence reports" />
+    <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.adherence')" />
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
       <div class="app-frame bg-elevated/20 px-4">
@@ -155,7 +159,7 @@ const columns: TableColumn<ReportRow>[] = [
           :items="filtersAccordionItems"
         >
           <template #trailing>
-            <span v-if="stopsLoading" class="text-sm text-dimmed">Loading stops…</span>
+            <span v-if="stopsLoading" class="text-sm text-dimmed">{{ $t('reports.filters.loadingStops') }}</span>
             <UIcon
               name="i-lucide-chevron-down"
               class="shrink-0 size-5 ms-auto group-data-[state=open]:rotate-180 transition-transform duration-200 ease-out motion-reduce:transition-none"
@@ -167,29 +171,29 @@ const columns: TableColumn<ReportRow>[] = [
               color="error"
               variant="soft"
               icon="i-lucide-alert-triangle"
-              title="Couldn't load stops"
+              :title="$t('reports.error.stops')"
               :description="stopsError.message"
             />
 
             <div v-else class="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_auto_auto] md:items-end">
               <label class="grid gap-1 text-sm font-medium text-muted">
-                Stop
+                {{ $t('explore.col.stop') }}
                 <USelectMenu
                   v-model="filters.stopId"
                   data-testid="report-stop"
                   :items="stopItems"
                   value-key="value"
                   searchable
-                  placeholder="Select stop"
+                  :placeholder="$t('reports.filters.selectStop')"
                   icon="i-lucide-map-pin"
                 />
               </label>
               <label class="grid gap-1 text-sm font-medium text-muted">
-                Start date
+                {{ $t('reports.filters.startDate') }}
                 <UInput v-model="filters.startDate" type="date" data-testid="report-start-date" />
               </label>
               <label class="grid gap-1 text-sm font-medium text-muted">
-                End date
+                {{ $t('reports.filters.endDate') }}
                 <UInput v-model="filters.endDate" type="date" data-testid="report-end-date" />
               </label>
             </div>
@@ -203,7 +207,7 @@ const columns: TableColumn<ReportRow>[] = [
                 "
                 class="text-sm text-error"
               >
-                End date must be on or after the start date.
+                {{ $t('reports.filters.endBeforeStart') }}
               </p>
               <div v-else />
               <UButton
@@ -212,7 +216,7 @@ const columns: TableColumn<ReportRow>[] = [
                 :disabled="!canRun"
                 @click="runReport"
               >
-                Run report
+                {{ $t('reports.filters.run') }}
               </UButton>
             </div>
           </template>
@@ -225,7 +229,7 @@ const columns: TableColumn<ReportRow>[] = [
           color="error"
           variant="soft"
           icon="i-lucide-alert-triangle"
-          title="Couldn't load schedule adherence"
+          :title="$t('reports.error.adherence')"
           :description="adherenceError.message"
           class="m-4"
         />
@@ -233,7 +237,7 @@ const columns: TableColumn<ReportRow>[] = [
           <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
         </div>
         <p v-else-if="!rows.length" class="p-4 text-sm text-muted">
-          No schedule adherence data for this stop and date range.
+          {{ $t('reports.stop.empty') }}
         </p>
         <UTable v-else :data="rows" :columns="columns" />
       </section>

@@ -8,6 +8,7 @@ import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
 import { useExploreRoutesQuery, type ExploreRoutesQuery } from '~~/generated/graphql'
 import { routeTextColor, routeTypeLabel, hexColor } from '~/utils/gtfs'
 
+const { t } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
 const { typeId } = useRouteTypeFilter()
@@ -53,12 +54,12 @@ const routeStats = computed(() => {
   }
 })
 
-const columns: TableColumn<Row>[] = [
-  { accessorKey: 'routeShortName', header: 'Route' },
-  { accessorKey: 'routeLongName', header: 'Name' },
-  { accessorKey: 'routeType', header: 'Type' },
-  { id: 'agency', header: 'Agency' },
-]
+const columns = computed<TableColumn<Row>[]>(() => [
+  { accessorKey: 'routeShortName', header: t('explore.col.route') },
+  { accessorKey: 'routeLongName', header: t('explore.col.name') },
+  { accessorKey: 'routeType', header: t('explore.col.type') },
+  { id: 'agency', header: t('explore.col.agency') },
+])
 
 function onSelect(_e: Event, row: { original: Row }) {
   navigateTo(feedPath(`/explore/routes/${row.original.routeId}`))
@@ -66,10 +67,7 @@ function onSelect(_e: Event, row: { original: Row }) {
 </script>
 
 <template>
-  <AppPage
-    title="Routes"
-    description="Network service catalogue, patterns, and scheduled operations"
-  >
+  <AppPage :title="t('nav.routes')" :description="t('explore.routes.description')">
     <template #toolbar>
       <ExploreToolbar show-route-type />
     </template>
@@ -78,37 +76,43 @@ function onSelect(_e: Event, row: { original: Row }) {
       <section class="app-frame grid sm:grid-cols-2 xl:grid-cols-4">
         <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
-            >Visible routes</span
-          >
+            >{{
+            t('explore.routes.visibleRoutes')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             routeStats.routes
           }}</span>
-          <span class="text-xs text-muted">{{ routeStats.total }} in this feed</span>
+          <span class="text-xs text-muted">{{ t('explore.routes.inFeed', { count: routeStats.total }) }}</span>
         </div>
         <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
-          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Agencies</span>
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{
+            t('explore.routes.agencies')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             routeStats.agencies
           }}</span>
-          <span class="text-xs text-muted">Represented in this view</span>
+          <span class="text-xs text-muted">{{ t('explore.routes.representedInView') }}</span>
         </div>
         <div
           class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r"
         >
-          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Service modes</span>
+          <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{
+            t('explore.routes.serviceModes')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             routeStats.modes
           }}</span>
-          <span class="text-xs text-muted">GTFS route types</span>
+          <span class="text-xs text-muted">{{ t('explore.routes.gtfsRouteTypes') }}</span>
         </div>
         <div class="flex flex-col gap-1 p-4">
           <span class="text-xs font-medium uppercase tracking-wide text-dimmed"
-            >Named services</span
-          >
+            >{{
+            t('explore.routes.namedServices')
+          }}</span>
           <span class="text-2xl font-semibold tabular-nums text-highlighted">{{
             routeStats.named
           }}</span>
-          <span class="text-xs text-muted">With a route description</span>
+          <span class="text-xs text-muted">{{ t('explore.routes.withDescription') }}</span>
         </div>
       </section>
 
@@ -117,15 +121,17 @@ function onSelect(_e: Event, row: { original: Row }) {
           class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-4 py-3"
         >
           <div>
-            <div class="text-sm font-medium text-highlighted">Route directory</div>
+            <div class="text-sm font-medium text-highlighted">
+              {{ t('explore.routes.directory') }}
+            </div>
             <div class="text-xs text-muted">
-              Select a route to inspect its patterns, stops, and trips.
+              {{ t('explore.routes.selectRoute') }}
             </div>
           </div>
           <UInput
             v-model="search"
             icon="i-lucide-search"
-            placeholder="Search routes…"
+            :placeholder="t('explore.routes.searchPlaceholder')"
             class="w-64 max-w-full"
           />
         </div>
@@ -150,12 +156,12 @@ function onSelect(_e: Event, row: { original: Row }) {
           </template>
           <template #routeLongName-cell="{ row }">
             <div class="font-medium text-highlighted">
-              {{ row.original.routeLongName?.substring(0, 60) ?? 'Unnamed service' }}
+              {{ row.original.routeLongName?.substring(0, 60) ?? t('explore.routes.unnamed') }}
             </div>
             <div class="text-xs text-dimmed">{{ row.original.routeId }}</div>
           </template>
           <template #routeType-cell="{ row }">{{
-            routeTypeLabel(row.original.routeType)
+            routeTypeLabel(row.original.routeType, t)
           }}</template>
           <template #agency-cell="{ row }">
             {{

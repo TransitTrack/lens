@@ -3,30 +3,33 @@ export interface AdherenceBadge {
   color: 'error' | 'warning' | 'success' | 'neutral'
 }
 
-export function adherenceBadge(sec: number | null | undefined): AdherenceBadge {
+type Translate = (key: string, params?: Record<string, unknown>) => string
+
+/** Colours/thresholds are language-independent; only the label is translated through `t`. */
+export function adherenceBadge(sec: number | null | undefined, t: Translate): AdherenceBadge {
   if (sec === null || sec === undefined) {
-    return { label: 'Unscheduled', color: 'neutral' }
+    return { label: t('reports.adherence.unscheduled'), color: 'neutral' }
   }
   if (sec > 300) {
-    return { label: `${Math.round(sec / 60)}m late`, color: 'error' }
+    return { label: t('reports.adherence.minutesLate', { n: Math.round(sec / 60) }), color: 'error' }
   }
   if (sec < -300) {
-    return { label: `${Math.round(-sec / 60)}m early`, color: 'error' }
+    return { label: t('reports.adherence.minutesEarly', { n: Math.round(-sec / 60) }), color: 'error' }
   }
   if (sec > 60) {
-    return { label: `${Math.round(sec / 60)}m late`, color: 'warning' }
+    return { label: t('reports.adherence.minutesLate', { n: Math.round(sec / 60) }), color: 'warning' }
   }
   if (sec < -60) {
-    return { label: `${Math.round(-sec / 60)}m early`, color: 'warning' }
+    return { label: t('reports.adherence.minutesEarly', { n: Math.round(-sec / 60) }), color: 'warning' }
   }
-  return { label: 'On time', color: 'success' }
+  return { label: t('reports.adherence.onTime'), color: 'success' }
 }
 
-export function formatAdherence(sec: number | null | undefined): string {
-  if (sec === null || sec === undefined) return 'Unscheduled'
+export function formatAdherence(sec: number | null | undefined, t: Translate): string {
+  if (sec === null || sec === undefined) return t('reports.adherence.unscheduled')
 
   const totalSeconds = Math.round(Math.abs(sec))
-  if (totalSeconds === 0) return 'On time'
+  if (totalSeconds === 0) return t('reports.adherence.onTime')
 
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60

@@ -1,0 +1,10 @@
+{
+  "stop": { "pl": "przystanek", "fr": "arrêt", "ro": "stație" },
+  "trip": { "pl": "kurs", "fr": "voyage", "ro": "cursă" },
+  "headway": { "pl": "odstęp", "fr": "intervalle", "ro": "interval de succesiune" },
+  "block": { "pl": "brygada", "fr": "bloc", "ro": "bloc" },
+  "route": { "pl": "linia", "fr": "ligne", "ro": "linie" },
+  "vehicle": { "pl": "pojazd", "fr": "véhicule", "ro": "vehicul" },
+  "feed": { "pl": "źródło danych", "fr": "flux", "ro": "flux" },
+  "adherence": { "pl": "punktualność", "fr": "respect de l'horaire", "ro": "punctualitate" }
+}

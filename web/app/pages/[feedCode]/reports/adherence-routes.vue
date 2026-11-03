@@ -14,12 +14,14 @@ interface ReportFilters {
 }
 
 function today(): string {
+  // Machine format: 'en-CA' yields ISO yyyy-mm-dd for the API and date inputs, so it must not follow the UI locale.
   const parts = new Intl.DateTimeFormat('en-CA').formatToParts(new Date())
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? ''
   return `${value('year')}-${value('month')}-${value('day')}`
 }
 
+const { t } = useI18n()
 const { selectedAvlFeedCode } = useFeeds()
 
 const filters = reactive<ReportFilters>({
@@ -32,7 +34,9 @@ const submitted = ref<ReportFilters | null>(null)
 // results get the room back; re-opening is still one click away via the
 // accordion header.
 const FILTERS_ACCORDION_VALUE = 'filters'
-const filtersAccordionItems = [{ label: 'Report filters', value: FILTERS_ACCORDION_VALUE }]
+const filtersAccordionItems = computed(() => [
+  { label: t('reports.filters.title'), value: FILTERS_ACCORDION_VALUE },
+])
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const canRun = computed(
@@ -69,36 +73,36 @@ const rows = computed<ReportRow[]>(() =>
   ),
 )
 
-const columns: TableColumn<ReportRow>[] = [
+const columns = computed<TableColumn<ReportRow>[]>(() => [
   {
     id: 'route',
-    header: 'Route',
+    header: t('explore.col.route'),
     cell: ({ row }) => row.original.routeShortName ?? row.original.routeId,
   },
-  { accessorKey: 'sampleCount', header: 'Sample count' },
+  { accessorKey: 'sampleCount', header: t('reports.col.sampleCount') },
   {
     id: 'meanAdherence',
-    header: 'Mean adherence',
-    cell: ({ row }) => formatAdherence(Math.round(row.original.meanAdherenceSec)),
+    header: t('reports.col.meanAdherence'),
+    cell: ({ row }) => formatAdherence(Math.round(row.original.meanAdherenceSec), t),
   },
   {
     id: 'onTimePct',
-    header: 'On-time %',
+    header: t('reports.col.onTimePct'),
     cell: ({ row }) => `${row.original.onTimePct.toFixed(1)}%`,
   },
-]
+])
 </script>
 
 <template>
   <AppPage
-    title="Schedule Adherence for all Routes"
-    description="Mean adherence and on-time rate per route over a date range"
+    :title="$t('reports.routes.title')"
+    :description="$t('reports.routes.description')"
   >
     <template #actions>
       <NavbarActions />
     </template>
 
-    <NoRealtimeState v-if="!selectedAvlFeedCode" what="schedule adherence reports" />
+    <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.adherence')" />
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
       <div class="app-frame bg-elevated/20 px-4">
@@ -111,11 +115,11 @@ const columns: TableColumn<ReportRow>[] = [
           <template #body>
             <div class="grid gap-3 md:grid-cols-[auto_auto] md:items-end">
               <label class="grid gap-1 text-sm font-medium text-muted">
-                Start date
+                {{ $t('reports.filters.startDate') }}
                 <UInput v-model="filters.startDate" type="date" data-testid="report-start-date" />
               </label>
               <label class="grid gap-1 text-sm font-medium text-muted">
-                End date
+                {{ $t('reports.filters.endDate') }}
                 <UInput v-model="filters.endDate" type="date" data-testid="report-end-date" />
               </label>
             </div>
@@ -129,7 +133,7 @@ const columns: TableColumn<ReportRow>[] = [
                 "
                 class="text-sm text-error"
               >
-                End date must be on or after the start date.
+                {{ $t('reports.filters.endBeforeStart') }}
               </p>
               <div v-else />
               <UButton
@@ -138,7 +142,7 @@ const columns: TableColumn<ReportRow>[] = [
                 :disabled="!canRun"
                 @click="runReport"
               >
-                Run report
+                {{ $t('reports.filters.run') }}
               </UButton>
             </div>
           </template>
@@ -151,7 +155,7 @@ const columns: TableColumn<ReportRow>[] = [
           color="error"
           variant="soft"
           icon="i-lucide-alert-triangle"
-          title="Couldn't load schedule adherence"
+          :title="$t('reports.error.adherence')"
           :description="adherenceError.message"
           class="m-4"
         />
@@ -159,7 +163,7 @@ const columns: TableColumn<ReportRow>[] = [
           <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
         </div>
         <p v-else-if="!rows.length" class="p-4 text-sm text-muted">
-          No schedule adherence data for this date range.
+          {{ $t('reports.routes.empty') }}
         </p>
         <UTable v-else :data="rows" :columns="columns" />
       </section>

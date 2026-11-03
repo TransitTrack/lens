@@ -14,6 +14,7 @@ import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { isValidAdherenceRange } from '~/utils/adherenceReport'
+import { occupancyLabel } from '~/utils/vehicleTelemetry'
 import { formatHm } from '~/utils/tripFilters'
 
 interface ReportFilters {
@@ -24,12 +25,14 @@ interface ReportFilters {
 }
 
 function today(): string {
+  // Machine format: 'en-CA' yields ISO yyyy-mm-dd for the API and date inputs, so it must not follow the UI locale.
   const parts = new Intl.DateTimeFormat('en-CA').formatToParts(new Date())
   const value = (type: Intl.DateTimeFormatPartTypes) =>
     parts.find((part) => part.type === type)?.value ?? ''
   return `${value('year')}-${value('month')}-${value('day')}`
 }
 
+const { t } = useI18n()
 const { selectedFeedCode, selectedAvlFeedCode } = useFeeds()
 
 // Deep-linked from the route-level adherence report (a "Trip" cell there
@@ -52,7 +55,9 @@ const submitted = ref<ReportFilters | null>(null)
 // results get the room back; re-opening is still one click away via the
 // accordion header.
 const FILTERS_ACCORDION_VALUE = 'filters'
-const filtersAccordionItems = [{ label: 'Report filters', value: FILTERS_ACCORDION_VALUE }]
+const filtersAccordionItems = computed(() => [
+  { label: t('reports.filters.title'), value: FILTERS_ACCORDION_VALUE },
+])
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
@@ -102,9 +107,9 @@ type Trip = TripsByRouteQuery['trips'][number]
 const tripItems = computed(() =>
   [...(tripsResult.value?.trips ?? [])]
     .sort((a: Trip, b: Trip) => (a.startTimeSec ?? Infinity) - (b.startTimeSec ?? Infinity))
-    .map((t: Trip) => ({
-      label: `${t.tripHeadsign ?? t.tripShortName ?? t.tripId}${t.startTimeSec != null ? ` (${formatHm(t.startTimeSec)})` : ''}`,
-      value: t.tripId,
+    .map((trip: Trip) => ({
+      label: `${trip.tripHeadsign ?? trip.tripShortName ?? trip.tripId}${trip.startTimeSec != null ? ` (${formatHm(trip.startTimeSec)})` : ''}`,
+      value: trip.tripId,
     })),
 )
 
@@ -163,7 +168,7 @@ const rows = computed<ReportRow[]>(() =>
 )
 
 function adherenceTextClass(sec: number | null): string {
-  switch (adherenceBadge(sec).color) {
+  switch (adherenceBadge(sec, t).color) {
     case 'error':
       return 'text-error'
     case 'warning':
@@ -180,9 +185,9 @@ function adherenceTextClass(sec: number | null): string {
 // and Departure is likewise unavailable - AVL pings carry one timestamp per
 // ping, not a separate arrival/departure pair. These columns always render
 // this placeholder rather than being silently omitted.
-const NOT_TRACKED = 'n/a'
+const NOT_TRACKED = computed(() => t('reports.notAvailable'))
 
-const columns: TableColumn<ReportRow>[] = [
+const columns = computed<TableColumn<ReportRow>[]>(() => [
   {
     id: 'number',
     header: '#',
@@ -191,45 +196,45 @@ const columns: TableColumn<ReportRow>[] = [
   // Not part of the reference layout, but kept: this report spans a date
   // *range*, so without it rows from different service dates would be
   // indistinguishable.
-  { accessorKey: 'serviceDate', header: 'Service date' },
+  { accessorKey: 'serviceDate', header: t('reports.col.serviceDate') },
   {
     accessorKey: 'vehicleId',
-    header: 'Vehicle',
+    header: t('vehicles.field.vehicle'),
     cell: ({ row }) => h('strong', { class: 'font-medium' }, row.original.vehicleId),
   },
   {
     accessorKey: 'stopId',
-    header: 'Stop',
+    header: t('explore.col.stop'),
     cell: ({ row }) =>
       row.original.stopName
-        ? `${row.original.stopName}, Id: ${row.original.stopId}`
+        ? t('reports.col.stopWithId', { name: row.original.stopName, id: row.original.stopId })
         : row.original.stopId,
   },
   {
     accessorKey: 'observedSec',
-    header: 'Arrival',
+    header: t('reports.col.arrival'),
     cell: ({ row }) => formatHm(row.original.observedSec),
   },
   {
     id: 'departure',
-    header: 'Departure',
-    cell: () => NOT_TRACKED,
+    header: t('reports.col.departure'),
+    cell: () => NOT_TRACKED.value,
   },
   {
     accessorKey: 'scheduledSec',
-    header: 'Schedule',
+    header: t('reports.col.schedule'),
     cell: ({ row }) => formatHm(row.original.scheduledSec),
   },
   {
     id: 'deviation',
-    header: 'Deviation',
+    header: t('vehicles.avl.column.deviation'),
     cell: ({ row }) => {
       // Here, `null` means "this stop was scheduled but never observed in the AVL data" (a
       // reporting gap), not "not on a scheduled trip" - `adherenceBadge`'s live-tracking
       // "Unscheduled" label would be misleading next to a real Scheduled-time value.
       const sec = row.original.adherenceSec
       if (sec == null) {
-        return h('span', { class: 'text-muted' }, 'Not observed')
+        return h('span', { class: 'text-muted' }, t('reports.adherence.notObserved'))
       }
       return h(
         'span',
@@ -245,42 +250,42 @@ const columns: TableColumn<ReportRow>[] = [
   },
   {
     accessorKey: 'direction',
-    header: 'Direction',
+    header: t('vehicles.detail.fact.direction'),
     cell: ({ row }) => row.original.direction ?? '—',
   },
   {
     id: 'passengerCount',
-    header: 'Passenger count',
-    cell: () => NOT_TRACKED,
+    header: t('reports.col.passengerCount'),
+    cell: () => NOT_TRACKED.value,
   },
   {
     id: 'change',
-    header: 'Change',
-    cell: () => NOT_TRACKED,
+    header: t('reports.col.change'),
+    cell: () => NOT_TRACKED.value,
   },
   {
     id: 'busFilling',
-    header: 'Bus filling',
-    cell: () => NOT_TRACKED,
+    header: t('reports.col.busFilling'),
+    cell: () => NOT_TRACKED.value,
   },
   {
     accessorKey: 'occupancyStatus',
-    header: 'Occupancy Status',
-    cell: ({ row }) => row.original.occupancyStatus ?? '—',
+    header: t('reports.col.occupancyStatus'),
+    cell: ({ row }) => row.original.occupancyStatus ? occupancyLabel(row.original.occupancyStatus, t) : '—',
   },
-]
+])
 </script>
 
 <template>
   <AppPage
-    title="Schedule Adherence for a Trip"
-    description="Per-stop adherence for one trip across every service date in a date range"
+    :title="$t('reports.trip.title')"
+    :description="$t('reports.trip.description')"
   >
     <template #actions>
       <NavbarActions />
     </template>
 
-    <NoRealtimeState v-if="!selectedAvlFeedCode" what="schedule adherence reports" />
+    <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.adherence')" />
 
     <div v-else class="flex min-h-0 flex-1 flex-col gap-4 py-4">
       <div class="app-frame bg-elevated/20 px-4">
@@ -291,7 +296,7 @@ const columns: TableColumn<ReportRow>[] = [
           :items="filtersAccordionItems"
         >
           <template #trailing>
-            <span v-if="routesLoading" class="text-sm text-dimmed">Loading routes…</span>
+            <span v-if="routesLoading" class="text-sm text-dimmed">{{ $t('reports.filters.loadingRoutes') }}</span>
             <UIcon
               name="i-lucide-chevron-down"
               class="shrink-0 size-5 ms-auto group-data-[state=open]:rotate-180 transition-transform duration-200 ease-out motion-reduce:transition-none"
@@ -303,7 +308,7 @@ const columns: TableColumn<ReportRow>[] = [
               color="error"
               variant="soft"
               icon="i-lucide-alert-triangle"
-              title="Couldn't load routes"
+              :title="$t('reports.error.routes')"
               :description="routesError.message"
             />
 
@@ -312,19 +317,19 @@ const columns: TableColumn<ReportRow>[] = [
               class="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_minmax(16rem,1fr)_auto_auto] md:items-end"
             >
               <label class="grid gap-1 text-sm font-medium text-muted">
-                Route
+                {{ $t('explore.col.route') }}
                 <USelectMenu
                   v-model="filters.routeId"
                   data-testid="report-route"
                   :items="routeItems"
                   value-key="value"
                   searchable
-                  placeholder="Select route"
+                  :placeholder="$t('reports.filters.selectRoute')"
                   icon="i-lucide-route"
                 />
               </label>
               <label class="grid gap-1 text-sm font-medium text-muted">
-                Trip
+                {{ $t('explore.col.trip') }}
                 <USelectMenu
                   v-model="filters.tripId"
                   data-testid="report-trip"
@@ -333,16 +338,16 @@ const columns: TableColumn<ReportRow>[] = [
                   searchable
                   :disabled="!filters.routeId"
                   :loading="tripsLoading"
-                  placeholder="Select trip"
+                  :placeholder="$t('reports.filters.selectTrip')"
                   icon="i-lucide-git-branch"
                 />
               </label>
               <label class="grid gap-1 text-sm font-medium text-muted">
-                Start date
+                {{ $t('reports.filters.startDate') }}
                 <UInput v-model="filters.startDate" type="date" data-testid="report-start-date" />
               </label>
               <label class="grid gap-1 text-sm font-medium text-muted">
-                End date
+                {{ $t('reports.filters.endDate') }}
                 <UInput v-model="filters.endDate" type="date" data-testid="report-end-date" />
               </label>
             </div>
@@ -356,7 +361,7 @@ const columns: TableColumn<ReportRow>[] = [
                 "
                 class="text-sm text-error"
               >
-                End date must be on or after the start date.
+                {{ $t('reports.filters.endBeforeStart') }}
               </p>
               <div v-else />
               <UButton
@@ -365,7 +370,7 @@ const columns: TableColumn<ReportRow>[] = [
                 :disabled="!canRun"
                 @click="runReport"
               >
-                Run report
+                {{ $t('reports.filters.run') }}
               </UButton>
             </div>
           </template>
@@ -377,7 +382,7 @@ const columns: TableColumn<ReportRow>[] = [
           color="error"
           variant="soft"
           icon="i-lucide-alert-triangle"
-          title="Couldn't load schedule adherence"
+          :title="$t('reports.error.adherence')"
           :description="adherenceError.message"
           class="m-4"
         />
@@ -385,7 +390,7 @@ const columns: TableColumn<ReportRow>[] = [
           <USkeleton v-for="i in 8" :key="i" class="h-10 w-full" />
         </div>
         <p v-else-if="!rows.length" class="p-4 text-sm text-muted">
-          No schedule adherence data for this trip and date range.
+          {{ $t('reports.trip.empty') }}
         </p>
         <UTable v-else :data="rows" :columns="columns" />
       </section>

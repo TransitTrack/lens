@@ -26,6 +26,8 @@ const props = defineProps<{
   editor: ReturnType<typeof useDraftEditor>
 }>()
 
+const { t } = useI18n()
+
 const emit = defineEmits<{
   changed: []
   duplicate: [tripId: string]
@@ -184,7 +186,7 @@ async function commitDwell() {
 }
 
 const dirLabel = computed(() =>
-  props.trip.directionId == null ? '—' : `Direction ${props.trip.directionId}`,
+  props.trip.directionId == null ? '—' : t('explore.trips.direction', { dir: props.trip.directionId }),
 )
 </script>
 
@@ -193,48 +195,48 @@ const dirLabel = computed(() =>
     <div>
       <div class="font-medium break-all">{{ trip.tripId }}</div>
       <dl class="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted">
-        <dt>Service</dt>
+        <dt>{{ $t('explore.col.service') }}</dt>
         <dd class="text-default">{{ trip.serviceId ?? '—' }}</dd>
-        <dt>Block</dt>
+        <dt>{{ $t('explore.col.block') }}</dt>
         <dd class="text-default">{{ trip.blockId ?? '—' }}</dd>
-        <dt>Headsign</dt>
+        <dt>{{ $t('explore.col.headsign') }}</dt>
         <dd class="text-default">{{ trip.headsign ?? '—' }}</dd>
-        <dt>Direction</dt>
+        <dt>{{ $t('vehicles.detail.fact.direction') }}</dt>
         <dd class="text-default">{{ dirLabel }}</dd>
       </dl>
     </div>
 
     <div class="border-t border-default pt-3">
-      <div class="mb-1 text-xs font-semibold uppercase text-muted">Derived</div>
+      <div class="mb-1 text-xs font-semibold uppercase text-muted">{{ $t('drafts.derived') }}</div>
       <p v-if="derivationStale" class="text-xs text-muted">
-        Rebuild to refresh pattern &amp; run-time.
+        {{ $t('drafts.rebuildRefresh') }}
       </p>
       <dl
         v-else-if="detail"
         class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs text-muted"
       >
-        <dt>Pattern</dt>
+        <dt>{{ $t('explore.routes.pattern') }}</dt>
         <dd class="text-default break-all">{{ detail.pattern?.patternKey ?? '—' }}</dd>
-        <dt>Stops</dt>
+        <dt>{{ $t('nav.stops') }}</dt>
         <dd class="text-default">{{ detail.pattern?.stopCount ?? '—' }}</dd>
-        <dt>Length</dt>
+        <dt>{{ $t('explore.trip.length') }}</dt>
         <dd class="text-default">
-          {{ detail.pattern?.lengthM != null ? (detail.pattern.lengthM / 1000).toFixed(1) + ' km' : '—' }}
+          {{ detail.pattern?.lengthM != null ? $t('drafts.lengthKm', { km: (detail.pattern.lengthM / 1000).toFixed(1) }) : '—' }}
         </dd>
-        <dt>Run time</dt>
+        <dt>{{ $t('drafts.runTime') }}</dt>
         <dd class="text-default">{{ runTime ?? '—' }}</dd>
       </dl>
-      <p v-else class="text-xs text-muted">No derived data.</p>
+      <p v-else class="text-xs text-muted">{{ $t('drafts.noDerived') }}</p>
     </div>
 
     <div class="border-t border-default pt-3">
-      <div class="mb-2 text-xs font-semibold uppercase text-muted">Actions</div>
+      <div class="mb-2 text-xs font-semibold uppercase text-muted">{{ $t('drafts.actions') }}</div>
       <div class="flex flex-wrap gap-2">
         <UButton
           size="xs"
           color="neutral"
           variant="soft"
-          label="Shift −1m"
+          :label="$t('drafts.shiftMinus')"
           :disabled="readOnly"
           @click="applyShift(-60)"
         />
@@ -242,7 +244,7 @@ const dirLabel = computed(() =>
           size="xs"
           color="neutral"
           variant="soft"
-          label="Shift +1m"
+          :label="$t('drafts.shiftPlus')"
           :disabled="readOnly"
           @click="applyShift(60)"
         />
@@ -251,7 +253,7 @@ const dirLabel = computed(() =>
         <UInput
           v-model="shiftRaw"
           size="xs"
-          placeholder="e.g. +3m or -90"
+          :placeholder="$t('drafts.deltaExample')"
           :disabled="readOnly"
           :color="shiftInvalid ? 'error' : undefined"
           class="flex-1"
@@ -261,13 +263,13 @@ const dirLabel = computed(() =>
           size="xs"
           color="neutral"
           variant="soft"
-          label="Apply"
+          :label="$t('drafts.apply')"
           :disabled="readOnly || shiftDelta == null"
           @click="applyShiftInput"
         />
       </div>
       <p v-if="shiftInvalid" class="mt-1 text-xs text-error">
-        Enter a signed delta: +3m, -90, +1:30
+        {{ $t('drafts.deltaHint') }}
       </p>
       <div class="mt-3 flex flex-wrap gap-2">
         <UButton
@@ -275,7 +277,7 @@ const dirLabel = computed(() =>
           color="neutral"
           variant="soft"
           icon="i-lucide-copy"
-          label="Duplicate"
+          :label="$t('drafts.duplicate')"
           :disabled="readOnly"
           @click="emit('duplicate', trip.tripId)"
         />
@@ -284,7 +286,7 @@ const dirLabel = computed(() =>
           color="error"
           variant="soft"
           icon="i-lucide-trash-2"
-          label="Delete trip"
+          :label="$t('drafts.deleteTrip')"
           :disabled="readOnly"
           @click="deleteOpen = true"
         />
@@ -293,32 +295,33 @@ const dirLabel = computed(() =>
 
     <div v-if="showCell" class="border-t border-default pt-3">
       <div class="mb-2 text-xs font-semibold uppercase text-muted">
-        {{ activeStopName ?? `Stop #${activeCell?.stopSequence}` }}
+        {{ activeStopName ?? $t('drafts.stopNumber', { n: activeCell?.stopSequence }) }}
       </div>
       <div class="grid grid-cols-3 gap-2">
-        <UFormField label="Arrival" size="xs">
-          <UInput v-model="arrText" type="text" size="xs" placeholder="e.g. 7:33" :disabled="readOnly" @change="commitArrText" />
+        <UFormField :label="$t('drafts.arrival')" size="xs">
+          <UInput v-model="arrText" type="text" size="xs" :placeholder="$t('drafts.example', { value: '7:33' })" :disabled="readOnly" @change="commitArrText" />
         </UFormField>
-        <UFormField label="Departure" size="xs">
-          <UInput v-model="depText" type="text" size="xs" placeholder="e.g. 7:33" :disabled="readOnly" @change="commitDepText" />
+        <UFormField :label="$t('drafts.departure')" size="xs">
+          <UInput v-model="depText" type="text" size="xs" :placeholder="$t('drafts.example', { value: '7:33' })" :disabled="readOnly" @change="commitDepText" />
         </UFormField>
-        <UFormField label="Dwell" size="xs">
+        <UFormField :label="$t('drafts.dwell')" size="xs">
           <UInput v-model.number="dwell" type="number" size="xs" :disabled="readOnly" @change="commitDwell" />
         </UFormField>
       </div>
     </div>
 
-    <UModal v-model:open="deleteOpen" title="Delete trip?">
+    <UModal v-model:open="deleteOpen" :title="$t('drafts.deleteTitle')">
       <template #body>
-        <p class="text-sm text-muted">
-          This removes trip <span class="font-mono">{{ trip.tripId }}</span> from the draft.
-          You can undo it from the history panel.
-        </p>
+        <i18n-t keypath="drafts.deleteBody" tag="p" class="text-sm text-muted">
+          <template #id>
+            <span class="font-mono">{{ trip.tripId }}</span>
+          </template>
+        </i18n-t>
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" label="Cancel" @click="deleteOpen = false" />
-          <UButton color="error" label="Delete" @click="confirmDelete" />
+          <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="deleteOpen = false" />
+          <UButton color="error" :label="$t('drafts.delete')" @click="confirmDelete" />
         </div>
       </template>
     </UModal>

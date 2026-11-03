@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatDottedTimestamp } from '~/utils/clock'
 import type { VehicleRow } from '../composables/useVehiclePolling'
 import { adherenceBadge } from '../utils/adherence'
 import VehicleMapLegend from './VehicleMapLegend.vue'
@@ -7,7 +8,7 @@ import { hideBasemapLabels, useMapStyle } from '../composables/useMapStyle'
 import { useFeedGeometry } from '../composables/useFeedGeometry'
 import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
-import { haversineM } from '../utils/vehicleTelemetry'
+import { coarseAgeLabel, haversineM } from '../utils/vehicleTelemetry'
 import { usePollControl } from '../composables/usePollControl'
 import { useAvlTrailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
@@ -44,6 +45,7 @@ const emit = defineEmits<{
   viewVehicle: [vehicleId: string]
 }>()
 
+const { t, locale } = useI18n()
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
 const colorMode = useColorMode()
@@ -240,26 +242,13 @@ function clockTime(seconds: number | null | undefined): string {
 
 function updateAge(iso: string): string {
   const seconds = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))
-  if (seconds < 45) return 'a few seconds ago'
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`
-  return `${Math.round(seconds / 3600)}h ago`
+  return coarseAgeLabel(seconds, t)
 }
 
 function updateTimestamp(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return 'Unknown'
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date)
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? ''
-  return `${value('day')}.${value('month')}.${value('year')}, ${value('hour')}:${value('minute')}:${value('second')}`
+  if (Number.isNaN(date.getTime())) return t('vehicles.unknown')
+  return formatDottedTimestamp(date, locale.value)
 }
 
 function clipped(values: number[], lo = 0.02, hi = 0.98): [number, number] {
@@ -331,7 +320,7 @@ watch(
 )
 
 function badge(v: VehicleRow) {
-  return adherenceBadge(v.scheduleAdherenceSec)
+  return adherenceBadge(v.scheduleAdherenceSec, t)
 }
 
 // A fleet of ~150 `MglMarker`s is 150 real Vue components + DOM nodes, all
@@ -707,24 +696,24 @@ watch(
             class="flex items-center gap-2 py-4 text-sm text-muted"
           >
             <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-            Loading operational details…
+            {{ $t('vehicles.popup.loading') }}
           </div>
 
           <template v-else-if="activeVehicleDetail">
             <section class="border-y border-dashed border-default py-2.5">
               <dl class="space-y-1.5">
                 <div class="flex justify-between gap-3">
-                  <dt class="text-muted">Route</dt>
+                  <dt class="text-muted">{{ $t('vehicles.field.route') }}</dt>
                   <dd class="text-right font-semibold text-highlighted">
                     {{
                       activeVehicleDetail.trip?.route?.routeShortName ??
                       activeVehicleDetail.trip?.routeId ??
-                      'Unassigned'
+                      $t('vehicles.popup.unassigned')
                     }}
                   </dd>
                 </div>
                 <div v-if="activeVehicleDetail.block" class="flex justify-between gap-3">
-                  <dt class="text-muted">Block</dt>
+                  <dt class="text-muted">{{ $t('vehicles.field.block') }}</dt>
                   <dd class="text-right font-semibold text-highlighted">
                     {{ activeVehicleDetail.block.blockId }}
                   </dd>
@@ -736,7 +725,7 @@ watch(
                   "
                   class="flex justify-between gap-3"
                 >
-                  <dt class="text-muted">Block window</dt>
+                  <dt class="text-muted">{{ $t('vehicles.popup.blockWindow') }}</dt>
                   <dd class="text-right font-semibold tabular-nums text-highlighted">
                     {{ clockTime(activeVehicleDetail.block?.startTimeSec) }}–{{
                       clockTime(activeVehicleDetail.block?.endTimeSec)
@@ -748,10 +737,10 @@ watch(
 
             <section v-if="activeVehicleDetail.trip" class="space-y-1.5">
               <p class="font-semibold text-highlighted">
-                Trip {{ activeVehicleDetail.trip.tripId }}
+                {{ $t('vehicles.popup.tripTitle', { id: activeVehicleDetail.trip.tripId }) }}
               </p>
               <div class="flex justify-between gap-3 text-muted">
-                <span>Scheduled</span>
+                <span>{{ $t('vehicles.field.scheduled') }}</span>
                 <span class="font-semibold tabular-nums text-highlighted">
                   {{ clockTime(activeVehicleDetail.trip.startTimeSec) }}–{{
                     clockTime(activeVehicleDetail.trip.endTimeSec)
@@ -760,9 +749,9 @@ watch(
               </div>
               <div v-if="activeTripProgress" class="pt-1">
                 <div class="flex justify-between gap-3 text-xs">
-                  <span class="font-semibold text-highlighted"
-                    >Progress {{ activeTripProgress.percentage }}%</span
-                  >
+                  <span class="font-semibold text-highlighted">{{
+                    $t('vehicles.popup.progress', { percent: activeTripProgress.percentage })
+                  }}</span>
                   <span class="tabular-nums text-muted"
                     >{{ activeTripProgress.travelledKm.toFixed(1) }} /
                     {{ activeTripProgress.totalKm.toFixed(1) }} km</span
@@ -777,7 +766,11 @@ watch(
                   />
                 </div>
                 <p class="mt-1 text-right text-xs tabular-nums text-muted">
-                  {{ activeTripProgress.remainingKm.toFixed(1) }} km remaining
+                  {{
+                    $t('vehicles.popup.remaining', {
+                      distance: activeTripProgress.remainingKm.toFixed(1),
+                    })
+                  }}
                 </p>
               </div>
             </section>
@@ -785,34 +778,38 @@ watch(
             <section class="border-y border-dashed border-default py-2.5">
               <dl class="space-y-1.5">
                 <div class="flex justify-between gap-3">
-                  <dt class="text-muted">At</dt>
+                  <dt class="text-muted">{{ $t('vehicles.popup.at') }}</dt>
                   <dd class="max-w-52 text-right font-semibold text-highlighted">
-                    {{ activeVehicleDetail.currentStop?.stopName ?? 'Between stops' }}
+                    {{ activeVehicleDetail.currentStop?.stopName ?? $t('vehicles.popup.betweenStops') }}
                   </dd>
                 </div>
                 <div v-if="activeNextStop" class="flex justify-between gap-3">
-                  <dt class="text-muted">Next stop</dt>
+                  <dt class="text-muted">{{ $t('vehicles.field.nextStop') }}</dt>
                   <dd class="max-w-52 text-right font-semibold text-highlighted">
                     {{ activeNextStop.stopName ?? activeNextStop.stopId }}
                   </dd>
                 </div>
                 <div class="flex justify-between gap-3">
-                  <dt class="text-muted">Speed</dt>
+                  <dt class="text-muted">{{ $t('vehicles.field.speed') }}</dt>
                   <dd class="text-right font-semibold tabular-nums text-highlighted">
-                    {{ activeSpeed ? `${Math.round(activeSpeed.mps * 3.6)} km/h` : 'Unavailable' }}
-                    <span v-if="activeSpeed?.estimated" class="ml-1 text-xs font-medium text-muted"
-                      >estimated</span
-                    >
+                    {{
+                      activeSpeed
+                        ? `${Math.round(activeSpeed.mps * 3.6)} km/h`
+                        : $t('vehicles.popup.unavailable')
+                    }}
+                    <span v-if="activeSpeed?.estimated" class="ml-1 text-xs font-medium text-muted">{{
+                      $t('vehicles.popup.estimated')
+                    }}</span>
                   </dd>
                 </div>
                 <div class="flex justify-between gap-3">
-                  <dt class="text-muted">From route</dt>
+                  <dt class="text-muted">{{ $t('vehicles.popup.fromRoute') }}</dt>
                   <dd class="text-right font-semibold tabular-nums text-highlighted">
                     {{
                       activeGpsOffsetM == null
                         ? '—'
                         : activeGpsOffsetM <= 15
-                          ? 'on route'
+                          ? $t('vehicles.field.onRoute')
                           : units.distance(activeGpsOffsetM)
                     }}
                   </dd>
@@ -822,19 +819,19 @@ watch(
 
             <section class="space-y-1.5">
               <div class="flex justify-between gap-3">
-                <span class="text-muted">Last update</span>
+                <span class="text-muted">{{ $t('vehicles.popup.lastUpdate') }}</span>
                 <span class="text-right font-semibold tabular-nums text-highlighted">{{
                   updateTimestamp(activeVehicleDetail.reportTs)
                 }}</span>
               </div>
               <div class="flex justify-between gap-3">
-                <span class="text-muted">Updated</span>
+                <span class="text-muted">{{ $t('vehicles.popup.updated') }}</span>
                 <span class="font-semibold text-highlighted">{{
                   updateAge(activeVehicleDetail.reportTs)
                 }}</span>
               </div>
               <div class="flex items-center justify-between gap-3">
-                <span class="text-muted">Schedule</span>
+                <span class="text-muted">{{ $t('vehicles.popup.schedule') }}</span>
                 <UBadge :color="badge(activeVehicleDetail).color" variant="subtle">{{
                   badge(activeVehicleDetail).label
                 }}</UBadge>
@@ -847,10 +844,14 @@ watch(
               badge(activeVehicle).label
             }}</UBadge>
             <span class="text-muted">
-              {{ activeSpeed ? `${Math.round(activeSpeed.mps * 3.6)} km/h` : 'Speed unavailable' }}
-              <template v-if="activeSpeed?.estimated"> (estimated)</template>
+              {{
+                activeSpeed
+                  ? `${Math.round(activeSpeed.mps * 3.6)} km/h`
+                  : $t('vehicles.popup.speedUnavailable')
+              }}
+              <template v-if="activeSpeed?.estimated"> {{ $t('vehicles.popup.estimatedParens') }}</template>
             </span>
-            <span v-if="activeVehicle.stale" class="text-warning">stale</span>
+            <span v-if="activeVehicle.stale" class="text-warning">{{ $t('vehicles.popup.stale') }}</span>
           </div>
 
           <div class="flex flex-col gap-1.5">
@@ -861,7 +862,7 @@ watch(
                 variant="subtle"
                 size="sm"
                 icon="i-lucide-milestone"
-                label="View trip"
+                :label="$t('vehicles.popup.viewTrip')"
                 :disabled="!activeTripId"
                 @click="activeTripId && emit('viewTrip', activeTripId)"
               />
@@ -871,7 +872,7 @@ watch(
                 variant="subtle"
                 size="sm"
                 icon="i-lucide-layers"
-                label="View block"
+                :label="$t('vehicles.popup.viewBlock')"
                 :disabled="!activeBlockId || !activeServiceId"
                 @click="handleViewBlock"
               />
@@ -883,7 +884,7 @@ watch(
                 variant="subtle"
                 size="sm"
                 icon="i-lucide-route"
-                label="View route"
+                :label="$t('vehicles.popup.viewRoute')"
                 :disabled="!activeRouteId"
                 @click="activeRouteId && emit('viewRoute', activeRouteId)"
               />
@@ -893,7 +894,7 @@ watch(
                 variant="subtle"
                 size="sm"
                 icon="i-lucide-bus"
-                label="View vehicle"
+                :label="$t('vehicles.popup.viewVehicle')"
                 @click="emit('viewVehicle', activeVehicle.vehicleId)"
               />
             </UFieldGroup>
@@ -1066,19 +1067,19 @@ watch(
       route-colors-available
       :route-color-mode="routeColorMode"
       :layers="[
-        { id: 'networkRoutes', label: 'Network routes', enabled: visibleLayers.networkRoutes },
-        { id: 'networkStops', label: 'Network stops', enabled: visibleLayers.networkStops },
+        { id: 'networkRoutes', label: $t('map.layer.networkRoutes'), enabled: visibleLayers.networkRoutes },
+        { id: 'networkStops', label: $t('map.layer.networkStops'), enabled: visibleLayers.networkStops },
         {
           id: 'selectedTripLine',
-          label: 'Selected trip line',
+          label: $t('map.layer.selectedTripLine'),
           enabled: visibleLayers.selectedTripLine,
         },
         {
           id: 'selectedTripStops',
-          label: 'Selected trip stops',
+          label: $t('map.layer.selectedTripStops'),
           enabled: visibleLayers.selectedTripStops,
         },
-        { id: 'vehicle', label: 'Vehicle marker', enabled: visibleLayers.vehicle },
+        { id: 'vehicle', label: $t('map.layer.vehicleMarker'), enabled: visibleLayers.vehicle },
       ]"
       @update:layer="
         ({ id, enabled }) => {

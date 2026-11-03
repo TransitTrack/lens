@@ -8,6 +8,7 @@ import { routeTypeBreakdown } from '~/utils/feedFeatures'
  * Only types actually present in the feed are offered.
  */
 export function useRouteTypeFilter() {
+  const { t } = useI18n()
   const { selectedFeedCode } = useFeeds()
   const { get, set } = useExploreQuery()
 
@@ -16,7 +17,7 @@ export function useRouteTypeFilter() {
     () => ({ enabled: !!selectedFeedCode.value }),
   )
 
-  const types = computed(() => routeTypeBreakdown(result.value?.routes ?? []))
+  const types = computed(() => routeTypeBreakdown(result.value?.routes ?? [], t))
   const hasMultiple = computed(() => types.value.length > 1)
 
   const typeId = computed<string | null>(() => get('type'))

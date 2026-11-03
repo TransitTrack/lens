@@ -39,6 +39,7 @@ function errorCode(e: unknown): string | undefined {
  */
 export function useDraftEditor(draftId: Ref<string>) {
   const toast = useToast()
+  const { t } = useI18n()
   const identity = useEditorIdentity()
   const me = identity.name
 
@@ -63,7 +64,7 @@ export function useDraftEditor(draftId: Ref<string>) {
   )
 
   onDetailError((err) => {
-    toast.add({ title: 'Could not load draft', description: err.message, color: 'error' })
+    toast.add({ title: t('drafts.loadFailed'), description: err.message, color: 'error' })
   })
 
   /**
@@ -138,7 +139,7 @@ export function useDraftEditor(draftId: Ref<string>) {
       return await identity.ensure()
     } catch (e) {
       toast.add({
-        title: 'Editing cancelled — enter your name to edit',
+        title: t('drafts.editCancelled'),
         color: 'warning',
       })
       throw e
@@ -165,7 +166,7 @@ export function useDraftEditor(draftId: Ref<string>) {
           return await run(freshVersion)
         } catch (retryErr) {
           toast.add({
-            title: 'Edit failed',
+            title: t('drafts.editFailed'),
             description: (retryErr as Error).message,
             color: 'error',
           })
@@ -182,12 +183,12 @@ export function useDraftEditor(draftId: Ref<string>) {
         } catch {
           claimed.value = false
           await refetchDraft()
-          toast.add({ title: 'Another editor holds this draft', color: 'error' })
+          toast.add({ title: t('drafts.anotherHolds'), color: 'error' })
           throw e
         }
       }
 
-      toast.add({ title: 'Edit failed', description: (e as Error).message, color: 'error' })
+      toast.add({ title: t('drafts.editFailed'), description: (e as Error).message, color: 'error' })
       throw e
     }
   }
@@ -207,7 +208,7 @@ export function useDraftEditor(draftId: Ref<string>) {
       identityMissing.value = false
     } catch (e) {
       toast.add({
-        title: 'Could not take over the editor lock',
+        title: t('drafts.takeOverFailed'),
         description: (e as Error).message,
         color: 'error',
       })
@@ -240,7 +241,7 @@ export function useDraftEditor(draftId: Ref<string>) {
     } catch {
       identityMissing.value = true
       claimed.value = false
-      toast.add({ title: 'Enter your name to edit this draft', color: 'warning' })
+      toast.add({ title: t('drafts.enterNameToEdit'), color: 'warning' })
       return
     }
     try {

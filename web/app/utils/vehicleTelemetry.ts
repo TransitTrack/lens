@@ -59,14 +59,55 @@ export function blockTripProgress(
   return at === -1 ? null : { index: at + 1, total: ordered.length }
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  INCOMING_AT: 'Approaching stop',
-  STOPPED_AT: 'Stopped at stop',
-  IN_TRANSIT_TO: 'In transit',
+type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
+const KNOWN_STATUSES = new Set(['INCOMING_AT', 'STOPPED_AT', 'IN_TRANSIT_TO'])
+
+/** Human label for a GTFS-realtime `VehicleStopStatus`; unknown values are shown raw. */
+export function currentStatusLabel(raw: string | null | undefined, t: Translate): string | null {
+  if (!raw) return null
+  // i18n-keys: vehicles.status.*
+  return KNOWN_STATUSES.has(raw) ? t(`vehicles.status.${raw}`) : raw
 }
 
-/** Human label for a GTFS-realtime `VehicleStopStatus`. */
-export function currentStatusLabel(raw: string | null | undefined): string | null {
-  if (!raw) return null
-  return STATUS_LABELS[raw] ?? raw
+const KNOWN_OCCUPANCY = new Set([
+  'EMPTY',
+  'MANY_SEATS_AVAILABLE',
+  'FEW_SEATS_AVAILABLE',
+  'STANDING_ROOM_ONLY',
+  'CRUSHED_STANDING_ROOM_ONLY',
+  'FULL',
+  'NOT_ACCEPTING_PASSENGERS',
+  'NO_DATA_AVAILABLE',
+  'NOT_BOARDABLE',
+])
+
+/** Label for a GTFS-realtime occupancy status; unknown values are shown raw. */
+export function occupancyLabel(raw: string, t: Translate): string {
+  // i18n-keys: vehicles.occupancy.*
+  return KNOWN_OCCUPANCY.has(raw) ? t(`vehicles.occupancy.${raw}`) : raw
+}
+
+const KNOWN_MATCH_STATUSES = new Set(['MATCHED', 'UNMATCHED', 'SKIPPED', 'PENDING'])
+
+/** Label for an AVL report's match status; unknown values are shown raw. */
+export function matchStatusLabel(raw: string, t: Translate): string {
+  // i18n-keys: vehicles.matchStatus.*
+  return KNOWN_MATCH_STATUSES.has(raw) ? t(`vehicles.matchStatus.${raw}`) : raw
+}
+
+/**
+ * How long ago a report arrived, in whole units ("12s ago", "3m ago", "2h ago"). Shared by the
+ * vehicle detail page and the telemetry panel.
+ */
+export function ageLabel(sec: number, t: Translate): string {
+  if (sec < 45) return t('poll.secondsAgo', { count: Math.round(sec) })
+  if (sec < 3600) return t('poll.minutesAgo', { count: Math.round(sec / 60) })
+  return t('vehicles.ago.hours', { count: Math.round(sec / 3600) })
+}
+
+/** Same as [ageLabel] but reads "a few seconds ago" below 45 seconds (vehicle list and popup). */
+export function coarseAgeLabel(sec: number, t: Translate): string {
+  if (sec < 45) return t('vehicles.ago.fewSeconds')
+  return ageLabel(sec, t)
 }

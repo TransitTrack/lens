@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
 import gql from 'graphql-tag'
 import { useApolloClient } from '@vue/apollo-composable'
@@ -19,6 +20,7 @@ import {
   type ServiceKind,
 } from '~/utils/stopSchedule'
 
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -114,17 +116,20 @@ watch(
 
 const kinds = computed(() => serviceKinds(calResult.value?.calendars ?? []))
 const histogram = computed(() =>
-  departureHistogram(serving.value, patternTrips.value, kinds.value, kind.value),
+  departureHistogram(serving.value, patternTrips.value, kinds.value, kind.value, t),
 )
 const departureGroups = computed(() =>
   scheduledDepartureGroups(serving.value, patternTrips.value, kinds.value, kind.value),
 )
 
-const kindItems = [
-  { label: 'Weekday', value: 'weekday' as const },
-  { label: 'Saturday', value: 'saturday' as const },
-  { label: 'Sunday', value: 'sunday' as const },
-]
+// i18n-keys: explore.serviceKind.*, explore.serviceKindLower.*
+const kindItems = computed(() =>
+  (['weekday', 'saturday', 'sunday'] as const).map((value) => ({
+    label: t(`explore.serviceKind.${value}`),
+    value,
+  })),
+)
+const kindLower = computed(() => t(`explore.serviceKindLower.${kind.value}`))
 
 const mapFeatures = computed(
   () =>
@@ -183,13 +188,13 @@ const splitterItems = computed<SplitterItem[]>(() =>
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        aria-label="Go back"
+        :aria-label="t('common.goBack')"
         @click="router.back()"
       />
     </template>
     <template v-if="stop?.stopCode || stop?.platformCode" #actions>
       <UBadge color="neutral" variant="subtle" icon="i-lucide-map-pin">
-        {{ stop.platformCode ? `Platform ${stop.platformCode}` : stop.stopCode }}
+        {{ stop.platformCode ? t('explore.stop.platform', { code: stop.platformCode }) : stop.stopCode }}
       </UBadge>
     </template>
 
@@ -215,7 +220,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <div class="flex items-start justify-between gap-3">
               <div>
                 <div class="text-xs font-medium uppercase tracking-wide text-dimmed">
-                  Stop details
+                  {{ t('explore.stop.details') }}
                 </div>
                 <div class="mt-1 text-sm text-muted">{{ stop.stopId }}</div>
               </div>
@@ -225,24 +230,24 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 variant="subtle"
                 icon="i-lucide-accessibility"
               >
-                Accessible
+                {{ t('explore.stop.accessible') }}
               </UBadge>
             </div>
             <dl class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-              <dt class="text-dimmed">Code</dt>
+              <dt class="text-dimmed">{{ t('explore.col.code') }}</dt>
               <dd>{{ stop.stopCode ?? '—' }}</dd>
-              <dt class="text-dimmed">Location</dt>
+              <dt class="text-dimmed">{{ t('explore.stop.location') }}</dt>
               <dd>{{ stop.stopLat?.toFixed(5) }}, {{ stop.stopLon?.toFixed(5) }}</dd>
               <template v-if="stop.stopDesc">
-                <dt class="text-dimmed">About</dt>
+                <dt class="text-dimmed">{{ t('explore.stop.about') }}</dt>
                 <dd>{{ stop.stopDesc }}</dd>
               </template>
               <template v-if="stop.zoneId">
-                <dt class="text-dimmed">Zone</dt>
+                <dt class="text-dimmed">{{ t('explore.stop.zone') }}</dt>
                 <dd>{{ stop.zoneId }}</dd>
               </template>
               <template v-if="stop.parentStation">
-                <dt class="text-dimmed">Station</dt>
+                <dt class="text-dimmed">{{ t('explore.stop.station') }}</dt>
                 <dd>{{ stop.parentStation }}</dd>
               </template>
             </dl>
@@ -250,24 +255,34 @@ const splitterItems = computed<SplitterItem[]>(() =>
 
           <section class="app-frame shrink-0">
             <div class="flex items-center justify-between border-b border-default px-3 py-2.5">
-              <span class="text-sm font-medium text-highlighted">Service at this stop</span>
-              <span class="text-xs text-dimmed">{{ tripTotals.total.toLocaleString() }} trips</span>
+              <span class="text-sm font-medium text-highlighted">{{
+                t('explore.stop.serviceAtStop')
+              }}</span>
+              <span class="text-xs text-dimmed">{{
+                t(
+                  'feed.overview.trips',
+                  { count: formatNumber(tripTotals.total, locale) },
+                  tripTotals.total,
+                )
+              }}</span>
             </div>
             <div class="p-3">
               <div class="grid grid-cols-2 border border-default">
                 <div class="border-b border-r border-default px-3 py-2">
                   <div class="text-lg font-semibold text-highlighted">{{ routes.length }}</div>
-                  <div class="text-xs text-dimmed">routes</div>
+                  <div class="text-xs text-dimmed">{{ t('explore.stop.routesLabel') }}</div>
                 </div>
                 <div class="border-b border-default px-3 py-2">
                   <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
-                  <div class="text-xs text-dimmed">patterns</div>
+                  <div class="text-xs text-dimmed">{{ t('explore.stop.patternsLabel') }}</div>
                 </div>
                 <div class="col-span-2 px-3 py-2">
                   <div class="text-sm font-semibold text-highlighted">
                     {{ secToHm(histogram.firstSec) }}–{{ secToHm(histogram.lastSec) }}
                   </div>
-                  <div class="text-xs text-dimmed">typical {{ kind }} service span</div>
+                  <div class="text-xs text-dimmed">
+                    {{ t('explore.stop.typicalSpan', { kind: kindLower }) }}
+                  </div>
                 </div>
               </div>
               <div v-if="routes.length" class="mt-3 flex flex-wrap gap-1">
@@ -286,7 +301,9 @@ const splitterItems = computed<SplitterItem[]>(() =>
 
           <section class="app-frame shrink-0 flex flex-col gap-2 p-3">
             <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-highlighted">Departures by hour</span>
+              <span class="text-sm font-medium text-highlighted">{{
+                t('explore.stop.departuresByHour')
+              }}</span>
               <UFieldGroup>
                 <UButton
                   v-for="k in kindItems"
@@ -302,11 +319,16 @@ const splitterItems = computed<SplitterItem[]>(() =>
             <template v-else>
               <BarChart :bars="histogram.bars" :height="130" :format="(n) => `${n}`" />
               <p class="text-xs text-dimmed">
-                {{ histogram.total.toLocaleString() }} scheduled departures on a typical
-                {{ kind }} · estimated from typical segment times
+                {{
+                  t(
+                    'explore.stop.departuresSummary',
+                    { count: formatNumber(histogram.total, locale), kind: kindLower },
+                    histogram.total,
+                  )
+                }}
               </p>
               <UButton
-                label="View scheduled departures"
+                :label="t('explore.stop.viewDepartures')"
                 icon="i-lucide-list-clock"
                 color="neutral"
                 variant="outline"
@@ -336,8 +358,8 @@ const splitterItems = computed<SplitterItem[]>(() =>
     <UModal
       v-if="stop"
       v-model:open="departuresOpen"
-      :title="`Scheduled departures from ${stop.stopName ?? stop.stopId}`"
-      :description="`Typical ${kind} service`"
+      :title="t('explore.stop.departuresTitle', { name: stop.stopName ?? stop.stopId })"
+      :description="t('explore.stop.departuresDescription', { kind: kindLower })"
       :ui="{ content: 'sm:max-w-5xl' }"
       scrollable
     >
@@ -383,7 +405,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
           </section>
         </div>
         <p v-else class="py-8 text-center text-sm text-dimmed">
-          No scheduled departures for this service day.
+          {{ t('explore.stop.noDepartures') }}
         </p>
       </template>
     </UModal>

@@ -10,6 +10,7 @@ import {useFeeds} from '~/composables/useFeeds'
 const route = useRoute()
 const runId = computed(() => String(route.params.runId))
 const {feedPath} = useFeeds()
+const { t, te, locale } = useI18n()
 
 const selectedIds = ref<string[]>([])
 const conflictIds = ref<string[]>([])
@@ -46,6 +47,12 @@ watch(result, (r) => {
   if (!optimizationRun || TERMINAL_STATES.includes(optimizationRun.state)) polling.value = false
 })
 
+// i18n-keys: optimize.state.*
+function stateLabel(state: string): string {
+  const key = `optimize.state.${state}`
+  return te(key) ? t(key) : state
+}
+
 const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
   QUEUED: 'neutral',
   RUNNING: 'info',
@@ -55,7 +62,7 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
 </script>
 
 <template>
-  <AppPage :title="`Analysis #${runId}`" description="AVL-informed schedule recommendations">
+  <AppPage :title="$t('optimize.analysisN', {id: runId})" :description="$t('optimize.subtitle')">
     <template #leading>
       <UButton
         :to="feedPath('/optimize')"
@@ -63,7 +70,7 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
         color="neutral"
         variant="ghost"
         square
-        aria-label="Back to analyses"
+        :aria-label="$t('optimize.backToAnalyses')"
       />
     </template>
     <div v-if="loading && !run" class="flex flex-col gap-4">
@@ -75,7 +82,7 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
       color="error"
       variant="soft"
       icon="i-lucide-alert-triangle"
-      title="Run not found"
+      :title="$t('optimize.notFound')"
     />
 
     <div v-else class="flex flex-col gap-6">
@@ -95,22 +102,22 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
             </div>
             <div>
               <div class="flex flex-wrap items-center gap-2">
-                <UBadge :color="STATE_COLOR[run.state] ?? 'neutral'" variant="subtle">{{ run.state }}</UBadge>
-                <span v-if="!isTerminal" class="text-sm text-muted">Live updates enabled</span>
+                <UBadge :color="STATE_COLOR[run.state] ?? 'neutral'" variant="subtle">{{ stateLabel(run.state) }}</UBadge>
+                <span v-if="!isTerminal" class="text-sm text-muted">{{ $t('optimize.liveUpdates') }}</span>
               </div>
               <p class="mt-2 text-base font-medium text-highlighted">
-                {{ run.state === 'SUCCEEDED' ? 'Analysis complete — review the suggested schedule changes below.' : run.state === 'FAILED' ? 'This analysis could not be completed.' : 'Reviewing observed vehicle movements against the schedule.' }}
+                {{ run.state === 'SUCCEEDED' ? $t('optimize.headline.succeeded') : run.state === 'FAILED' ? $t('optimize.headline.failed') : $t('optimize.headline.running') }}
               </p>
             </div>
           </div>
           <dl class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm sm:min-w-72">
             <div>
-              <dt class="text-dimmed">Created</dt>
-              <dd class="mt-1 font-medium text-highlighted">{{ gtfsDate(run.createdAt) }}</dd>
+              <dt class="text-dimmed">{{ $t('optimize.created') }}</dt>
+              <dd class="mt-1 font-medium text-highlighted">{{ gtfsDate(run.createdAt, locale) }}</dd>
             </div>
             <div>
-              <dt class="text-dimmed">Completed</dt>
-              <dd class="mt-1 font-medium text-highlighted">{{ run.completedAt ? gtfsDate(run.completedAt) : 'In progress' }}</dd>
+              <dt class="text-dimmed">{{ $t('optimize.completed') }}</dt>
+              <dd class="mt-1 font-medium text-highlighted">{{ run.completedAt ? gtfsDate(run.completedAt, locale) : $t('optimize.inProgress') }}</dd>
             </div>
           </dl>
         </div>
@@ -121,8 +128,8 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
         color="info"
         variant="soft"
         icon="i-lucide-loader"
-        title="Analysis in progress"
-        description="We are comparing observed trips with the published schedule. This page updates automatically."
+        :title="$t('optimize.inProgressTitle')"
+        :description="$t('optimize.inProgressBody')"
       />
 
       <template v-else-if="run.state === 'FAILED'">
@@ -130,10 +137,10 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
           color="error"
           variant="soft"
           icon="i-lucide-x-circle"
-          title="Run failed"
-          :description="run.error ?? 'see server logs'"
+          :title="$t('optimize.runFailed')"
+          :description="run.error ?? $t('optimize.seeLogs')"
         />
-        <UButton label="Start a new analysis" icon="i-lucide-plus" @click="newOpen = true" />
+        <UButton :label="$t('optimize.startNew')" icon="i-lucide-plus" @click="newOpen = true" />
       </template>
 
       <template v-else>

@@ -7,6 +7,7 @@ import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useRouteDetailQuery } from '~~/generated/graphql'
 import { routeTypeLabel, patternLine, patternStopFeatures } from '~/utils/gtfs'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -37,7 +38,12 @@ const pattern = computed(
 )
 const patternItems = computed(() =>
   patterns.value.map((p) => ({
-    label: `${p.headsign ?? p.patternKey} · dir ${p.directionId ?? '?'} · ${p.stopCount} stops · ${p.tripCount} trips`,
+    label: t('explore.routes.patternLabel', {
+      headsign: p.headsign ?? p.patternKey,
+      dir: p.directionId ?? '?',
+      stops: t('feed.overview.stops', { count: p.stopCount }, p.stopCount),
+      trips: t('feed.overview.trips', { count: p.tripCount }, p.tripCount),
+    }),
     value: p.patternKey,
   })),
 )
@@ -117,7 +123,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="ghost"
-        aria-label="Go back"
+        :aria-label="t('common.goBack')"
         @click="router.back()"
       />
     </template>
@@ -127,7 +133,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       color="error"
       variant="soft"
       icon="i-lucide-alert-triangle"
-      title="Route unavailable"
+      :title="t('explore.routes.unavailable')"
       :description="error.message"
       class="m-4"
     />
@@ -150,7 +156,8 @@ const splitterItems = computed<SplitterItem[]>(() =>
           <div>
             <div class="text-sm font-medium text-highlighted">{{ gtfsRoute?.routeLongName }}</div>
             <div class="text-xs text-muted">
-              {{ routeTypeLabel(gtfsRoute?.routeType) }} · {{ patterns.length }} pattern(s)
+              {{ routeTypeLabel(gtfsRoute?.routeType, t) }} ·
+              {{ t('explore.count.patterns', { count: patterns.length }, patterns.length) }}
             </div>
           </div>
 
@@ -158,7 +165,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
             v-model="patternKey"
             :items="patternItems"
             value-key="value"
-            placeholder="Pattern"
+            :placeholder="t('explore.routes.pattern')"
           />
 
           <section
@@ -167,30 +174,34 @@ const splitterItems = computed<SplitterItem[]>(() =>
           >
             <div class="border-b border-r border-default p-3">
               <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">
-                Patterns
+                {{ t('explore.routes.patterns') }}
               </div>
               <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">
                 {{ patterns.length }}
               </div>
             </div>
             <div class="border-b border-default p-3">
-              <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Trips</div>
+              <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">
+                {{ t('nav.trips') }}
+              </div>
               <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">
                 {{ pattern.tripCount }}
               </div>
             </div>
             <div class="border-r border-default p-3">
-              <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">Stops</div>
+              <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">
+                {{ t('nav.stops') }}
+              </div>
               <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">
                 {{ pattern.stopCount }}
               </div>
             </div>
             <div class="p-3">
               <div class="text-[11px] font-medium uppercase tracking-wide text-dimmed">
-                Typical run
+                {{ t('explore.routes.typicalRun') }}
               </div>
               <div class="mt-1 text-xl font-semibold tabular-nums text-highlighted">
-                {{ patternSummary.runMin }}m
+                {{ t('explore.minutesShort', { n: patternSummary.runMin }) }}
               </div>
             </div>
           </section>
@@ -201,22 +212,28 @@ const splitterItems = computed<SplitterItem[]>(() =>
             variant="soft"
             icon="i-lucide-git-branch"
             trailing-icon="i-lucide-arrow-right"
-            label="View trips"
+            :label="t('explore.routes.viewTrips')"
             block
           />
 
           <div v-if="patternSummary" class="flex flex-wrap gap-x-3 text-xs text-dimmed">
             <span v-if="patternSummary.km">{{ patternSummary.km }} km</span>
-            <span
-              >{{ patternSummary.timepoints }} timepoint{{
-                patternSummary.timepoints === 1 ? '' : 's'
-              }}</span
-            >
+            <span>{{
+              t(
+                'explore.count.timepoints',
+                { count: patternSummary.timepoints },
+                patternSummary.timepoints,
+              )
+            }}</span>
           </div>
 
           <div class="flex items-center justify-between pt-1">
-            <span class="text-sm font-medium text-highlighted">Stop sequence</span>
-            <span class="text-xs text-dimmed">{{ stopList.length }} stops</span>
+            <span class="text-sm font-medium text-highlighted">{{
+              t('explore.routes.stopSequence')
+            }}</span>
+            <span class="text-xs text-dimmed">{{
+              t('feed.overview.stops', { count: stopList.length }, stopList.length)
+            }}</span>
           </div>
 
           <ol class="rounded-md border border-default bg-default px-2 py-2">
@@ -252,19 +269,19 @@ const splitterItems = computed<SplitterItem[]>(() =>
                     v-if="sp.scheduleAdherenceStop"
                     name="i-lucide-timer"
                     class="size-3.5 text-primary"
-                    title="Timepoint"
+                    :title="t('explore.routes.timepoint')"
                   />
                   <UIcon
                     v-if="sp.layoverStop"
                     name="i-lucide-pause"
                     class="size-3.5 text-warning"
-                    title="Layover"
+                    :title="t('explore.routes.layover')"
                   />
                   <UIcon
                     v-if="sp.waitStop"
                     name="i-lucide-hourglass"
                     class="size-3.5 text-dimmed"
-                    title="Wait stop"
+                    :title="t('explore.routes.waitStop')"
                   />
                   <span v-if="(sp.typicalDwellTimeSec ?? 0) > 0" class="text-[10px] text-dimmed"
                     >{{ sp.typicalDwellTimeSec }}s</span

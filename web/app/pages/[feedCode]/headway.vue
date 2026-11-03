@@ -17,6 +17,7 @@ import NoRealtimeState from '~/components/NoRealtimeState.vue'
 import BarChart from '~/components/BarChart.vue'
 import type {Bar} from '~/utils/chart'
 
+const {t, locale} = useI18n()
 const {selectedFeed, selectedFeedCode, selectedAvlFeedCode} = useFeeds()
 const {intervalMs} = usePollControl()
 
@@ -67,8 +68,8 @@ const directionOptions = computed(() => {
     ...new Set(routePatterns.value.map((p) => p.directionId).filter((d): d is number => d != null)),
   ].sort((a, b) => a - b)
   return [
-    {label: 'Either direction', value: null},
-    ...dirs.map((d) => ({label: `Direction ${d}`, value: d})),
+    {label: t('reports.headway.eitherDirection'), value: null},
+    ...dirs.map((d) => ({label: t('vehicles.detail.fact.directionN', {n: d}), value: d})),
   ]
 })
 
@@ -139,15 +140,15 @@ const {result: boardResult} = useStopBoardQuery(
 type BoardRow = StopBoardQuery['stopPredictions'][number]
 const board = computed<BoardRow[]>(() => boardResult.value?.stopPredictions ?? [])
 
-const boardColumns: TableColumn<BoardRow>[] = [
-  {accessorKey: 'scheduledArrival', header: 'Scheduled'},
-  {accessorKey: 'predictedArrival', header: 'Predicted'},
-  {accessorKey: 'algorithm', header: 'Algorithm'},
-  {accessorKey: 'confidenceSec', header: 'Spread (1 SD)'},
-]
+const boardColumns = computed<TableColumn<BoardRow>[]>(() => [
+  {accessorKey: 'scheduledArrival', header: t('vehicles.field.scheduled')},
+  {accessorKey: 'predictedArrival', header: t('vehicles.detail.predicted')},
+  {accessorKey: 'algorithm', header: t('reports.headway.colAlgorithm')},
+  {accessorKey: 'confidenceSec', header: t('reports.headway.colSpread')},
+])
 
 function formatTs(iso: string | null | undefined): string {
-  return formatClock(iso, { seconds: true })
+  return formatClock(iso, { seconds: true, locale: locale.value })
 }
 
 /**
@@ -158,16 +159,16 @@ function confidenceRating(
   sec: number | null | undefined,
 ): { label: string; color: 'success' | 'neutral' | 'warning' } | null {
   if (sec == null) return null
-  if (sec <= 20) return {label: 'Small', color: 'success'}
-  if (sec <= 60) return {label: 'Medium', color: 'neutral'}
-  return {label: 'Large', color: 'warning'}
+  if (sec <= 20) return {label: t('reports.headway.confidenceSmall'), color: 'success'}
+  if (sec <= 60) return {label: t('reports.headway.confidenceMedium'), color: 'neutral'}
+  return {label: t('reports.headway.confidenceLarge'), color: 'warning'}
 }
 
 function formatDur(sec: number): string {
-  if (sec < 90) return `${Math.round(sec)}s`
+  if (sec < 90) return t('reports.duration.seconds', {n: Math.round(sec)})
   const m = Math.floor(sec / 60)
   const s = Math.round(sec % 60)
-  return s ? `${m}m ${s}s` : `${m}m`
+  return s ? t('reports.duration.minutesSeconds', {m, s}) : t('reports.duration.minutes', {m})
 }
 
 function formatDelta(sec: number): string {
@@ -181,7 +182,9 @@ const gapBars = computed<Bar[]>(() => {
     label: `#${gaps.length - i}`,
     value: g,
     color: sched && g > sched * 1.25 ? '#ef4444' : sched && g < sched * 0.6 ? '#f59e0b' : '#22c55e',
-    hint: `Gap ${formatDur(g)}${sched ? ` (scheduled ${formatDur(sched)})` : ''}`,
+    hint: sched
+      ? t('reports.headway.gapHintScheduled', {gap: formatDur(g), scheduled: formatDur(sched)})
+      : t('reports.headway.gapHint', {gap: formatDur(g)}),
   }))
 })
 
@@ -203,19 +206,19 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
 </script>
 
 <template>
-  <AppPage title="Headway" description="Live spacing and arrival reliability at a selected stop">
+  <AppPage :title="$t('nav.headway')" :description="$t('reports.headway.description')">
     <template #actions>
       <NavbarActions/>
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>
       <div class="flex flex-wrap items-center gap-3 py-3">
-        <div class="mr-1 text-sm font-medium text-highlighted">Analyse service</div>
+        <div class="mr-1 text-sm font-medium text-highlighted">{{ $t('reports.headway.analyseService') }}</div>
         <USelectMenu
           :model-value="selectedRouteId"
           :items="routeOptions"
           value-key="value"
-          placeholder="Select a route"
+          :placeholder="$t('reports.headway.selectRoute')"
           class="w-56"
           @update:model-value="selectedRouteId = $event"
         />
@@ -232,7 +235,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
           :model-value="selectedStopId"
           :items="stopOptions"
           value-key="value"
-          placeholder="Select a stop"
+          :placeholder="$t('reports.headway.selectStop')"
           :disabled="!selectedRouteId"
           :loading="patternsLoading && !routePatterns.length"
           class="w-56"
@@ -243,20 +246,20 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
           :model-value="selectedAlgorithm"
           :items="algorithmOptions"
           value-key="value"
-          placeholder="Algorithm"
+          :placeholder="$t('reports.headway.algorithm')"
           class="w-48"
           @update:model-value="selectedAlgorithm = $event"
         />
       </div>
     </template>
 
-    <NoRealtimeState v-if="!selectedAvlFeedCode" what="headway analysis"/>
+    <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.headway')"/>
 
     <PageState
       v-else-if="!querySelected"
       state="empty"
-      title="Choose a service point"
-      description="Pick a route and stop to review current spacing, recent gaps, and upcoming arrivals."
+      :title="$t('reports.headway.chooseTitle')"
+      :description="$t('reports.headway.chooseBody')"
       icon="i-lucide-timer"
     />
 
@@ -265,7 +268,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
       color="error"
       variant="soft"
       icon="i-lucide-alert-triangle"
-      title="Headway unavailable"
+      :title="$t('reports.headway.unavailable')"
       :description="headwayError.message"
     />
 
@@ -278,30 +281,30 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
       <div v-else-if="headway" class="flex flex-col gap-4">
         <section class="app-frame grid sm:grid-cols-2 xl:grid-cols-4">
           <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r xl:border-b-0">
-            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Current wait</span>
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{ $t('reports.headway.currentWait') }}</span>
             <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ headway.waitSec != null ? formatDur(headway.waitSec) : '—' }}</span>
-            <span class="text-xs text-muted">Since the last observed arrival</span>
+            <span class="text-xs text-muted">{{ $t('reports.headway.sinceLastArrival') }}</span>
           </div>
           <div class="flex flex-col gap-1 border-b border-default p-4 xl:border-b-0 xl:border-r">
-            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Scheduled headway</span>
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{ $t('reports.headway.scheduledHeadway') }}</span>
             <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ headway.scheduledHeadwaySec != null ? formatDur(headway.scheduledHeadwaySec) : '—' }}</span>
-            <span class="text-xs text-muted">Planned service interval</span>
+            <span class="text-xs text-muted">{{ $t('reports.headway.plannedInterval') }}</span>
           </div>
           <div class="flex flex-col gap-1 border-b border-default p-4 sm:border-r sm:border-b-0 xl:border-r">
-            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Spacing variance</span>
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{ $t('reports.headway.spacingVariance') }}</span>
             <span class="text-2xl font-semibold tabular-nums" :class="varianceSec != null && varianceSec > 0 ? 'text-error' : 'text-highlighted'">{{ varianceSec != null ? formatDelta(varianceSec) : '—' }}</span>
-            <span class="text-xs text-muted">{{ varianceSec != null && varianceSec > 0 ? 'Above planned spacing' : 'Against planned spacing' }}</span>
+            <span class="text-xs text-muted">{{ varianceSec != null && varianceSec > 0 ? $t('reports.headway.aboveSpacing') : $t('reports.headway.againstSpacing') }}</span>
           </div>
           <div class="flex flex-col gap-1 p-4">
-            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">Next arrival</span>
+            <span class="text-xs font-medium uppercase tracking-wide text-dimmed">{{ $t('reports.headway.nextArrival') }}</span>
             <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ formatTs(nextArrival) }}</span>
-            <span class="text-xs text-muted">{{ headway.gapsSec.length }} recent gap{{ headway.gapsSec.length === 1 ? '' : 's' }} sampled</span>
+            <span class="text-xs text-muted">{{ $t('reports.headway.recentGaps', { count: headway.gapsSec.length }, headway.gapsSec.length) }}</span>
           </div>
         </section>
 
         <div class="grid gap-4 lg:grid-cols-3">
           <section class="app-frame flex flex-col gap-3 p-4 lg:col-span-1">
-            <div class="text-sm font-medium text-highlighted">Current spacing</div>
+            <div class="text-sm font-medium text-highlighted">{{ $t('reports.headway.currentSpacing') }}</div>
             <div v-if="waitRatio" class="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
               <div
                 class="h-full rounded-full transition-[width]"
@@ -310,19 +313,19 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
               />
             </div>
             <p v-if="waitRatio" class="text-sm text-muted">
-              {{ waitRatio.over ? 'Over' : 'Under' }} scheduled headway ({{ Math.round(waitRatio.ratio * 100) }}%)
+              {{ $t(waitRatio.over ? 'reports.headway.overHeadway' : 'reports.headway.underHeadway', { pct: Math.round(waitRatio.ratio * 100) }) }}
             </p>
-            <p v-else class="text-sm text-dimmed">Waiting for enough live arrivals to compare spacing.</p>
+            <p v-else class="text-sm text-dimmed">{{ $t('reports.headway.waiting') }}</p>
           </section>
 
           <section class="app-frame flex flex-col gap-3 p-4 lg:col-span-2">
-            <div class="text-sm font-medium text-highlighted">Recent gaps between arrivals</div>
-            <p v-if="!gapBars.length" class="text-sm text-dimmed">No gaps recorded yet.</p>
+            <div class="text-sm font-medium text-highlighted">{{ $t('reports.headway.gapsTitle') }}</div>
+            <p v-if="!gapBars.length" class="text-sm text-dimmed">{{ $t('reports.headway.noGaps') }}</p>
             <BarChart
               v-else
               :bars="gapBars"
               :reference-value="headway.scheduledHeadwaySec"
-              reference-label="scheduled headway"
+              :reference-label="$t('reports.headway.referenceLabel')"
               :height="150"
               :format="formatDur"
             />
@@ -332,10 +335,10 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
       <section class="app-frame">
         <div class="flex items-center justify-between border-b border-default px-4 py-3">
           <div>
-            <div class="text-sm font-medium text-highlighted">Upcoming arrivals</div>
-            <div class="text-xs text-muted">Realtime predictions for the selected route and stop</div>
+            <div class="text-sm font-medium text-highlighted">{{ $t('reports.headway.upcoming') }}</div>
+            <div class="text-xs text-muted">{{ $t('reports.headway.upcomingBody') }}</div>
           </div>
-          <span class="text-xs text-dimmed">{{ board.length }} arrivals</span>
+          <span class="text-xs text-dimmed">{{ $t('reports.headway.arrivalsCount', { count: board.length }, board.length) }}</span>
         </div>
         <UTable :data="board" :columns="boardColumns">
         <template #scheduledArrival-cell="{ row }">{{
@@ -351,7 +354,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
             v-if="confidenceRating(row.original.confidenceSec)"
             :color="confidenceRating(row.original.confidenceSec)!.color"
             variant="subtle"
-            :title="`±1σ uncertainty of the predicted arrival: ±${row.original.confidenceSec}s`"
+            :title="$t('reports.headway.confidenceTitle', { sec: row.original.confidenceSec })"
           >
             {{ confidenceRating(row.original.confidenceSec)!.label }} · &#177;{{
               row.original.confidenceSec

@@ -25,6 +25,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ changed: [] }>()
 
+const { t } = useI18n()
+
 const patternKey = ref<string | null>(null)
 const serviceSel = ref<string | null>(null)
 const fromRaw = ref('')
@@ -78,9 +80,9 @@ const serviceFilterDiverges = computed(
 const previewCount = computed(() => {
   const from = windowFromSec.value
   const to = windowToSec.value
-  return props.trips.filter((t) => {
+  return props.trips.filter((trip) => {
     if (from != null || to != null) {
-      const d = t.firstDepartureSec
+      const d = trip.firstDepartureSec
       if (d == null) return false
       if (from != null && d < from) return false
       if (to != null && d > to) return false
@@ -93,6 +95,18 @@ const deltaLabel = computed(() => {
   const d = deltaSec.value
   if (d == null) return ''
   return (d < 0 ? '-' : '+') + secToClock(Math.abs(d))
+})
+
+const shiftNote = computed(() => {
+  const delta = deltaLabel.value
+  if (serviceFilterDiverges.value) {
+    return delta ? t('drafts.countUnavailableShift', { delta }) : t('drafts.countUnavailable')
+  }
+  const count = previewCount.value
+  const preview = delta
+    ? t('drafts.previewShift', { count, delta }, count)
+    : t('drafts.previewCount', { count }, count)
+  return `${preview} ${patternKey.value ? t('drafts.applyAllPattern') : t('drafts.applyAll')}`
 })
 
 const { mutate: bulkShift } = useBulkShiftTripsMutation()
@@ -128,93 +142,83 @@ async function submit() {
 </script>
 
 <template>
-  <UModal v-model:open="open" title="Bulk shift trips">
+  <UModal v-model:open="open" :title="$t('drafts.bulkTitle')">
     <template #body>
       <div class="flex flex-col gap-3">
-        <UFormField label="Route">
+        <UFormField :label="$t('explore.col.route')">
           <UInput :model-value="routeId" readonly class="w-full" />
         </UFormField>
 
-        <UFormField label="Pattern" hint="optional">
+        <UFormField :label="$t('explore.routes.pattern')" :hint="$t('drafts.optional')">
           <USelectMenu
             v-model="patternKey"
             :items="patternItems"
             value-key="value"
             :disabled="derivationStale"
-            placeholder="All patterns"
+            :placeholder="$t('drafts.allPatterns')"
             class="w-full"
           />
           <template v-if="derivationStale" #help>
-            <span class="text-warning">Rebuild the draft first to filter by pattern.</span>
+            <span class="text-warning">{{ $t('drafts.rebuildFirstFilter') }}</span>
           </template>
         </UFormField>
 
-        <UFormField label="Service" hint="optional">
+        <UFormField :label="$t('explore.col.service')" :hint="$t('drafts.optional')">
           <USelectMenu
             v-model="serviceSel"
             :items="serviceItems ?? []"
             value-key="value"
-            placeholder="All services"
+            :placeholder="$t('explore.blocks.allServices')"
             class="w-full"
           />
         </UFormField>
 
         <div class="grid grid-cols-2 gap-2">
           <UFormField
-            label="From"
-            hint="optional"
-            :error="fromInvalid ? 'Use HH:MM, e.g. 06:00' : undefined"
+            :label="$t('drafts.from')"
+            :hint="$t('drafts.optional')"
+            :error="fromInvalid ? $t('drafts.useHm', { value: '06:00' }) : undefined"
           >
             <UInput
               v-model="fromRaw"
-              placeholder="e.g. 06:00"
+              :placeholder="$t('drafts.example', { value: '06:00' })"
               :color="fromInvalid ? 'error' : undefined"
               class="w-full"
             />
           </UFormField>
           <UFormField
-            label="To"
-            hint="optional"
-            :error="toInvalid ? 'Use HH:MM, e.g. 09:30' : undefined"
+            :label="$t('drafts.to')"
+            :hint="$t('drafts.optional')"
+            :error="toInvalid ? $t('drafts.useHm', { value: '09:30' }) : undefined"
           >
             <UInput
               v-model="toRaw"
-              placeholder="e.g. 09:30"
+              :placeholder="$t('drafts.example', { value: '09:30' })"
               :color="toInvalid ? 'error' : undefined"
               class="w-full"
             />
           </UFormField>
         </div>
 
-        <UFormField label="Delta" :error="deltaInvalid ? 'Enter a signed delta: +3m, -90, +1:30' : undefined">
+        <UFormField :label="$t('drafts.delta')" :error="deltaInvalid ? $t('drafts.deltaHint') : undefined">
           <UInput
             v-model="deltaRaw"
-            placeholder="e.g. +3m or -90"
+            :placeholder="$t('drafts.deltaExample')"
             :color="deltaInvalid ? 'error' : undefined"
             class="w-full"
           />
         </UFormField>
 
-        <p class="text-xs text-muted">
-          <template v-if="serviceFilterDiverges">
-            Trip count unavailable for this filter — the bulk shift applies to all
-            matching trips of the route<template v-if="deltaLabel">, shifted by {{ deltaLabel }}</template>.
-          </template>
-          <template v-else>
-            ≈{{ previewCount }} trip{{ previewCount === 1 ? '' : 's' }} currently shown in the grid
-            <template v-if="deltaLabel"> would shift by {{ deltaLabel }}</template>.
-            The shift applies to every direction of the route<template v-if="patternKey"> (before pattern filter)</template>.
-          </template>
-        </p>
+        <p class="text-xs text-muted">{{ shiftNote }}</p>
       </div>
     </template>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <UButton color="neutral" variant="ghost" label="Cancel" @click="open = false" />
+        <UButton color="neutral" variant="ghost" :label="$t('common.cancel')" @click="open = false" />
         <UButton
           :loading="submitting"
           :disabled="deltaSec == null || windowInvalid"
-          label="Shift trips"
+          :label="$t('drafts.shiftTrips')"
           @click="submit"
         />
       </div>

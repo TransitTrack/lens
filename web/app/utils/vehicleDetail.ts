@@ -71,6 +71,7 @@ export function stopFeatureCollection(
   predictions: Prediction[] = [],
   algorithm?: string,
   timeZone?: string,
+  locale?: string,
 ) {
   const nextIndex = vehicle.stopPathIndex ?? -1
   const predictionsByIndex = new Map<number, Prediction>()
@@ -98,7 +99,7 @@ export function stopFeatureCollection(
         },
         properties: {
           name,
-          label: eta ? `${name}\n${formatClock(eta, { timeZone })}` : name,
+          label: eta ? `${name}\n${formatClock(eta, { timeZone, locale })}` : name,
           state,
         },
       }

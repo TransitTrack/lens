@@ -1,6 +1,8 @@
 import type {VehicleRow} from '~/composables/useVehiclePolling'
 import type {AvlFeedsQuery} from '~~/generated/graphql'
 
+type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
+
 export interface NetworkPulseSignal {
   key: 'onTime' | 'attention' | 'coverage'
   label: string
@@ -23,6 +25,7 @@ export function buildNetworkPulseSignals(
   vehicles: VehicleRow[],
   feeds: AvlFeedHealth[],
   selectedAvlFeedCode: string | null,
+  t: Translate,
 ): NetworkPulseSignal[] {
   const tracked = vehicles.length
 
@@ -33,14 +36,14 @@ export function buildNetworkPulseSignals(
   if (tracked === 0 || !hasHealthySelectedFeed) {
     const detail =
       tracked === 0
-        ? 'No vehicles available'
+        ? t('pulse.noVehicles')
         : selectedFeed
-          ? 'Selected realtime source is not reporting healthy'
-          : 'Selected realtime source unavailable'
+          ? t('pulse.sourceUnhealthy')
+          : t('pulse.sourceUnavailable')
     return [
       {
         key: 'onTime',
-        label: 'On-time performance',
+        label: t('pulse.onTime'),
         value: '—',
         detail,
         icon: 'i-lucide-clock-3',
@@ -48,7 +51,7 @@ export function buildNetworkPulseSignals(
       },
       {
         key: 'attention',
-        label: 'Needs attention',
+        label: t('pulse.needsAttention'),
         value: '—',
         detail,
         icon: 'i-lucide-triangle-alert',
@@ -56,7 +59,7 @@ export function buildNetworkPulseSignals(
       },
       {
         key: 'coverage',
-        label: 'Realtime coverage',
+        label: t('pulse.coverage'),
         value: '—',
         detail,
         icon: 'i-lucide-radio',
@@ -78,27 +81,31 @@ export function buildNetworkPulseSignals(
   return [
     {
       key: 'onTime',
-      label: 'On-time performance',
+      label: t('pulse.onTime'),
       value: onTimeAvailable ? percentage(onTime, adherenceAvailable.length) : '—',
       detail: onTimeAvailable
-        ? `${onTime} of ${adherenceAvailable.length} matched vehicle${adherenceAvailable.length === 1 ? '' : 's'} within 1 minute`
-        : 'No matched vehicles with adherence available',
+        ? t(
+            'pulse.onTimeDetail',
+            { onTime, total: adherenceAvailable.length },
+            adherenceAvailable.length,
+          )
+        : t('pulse.noAdherence'),
       icon: 'i-lucide-clock-3',
       color: onTimeAvailable ? 'success' : 'neutral',
     },
     {
       key: 'attention',
-      label: 'Needs attention',
+      label: t('pulse.needsAttention'),
       value: String(attention),
-      detail: attention === 1 ? 'stale or unmatched vehicle' : `${attention} stale or unmatched vehicles`,
+      detail: t('pulse.attentionDetail', { count: attention }, attention),
       icon: 'i-lucide-triangle-alert',
       color: attention > 0 ? 'warning' : 'success',
     },
     {
       key: 'coverage',
-      label: 'Realtime coverage',
+      label: t('pulse.coverage'),
       value: percentage(reporting, tracked),
-      detail: `${reporting} of ${tracked} vehicle${tracked === 1 ? '' : 's'} reporting`,
+      detail: t('pulse.coverageDetail', { reporting, tracked }, tracked),
       icon: 'i-lucide-radio',
       color: 'success',
     },

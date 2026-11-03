@@ -2,6 +2,7 @@
 import { useExploreQuery } from '~/composables/useExploreQuery'
 import { TIME_PRESETS, formatHm, parseHm } from '~/utils/tripFilters'
 
+const { t } = useI18n()
 const { param } = useExploreQuery()
 const from = param('from')
 const to = param('to')
@@ -25,6 +26,9 @@ function applyPreset(key: string) {
   to.value = p.toSec == null ? null : formatHm(p.toSec)
 }
 
+// i18n-keys: filters.time.*
+const presetLabel = (key: string) => t(`filters.time.${key}`)
+
 const fromModel = computed({
   get: () => from.value ?? '',
   set: (v: string) => (from.value = v || null),
@@ -44,14 +48,14 @@ const toModel = computed({
         size="xs"
         :color="activeKey === p.key ? 'primary' : 'neutral'"
         :variant="activeKey === p.key ? 'soft' : 'ghost'"
-        :label="p.label"
+        :label="presetLabel(p.key)"
         @click="applyPreset(p.key)"
       />
     </div>
     <div class="flex items-center gap-1 text-xs text-dimmed">
-      <UInput v-model="fromModel" type="time" size="xs" aria-label="From time" />
+      <UInput v-model="fromModel" type="time" size="xs" :aria-label="$t('filters.fromTime')" />
       <span>–</span>
-      <UInput v-model="toModel" type="time" size="xs" aria-label="To time" />
+      <UInput v-model="toModel" type="time" size="xs" :aria-label="$t('filters.toTime')" />
     </div>
   </div>
 </template>

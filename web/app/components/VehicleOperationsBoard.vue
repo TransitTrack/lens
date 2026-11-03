@@ -24,6 +24,8 @@ const props = defineProps<{
   directoryDefaultSize?: number
 }>()
 
+const { locale } = useI18n()
+
 const emit = defineEmits<{
   selectVehicle: [vehicleId: string]
 }>()
@@ -78,6 +80,7 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
       selectedVehicleResult.value?.vehiclePredictions ?? [],
       selectedPredictionAlgorithm.value,
       agencyTimezone.value,
+      locale.value,
     ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
   }
@@ -138,7 +141,7 @@ const splitterItems = computed<SplitterItem[]>(() => [
     :orientation="splitterOrientation"
     :items="splitterItems"
     class="h-full min-h-0 w-full"
-    aria-label="Live vehicle operations"
+    :aria-label="$t('vehicles.board.ariaLabel')"
   >
     <template #directory>
       <header class="shrink-0 border-b border-default bg-elevated/20 px-2 py-2 sm:px-3">
@@ -160,16 +163,24 @@ const splitterItems = computed<SplitterItem[]>(() => [
           </div>
         </div>
 
-        <div class="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Fleet summary">
+        <div
+          class="mt-3 flex flex-wrap items-center gap-1.5"
+          :aria-label="$t('vehicles.board.fleetSummary')">
           <UBadge color="neutral" variant="subtle" size="sm"
-            >{{ vehicles.length }} reporting</UBadge
+            >{{
+            $t('vehicles.board.reporting', { count: vehicles.length }, vehicles.length)
+          }}</UBadge
           >
-          <UBadge color="success" variant="subtle" size="sm">{{ matchedVehicles }} matched</UBadge>
+          <UBadge color="success" variant="subtle" size="sm">{{
+            $t('vehicles.board.matched', { count: matchedVehicles }, matchedVehicles)
+          }}</UBadge>
           <UBadge v-if="attentionVehicles" color="warning" variant="subtle" size="sm"
-            >{{ attentionVehicles }} need attention</UBadge
+            >{{
+            $t('vehicles.board.needAttention', { count: attentionVehicles }, attentionVehicles)
+          }}</UBadge
           >
 
-          <USwitch v-model="showTripDetails" class="ml-auto" size="xs" label="Trip & block" />
+          <USwitch v-model="showTripDetails" class="ml-auto" size="xs" :label="$t('vehicles.tripAndBlock')" />
         </div>
 
         <div class="mt-2">
@@ -183,7 +194,7 @@ const splitterItems = computed<SplitterItem[]>(() => [
             color="error"
             variant="soft"
             icon="i-lucide-alert-triangle"
-            title="Vehicle feed unavailable"
+            :title="$t('vehicles.feedUnavailable')"
             :description="error.message"
           />
         </div>
@@ -195,11 +206,11 @@ const splitterItems = computed<SplitterItem[]>(() => [
           class="flex h-full flex-col items-center justify-center gap-2 p-8 text-center"
         >
           <UIcon name="i-lucide-search-x" class="size-7 text-dimmed" />
-          <p class="text-sm font-medium text-highlighted">No vehicles match these filters</p>
+          <p class="text-sm font-medium text-highlighted">{{ $t('vehicles.noMatch') }}</p>
           <UButton
             color="neutral"
             variant="soft"
-            label="Clear filters"
+            :label="$t('vehicles.clearFilters')"
             @click="filters = emptyFilters()"
           />
         </div>

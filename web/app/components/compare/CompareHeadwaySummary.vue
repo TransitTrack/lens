@@ -5,25 +5,24 @@ import type { CompareRevisionsQuery } from '~~/generated/graphql'
 type HeadwaySummary = CompareRevisionsQuery['compareRevisions']['headwaySummaries'][number]
 
 defineProps<{ summaries: HeadwaySummary[] }>()
-
-const columns: TableColumn<HeadwaySummary>[] = [
-  { accessorKey: 'routeId', header: 'Route' },
-  { id: 'direction', header: 'Dir' },
-  { accessorKey: 'serviceId', header: 'Service' },
-  { id: 'tripCount', header: 'Trips (from→to)' },
-  { id: 'meanGap', header: 'Mean gap (from→to)' },
-  { id: 'maxGap', header: 'Max gap (from→to)' },
-]
-
+const { t } = useI18n()
+const columns = computed<TableColumn<HeadwaySummary>[]>(() => [
+  { accessorKey: 'routeId', header: t('explore.col.route') },
+  { id: 'direction', header: t('explore.col.dir') },
+  { accessorKey: 'serviceId', header: t('explore.col.service') },
+  { id: 'tripCount', header: t('compare.tripsFromTo') },
+  { id: 'meanGap', header: t('compare.meanGap') },
+  { id: 'maxGap', header: t('compare.maxGap') },
+])
 function fmtGap(s: number | null | undefined): string {
-  return s == null ? '—' : `${Math.round(s / 60)}m`
+  return s == null ? '—' : t('explore.minutesShort', { n: Math.round(s / 60) })
 }
 </script>
 
 <template>
   <div>
-    <h2 class="mb-2 text-sm font-semibold text-highlighted">Headway summary</h2>
-    <div v-if="!summaries.length" class="text-sm text-muted">No headway data for this filter.</div>
+    <h2 class="mb-2 text-sm font-semibold text-highlighted">{{ $t('compare.headwayTitle') }}</h2>
+    <div v-if="!summaries.length" class="text-sm text-muted">{{ $t('compare.noHeadway') }}</div>
     <UTable v-else :data="summaries" :columns="columns">
       <template #direction-cell="{ row }">{{ row.original.directionId ?? '—' }}</template>
       <template #tripCount-cell="{ row }">{{ row.original.fromTripCount }} → {{ row.original.toTripCount }}</template>

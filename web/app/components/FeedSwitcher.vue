@@ -8,6 +8,7 @@ defineProps<{
   collapsed?: boolean
 }>()
 
+const { t } = useI18n()
 const { feeds, selectedFeed } = useFeeds()
 const { isFeedSwitcherOpen } = useDashboard()
 
@@ -25,8 +26,8 @@ function dotClass(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
 }
 
 function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
-  if (!f.hasRealtime) return 'static only'
-  return f.realtimeHealthy ? 'realtime · healthy' : 'realtime · degraded'
+  if (!f.hasRealtime) return t('feedSwitcher.staticOnly')
+  return f.realtimeHealthy ? t('feedSwitcher.realtimeHealthy') : t('feedSwitcher.realtimeDegraded')
 }
 </script>
 
@@ -42,7 +43,7 @@ function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
       variant="ghost"
       size="xs"
       square
-      aria-label="Switch feed"
+      :aria-label="$t('feedSwitcher.switchFeed')"
       class="data-[state=open]:bg-elevated"
     >
       <UChip v-if="selectedFeed" :color="dotColor(selectedFeed)" inset>
@@ -61,7 +62,7 @@ function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
     >
       <span class="min-w-0 flex-1 text-left">
         <span class="block truncate text-sm font-medium text-highlighted">
-          {{ selectedFeed?.name ?? 'Select a feed' }}
+          {{ selectedFeed?.name ?? $t('feedSwitcher.selectFeed') }}
         </span>
         <span v-if="selectedFeed" class="block truncate text-[10px] text-dimmed">
           {{ selectedFeed.code }} · {{ statusLabel(selectedFeed) }}
@@ -93,7 +94,7 @@ function statusLabel(f: { hasRealtime: boolean; realtimeHealthy: boolean }) {
           </div>
         </NuxtLink>
 
-        <p v-if="!feeds.length" class="p-3 text-sm text-muted">No feeds configured.</p>
+        <p v-if="!feeds.length" class="p-3 text-sm text-muted">{{ $t('common.noFeedsConfigured') }}</p>
       </div>
     </template>
   </UPopover>
