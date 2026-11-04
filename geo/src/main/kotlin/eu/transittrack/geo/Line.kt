@@ -20,6 +20,6 @@ data class Line(
     }
 
     override fun calculateBBox(): BBox {
-        return BBox.from(coordinates)
+        return BBox.of(coordinates)
     }
 }

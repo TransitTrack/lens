@@ -224,8 +224,8 @@ class ScheduleDerivationEdgeCaseTest(
 
         // No (0,0) coordinate leaked into any geometry or extent.
         for (p in patterns.findByRevisionId(rev)) {
-            assertThat(p.extent.minLat).isGreaterThan(50.0)
-            assertThat(p.extent.minLon).isGreaterThan(16.0)
+            assertThat(p.extent!!.minLat).isGreaterThan(50.0)
+            assertThat(p.extent!!.minLng).isGreaterThan(16.0)
             assertThat(p.lengthM!!).isLessThan(100_000.0)
         }
     }
@@ -492,12 +492,8 @@ class ScheduleDerivationEdgeCaseTest(
                                 stopCount = 2,
                                 lengthM = 10.0,
                                 extent =
-                                    eu.transittrack.geo.Extent.of(
-                                        listOf(
-                                            Point(51.0, 17.0),
-                                            Point(51.1, 17.1),
-                                        ),
-                                    ),
+                                    eu.transittrack.geo.BBox
+                                        .of(listOf(Point(51.0, 17.0), Point(51.1, 17.1)))!!,
                                 tripCount = 0,
                             ),
                         ),

@@ -7,7 +7,7 @@ import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
 import eu.transittrack.ScheduleProperties
-import eu.transittrack.geo.Extent
+import eu.transittrack.geo.BBox
 import eu.transittrack.geo.Point
 import eu.transittrack.geo.Polyline
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
@@ -121,7 +121,7 @@ class TripPatternProcessor(
             writer.write(newPatterns)
             patternCount += newPatterns.size
             if (newPatterns.isNotEmpty()) {
-                state.patternExtents[route.routeId] = Extent.ofExtents(newPatterns.map { it.extent })
+                BBox.union(newPatterns.map { it.extent })?.let { state.patternExtents[route.routeId] = it }
             }
             val allPaths = ArrayList<StopPath>()
             for (pat in newPatterns) {

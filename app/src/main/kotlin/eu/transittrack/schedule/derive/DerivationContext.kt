@@ -5,14 +5,14 @@ import java.util.concurrent.ConcurrentHashMap
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
-import eu.transittrack.geo.Extent
+import eu.transittrack.geo.BBox
 
 /** Per-stop visit after cleaning + the trip's resolved schedule; filled across the derive stages. */
 class DerivationState {
     val patternIdByKey = HashMap<String, Long>()
     val patternStopPathIds = HashMap<Long, List<Long>>()
     val patternCumDist = HashMap<Long, DoubleArray>()
-    val patternExtents = HashMap<String, Extent>()
+    val patternExtents = HashMap<String, BBox>()
     val cleanedRows = HashMap<String, List<CleanStopTime>>()
     val derivedTrips = ArrayList<DerivedTrip>()
 }

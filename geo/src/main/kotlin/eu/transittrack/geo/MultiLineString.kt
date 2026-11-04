@@ -23,7 +23,7 @@ data class MultiLineString(
     constructor(vararg lines: Line) :
         this(
             lines.map { it.coordinates },
-            BBox.from(lines.map { it.coordinates }.flatten()),
+            BBox.of(lines.map { it.coordinates }.flatten()),
         )
 
     /**
@@ -31,7 +31,7 @@ data class MultiLineString(
      */
     fun split(): List<Line> {
         return coordinates.map {
-            Line(it, BBox.from(it))
+            Line(it, BBox.of(it))
         }
     }
 
@@ -40,11 +40,11 @@ data class MultiLineString(
      */
     fun added(vararg lines: Line): MultiLineString {
         val newCoordinates: List<List<Position>> = coordinates + lines.map { it.coordinates }
-        val newBBox = BBox.from(newCoordinates.flatten())
+        val newBBox = BBox.of(newCoordinates.flatten())
         return MultiLineString(newCoordinates, newBBox)
     }
 
     override fun calculateBBox(): BBox {
-        return BBox.from(coordinates.flatten())
+        return BBox.of(coordinates.flatten())
     }
 }

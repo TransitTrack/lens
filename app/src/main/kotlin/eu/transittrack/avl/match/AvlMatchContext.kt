@@ -81,7 +81,7 @@ class AvlMatchContext(
         val pattern = patternReader.byId(revisionId, tripPatternId) ?: return false
         val extent = pattern.extent
 
-        return !extent.isEmpty && extent.isWithinDistance(p, distanceM)
+        return extent != null && extent.isWithinDistance(p, distanceM)
     }
 }
 

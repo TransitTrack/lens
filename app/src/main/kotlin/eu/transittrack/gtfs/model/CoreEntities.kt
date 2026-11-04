@@ -21,8 +21,7 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.geo.Extent
-import eu.transittrack.geo.Point
+import eu.transittrack.geo.BBox
 import eu.transittrack.schedule.model.TripPatternTable
 
 /**
@@ -41,7 +40,7 @@ class Agency(
     var agencyPhone: String?,
     var agencyFareUrl: String?,
     var agencyEmail: String?,
-    var extent: Extent? = null,
+    var extent: BBox? = null,
 ) : RevisionScoped(revisionId)
 
 class Stop(
@@ -65,10 +64,7 @@ class Stop(
     var layoverStop: Boolean? = null,
     var waitStop: Boolean? = null,
     var hidden: Boolean? = null,
-) : RevisionScoped(revisionId) {
-    val point: Point
-        get() = Point(stopLat!!, stopLon!!)
-}
+) : RevisionScoped(revisionId)
 
 class Route(
     revisionId: Long,
@@ -87,7 +83,7 @@ class Route(
     var networkId: String?,
     var maxDistance: Double? = null,
     var hidden: Boolean = false,
-    var extent: Extent? = null,
+    var extent: BBox? = null,
 ) : RevisionScoped(revisionId)
 
 class Trip(

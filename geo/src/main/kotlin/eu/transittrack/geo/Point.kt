@@ -35,6 +35,6 @@ data class Point(
     fun distanceAlongVector(v: Vector): Double = matchDistanceAlongVector(this, v)
 
     override fun calculateBBox(): BBox {
-        return BBox.from(listOf(coordinates))
+        return BBox.of(listOf(coordinates))
     }
 }

@@ -3,7 +3,7 @@ package eu.transittrack.schedule.derive
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 
-import eu.transittrack.geo.Extent
+import eu.transittrack.geo.BBox
 import eu.transittrack.geo.Point
 import eu.transittrack.geo.Polyline
 import eu.transittrack.geo.haversineDistance
@@ -132,7 +132,7 @@ fun buildPattern(
             shapeId = shapeId,
             stopCount = stopIds.size,
             lengthM = paths.sumOf { it.lengthM },
-            extent = Extent.of(coords),
+            extent = BBox.of(coords),
             tripCount = 0,
         )
     return PatternBuild(pattern, paths)

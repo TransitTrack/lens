@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 
-import eu.transittrack.geo.Extent
+import eu.transittrack.geo.BBox
 import eu.transittrack.geo.Point
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.AgencyRepository
@@ -74,9 +74,9 @@ class DerivedGtfsWriterTest(
         }.isInstanceOf(CallerFailed::class)
     }
 
-    private val box: Extent = Extent.of(listOf(Point(45.70, 21.15), Point(45.80, 21.30)))
+    private val box: BBox = BBox.of(listOf(Point(45.70, 21.15), Point(45.80, 21.30)))!!
 
-    private fun bounds(e: Extent?) = e?.let { listOf(it.minLat, it.maxLat, it.minLon, it.maxLon) }
+    private fun bounds(e: BBox?) = e?.let { listOf(it.minLat, it.maxLat, it.minLng, it.maxLng) }
 
     @Test
     fun `writesSurviveCallerFailure - applyRouteExtents`() {

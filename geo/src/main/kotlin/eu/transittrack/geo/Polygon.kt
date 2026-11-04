@@ -46,7 +46,7 @@ data class Polygon(
     }
 
     override fun calculateBBox(): BBox {
-        return BBox.from(coordinates.first().dropLast(1))
+        return BBox.of(coordinates.first().dropLast(1))
     }
 
     override fun contains(point: Point, allowOnEdge: Boolean): Boolean =

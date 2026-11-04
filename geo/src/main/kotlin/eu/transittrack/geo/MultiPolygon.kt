@@ -23,7 +23,7 @@ data class MultiPolygon(
     constructor(vararg polygons: Polygon) :
         this(
             polygons.map { it.coordinates },
-            BBox.from(polygons.flatMap { it.coordinates.first().dropLast(1) }),
+            BBox.of(polygons.flatMap { it.coordinates.first().dropLast(1) }),
         )
 
     /**
@@ -31,7 +31,7 @@ data class MultiPolygon(
      */
     fun split(): List<Polygon> {
         return coordinates.map {
-            Polygon(it, BBox.from(it.first()))
+            Polygon(it, BBox.of(it.first()))
         }
     }
 
@@ -40,12 +40,12 @@ data class MultiPolygon(
      */
     fun added(vararg polygons: Polygon): MultiPolygon {
         val newCoordinates: List<List<List<Position>>> = coordinates + polygons.map { it.coordinates }
-        val newBBox = BBox.from(newCoordinates.flatMap { it.first().dropLast(1) })
+        val newBBox = BBox.of(newCoordinates.flatMap { it.first().dropLast(1) })
         return MultiPolygon(newCoordinates, newBBox)
     }
 
     override fun calculateBBox(): BBox {
-        return BBox.from(coordinates.flatMap { it.first().dropLast(1) })
+        return BBox.of(coordinates.flatMap { it.first().dropLast(1) })
     }
 
     override fun contains(point: Point, allowOnEdge: Boolean): Boolean {

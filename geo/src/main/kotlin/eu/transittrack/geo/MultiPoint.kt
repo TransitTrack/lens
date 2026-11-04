@@ -14,7 +14,7 @@ data class MultiPoint(
     override val bbox: BBox? = null,
 ) : Geometry<MultiPointCoordinates>("MultiPoint") {
     constructor(vararg points: Point) :
-        this(points.map { it.coordinates }, BBox.from(points.map { it.coordinates }))
+        this(points.map { it.coordinates }, BBox.of(points.map { it.coordinates }))
 
     /**
      * Split MultiPoint into Point lists.
@@ -30,11 +30,11 @@ data class MultiPoint(
      */
     fun added(vararg points: Point): MultiPoint {
         val newCoordinates = coordinates + points.map { it.coordinates }
-        val newBBox = BBox.from(newCoordinates)
+        val newBBox = BBox.of(newCoordinates)
         return MultiPoint(newCoordinates, newBBox)
     }
 
     override fun calculateBBox(): BBox {
-        return BBox.from(coordinates)
+        return BBox.of(coordinates)
     }
 }

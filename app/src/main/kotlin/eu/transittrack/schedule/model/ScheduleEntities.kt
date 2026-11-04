@@ -6,7 +6,7 @@ import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.json.jsonb
 
 import eu.transittrack.ProjectJson
-import eu.transittrack.geo.Extent
+import eu.transittrack.geo.BBox
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.RevisionScopedTable
@@ -27,7 +27,7 @@ class TripPattern(
     var shapeId: String?,
     var stopCount: Int,
     var lengthM: Double?,
-    var extent: Extent = Extent(),
+    var extent: BBox? = null,
     var tripCount: Int,
 ) : RevisionScoped(revisionId)
 
@@ -112,8 +112,7 @@ object TripPatternTable : RevisionScopedTable<TripPattern>("trip_patterns", Trip
             shapeId = row[shapeId],
             stopCount = row[stopCount],
             lengthM = row[lengthM],
-            // Derivation always stores an extent (an unset one as four NaNs); the row class never holds null.
-            extent = extent.read(row) ?: Extent(),
+            extent = extent.read(row),
             tripCount = row[tripCount],
         ).withId(row)
 

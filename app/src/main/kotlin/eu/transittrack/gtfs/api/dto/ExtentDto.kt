@@ -1,6 +1,6 @@
 package eu.transittrack.gtfs.api.dto
 
-import eu.transittrack.geo.Extent
+import eu.transittrack.geo.BBox
 
 data class ExtentDto(
     val minLat: Double,
@@ -9,12 +9,7 @@ data class ExtentDto(
     val maxLon: Double,
 ) {
     companion object {
-        /** `null` when the extent was never populated (all-NaN). */
-        fun of(e: Extent?): ExtentDto? =
-            if (e == null || e.isEmpty) {
-                null
-            } else {
-                ExtentDto(e.minLat, e.minLon, e.maxLat, e.maxLon)
-            }
+        /** `null` when the extent was never populated. */
+        fun of(e: BBox?): ExtentDto? = e?.let { ExtentDto(it.minLat, it.minLng, it.maxLat, it.maxLng) }
     }
 }
