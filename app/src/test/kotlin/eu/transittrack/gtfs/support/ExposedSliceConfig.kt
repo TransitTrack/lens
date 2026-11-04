@@ -51,6 +51,7 @@ import eu.transittrack.predict.PredictionRetentionRepository
 import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.PredictionModelRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.BlockRepository
@@ -125,6 +126,7 @@ import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
     AvlStopCrossingRepository::class,
     KalmanTravelTimeStateRepository::class,
     PredictionAccuracyRepository::class,
+    PredictionModelRepository::class,
     TravelTimeObservationRepository::class,
     VehiclePredictionRepository::class,
     PredictionRetentionRepository::class,

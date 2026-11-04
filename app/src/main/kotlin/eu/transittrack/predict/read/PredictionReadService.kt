@@ -20,10 +20,13 @@ import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.predict.read.dto.LateAssessmentDto
 import eu.transittrack.predict.read.dto.PredictionAccuracyHorizonDto
 import eu.transittrack.predict.read.dto.PredictionAccuracySummaryDto
 import eu.transittrack.predict.read.dto.StopPredictionDto
+import eu.transittrack.predict.read.dto.TripLatenessDto
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 
@@ -76,6 +79,10 @@ class PredictionReadService(
                 sourceReportTs = r.sourceReportTs?.toString(),
                 actualReportGapSec = r.actualReportGapSec,
                 actualReliable = r.actualReportGapSec?.let { it <= props.learn.maxReliableReportGapSec },
+                rangeLowSec = r.rangeLowSec,
+                rangeHighSec = r.rangeHighSec,
+                lateProbability = r.lateProbability,
+                late = r.late,
                 revisionId = revisionId,
                 gtfsFeedCode = feed.gtfsFeedCode,
                 stopId = stopId,
@@ -95,19 +102,15 @@ class PredictionReadService(
         val patternIds = tripPatterns(revisionId, routeId, directionId).map { it.id!! }.toSet()
         val matchingStopPaths = stopPaths.findByStopId(revisionId, stopId).filter { it.tripPatternId in patternIds }
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
-        val resolvedAlgorithm = algorithm ?: feed.predictionAlgorithms.first()
         val now = clock.instant()
+        // An explicit algorithm is never substituted; otherwise the feed's algorithms are tried in
+        // order, so a primary that has nothing live yet (e.g. SMILE_GBM before its first model) falls back.
         val rows =
-            matchingStopPaths
-                .flatMap { sp -> predictions.findByPatternStopAlgorithm(feed.code, sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm) }
-                .filter {
-                    it.predictedArrivalTs != null &&
-                        it.actualArrivalTs == null &&
-                        it.actualDepartureTs == null &&
-                        it.sourceReportTs?.let { source -> props.run.isFreshSource(source, now) } == true
-                }.let { onePerTrip(feed.code, it) }
-                .sortedWith(compareBy({ it.predictedArrivalTs }, { it.tripRowId }, { it.vehicleId }, { it.stopPathIndex }))
-        if (rows.isEmpty()) return emptyList()
+            (algorithm?.let { listOf(it) } ?: feed.predictionAlgorithms.distinct())
+                .asSequence()
+                .map { liveStopPredictions(feed.code, matchingStopPaths, it, now) }
+                .firstOrNull { it.isNotEmpty() }
+                ?: return emptyList()
 
         // Each trip's row at this stop, plus its first one for the trip's start time.
         val scheduleRows =
@@ -130,12 +133,101 @@ class PredictionReadService(
                 algorithm = r.algorithm,
                 confidenceSec = r.confidenceSec,
                 sourceReportTs = r.sourceReportTs?.toString(),
+                rangeLowSec = r.rangeLowSec,
+                rangeHighSec = r.rangeHighSec,
+                lateProbability = r.lateProbability,
+                late = r.late,
                 revisionId = revisionId,
                 gtfsFeedCode = feed.gtfsFeedCode,
                 stopId = stopId,
             )
         }
     }
+
+    /**
+     * Late assessment at the next stop, next timepoint and terminal of [vehicleId]'s current trip.
+     * An explicit [algorithm] is never substituted; otherwise the feed's algorithms are tried in
+     * order, preferring the first whose open predictions carry a late assessment, then the first with
+     * open predictions at all. `null` when the chosen algorithm has no open prediction.
+     */
+    fun tripLateness(
+        feedCode: String,
+        vehicleId: String,
+        algorithm: PredictionAlgorithm? = null,
+    ): TripLatenessDto? {
+        val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feed.code, vehicleId) ?: return null
+        val tripRowId = state.tripRowId ?: return null
+        val revisionId = state.revisionId ?: return null
+        val tripPatternId = state.tripPatternId ?: return null
+
+        val openByAlgorithm =
+            predictions
+                .findByVehicleTrip(feed.code, vehicleId, tripRowId, algorithm)
+                .filter { it.actualArrivalTs == null && it.actualDepartureTs == null }
+                .groupBy { it.algorithm }
+        val candidates = algorithm?.let { listOf(it) } ?: feed.predictionAlgorithms.distinct()
+        val chosen =
+            candidates.firstOrNull { a -> openByAlgorithm[a].orEmpty().any { it.late != null } }
+                ?: candidates.firstOrNull { openByAlgorithm[it].orEmpty().isNotEmpty() }
+                ?: return null
+        val open = openByAlgorithm.getValue(chosen).associateBy { it.stopPathIndex }
+
+        val paths = stopPaths.findByTripPatternOrdered(revisionId, tripPatternId)
+        val scheduleRows = scheduleTimes.findByTripOrdered(revisionId, tripRowId)
+        val schedule = scheduleRows.associateBy { it.stopPathIndex }
+        val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
+        val anyRow = open.values.first()
+        val tripStartSec = scheduleRows.firstOrNull()?.let { it.departureSec ?: it.arrivalSec }
+        val serviceDate = anyRow.serviceDate ?: displayServiceDate(anyRow.sourceReportTs ?: anyRow.computedAt, zone, tripStartSec)
+
+        fun assessment(path: StopPath): LateAssessmentDto {
+            val r = open[path.stopPathIndex]
+            return LateAssessmentDto(
+                stopPathIndex = path.stopPathIndex,
+                predictedArrival = r?.predictedArrivalTs?.toString(),
+                // As the assessment judges it: the arrival time, else the departure time.
+                scheduledArrival =
+                    schedule[path.stopPathIndex]
+                        ?.let { it.arrivalSec ?: it.departureSec }
+                        ?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
+                rangeLowSec = r?.rangeLowSec,
+                rangeHighSec = r?.rangeHighSec,
+                late = r?.late,
+                lateProbability = r?.lateProbability,
+                revisionId = revisionId,
+                gtfsFeedCode = feed.gtfsFeedCode,
+                stopId = path.stopId,
+            )
+        }
+
+        val nextIndex = open.keys.min()
+        val ahead = paths.filter { it.stopPathIndex >= nextIndex }
+        return TripLatenessDto(
+            vehicleId = vehicleId,
+            algorithm = chosen,
+            nextStop = ahead.firstOrNull { it.stopPathIndex == nextIndex }?.let(::assessment),
+            nextTimepoint = ahead.firstOrNull { it.scheduleAdherenceStop }?.let(::assessment),
+            terminal = paths.lastOrNull()?.let(::assessment),
+        )
+    }
+
+    /** [algorithm]'s upcoming, freshly sourced arrivals at [stopPaths], one per trip, earliest first. */
+    private fun liveStopPredictions(
+        feedCode: String,
+        stopPaths: List<StopPath>,
+        algorithm: PredictionAlgorithm,
+        now: Instant,
+    ): List<VehiclePrediction> =
+        stopPaths
+            .flatMap { sp -> predictions.findByPatternStopAlgorithm(feedCode, sp.tripPatternId, sp.stopPathIndex, algorithm) }
+            .filter {
+                it.predictedArrivalTs != null &&
+                    it.actualArrivalTs == null &&
+                    it.actualDepartureTs == null &&
+                    it.sourceReportTs?.let { source -> props.run.isFreshSource(source, now) } == true
+            }.let { onePerTrip(feedCode, it) }
+            .sortedWith(compareBy({ it.predictedArrivalTs }, { it.tripRowId }, { it.vehicleId }, { it.stopPathIndex }))
 
     /**
      * One prediction per trip: a trip can be predicted by two vehicles at once - the one running it,
@@ -200,7 +292,7 @@ class PredictionReadService(
         val algorithms = algorithm?.let { listOf(it) } ?: feed.predictionAlgorithms.distinct()
         return accuracy
             .aggregateAccuracy(
-                feed.code, algorithms.map { it.ordinal.toShort() }, algorithms.size, since,
+                feed.code, algorithms.map { it.ordinal.toShort() }, since,
                 routeId, directionId, dayType?.ordinal?.toShort(), timeBand?.ordinal?.toShort(),
             ).groupBy { it.algorithmOrdinal }
             .toSortedMap()
@@ -218,6 +310,8 @@ class PredictionReadService(
                     p95AbsErrorSec = summary.p95AbsErrorSec,
                     confidenceCoverage = summary.confidenceCoverage,
                     confidenceSampleCount = summary.confidenceSampleCount.toInt(),
+                    rangeCoverage = summary.rangeCoverage,
+                    rangeSampleCount = summary.rangeSampleCount.toInt(),
                     byHorizon =
                         horizons.filter { it.horizonSec != null }.map {
                             PredictionAccuracyHorizonDto(
@@ -232,6 +326,8 @@ class PredictionReadService(
                                 p95AbsErrorSec = it.p95AbsErrorSec,
                                 confidenceCoverage = it.confidenceCoverage,
                                 confidenceSampleCount = it.confidenceSampleCount.toInt(),
+                                rangeCoverage = it.rangeCoverage,
+                                rangeSampleCount = it.rangeSampleCount.toInt(),
                             )
                         },
                 )

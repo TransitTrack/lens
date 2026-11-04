@@ -76,7 +76,7 @@ The same image runs as one of four roles, selected entirely by
 | `role-api` | GraphQL/web layer (always loaded in every role — see below) | N, scaled on request load |
 | `role-ingester` | `GtfsIngestScheduler` (GTFS Schedule re-ingestion) | N — scales safely (§4) |
 | `role-feed-processor` | `AvlPoller`, `AvlMatchProcessor`, plus every cluster-singleton housekeeping job (retention sweepers, temp-file sweeper, metrics gauge refresher) | N |
-| `role-predictor` | `PredictionProcessor` | N |
+| `role-predictor` | `PredictionProcessor`, plus the nightly `SmileTrainingJob` (once per cluster, ShedLock) | N |
 
 **Monolith-by-default:** if *no* `role-*` profile is active, every role's
 components run in the one process — this is what local `bootRun` and the

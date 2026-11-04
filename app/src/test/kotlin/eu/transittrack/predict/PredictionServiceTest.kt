@@ -13,12 +13,19 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -50,14 +57,19 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.predict.generate.KalmanAlgorithm
+import eu.transittrack.predict.generate.ScheduleAdherenceAlgorithm
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.predict.learn.TravelTimeBucket
 import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.PredictionCheckpointTable
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.predict.smile.SmileModelStore
+import eu.transittrack.predict.smile.StopToStopEstimate
+import eu.transittrack.predict.smile.StopToStopModel
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerClassTest
 
@@ -93,9 +105,16 @@ class PredictionServiceTest(
     @Autowired val crossings: AvlStopCrossingRepository,
     @Autowired val vehicleStates: VehicleStateRepository,
     @Autowired val tripPatterns: TripPatternRepository,
+    @Autowired val exposedDatabase: Database,
 ) : PostgresPerClassTest() {
     @MockitoSpyBean
     lateinit var kalman: KalmanAlgorithm
+
+    @MockitoSpyBean
+    lateinit var scheduleAdherence: ScheduleAdherenceAlgorithm
+
+    @MockitoSpyBean
+    lateinit var smileModels: SmileModelStore
 
     @MockitoBean
     lateinit var clock: Clock
@@ -133,6 +152,7 @@ class PredictionServiceTest(
 
     @AfterEach
     fun cleanup() {
+        transaction(exposedDatabase) { PredictionCheckpointTable.deleteAll() }
         predictionAccuracies.deleteAll()
         crossings.deleteAll()
         vehiclePredictions.deleteAll()
@@ -343,6 +363,122 @@ class PredictionServiceTest(
         assertThat(algorithms).contains(PredictionAlgorithm.HISTORICAL_AVERAGE)
         assertThat(algorithms).contains(PredictionAlgorithm.KALMAN)
         assertThat(preds.size % 3).isEqualTo(0)
-        assertThat(algorithms).isEqualTo(PredictionAlgorithm.entries.toSet())
+        // SMILE_GBM runs too, but has no trained model in this context, so it predicts nothing.
+        assertThat(algorithms).isEqualTo(PredictionAlgorithm.entries.toSet() - PredictionAlgorithm.SMILE_GBM)
+    }
+
+    @Test
+    fun `smile gbm predicts with the model of the vehicle's avl feed`() {
+        val (trip, geom) = t1Geom()
+        val feed = feedRow()
+        feed.predictionAlgorithms = listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feed)
+        // The store hands out a model only for this feed's code (`avl_feed.code`), so SMILE_GBM
+        // predicts only when the service passes the feed code on to the strategy. The spy's stubbing
+        // is reset after the test.
+        val model =
+            mock<StopToStopModel> {
+                on { routeIndex } doReturn emptyMap()
+                on { estimate(any()) } doReturn StopToStopEstimate(100.0, 80.0, 120.0)
+            }
+        doReturn(model).whenever(smileModels).current(feed.code)
+
+        insertReport("bus-s", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        val smile =
+            vehiclePredictions.findByVehicleTrip(feed.code, "bus-s", trip.id!!).filter { it.algorithm == PredictionAlgorithm.SMILE_GBM }
+        assertThat(smile).isNotEmpty()
+        assertThat(smile.all { it.predictedArrivalTs != null }).isTrue()
+        assertThat(smile.any { it.rangeHighSec != null && it.rangeLowSec == -it.rangeHighSec!! }).isTrue()
+    }
+
+    @Test
+    fun `smile gbm gets no checkpoints until its feed has a model`() {
+        val (_, geom) = t1Geom()
+        val feed = feedRow()
+        feed.predictionAlgorithms = listOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feed)
+
+        insertReport("bus-u", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        fun checkpointAlgorithms(vehicleId: String) =
+            transaction(exposedDatabase) { PredictionCheckpointTable.selectAll().map { PredictionCheckpointTable.read(it) } }
+                .filter { it.vehicleId == vehicleId }
+                .map { it.algorithm }
+                .toSet()
+        assertThat(checkpointAlgorithms("bus-u")).isEqualTo(setOf(PredictionAlgorithm.KALMAN))
+
+        val model =
+            mock<StopToStopModel> {
+                on { routeIndex } doReturn emptyMap()
+                on { estimate(any()) } doReturn StopToStopEstimate(100.0, 80.0, 120.0)
+            }
+        doReturn(model).whenever(smileModels).current(feed.code)
+        insertReport("bus-m", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        assertThat(checkpointAlgorithms("bus-m")).isEqualTo(setOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SMILE_GBM))
+    }
+
+    @Test
+    fun `rangeAndLateAreStoredOnPredictionAndCheckpoint`() {
+        val (trip, geom) = t1Geom()
+        doAnswer { inv ->
+            @Suppress("UNCHECKED_CAST")
+            (inv.callRealMethod() as List<eu.transittrack.predict.generate.GeneratedPrediction>).map {
+                it.copy(rangeLowSec = -90, rangeHighSec = 120, lateProbability = 0.8, late = true)
+            }
+        }.whenever(scheduleAdherence).predict(any(), any(), anyOrNull(), any(), any())
+
+        insertReport("bus-r", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-r", trip.id!!)
+        assertThat(preds).isNotEmpty()
+        preds.forEach {
+            assertThat(it.rangeLowSec).isEqualTo(-90)
+            assertThat(it.rangeHighSec).isEqualTo(120)
+            assertThat(it.lateProbability).isEqualTo(0.8)
+            assertThat(it.late).isEqualTo(true)
+        }
+        val checkpoints = transaction(exposedDatabase) { PredictionCheckpointTable.selectAll().map { PredictionCheckpointTable.read(it) } }
+            .filter { it.vehicleId == "bus-r" && it.predictedTs != null }
+        assertThat(checkpoints).isNotEmpty()
+        checkpoints.forEach {
+            assertThat(it.rangeLowSec).isEqualTo(-90)
+            assertThat(it.rangeHighSec).isEqualTo(120)
+            assertThat(it.lateProbability).isEqualTo(0.8)
+            assertThat(it.late).isEqualTo(true)
+        }
+    }
+
+    @Test
+    fun `strategyWithoutRangeStoresNulls`() {
+        val (trip, geom) = t1Geom()
+        insertReport("bus-n", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        val preds = vehiclePredictions.findByVehicleTrip(feedRow().code, "bus-n", trip.id!!)
+        assertThat(preds).isNotEmpty()
+        preds.forEach {
+            assertThat(it.rangeLowSec).isNull()
+            assertThat(it.rangeHighSec).isNull()
+            assertThat(it.lateProbability).isNull()
+            assertThat(it.late).isNull()
+        }
+        val checkpoints = transaction(exposedDatabase) { PredictionCheckpointTable.selectAll().map { PredictionCheckpointTable.read(it) } }
+            .filter { it.vehicleId == "bus-n" }
+        assertThat(checkpoints).isNotEmpty()
+        checkpoints.forEach {
+            assertThat(it.rangeLowSec).isNull()
+            assertThat(it.late).isNull()
+        }
     }
 }

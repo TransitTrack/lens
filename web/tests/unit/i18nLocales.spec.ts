@@ -27,7 +27,7 @@ const forms = (s: string) => s.split('|').length
 
 // Values that legitimately stay identical to English. Anything made only of {placeholders},
 // digits and punctuation (e.g. "{label} · {count}") is exempt automatically; words must be listed.
-const INVARIANT_ALL = new Set(['GTFS', 'ID', 'URL', 'P90 / P95', 'S', 'gtfs {time}', '{km} km', '{stops} · {km} km', 'HH:MM', 'INFO'])
+const INVARIANT_ALL = new Set(['GTFS', 'ID', 'URL', 'P90 / P95', 'S', 'gtfs {time}', '{km} km', '{eta} min', '{stops} · {km} km', 'HH:MM', 'INFO'])
 const INVARIANT_BY_LOCALE: Record<string, Set<string>> = {
   // Polish shares these words with English.
   pl: new Set(['Operator', 'Status', 'Start']),
@@ -45,6 +45,35 @@ const isInvariant = (locale: string, v: string) =>
   INVARIANT_ALL.has(v) ||
   INVARIANT_BY_LOCALE[locale]?.has(v) === true ||
   !/[A-Za-z]{2,}/.test(v.replace(/\{\w+\}/g, ''))
+
+// Prediction range, late assessment and range coverage on the vehicle page: must exist
+// (and be non-empty) in every locale, including en, which the parity checks below take as given.
+const PREDICTION_RANGE_KEYS = [
+  'vehicles.detail.range.minutes',
+  'vehicles.detail.range.minutesExact',
+  'vehicles.detail.range.seconds',
+  'vehicles.detail.range.secondsExact',
+  'vehicles.detail.range.title',
+  'vehicles.detail.lateness.title',
+  'vehicles.detail.lateness.nextTimepoint',
+  'vehicles.detail.lateness.terminal',
+  'vehicles.detail.lateness.late',
+  'vehicles.detail.lateness.onTime',
+  'vehicles.detail.lateness.probability',
+  'vehicles.detail.quality.inRange',
+  'vehicles.detail.quality.rangeSamples',
+]
+
+describe.each([
+  ['en', en],
+  ['pl', pl],
+  ['fr', fr],
+  ['ro', ro],
+] as const)('prediction range keys in %s', (_name, messages) => {
+  it('defines every prediction range and late assessment key', () => {
+    expect(PREDICTION_RANGE_KEYS.filter((k) => !messages[k]?.trim()), 'missing').toEqual([])
+  })
+})
 
 // en messages without a pipe that a locale may still pluralise (the caller passes a count).
 const PLURALISED_ONLY_IN_TARGET = new Set(['feed.processing.failed'])

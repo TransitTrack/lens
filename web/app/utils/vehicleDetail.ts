@@ -155,6 +155,21 @@ export function preferredAlgorithm(
   return configured.find((algorithm) => available.includes(algorithm)) ?? available[0]
 }
 
+/**
+ * Whether to ask for the trip's late assessment yet: only once the algorithm the page shows is
+ * settled — selected explicitly, or picked from the feed's configured order. Before that the
+ * backend would pick one itself (the first with late assessments, e.g. SMILE_GBM in shadow) and its
+ * badges could flash for one poll.
+ */
+export function latenessQueryEnabled(
+  feedCode: string | undefined,
+  algorithm: string | undefined,
+  configured: string[],
+  selected?: string,
+): boolean {
+  return !!feedCode && !!algorithm && (!!selected || configured.length > 0)
+}
+
 export function accuracyFor(
   algorithm: string | undefined,
   accuracy: Accuracy[],
@@ -179,6 +194,9 @@ export interface StopRow {
   confidenceSec: number | null
   actualReportGapSec: number | null
   actualReliable: boolean | null
+  /** predicted arrival range around `eta`, in signed seconds; null once reached, at stop 0 or without a range */
+  rangeLowSec: number | null
+  rangeHighSec: number | null
 }
 
 /** One row per pattern stop, joined with the selected algorithm's prediction. */
@@ -210,6 +228,8 @@ export function stopRows(
           : p?.scheduledArrival
       const arrived = !!actual
       const eta = actual ?? predicted ?? null
+      // The range is relative to predictedArrival; stop 0 shows a departure instead.
+      const ranged = !arrived && sp.stopPathIndex !== 0
       return {
         stopPathIndex: sp.stopPathIndex,
         stopId: sp.stopId,
@@ -223,6 +243,8 @@ export function stopRows(
         confidenceSec: p?.confidenceSec ?? null,
         actualReportGapSec: p?.actualReportGapSec ?? null,
         actualReliable: p?.actualReliable ?? null,
+        rangeLowSec: ranged ? (p?.rangeLowSec ?? null) : null,
+        rangeHighSec: ranged ? (p?.rangeHighSec ?? null) : null,
       }
     })
 }

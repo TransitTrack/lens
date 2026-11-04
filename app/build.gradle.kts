@@ -57,6 +57,7 @@ val protobufVersion = project.property("protobufVersion") as String
 val shedlockVersion = project.property("shedlockVersion") as String
 val kotlinxBenchmarkVersion = project.property("kotlinxBenchmarkVersion") as String
 val exposedVersion = project.property("exposedVersion") as String
+val smileVersion = project.property("smileVersion") as String
 
 dependencies {
     // Source: https://mvnrepository.com/artifact/org.jetbrains.exposed/exposed-bom
@@ -77,6 +78,15 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation("com.squareup.okhttp3:logging-interceptor:$okhttpVersion")
     implementation("com.google.guava:guava:$guavaVersion")
+    // SMILE_GBM only uses GradientTreeBoost/CART over an in-memory DataFrame, all pure Java. Leave out
+    // what smile-base pulls in for its other features: the BLAS/LAPACK/ARPACK natives (bytedeco, four
+    // platforms), DuckDB (~80 MB, and it registers a java.sql.Driver) and the SAS/CSV readers.
+    implementation("com.github.haifengl:smile-core:$smileVersion") {
+        exclude(group = "org.bytedeco")
+        exclude(group = "org.duckdb")
+        exclude(group = "com.epam", module = "parso")
+        exclude(group = "org.apache.commons", module = "commons-csv")
+    }
 
     implementation("org.jetbrains.exposed:exposed-spring-boot4-starter")
     implementation("org.jetbrains.exposed:exposed-java-time")

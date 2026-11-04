@@ -10,4 +10,8 @@ data class GeneratedPrediction(
     val predictedArrivalTs: Instant?,
     val predictedDepartureTs: Instant?,
     val confidenceSec: Int?,
+    val rangeLowSec: Int? = null,
+    val rangeHighSec: Int? = null,
+    val lateProbability: Double? = null,
+    val late: Boolean? = null,
 )

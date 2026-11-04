@@ -33,11 +33,22 @@ fun inferServiceDate(
     zone: ZoneId,
 ): LocalDate {
     report.descStartDate?.let { return it }
-    val zoned = report.ts.atZone(zone)
+    return inferServiceDate(report.ts, trip.startTimeSec, zone)
+}
+
+/**
+ * The service date of a trip starting at [tripStartSec] that is running at [ts]: the local date of
+ * [ts], shifted back a day when [ts]'s time of day is well before the trip's start.
+ */
+fun inferServiceDate(
+    ts: Instant,
+    tripStartSec: Int?,
+    zone: ZoneId,
+): LocalDate {
+    val zoned = ts.atZone(zone)
     val localDate = zoned.toLocalDate()
     val secOfDay = zoned.toLocalTime().toSecondOfDay()
-    val start = trip.startTimeSec
-    return if (start != null && secOfDay + 14_400 < start) localDate.minusDays(1) else localDate
+    return if (tripStartSec != null && secOfDay + 14_400 < tripStartSec) localDate.minusDays(1) else localDate
 }
 
 /**

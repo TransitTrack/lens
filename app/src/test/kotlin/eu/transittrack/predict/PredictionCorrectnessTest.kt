@@ -11,14 +11,18 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNull
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -27,6 +31,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 
 import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.match.AvlAssignmentMode
@@ -44,6 +49,7 @@ import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.generate.SmileGbmAlgorithm
 import eu.transittrack.predict.generate.serviceSecToInstant
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
@@ -87,6 +93,13 @@ class PredictionCorrectnessTest(
     @MockitoBean
     lateinit var clock: Clock
 
+    /**
+     * Reports itself ready, so it is scored, while still predicting nothing (it has no model): the
+     * tests below give its snapshots a forecast by hand.
+     */
+    @MockitoSpyBean
+    lateinit var smile: SmileGbmAlgorithm
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -118,6 +131,7 @@ class PredictionCorrectnessTest(
         )
         ctx = factory.open(feed)!!
         previous = null
+        doReturn(true).whenever(smile).isReady(any())
     }
 
     @AfterEach
@@ -186,13 +200,85 @@ class PredictionCorrectnessTest(
         advance("T1", (geom.stopPathCumM[1] + geom.stopPathCumM[2]) / 2, at, at.plusSeconds(30))
         advance("T1", geom.stopPathCumM[2] + 10, at.plusSeconds(120))
         val scored = accuracy.findAll().filter { it.stopPathIndex == 1 }
-        assertThat(scored.size).isEqualTo(3)
-        assertThat(scored.map { it.predictedTs }.toSet().size).isEqualTo(2)
+        // SMILE_GBM is ready but has no trained model here, so it is scored as a missing forecast.
+        assertThat(scored.single { it.predictedTs == null }.algorithm).isEqualTo(PredictionAlgorithm.SMILE_GBM)
+        val forecasts = scored.filter { it.predictedTs != null }
+        assertThat(forecasts.size).isEqualTo(3)
+        assertThat(forecasts.map { it.predictedTs }.toSet().size).isEqualTo(2)
         assertThat(scored.map { it.horizonSec }.toSet()).isEqualTo(setOf(180))
         assertThat(scored.all { it.predictedAt == at && it.producedAt == at.plusSeconds(30) }).isEqualTo(true)
         scored.forEach {
             assertThat(it.actualLeadSec?.toLong()).isEqualTo(Duration.between(at.plusSeconds(30), it.actualTs).seconds)
         }
+    }
+
+    /** Gives every SMILE_GBM snapshot kept so far a forecast, a range and a late assessment. */
+    private fun forecastSmileCheckpoints(
+        predictedTs: Instant,
+        late: Boolean?,
+    ) = transaction(db) {
+        val c = PredictionCheckpointTable
+        c.update({ c.algorithm eq PredictionAlgorithm.SMILE_GBM }) {
+            it[c.predictedTs] = predictedTs
+            it[c.confidenceSec] = 30
+            it[c.rangeLowSec] = -40
+            it[c.rangeHighSec] = 40
+            it[c.lateProbability] = late?.let { l -> if (l) 0.9 else 0.1 }
+            it[c.late] = late
+        }
+    }
+
+    /** 08:20 at S2 (stop path 1), scheduled 08:10 with no other trip there: ten minutes behind, past the 300 s tolerance. */
+    private fun crossS2TenMinutesLate(late: Boolean?) {
+        val geom = ctx.patternGeometry(ctx.tripByGtfsId("T1")!!.tripPatternId!!)!!
+        val at = serviceSecToInstant(date, 8 * 3600 + 20 * 60, ctx.zone)
+        advance("T1", geom.stopPathCumM[2] - 10, at)
+        forecastSmileCheckpoints(at.plusSeconds(20), late)
+        advance("T1", geom.stopPathCumM[2] + 10, at.plusSeconds(60))
+    }
+
+    @Test
+    fun scoringStoresRangeAndLateOutcome() {
+        crossS2TenMinutesLate(late = false)
+
+        val scored = accuracy.findAll().filter { it.stopPathIndex == 1 }
+        val smile = scored.single { it.algorithm == PredictionAlgorithm.SMILE_GBM }
+        assertThat(smile.rangeLowSec).isEqualTo(-40)
+        assertThat(smile.rangeHighSec).isEqualTo(40)
+        // Predicted on time, but the vehicle actually crossed beyond the same margin.
+        assertThat(smile.predictedLate).isEqualTo(false)
+        assertThat(smile.actualLate).isEqualTo(true)
+        val others = scored.filter { it.algorithm != PredictionAlgorithm.SMILE_GBM }
+        assertThat(others).isNotEmpty()
+        assertThat(others.all { it.rangeLowSec == null && it.rangeHighSec == null && it.predictedLate == null && it.actualLate == null })
+            .isEqualTo(true)
+    }
+
+    @Test
+    fun firstStopDepartureIsNeverScoredForRangeOrLateness() {
+        // Leaving S1 at about 08:20, twenty minutes after its 08:00 departure: stop path 0 is a
+        // departure, so an (arrival-anchored) range or late flag on its snapshot is not scored.
+        val at = serviceSecToInstant(date, 8 * 3600 + 20 * 60, ctx.zone)
+        advance("T1", 0.0, at)
+        forecastSmileCheckpoints(at.plusSeconds(20), late = false)
+        advance("T1", 60.0, at.plusSeconds(60))
+
+        val scored = accuracy.findAll().filter { it.stopPathIndex == 0 }
+        val smile = scored.single { it.algorithm == PredictionAlgorithm.SMILE_GBM }
+        assertThat(smile.predictedTs).isEqualTo(at.plusSeconds(20))
+        assertThat(smile.rangeLowSec).isNull()
+        assertThat(smile.rangeHighSec).isNull()
+        assertThat(smile.actualLate).isNull()
+    }
+
+    @Test
+    fun checkpointWithoutLateAssessmentHasNullOutcome() {
+        crossS2TenMinutesLate(late = null)
+
+        val smile = accuracy.findAll().single { it.stopPathIndex == 1 && it.algorithm == PredictionAlgorithm.SMILE_GBM }
+        assertThat(smile.rangeHighSec).isEqualTo(40)
+        assertThat(smile.predictedLate).isNull()
+        assertThat(smile.actualLate).isNull()
     }
 
     @Test

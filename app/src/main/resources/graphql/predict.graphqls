@@ -3,8 +3,10 @@ extend type Query {
     vehiclePredictions(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): [StopPrediction!]!
     "Recent, paired prediction-error statistics, overall and by actual lead time. Compares currently configured algorithms unless algorithm restricts to one. Optional route, direction and observation-time context filters apply before pairing."
     predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7, routeId: String, directionId: Int, dayType: PredictionDayType, timeBand: PredictionTimeBand): [PredictionAccuracySummary!]!
-    "Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm."
+    "Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. An explicit algorithm is never substituted. Without one, the feed's configured algorithms are tried in order and the first that has live predictions for the stop is used for the whole board (all-or-nothing per stop board, never mixed per vehicle)."
     stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId: Int, algorithm: PredictionAlgorithm): [StopPrediction!]!
+    "Late assessment for the next stop, the next timepoint and the terminal of one vehicle's current trip. Null when the vehicle has no open (not yet reached) predictions for the chosen algorithm. An explicit algorithm is never substituted. Without one, the feed's configured algorithms are tried in order: the first whose open predictions carry a late assessment is used; if none does, the first that has open predictions at all (its late fields are then null)."
+    tripLateness(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): TripLateness
     "Current headway (gap between consecutive vehicles) at a stop for one route/direction."
     headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: PredictionAlgorithm): Headway!
 }
@@ -31,6 +33,8 @@ enum PredictionAlgorithm {
     HISTORICAL_AVERAGE
     "Predicts using a Kalman filter over observed travel times."
     KALMAN
+    "Predicts with gradient-boosted trees trained on past stop crossings; also gives a confidence range and a late assessment."
+    SMILE_GBM
 }
 
 "A predicted (and, once reached, actual) arrival/departure at one scheduled stop of a vehicle's current trip."
@@ -57,6 +61,46 @@ type StopPrediction {
     actualReportGapSec: Int
     "Whether the actual crossing meets the configured report-gap quality limit; null when unknown."
     actualReliable: Boolean
+    "Lower end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (<= 0). Null when the algorithm gives no range (only SMILE_GBM does)."
+    rangeLowSec: Int
+    "Upper end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (>= 0). Null when the algorithm gives no range (only SMILE_GBM does)."
+    rangeHighSec: Int
+    "Probability (0..1) that the vehicle arrives late: later than its scheduled arrival by more than the lateness margin (the schedule tolerance, tightened to a fraction of the scheduled headway on frequent routes). Null when no assessment exists: algorithms other than SMILE_GBM, frequency-based trips, stop path 0 (a departure, not an arrival) and routes with neither a schedule nor a headway."
+    lateProbability: Float
+    "Whether the vehicle is assessed as late (see lateProbability). Null when no assessment exists, in the same cases as lateProbability."
+    late: Boolean
+}
+
+"Arrival prediction and late assessment for one stop of a vehicle's current trip."
+type LateAssessment {
+    "Index into the trip pattern's stopPaths."
+    stopPathIndex: Int!
+    stop: Stop
+    "ISO-8601 predicted arrival; null when the algorithm has no open prediction for this stop (e.g. beyond its prediction horizon)."
+    predictedArrival: String
+    "ISO-8601 scheduled arrival, or null if the trip has no scheduled arrival at this stop."
+    scheduledArrival: String
+    "Lower end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (<= 0); null without a range."
+    rangeLowSec: Int
+    "Upper end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (>= 0); null without a range."
+    rangeHighSec: Int
+    "Whether the vehicle is assessed as late here. Null when no assessment exists: algorithms other than SMILE_GBM, frequency-based trips, stop path 0 (a departure, not an arrival) and routes with neither a schedule nor a headway."
+    late: Boolean
+    "Probability (0..1) that the vehicle arrives late here; null in the same cases as late."
+    lateProbability: Float
+}
+
+"Late assessment along one vehicle's current trip."
+type TripLateness {
+    vehicleId: String!
+    "The algorithm whose predictions the assessments come from."
+    algorithm: PredictionAlgorithm
+    "The first stop of the current trip the vehicle has not yet reached (no actual arrival or departure)."
+    nextStop: LateAssessment
+    "The first not-yet-reached stop, from nextStop on, that the schedule marks as a timepoint (GTFS stop_times.timepoint = 1; when the feed has no timepoint column, any stop with explicit times). Null if no such stop remains."
+    nextTimepoint: LateAssessment
+    "The last stop of the current trip."
+    terminal: LateAssessment
 }
 
 "Aggregate prediction error for one algorithm over a recent time window. Each stop the vehicle reaches is scored once per lead-time horizon a prediction was made within, so the overall figures pool every horizon."
@@ -79,6 +123,10 @@ type PredictionAccuracySummary {
     "Observed fraction of errors within the algorithm's one-SD spread, among available forecasts with a spread."
     confidenceCoverage: Float
     confidenceSampleCount: Int!
+    "Observed fraction of outcomes inside the predicted arrival range, among scored forecasts with a range (about 0.8 when the range is well calibrated). Null when no forecast had a range."
+    rangeCoverage: Float
+    "Scored forecasts with a predicted range: the denominator of rangeCoverage."
+    rangeSampleCount: Int!
     "The same statistics per lead-time horizon, shortest first."
     byHorizon: [PredictionAccuracyHorizon!]!
 }
@@ -97,6 +145,10 @@ type PredictionAccuracyHorizon {
     p95AbsErrorSec: Float
     confidenceCoverage: Float
     confidenceSampleCount: Int!
+    "Observed fraction of outcomes inside the predicted arrival range, among scored forecasts with a range. Null when no forecast had a range."
+    rangeCoverage: Float
+    "Scored forecasts with a predicted range: the denominator of rangeCoverage."
+    rangeSampleCount: Int!
 }
 
 "Current gap between consecutive vehicles serving a route/direction at a stop, compared to what the schedule calls for."

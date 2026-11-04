@@ -228,6 +228,40 @@ class PredictionWriterTest(
     }
 
     @Test
+    fun `upsertPredictions rewrites a row whose late flag or range changed`() {
+        val t0 = Instant.parse("2026-09-04T10:00:00Z")
+        val arrival = Instant.parse("2026-09-04T10:10:00Z")
+
+        fun at(
+            seconds: Long,
+            late: Boolean?,
+            range: Int?,
+        ) = prediction(arrival).copy(
+            computedAt = t0.plusSeconds(seconds),
+            late = late,
+            lateProbability = late?.let { if (it) 0.9 else 0.1 },
+            rangeLowSec = range?.let { -it },
+            rangeHighSec = range,
+        )
+
+        fun stored() = predictions.findAll().single().let { Triple(it.late, it.rangeHighSec, it.computedAt) }
+
+        writer.inTransaction { upsert(at(0, late = false, range = 100)) }
+        // Same arrival, range moved by 5s: under the 10s threshold, kept.
+        writer.inTransaction { upsert(at(10, late = false, range = 105)) }
+        assertThat(stored()).isEqualTo(Triple(false, 100, t0))
+        // The late flag flips: rewritten at once.
+        writer.inTransaction { upsert(at(20, late = true, range = 100)) }
+        assertThat(stored()).isEqualTo(Triple(true, 100, t0.plusSeconds(20)))
+        // The range narrows by 30s: rewritten.
+        writer.inTransaction { upsert(at(30, late = true, range = 70)) }
+        assertThat(stored()).isEqualTo(Triple(true, 70, t0.plusSeconds(30)))
+        // The assessment disappears: rewritten.
+        writer.inTransaction { upsert(at(40, late = null, range = null)) }
+        assertThat(stored()).isEqualTo(Triple(null, null, t0.plusSeconds(40)))
+    }
+
+    @Test
     fun `upsertPredictions keeps a passed stop's row, unless it is from an earlier run`() {
         val t0 = Instant.parse("2026-09-04T10:00:00Z")
         val actual = Instant.parse("2026-09-04T10:12:00Z")

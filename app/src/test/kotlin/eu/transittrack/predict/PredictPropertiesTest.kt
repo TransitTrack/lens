@@ -2,9 +2,11 @@ package eu.transittrack.predict
 
 import kotlin.test.Test
 
+import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
+import assertk.assertions.isInstanceOf
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 
@@ -60,5 +62,73 @@ class PredictPropertiesTest {
         )
         val avl = p.feeds.single().avl!!
         assertThat(avl.predictionAlgorithms).isEqualTo(listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.KALMAN))
+    }
+
+    @Test
+    fun `smileGbmIsLastAndBindsFromConfig`() {
+        assertThat(PredictionAlgorithm.entries).isEqualTo(
+            listOf(
+                PredictionAlgorithm.SCHEDULE_ADHERENCE,
+                PredictionAlgorithm.HISTORICAL_AVERAGE,
+                PredictionAlgorithm.KALMAN,
+                PredictionAlgorithm.SMILE_GBM,
+            ),
+        )
+        val p = bindFeeds(
+            mapOf(
+                "transittrack.feed.feeds[0].code" to "mbta",
+                "transittrack.feed.feeds[0].name" to "MBTA",
+                "transittrack.feed.feeds[0].url" to "https://example.test/gtfs.zip",
+                "transittrack.feed.feeds[0].avl.url" to "https://example.test/vp.pb",
+                "transittrack.feed.feeds[0].avl.prediction-algorithms[0]" to "smile_gbm",
+            ),
+        )
+        assertThat(
+            p.feeds
+                .single()
+                .avl!!
+                .predictionAlgorithms,
+        ).isEqualTo(listOf(PredictionAlgorithm.SMILE_GBM))
+    }
+
+    @Test
+    fun `smile defaults are valid`() {
+        val p = PredictProperties()
+        assertThat(p.smile.trees).isEqualTo(200)
+        assertThat(p.late.scheduleToleranceSec).isEqualTo(300)
+        assertThat(p.late.headwayFraction).isEqualTo(0.5)
+    }
+
+    @Test
+    fun `smile rejects inverted quantiles`() {
+        assertFailure { PredictProperties.Smile(lowQuantile = 0.9, highQuantile = 0.1) }
+            .isInstanceOf(IllegalArgumentException::class)
+    }
+
+    @Test
+    fun `smile rejects a max depth under 2`() {
+        assertFailure { PredictProperties.Smile(maxDepth = 1) }.isInstanceOf(IllegalArgumentException::class)
+        assertThat(PredictProperties.Smile(maxDepth = 2).maxDepth).isEqualTo(2)
+    }
+
+    @Test
+    fun `smile max training rows defaults to 100k`() {
+        assertThat(PredictProperties().smile.maxTrainingRows).isEqualTo(100_000)
+    }
+
+    @Test
+    fun `late rejects non positive headway fraction`() {
+        assertFailure { PredictProperties.Late(headwayFraction = 0.0) }
+            .isInstanceOf(IllegalArgumentException::class)
+    }
+
+    @Test
+    fun `training days cannot exceed raw crossing retention`() {
+        assertFailure {
+            PredictProperties(
+                smile = PredictProperties.Smile(trainingDays = 91),
+                retention = PredictProperties.Retention(rawCrossingDays = 90),
+            )
+        }.isInstanceOf(IllegalArgumentException::class)
     }
 }

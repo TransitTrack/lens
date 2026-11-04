@@ -58,4 +58,20 @@ class PredictSchemaMigrationTest(
         )
         assertThat(n).isEqualTo(4L)
     }
+
+    @Test
+    fun `range and lateness columns exist and prediction_model table exists`() {
+        for ((table, cols) in mapOf(
+            "vehicle_prediction" to "'range_low_sec', 'range_high_sec', 'late_probability', 'late'",
+            "prediction_checkpoint" to "'range_low_sec', 'range_high_sec', 'late_probability', 'late'",
+            "prediction_accuracy" to "'range_low_sec', 'range_high_sec', 'predicted_late', 'actual_late'",
+            "prediction_model" to "'feed_code', 'algorithm', 'trained_at', 'sample_count', 'payload'",
+        )) {
+            val n = db.catalogLong(
+                "select count(*) from information_schema.columns where table_name = ? and column_name in ($cols)",
+                table,
+            )
+            assertThat(n).isEqualTo(if (table == "prediction_model") 5L else 4L)
+        }
+    }
 }

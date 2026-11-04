@@ -31,6 +31,7 @@ import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.nextLongVal
 import org.jetbrains.exposed.v1.core.notExists
@@ -85,6 +86,10 @@ data class VehiclePredictionUpsert(
     val actualArrivalTs: Instant?,
     val actualDepartureTs: Instant?,
     val confidenceSec: Int?,
+    val rangeLowSec: Int? = null,
+    val rangeHighSec: Int? = null,
+    val lateProbability: Double? = null,
+    val late: Boolean? = null,
     val computedAt: Instant,
     val sourceReportTs: Instant = computedAt,
     val serviceDate: LocalDate? = null,
@@ -106,6 +111,10 @@ data class CheckpointCandidate(
     val computedAt: Instant,
     val sampleSlot: Instant,
     val confidenceSec: Int? = null,
+    val rangeLowSec: Int? = null,
+    val rangeHighSec: Int? = null,
+    val lateProbability: Double? = null,
+    val late: Boolean? = null,
     val serviceDate: LocalDate? = null,
     val producedAt: Instant = computedAt,
 )
@@ -323,9 +332,9 @@ class PredictionWriter {
      * horizon each time:
      * - a row the vehicle already passed (with an actual arrival/departure) is kept, so it can't be
      *   overwritten with a prediction for a stop that's behind the vehicle;
-     * - an open row is rewritten once its predicted arrival or departure moves by at least
-     *   [minChangeSec], or once it was computed before [refreshBefore]. Readers use the source
-     *   report's age, not processing time, to judge liveness.
+     * - an open row is rewritten once its predicted arrival or departure, or either end of its range,
+     *   moves by at least [minChangeSec], once its late flag changes, or once it was computed before
+     *   [refreshBefore]. Readers use the source report's age, not processing time, to judge liveness.
      *
      * A row computed before [staleBefore] belongs to an earlier run of the trip and is replaced
      * whole, actuals included. A different service date also starts fresh. An older source report
@@ -343,7 +352,10 @@ class PredictionWriter {
         fun movedBy(column: Column<Instant?>) =
             GreaterEqOp(AbsFunction(EpochSecondsBetween(column, insertValue(column))), intParam(minChangeSec))
 
-        fun appearedOrVanished(column: Column<Instant?>) = NeqOp(column.isNull(), insertValue(column).isNull())
+        fun appearedOrVanished(column: Column<*>) = NeqOp(column.isNull(), insertValue(column).isNull())
+
+        fun rangeMovedBy(column: Column<Int?>) =
+            appearedOrVanished(column) or GreaterEqOp(AbsFunction(column - insertValue(column)), intParam(minChangeSec))
         t.batchUpsertWithoutResults(
             rows,
             t.feedCode, t.vehicleId, t.tripRowId, t.stopPathIndex, t.algorithm,
@@ -356,6 +368,10 @@ class PredictionWriter {
                 it[t.actualDepartureTs] = insertValue(t.actualDepartureTs)
                 it[t.actualReportGapSec] = null
                 it[t.confidenceSec] = insertValue(t.confidenceSec)
+                it[t.rangeLowSec] = insertValue(t.rangeLowSec)
+                it[t.rangeHighSec] = insertValue(t.rangeHighSec)
+                it[t.lateProbability] = insertValue(t.lateProbability)
+                it[t.late] = insertValue(t.late)
                 it[t.computedAt] = insertValue(t.computedAt)
                 it[t.sourceReportTs] = insertValue(t.sourceReportTs)
                 it[t.serviceDate] = insertValue(t.serviceDate)
@@ -374,7 +390,10 @@ class PredictionWriter {
                                             appearedOrVanished(t.predictedArrivalTs) or
                                             appearedOrVanished(t.predictedDepartureTs) or
                                             movedBy(t.predictedArrivalTs) or
-                                            movedBy(t.predictedDepartureTs)
+                                            movedBy(t.predictedDepartureTs) or
+                                            IsDistinctFromOp(t.late, insertValue(t.late)) or
+                                            rangeMovedBy(t.rangeLowSec) or
+                                            rangeMovedBy(t.rangeHighSec)
                                     )
                             )
                     )
@@ -392,6 +411,10 @@ class PredictionWriter {
             this[t.actualArrivalTs] = p.actualArrivalTs
             this[t.actualDepartureTs] = p.actualDepartureTs
             this[t.confidenceSec] = p.confidenceSec
+            this[t.rangeLowSec] = p.rangeLowSec
+            this[t.rangeHighSec] = p.rangeHighSec
+            this[t.lateProbability] = p.lateProbability
+            this[t.late] = p.late
             this[t.computedAt] = p.computedAt
             this[t.sourceReportTs] = p.sourceReportTs
             this[t.serviceDate] = p.serviceDate
@@ -567,7 +590,7 @@ internal fun checkpointInsert(k: CheckpointCandidate): InsertSelectOnConflictDoN
     val columns =
         listOf(
             c.feedCode, c.vehicleId, c.tripRowId, c.stopPathIndex, c.algorithm, c.predictedTs, c.computedAt,
-            c.sampleSlot, c.confidenceSec, c.serviceDate, c.producedAt, c.id,
+            c.sampleSlot, c.confidenceSec, c.rangeLowSec, c.rangeHighSec, c.lateProbability, c.late, c.serviceDate, c.producedAt, c.id,
         )
     val passed =
         p.select(intLiteral(1)).where {
@@ -594,6 +617,10 @@ internal fun checkpointInsert(k: CheckpointCandidate): InsertSelectOnConflictDoN
                 param(c.computedAt, k.computedAt),
                 param(c.sampleSlot, k.sampleSlot),
                 param(c.confidenceSec, k.confidenceSec),
+                param(c.rangeLowSec, k.rangeLowSec),
+                param(c.rangeHighSec, k.rangeHighSec),
+                param(c.lateProbability, k.lateProbability),
+                param(c.late, k.late),
                 param(c.serviceDate, k.serviceDate),
                 param(c.producedAt, k.producedAt),
                 c.idSequence.nextLongVal(),

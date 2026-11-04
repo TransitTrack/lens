@@ -55,6 +55,10 @@ class PredictionAccuracy(
     var directionId: Int? = null,
     var dayType: DayType? = null,
     var timeBand: TimeBand? = null,
+    var rangeLowSec: Int? = null,
+    var rangeHighSec: Int? = null,
+    var predictedLate: Boolean? = null,
+    var actualLate: Boolean? = null,
     var id: Long? = null,
 )
 
@@ -71,6 +75,9 @@ data class PredictionAccuracyAggregate(
     val p95AbsErrorSec: Double?,
     val confidenceCoverage: Double?,
     val confidenceSampleCount: Long,
+    /** Fraction of scored rows with a range whose error (actual minus predicted) lies within it; null without any. */
+    val rangeCoverage: Double?,
+    val rangeSampleCount: Long,
 )
 
 object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accuracy") {
@@ -100,6 +107,10 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
     val directionId = short("direction_id").nullable()
     val dayType = shortOrdinal<DayType>("day_type").nullable()
     val timeBand = shortOrdinal<TimeBand>("time_band").nullable()
+    val rangeLowSec = integer("range_low_sec").nullable()
+    val rangeHighSec = integer("range_high_sec").nullable()
+    val predictedLate = bool("predicted_late").nullable()
+    val actualLate = bool("actual_late").nullable()
 
     override val primaryKey = PrimaryKey(id, name = "prediction_accuracy_pkey")
 
@@ -130,6 +141,10 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
             directionId = row[directionId]?.toInt(),
             dayType = row[dayType],
             timeBand = row[timeBand],
+            rangeLowSec = row[rangeLowSec],
+            rangeHighSec = row[rangeHighSec],
+            predictedLate = row[predictedLate],
+            actualLate = row[actualLate],
             id = row[id],
         )
 
@@ -156,6 +171,10 @@ object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accura
         s[directionId] = row.directionId?.toShort()
         s[dayType] = row.dayType
         s[timeBand] = row.timeBand
+        s[rangeLowSec] = row.rangeLowSec
+        s[rangeHighSec] = row.rangeHighSec
+        s[predictedLate] = row.predictedLate
+        s[actualLate] = row.actualLate
     }
 }
 
@@ -167,11 +186,15 @@ class PredictionAccuracyRepository {
      * Raw SQL ([AGGREGATE_ACCURACY_SQL]); [algorithms] binds one placeholder per value, as the Spring
      * Data native query expanded it. No [algorithms] means nothing to aggregate (and `in ()` isn't
      * valid SQL), so nothing is queried.
+     *
+     * A cohort counts only if every one of [algorithms] scored in the window has a snapshot in it, so
+     * all compared algorithms are judged on the same cohorts. An algorithm that wasn't scored at all
+     * in the window (one that isn't ready yet, see `PredictionStrategy.isReady`) doesn't hold the
+     * others' cohorts back; once it is scored, the cohorts from before then drop out.
      */
     fun aggregateAccuracy(
         feedCode: String,
         algorithms: Collection<Short>,
-        algorithmCount: Int,
         since: Instant,
         routeId: String?,
         directionId: Int?,
@@ -195,8 +218,6 @@ class PredictionAccuracyRepository {
                 add(short to dayType)
                 add(short to timeBand)
                 add(short to timeBand)
-                // Five FILTERs and the cohort's eligible_algorithms check.
-                repeat(6) { add(int to algorithmCount) }
             }
         val sql = AGGREGATE_ACCURACY_SQL.replace(ALGORITHMS, algorithms.joinToString { "?" })
         return TransactionManager.current().exec(sql, args, StatementType.SELECT) { rs ->
@@ -215,6 +236,8 @@ class PredictionAccuracyRepository {
                             p95AbsErrorSec = rs.getObject("p95AbsErrorSec")?.let { (it as Number).toDouble() },
                             confidenceCoverage = rs.getObject("confidenceCoverage")?.let { (it as Number).toDouble() },
                             confidenceSampleCount = rs.getLong("confidenceSampleCount"),
+                            rangeCoverage = rs.getObject("rangeCoverage")?.let { (it as Number).toDouble() },
+                            rangeSampleCount = rs.getLong("rangeSampleCount"),
                         ),
                     )
                 }
@@ -309,19 +332,23 @@ class PredictionAccuracyRepository {
             )
             select s.algorithm as "algorithmOrdinal", s.horizon_sec as "horizonSec",
                    count(*) as "eligibleCount", count(s.error_sec) as "sampleCount",
-                   count(*) filter (where c.available_algorithms = ?) as "pairedSampleCount",
-                   avg(s.error_sec) filter (where c.available_algorithms = ?) as "meanErrorSec",
-                   avg(s.abs_error_sec) filter (where c.available_algorithms = ?) as "meanAbsErrorSec",
+                   count(*) filter (where c.available_algorithms = c.eligible_algorithms) as "pairedSampleCount",
+                   avg(s.error_sec) filter (where c.available_algorithms = c.eligible_algorithms) as "meanErrorSec",
+                   avg(s.abs_error_sec) filter (where c.available_algorithms = c.eligible_algorithms) as "meanAbsErrorSec",
                    percentile_cont(0.90) within group (order by s.abs_error_sec)
-                       filter (where c.available_algorithms = ?) as "p90AbsErrorSec",
+                       filter (where c.available_algorithms = c.eligible_algorithms) as "p90AbsErrorSec",
                    percentile_cont(0.95) within group (order by s.abs_error_sec)
-                       filter (where c.available_algorithms = ?) as "p95AbsErrorSec",
+                       filter (where c.available_algorithms = c.eligible_algorithms) as "p95AbsErrorSec",
                    avg(case when s.confidence_sec is null or s.error_sec is null then null
                             when s.abs_error_sec <= s.confidence_sec then 1.0 else 0.0 end) as "confidenceCoverage",
-                   count(*) filter (where s.confidence_sec is not null and s.error_sec is not null) as "confidenceSampleCount"
+                   count(*) filter (where s.confidence_sec is not null and s.error_sec is not null) as "confidenceSampleCount",
+                   avg(case when s.range_low_sec is null or s.range_high_sec is null or s.error_sec is null then null
+                            when s.error_sec between s.range_low_sec and s.range_high_sec then 1.0 else 0.0 end) as "rangeCoverage",
+                   count(*) filter (where s.range_low_sec is not null and s.range_high_sec is not null and s.error_sec is not null)
+                       as "rangeSampleCount"
             from snapshots s join cohorts c using
                 (vehicle_id, trip_row_id, stop_path_index, horizon_sec, predicted_at, produced_at, actual_ts)
-            where c.eligible_algorithms = ?
+            where c.eligible_algorithms = (select count(distinct algorithm) from snapshots)
             group by grouping sets ((s.algorithm), (s.algorithm, s.horizon_sec))
             order by s.algorithm, s.horizon_sec nulls first
         """

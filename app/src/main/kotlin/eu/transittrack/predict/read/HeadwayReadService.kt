@@ -4,7 +4,6 @@ import java.time.Clock
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
-import kotlin.math.roundToInt
 
 import org.springframework.stereotype.Service
 
@@ -13,7 +12,8 @@ import eu.transittrack.avl.match.cache.CachedServiceDateReader
 import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.predict.PredictionAlgorithm
-import eu.transittrack.predict.generate.serviceSecToInstant
+import eu.transittrack.predict.generate.SCHEDULED_HEADWAY_MARGIN
+import eu.transittrack.predict.generate.averageScheduledHeadwaySec
 import eu.transittrack.predict.read.dto.HeadwayDto
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
@@ -58,8 +58,8 @@ class HeadwayReadService(
                     .coerceAtLeast(0)
             }
         val gaps = arrivals.zipWithNext { a, b -> Duration.between(a, b).seconds.toInt() }
-        val from = (arrivals.firstOrNull() ?: now).minus(SCHEDULE_MARGIN)
-        val to = (arrivals.lastOrNull() ?: now).plus(SCHEDULE_MARGIN)
+        val from = (arrivals.firstOrNull() ?: now).minus(SCHEDULED_HEADWAY_MARGIN)
+        val to = (arrivals.lastOrNull() ?: now).plus(SCHEDULED_HEADWAY_MARGIN)
         val scheduledHeadwaySec = computeScheduledHeadway(feedCode, stopId, routeId, directionId, from, to)
         return HeadwayDto(stopId, routeId, directionId, waitSec, gaps, scheduledHeadwaySec)
     }
@@ -89,30 +89,7 @@ class HeadwayReadService(
                 .findByStopId(revisionId, stopId)
                 .filter { it.tripPatternId in patternIds }
                 .flatMap { scheduleTimes.findTimedAtStopPath(revisionId, it.tripPatternId, it.stopPathIndex) }
-        if (stopTimes.size < 2) return null
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
-
-        // Service-day times run past 24:00, so the day before the window's first date can reach into it.
-        val firstDate = from.atZone(zone).toLocalDate().minusDays(1)
-        val lastDate = to.atZone(zone).toLocalDate()
-        val scheduled =
-            generateSequence(firstDate) { it.plusDays(1) }
-                .takeWhile { !it.isAfter(lastDate) }
-                .flatMap { date ->
-                    val active = serviceDates.activeServiceIds(revisionId, date)
-                    stopTimes
-                        .asSequence()
-                        .filter { it.serviceId in active }
-                        .mapNotNull { st -> (st.arrivalSec ?: st.departureSec)?.let { serviceSecToInstant(date, it, zone) } }
-                }.filter { !it.isBefore(from) && !it.isAfter(to) }
-                .sorted()
-                .toList()
-        if (scheduled.size < 2) return null
-        return scheduled.zipWithNext { a, b -> Duration.between(a, b).seconds }.average().roundToInt()
-    }
-
-    private companion object {
-        /** How far before the first and after the last predicted arrival the schedule is looked at. */
-        val SCHEDULE_MARGIN: Duration = Duration.ofHours(1)
+        return averageScheduledHeadwaySec(stopTimes, from, to, zone) { serviceDates.activeServiceIds(revisionId, it) }
     }
 }

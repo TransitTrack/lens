@@ -8,7 +8,8 @@ headway/wait-time view — over a Spring GraphQL read API.
 Schema migrations: `app/src/main/resources/db/changelog/0003-predict.yaml`, reshaped
 by 0010/0012/0015/0016/0017 (feed-code keys, sequences, pattern keys, learning
 buckets), 0018/0019 (claim index, accuracy horizons), and 0020 (source freshness,
-crossing quality, persistent frequency runs and shared accuracy snapshots).
+crossing quality, persistent frequency runs and shared accuracy snapshots), and
+0021 (`prediction_model`, range and late columns for SMILE_GBM).
 Builds directly on top of the AVL subsystem — see [`docs/avl.md`](avl.md) first.
 
 ---
@@ -48,7 +49,7 @@ no-op when `transittrack.predict.enabled = false`: `PredictionProcessor` isn't
 even registered as a bean, and PENDING rows simply accumulate unprocessed in
 `vehicle_match` (see the `transittrack.prediction.pending.matches` gauge).
 
-Three pluggable algorithms compute an ETA for each stop path ahead of a
+Four pluggable algorithms compute an ETA for each stop path ahead of a
 vehicle:
 
 | Algorithm | Basis |
@@ -56,6 +57,7 @@ vehicle:
 | `SCHEDULE_ADHERENCE` | scheduled arrival time, shifted by the vehicle's current `scheduleAdherenceSec`; early running is absorbed at a trip's first stop, lateness by the layover before the next block trip. Stops at the first frequency-based trip of the horizon (§4) |
 | `HISTORICAL_AVERAGE` | a windowed running mean of observed stop-to-stop times per pattern, stop path and day-type/time-band bucket, accumulated stop by stop from the vehicle's current position |
 | `KALMAN` | a scalar Kalman filter over the same observations, same accumulation, plus a `confidenceSec` (§3) |
+| `SMILE_GBM` | gradient-boosted trees (Smile) trained nightly per AVL feed on past stop crossings, same accumulation; also an ~80% arrival range and a late assessment (§9) |
 
 Each `avl_feed` lists the algorithms to run (`predictionAlgorithms`, default
 `[SCHEDULE_ADHERENCE]`). Every listed algorithm writes its own
@@ -63,7 +65,9 @@ Each `avl_feed` lists the algorithms to run (`predictionAlgorithms`, default
 than one compares them side by side. The **first** listed algorithm is the
 feed's designated one: `stopPredictions` and `headway` (§6) use it when no
 `algorithm` argument is given, so multiple algorithms' rows for the same
-vehicle never double-count.
+vehicle never double-count. If it has no live rows for the stop, the next
+listed algorithm is tried, and so on (§9.7); the whole board then comes from
+that one algorithm.
 
 Strategies run **before** the write transaction opens, each isolated from the
 others: one failing strategy neither drops the other algorithms' predictions
@@ -122,6 +126,21 @@ transittrack:
       accuracy-days: 30
       raw-crossing-days: 90
       sweep-cron: "0 15 * * * *"                   # hourly, offset from the AVL sweep
+    smile:                                         # SMILE_GBM (§9)
+      train-cron: "0 30 3 * * *"                   # nightly training, PREDICTOR role, once per cluster
+      refresh-ms: 300000                           # every node checks prediction_model for a newer model this often
+      min-training-rows: 2000                      # fewer usable crossings: no new model, the previous one stays
+      max-training-rows: 100000                    # newest crossings taken
+      training-days: 60                            # from this many days back; must be <= retention.raw-crossing-days
+      trees: 200
+      max-depth: 6
+      shrinkage: 0.1
+      subsample: 0.7
+      low-quantile: 0.1                            # range quantiles: 0.1..0.9 is the ~80% range
+      high-quantile: 0.9
+    late:                                          # SMILE_GBM late assessment (§9.4)
+      schedule-tolerance-sec: 300                  # late = more than this past the scheduled arrival...
+      headway-fraction: 0.5                        # ...or more than this share of the scheduled headway, if smaller
 ```
 
 `prediction-algorithms` is a per-feed field on the nested `avl` block of
@@ -301,7 +320,7 @@ so returning after another assignment does not reload the old lap.
 A changed service date/descriptor departure or recognized backwards reset starts
 a new run **before its first crossing**. Previous predictions and pending
 checkpoints are cleared, while historical crossings remain intact and are
-excluded from current-run learning. Matching still has the limitation in §9.
+excluded from current-run learning. Matching still has the limitation in §10.
 
 ---
 
@@ -340,7 +359,10 @@ pruned as new ones are captured; retention also removes abandoned checkpoints.
 
 `predictionAccuracy` compares the feed's configured algorithms by default, or
 one explicitly requested algorithm. Cohorts must contain a recorded outcome
-for every compared algorithm at identical source/production times. `eligibleCount`
+for every compared algorithm scored in the window at identical
+source/production times; an algorithm that isn't ready yet (`SMILE_GBM`
+before its first model, `PredictionStrategy.isReady`) is not scored and so
+doesn't hold the others back. `eligibleCount`
 is that denominator; `sampleCount` and `predictionCoverage` show available
 forecasts. MAE, signed error and P90/P95 use **only fully paired cohorts**,
 reported as `pairedSampleCount`. Unavailable comparisons return null error
@@ -351,7 +373,13 @@ are not averages of horizon percentiles.
 direction, day-type and source-observation-time-band filters allow contextual
 comparisons. `confidenceCoverage` measures the fraction of available forecasts
 whose absolute error is within their estimated one-SD spread;
-`confidenceSampleCount` gives that separate denominator.
+`confidenceSampleCount` gives that separate denominator. `rangeCoverage` is the
+fraction of scored forecasts with a predicted range (only `SMILE_GBM` gives
+one, §9.3) whose actual arrival fell inside it, with `rangeSampleCount` as its
+denominator; it is null when no forecast had a range. Accuracy rows also store
+the range bounds and, for `SMILE_GBM`, the predicted and the actual late flag
+(`predicted_late`, `actual_late`: the actual arrival judged by the same rule,
+§9.4).
 
 Migration 0020 clears only old **unscored checkpoints**. Scored history remains
 stored (and usable as raw optimizer evidence), but legacy ETA-selected rows are
@@ -416,6 +444,7 @@ stopPredictions(feedCode: String!, stopId: String!, routeId: String, directionId
 headway(feedCode: String!, stopId: String!, routeId: String!, directionId: Int, algorithm: PredictionAlgorithm): Headway!
 predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays: Int = 7,
   routeId: String, directionId: Int, dayType: PredictionDayType, timeBand: PredictionTimeBand): [PredictionAccuracySummary!]!
+tripLateness(feedCode: String!, vehicleId: String!, algorithm: PredictionAlgorithm): TripLateness
 ```
 
 - `vehiclePredictions` — every `vehicle_prediction` row for that vehicle's
@@ -430,7 +459,12 @@ predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays:
   recent source report. The deduplicated result is explicitly ordered by arrival.
 - `headway` — see §6.
 - `predictionAccuracy` — see §5. Summary and horizon rows expose availability,
-  paired sample counts, nullable error/percentile metrics and one-SD coverage.
+  paired sample counts, nullable error/percentile metrics, one-SD coverage and
+  range coverage (`rangeCoverage`, `rangeSampleCount`).
+- `tripLateness` — the late assessment at the vehicle's next stop, next
+  timepoint and terminal; see §9.6.
+- `StopPrediction` carries `rangeLowSec`/`rangeHighSec` and
+  `late`/`lateProbability`, null for every algorithm but `SMILE_GBM` (§9).
 - `StopPrediction` includes `sourceReportTs`, `actualReportGapSec` and
   `actualReliable`. The vehicle timeline uses departure for stop 0 and warns on
   unreliable actuals. Its default algorithm follows feed configuration, not
@@ -447,7 +481,204 @@ predictionAccuracy(feedCode: String!, algorithm: PredictionAlgorithm, sinceDays:
 
 ---
 
-## 9. Known limitations
+## 9. SMILE_GBM (gradient boosting)
+
+`SMILE_GBM` predicts each stop-to-stop time with gradient-boosted regression
+trees ([Smile](https://haifengl.github.io/) `GradientTreeBoost`, quantile loss),
+trained per AVL feed on that feed's own past stop crossings. Where
+`HISTORICAL_AVERAGE` and `KALMAN` learn one number per pattern, stop path and
+bucket, one model covers the whole feed and can combine its inputs (a route's
+evening legs run long on Saturdays, the long legs of one direction stretch in
+the morning peak); how much that gains on a given feed is what the shadow
+comparison (§9.7) measures. It is also the only algorithm that
+gives an arrival **range** and a **late assessment**.
+
+Predictions are accumulated stop by stop exactly as for the learned
+algorithms (`walkHorizonWith`: same first-stop hold, same dwell split, §4),
+with the model's median as each leg's time. The walk ends at a stop path the
+model can't estimate (no schedule seed, rejected features, non-finite output);
+with no model for the feed it predicts nothing at all.
+
+### 9.1 Features
+
+One sample per observed stop-to-stop traversal, the same `StopToStopFeatures`
+in training and serving:
+
+| Feature | Meaning |
+| --- | --- |
+| `seedSec` | the schedule's stop-to-stop time (travel time plus the previous stop's dwell, §3) |
+| `routeIndex` | the route, as an index fixed when the model was trained; a route it wasn't trained on counts as unknown |
+| `directionId` | GTFS direction |
+| `dayType`, `timeBand` | of the moment the vehicle left the previous stop, as for the learner buckets (§3) |
+| `tripStartSec` | the trip's scheduled start, seconds into the service day |
+| `stopPathIndex` | position of the stop along the pattern |
+
+The vehicle's **current adherence is deliberately not a feature**:
+`avl_stop_crossing`, the training data, doesn't store it, and a feature seen
+only at serving time would be meaningless to the model.
+
+### 9.2 Training
+
+- `SmileTrainingJob` runs on `smile.train-cron` (default `0 30 3 * * *`,
+  nightly at 03:30) on the **`PREDICTOR` role** only, once per cluster under the
+  ShedLock lock `predict-smile-train`. It trains every enabled AVL feed that
+  lists `smile_gbm` in its `prediction-algorithms`.
+- Training data: up to `smile.max-training-rows` (default 100 000) of the
+  feed's **newest** `avl_stop_crossing` rows from the last
+  `smile.training-days` (default 60; must not exceed
+  `retention.raw-crossing-days`) that carry a stop-to-stop time within
+  `learn.max-plausible-travel-time-sec` and a report gap within
+  `learn.max-reliable-report-gap-sec` (or an unknown one, §3). Crossings
+  without a schedule seed are skipped. Three models are fitted: the median
+  and the `smile.low-quantile`/`smile.high-quantile` quantiles (0.1/0.9), with
+  `trees`, `max-depth`, `shrinkage` and `subsample` as configured.
+- With fewer than `smile.min-training-rows` (default 2 000) usable crossings
+  no model is trained; a feed that already has one keeps it. A failed run also
+  keeps the previous model.
+- The model is stored per feed (by `avl_feed.code`) in `prediction_model`, then
+  published to the training node's `SmileModelStore`. Every node reloads
+  newer stored models on startup and every `smile.refresh-ms` (default 5 min).
+- **No model exists until the first nightly run.** A feed that just got
+  `smile_gbm` has no SMILE predictions until then (and until it has
+  `min-training-rows` crossings); its other configured algorithms keep
+  serving meanwhile (§9.7).
+- The newest-N cap takes the most recent crossings regardless of day type, so
+  on a very busy feed the window can end up covering only the last few days,
+  under-representing weekends (and Saturday/Sunday predictions lean on
+  weekday patterns). The default keeps training memory small (below); raise
+  `max-training-rows`, together with the heap, if a feed's window is too short.
+- **Cost.** Only the columns training uses are read, streamed from the
+  database into primitive arrays. Measured with the default settings (200
+  trees, depth 6): a feed with 100 000 crossings adds roughly 30–50 MB of heap
+  at its peak and fits in ~30 s of one core; 200 000 needs ~70–90 MB and ~60 s.
+  Both grow linearly with the row count. Fits run one at a time on a single
+  low-priority daemon thread (including Smile's internal parallel split
+  search), so a fit takes at most one core and never a virtual-thread carrier
+  the prediction loop needs; the ShedLock lock is held until every feed is done.
+- **Heap sizing.** The JVM's default maximum heap is 25% of the container
+  memory (256 MB under the chart's 1 Gi limit). When a feed lists `smile_gbm`,
+  give the `PREDICTOR` node room for a fit on top of its usual load, e.g.
+  `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50` (512 MB under a 1 Gi limit), and
+  raise it further with `max-training-rows` or `trees`. Every node that
+  predicts also holds each feed's model (~1 MB serialized, a few MB in memory).
+
+### 9.3 Range
+
+Each prediction except stop path 0 gets a range, `rangeLowSec`/`rangeHighSec`:
+**about an 80% interval**, in signed seconds relative to `predictedArrival`
+(`predictedArrival + rangeLowSec` to `predictedArrival + rangeHighSec`). Each
+leg's spread is taken from the gap between its 10th and 90th percentile
+(`(high - low) / (2 × 1.2816)`, a standard deviation); the legs' variances
+accumulate along the walk like the Kalman confidence, giving `confidenceSec`,
+and the range is `± round(1.2816 × confidenceSec)` — so it is **symmetric**
+(`rangeLowSec = -rangeHighSec`) and widens with the horizon. Summing the legs'
+variances assumes they vary independently; delays along a trip are usually
+correlated, so at long horizons the range can be too narrow and its coverage
+fall below 0.8 (see `byHorizon.rangeCoverage`). Stop path 0 is a
+departure, not an arrival, and gets neither range nor late assessment.
+
+`predictionAccuracy.rangeCoverage` (§5) checks the calibration: a healthy
+range has coverage near **0.8**. Much lower means the range is too narrow,
+much higher too wide.
+
+### 9.4 Late assessment
+
+A prediction is **late** when the predicted delay against the scheduled
+arrival (the departure time where the stop has no arrival time) is strictly
+greater than the margin:
+
+```
+margin = late.schedule-tolerance-sec                                        (default 300)
+margin = min(late.schedule-tolerance-sec,
+             late.headway-fraction × scheduled headway)   when a scheduled headway is known (default 0.5)
+late   = delay > margin
+lateProbability = P(delay > margin), delay ~ Normal(predicted delay, confidenceSec)
+```
+
+The scheduled headway is the one the `headway` read model computes (§6) at
+that stop, around the scheduled arrival: on a frequent route a delay of half a
+headway already bunches vehicles, while a long-headway route keeps the
+tolerance. Scoring judges the actual arrival by the same rule and margin.
+
+There is no assessment (`late`/`lateProbability` null) for frequency-based
+trips (no clock-time arrival; they still get a range), for the first stop of
+a trip (stop path 0), for a stop the schedule gives no time for (a route with
+neither a schedule nor a headway to judge by), and for every algorithm other
+than `SMILE_GBM`.
+
+### 9.5 Configuration
+
+`transittrack.predict.smile.*` and `transittrack.predict.late.*`, all listed
+in §2 and in [configuration.md §6](configuration.md#6-prediction-generation--transittrackpredict).
+The algorithm itself is enabled per feed by listing `smile_gbm` in
+`prediction-algorithms`.
+
+### 9.6 GraphQL
+
+- `StopPrediction.rangeLowSec`/`rangeHighSec`, `late`/`lateProbability` on
+  `vehiclePredictions` and `stopPredictions` rows.
+- `tripLateness(feedCode, vehicleId, algorithm)` — the assessment at the
+  vehicle's next stop, next timepoint and terminal. Without `algorithm` the
+  feed's algorithms are tried in order: the first whose open predictions carry
+  a late assessment, else the first with open predictions at all (its late
+  fields are then null).
+- `PredictionAccuracySummary`/`PredictionAccuracyHorizon.rangeCoverage` and
+  `rangeSampleCount` (§5).
+
+```graphql
+{
+  tripLateness(feedCode: "stpt", vehicleId: "1234") {
+    algorithm
+    nextStop { stop { stopId } predictedArrival scheduledArrival rangeLowSec rangeHighSec late lateProbability }
+    terminal { late lateProbability }
+  }
+  predictionAccuracy(feedCode: "stpt") {
+    algorithm pairedSampleCount meanAbsErrorSec rangeCoverage rangeSampleCount
+    byHorizon { horizonSec meanAbsErrorSec rangeCoverage }
+  }
+}
+```
+
+### 9.7 From shadow to live
+
+Every listed algorithm predicts and is scored, but only the first is served,
+so a new algorithm is introduced in **shadow**:
+
+1. **Shadow.** Add `smile_gbm` **after** the algorithm the feed currently
+   serves, e.g. `prediction-algorithms: [ kalman, schedule_adherence, smile_gbm ]`
+   (the shipped `stpt` configuration). Stop boards and `headway` keep
+   serving `kalman`. (`tripLateness` without an `algorithm` already uses
+   `SMILE_GBM` once it predicts, being the only algorithm with late
+   assessments, §9.6.) Wait for the first nightly training (§9.2), then for
+   scored crossings.
+2. **Compare.** `predictionAccuracy` per algorithm and per horizon
+   (`byHorizon`): MAE, signed error and P90/P95 over paired cohorts, plus
+   `rangeCoverage` for `SMILE_GBM` (near 0.8 is healthy). `SMILE_GBM` isn't
+   scored until its first model exists, so until then the comparison covers
+   the other algorithms only; it joins once the model is trained, and the
+   comparison then keeps to the cohorts scored since. Context filters (`routeId`, `dayType`,
+   `timeBand`, …) show where it helps.
+3. **Serve.** Move `smile_gbm` to the **front** of the feed's
+   `prediction-algorithms`: `stopPredictions` and `headway` then use it by
+   default. **Reverting** is moving it back.
+
+**Stop-board fallback.** Without an explicit `algorithm`, `stopPredictions`
+(and so `headway`) try the feed's algorithms in order and use the first that
+has live predictions for the stop — for the whole board, never mixed per
+vehicle. A feed serving `smile_gbm` before its first model (or with a model
+that can't cover a stop) therefore shows the next listed algorithm's board
+instead of an empty one. An explicit `algorithm` is never substituted.
+
+### 9.8 Licensing
+
+Smile (`com.github.haifengl:smile-core`) is licensed under the **GPL-3.0**.
+Linking it means the project must be distributed under GPL-3.0-compatible
+terms. A `LICENSE` file is not yet present in this repository; one has to be
+added before the project is distributed.
+
+---
+
+## 10. Known limitations
 
 1. **Learned state resets when a pattern changes** — a new route, shape or stop
    list gives the pattern a new `pattern_key`, and its learning starts again

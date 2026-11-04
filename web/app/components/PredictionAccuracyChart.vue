@@ -31,16 +31,24 @@ const bars = computed<Bar[]>(() =>
     label: short(r.algorithm),
     value: r.meanAbsErrorSec,
     color: i === 0 ? '#22c55e' : i === rows.value.length - 1 ? '#ef4444' : '#f59e0b',
-    hint: t('feed.accuracy.hint', {
-      algorithm: r.algorithm,
-      error: Math.round(r.meanAbsErrorSec),
-      bias: `${r.meanErrorSec >= 0 ? '+' : '−'}${Math.abs(Math.round(r.meanErrorSec))}`,
-      samples: t(
-        'feed.accuracy.samples',
-        { count: formatNumber(r.sampleCount, locale.value) },
-        r.sampleCount,
-      ),
-    }),
+    hint: [
+      t('feed.accuracy.hint', {
+        algorithm: r.algorithm,
+        error: Math.round(r.meanAbsErrorSec),
+        bias: `${r.meanErrorSec >= 0 ? '+' : '−'}${Math.abs(Math.round(r.meanErrorSec))}`,
+        samples: t(
+          'feed.accuracy.samples',
+          { count: formatNumber(r.sampleCount, locale.value) },
+          r.sampleCount,
+        ),
+      }),
+      // Range coverage only for algorithms that give a range (rangeSampleCount > 0).
+      r.rangeSampleCount > 0 && r.rangeCoverage != null
+        ? `${t('vehicles.detail.quality.inRange')} ${Math.round(r.rangeCoverage * 100)}%`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
   })),
 )
 </script>

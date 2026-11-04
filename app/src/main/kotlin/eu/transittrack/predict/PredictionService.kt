@@ -19,7 +19,10 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.predict.generate.GeneratedPrediction
 import eu.transittrack.predict.generate.HorizonStop
+import eu.transittrack.predict.generate.LatenessReference
+import eu.transittrack.predict.generate.PatternStopIds
 import eu.transittrack.predict.generate.PredictionStrategy
+import eu.transittrack.predict.generate.ScheduledLateness
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.generate.seedStopToStopSec
 import eu.transittrack.predict.generate.serviceSecToInstant
@@ -71,6 +74,7 @@ class PredictionService(
     private val metrics: TransitTrackMetrics,
     private val clock: Clock,
     private val avlProps: AvlProperties,
+    private val lateness: ScheduledLateness,
 ) {
     private val strategies: Map<PredictionAlgorithm, PredictionStrategy> = strategyList.associateBy { it.algorithm }
     private val horizonsSec: List<Int> = props.accuracy.horizonsSec
@@ -227,7 +231,7 @@ class PredictionService(
                 val algorithmTag = algorithm.name.lowercase()
                 runCatching {
                     val strategy = checkNotNull(strategies[algorithm]) { "No prediction strategy registered for $algorithm" }
-                    strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx)
+                    strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx, feed.code)
                 }.onSuccess {
                     val elapsed = Duration.between(startedAt, Instant.now())
                     metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.SUCCESS, elapsed, it.size)
@@ -276,6 +280,10 @@ class PredictionService(
                         actualArrivalTs = null,
                         actualDepartureTs = null,
                         confidenceSec = p.confidenceSec,
+                        rangeLowSec = p.rangeLowSec,
+                        rangeHighSec = p.rangeHighSec,
+                        lateProbability = p.lateProbability,
+                        late = p.late,
                         computedAt = now,
                         sourceReportTs = report.ts,
                         serviceDate = serviceDate,
@@ -294,7 +302,10 @@ class PredictionService(
         val generated = generation.generated.associate { (algorithm, predictions) ->
             algorithm to predictions.associateBy { it.tripRowId to it.stopPathIndex }
         }
-        val checkpoints = feed.predictionAlgorithms.distinct().flatMap { algorithm ->
+        // An algorithm that can't predict for the feed yet (SMILE_GBM before its first model) gets
+        // no checkpoints: scored as all-missing, it would leave no cohort fully paired.
+        val scored = feed.predictionAlgorithms.distinct().filter { strategies[it]?.isReady(feed.code) ?: true }
+        val checkpoints = scored.flatMap { algorithm ->
             horizon.map { stop ->
                 val p = generated[algorithm]?.get(stop.tripRowId to stop.stopPathIndex)
                 CheckpointCandidate(
@@ -307,6 +318,10 @@ class PredictionService(
                     computedAt = report.ts,
                     sampleSlot = sampleSlot,
                     confidenceSec = p?.confidenceSec,
+                    rangeLowSec = p?.rangeLowSec,
+                    rangeHighSec = p?.rangeHighSec,
+                    lateProbability = p?.lateProbability,
+                    late = p?.late,
                     serviceDate = serviceDate,
                     producedAt = now,
                 )
@@ -470,6 +485,11 @@ class PredictionService(
      * [passedAt]. Horizons use actual lead time, never an algorithm's predicted ETA. Within each
      * horizon, all algorithms use the same earliest snapshot, including explicitly missing forecasts.
      * Crossings interpolated over excessive report gaps are retained but not treated as ground truth.
+     *
+     * A snapshot's range and late assessment are kept with its score; a late assessment is scored
+     * against the same scheduled arrival and margin it was made with ([ScheduledLateness]), rebuilt
+     * from the schedule here rather than stored with the snapshot. Stop path 0 is a departure event,
+     * so neither is scored there.
      */
     private fun scoreCheckpoints(
         feed: AvlFeed,
@@ -484,8 +504,13 @@ class PredictionService(
         val checkpoints = writer.takeCheckpoints(feed.code, vehicleId, trip.id, passedAt.keys)
         if (!reliable) return
         val rows = ArrayList<PredictionAccuracy>()
+        val stopIds = PatternStopIds(ctx)
         for ((stopIndex, snapshots) in checkpoints.groupBy { it.stopPathIndex }) {
             val actualTs = passedAt.getValue(stopIndex)
+            // Stop path 0's snapshot and crossing are departures: an arrival-anchored range or late
+            // assessment there (e.g. on rows written before generation stopped emitting them) is not scored.
+            val arrivalEvent = stopIndex != 0
+            val lateReference: LatenessReference? by lazy { lateness.reference(ctx, serviceDate, trip, stopIndex, stopIds) }
             val cohorts = snapshots
                 .filter {
                     it.serviceDate == serviceDate && it.producedAt?.let { at -> !at.isAfter(actualTs) } == true
@@ -522,6 +547,10 @@ class PredictionService(
                             directionId = trip.directionId,
                             dayType = bucket.dayType,
                             timeBand = bucket.timeBand,
+                            rangeLowSec = c.rangeLowSec.takeIf { arrivalEvent },
+                            rangeHighSec = c.rangeHighSec.takeIf { arrivalEvent },
+                            predictedLate = c.late,
+                            actualLate = c.late?.takeIf { arrivalEvent }?.let { lateReference?.let { lateness.isLate(it, actualTs) } },
                         ),
                     )
                     if (errorSec != null) metrics.predictionAccuracy(feed.code, c.algorithm.name.lowercase(), errorSec)

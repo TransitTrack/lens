@@ -29,6 +29,10 @@ class PredictionCheckpoint(
     var confidenceSec: Int?,
     var serviceDate: LocalDate?,
     var producedAt: Instant? = computedAt,
+    var rangeLowSec: Int? = null,
+    var rangeHighSec: Int? = null,
+    var lateProbability: Double? = null,
+    var late: Boolean? = null,
     var id: Long? = null,
 )
 
@@ -53,6 +57,10 @@ object PredictionCheckpointTable : RowTable<PredictionCheckpoint>("prediction_ch
     val confidenceSec = integer("confidence_sec").nullable()
     val serviceDate = date("service_date").nullable()
     val producedAt = timestampTz("produced_at").nullable()
+    val rangeLowSec = integer("range_low_sec").nullable()
+    val rangeHighSec = integer("range_high_sec").nullable()
+    val lateProbability = double("late_probability").nullable()
+    val late = bool("late").nullable()
 
     override val primaryKey = PrimaryKey(id, name = "prediction_checkpoint_pkey")
 
@@ -74,6 +82,10 @@ object PredictionCheckpointTable : RowTable<PredictionCheckpoint>("prediction_ch
             confidenceSec = row[confidenceSec],
             serviceDate = row[serviceDate],
             producedAt = row[producedAt],
+            rangeLowSec = row[rangeLowSec],
+            rangeHighSec = row[rangeHighSec],
+            lateProbability = row[lateProbability],
+            late = row[late],
             id = row[id],
         )
 
@@ -92,5 +104,9 @@ object PredictionCheckpointTable : RowTable<PredictionCheckpoint>("prediction_ch
         s[confidenceSec] = row.confidenceSec
         s[serviceDate] = row.serviceDate
         s[producedAt] = row.producedAt
+        s[rangeLowSec] = row.rangeLowSec
+        s[rangeHighSec] = row.rangeHighSec
+        s[lateProbability] = row.lateProbability
+        s[late] = row.late
     }
 }

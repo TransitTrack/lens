@@ -12,11 +12,14 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNotNull
+import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.jdbc.deleteAll
 import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
@@ -176,6 +179,49 @@ class AvlStopCrossingRepository {
             .singleOrNull()
             ?.let(AvlStopCrossingTable::read)
 
+    /**
+     * Newest [limit] plausible crossings of [feedCode] observed at or after [since]: travel time
+     * known and at most [maxTravelSec], report gap unknown or at most [maxReportGapSec]. Only the
+     * columns training uses are read, and the rows are streamed ([TRAINING_FETCH_SIZE] at a time)
+     * into primitive arrays, so neither the driver nor the result holds a full row per crossing.
+     */
+    fun training(
+        feedCode: String,
+        since: Instant,
+        maxReportGapSec: Int,
+        maxTravelSec: Int,
+        limit: Int,
+    ): TrainingCrossings {
+        val t = AvlStopCrossingTable
+        val out = TrainingCrossings.Builder(initialCapacity = limit.coerceAtMost(TRAINING_FETCH_SIZE))
+        t
+            .select(
+                t.tripPatternId, t.revisionId, t.stopPathIndex, t.observedAt, t.observedTravelTimeSec, t.tripStartSec, t.routeId,
+                t.directionId,
+            ).where {
+                (t.feedCode eq feedCode) and (t.observedAt greaterEq since) and t.observedTravelTimeSec.isNotNull() and
+                    (t.observedTravelTimeSec lessEq maxTravelSec.toDouble()) and
+                    (t.reportGapSec.isNull() or (t.reportGapSec lessEq maxReportGapSec))
+            }.orderBy(t.observedAt, SortOrder.DESC)
+            .limit(limit)
+            // Inside the transaction (auto-commit off) a fetch size makes the PostgreSQL driver use a
+            // cursor instead of reading the whole result into memory first.
+            .fetchSize(TRAINING_FETCH_SIZE)
+            .forEach { row ->
+                out.add(
+                    tripPatternId = row[t.tripPatternId],
+                    revisionId = row[t.revisionId],
+                    stopPathIndex = row[t.stopPathIndex],
+                    observedAt = row[t.observedAt],
+                    travelSec = row[t.observedTravelTimeSec]!!,
+                    tripStartSec = row[t.tripStartSec],
+                    directionId = row[t.directionId]?.toInt(),
+                    routeId = row[t.routeId],
+                )
+            }
+        return out.build()
+    }
+
     fun findAll(): List<AvlStopCrossing> = AvlStopCrossingTable.selectAll().map(AvlStopCrossingTable::read)
 
     fun count(): Long = AvlStopCrossingTable.selectAll().count()
@@ -195,5 +241,9 @@ class AvlStopCrossingRepository {
 
     fun deleteAll() {
         AvlStopCrossingTable.deleteAll()
+    }
+
+    private companion object {
+        const val TRAINING_FETCH_SIZE = 5_000
     }
 }

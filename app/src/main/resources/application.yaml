@@ -75,7 +75,7 @@ transittrack:
         avl:
           format: STPT
           url: https://live.stpt.ro/gtfs-vehicles.php
-          prediction-algorithms: [ kalman, schedule_adherence ]
+          prediction-algorithms: [ kalman, schedule_adherence, smile_gbm ]   # smile_gbm in shadow: kalman (first) is served
           assignment-mode: descriptor_then_infer
       #      - code: poznan
       #        name: ZTM
