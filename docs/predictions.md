@@ -130,7 +130,7 @@ transittrack:
       train-cron: "0 30 3 * * *"                   # nightly training, PREDICTOR role, once per cluster
       refresh-ms: 300000                           # every node checks prediction_model for a newer model this often
       min-training-rows: 2000                      # fewer usable crossings: no new model, the previous one stays
-      max-training-rows: 200000                    # newest crossings taken
+      max-training-rows: 100000                    # newest crossings taken
       training-days: 60                            # from this many days back; must be <= retention.raw-crossing-days
       trees: 200
       max-depth: 6
@@ -520,7 +520,7 @@ only at serving time would be meaningless to the model.
   nightly at 03:30) on the **`PREDICTOR` role** only, once per cluster under the
   ShedLock lock `predict-smile-train`. It trains every enabled AVL feed that
   lists `smile_gbm` in its `prediction-algorithms`.
-- Training data: up to `smile.max-training-rows` (default 200 000) of the
+- Training data: up to `smile.max-training-rows` (default 100 000) of the
   feed's **newest** `avl_stop_crossing` rows from the last
   `smile.training-days` (default 60; must not exceed
   `retention.raw-crossing-days`) that carry a stop-to-stop time within
@@ -541,7 +541,23 @@ only at serving time would be meaningless to the model.
   serving meanwhile (§9.7).
 - The newest-N cap takes the most recent crossings regardless of day type, so
   on a very busy feed the window can end up covering only the last few days,
-  under-representing weekends. Raise `max-training-rows` if so.
+  under-representing weekends (and Saturday/Sunday predictions lean on
+  weekday patterns). The default keeps training memory small (below); raise
+  `max-training-rows`, together with the heap, if a feed's window is too short.
+- **Cost.** Only the columns training uses are read, streamed from the
+  database into primitive arrays. Measured with the default settings (200
+  trees, depth 6): a feed with 100 000 crossings adds roughly 30–50 MB of heap
+  at its peak and fits in ~30 s of one core; 200 000 needs ~70–90 MB and ~60 s.
+  Both grow linearly with the row count. Fits run one at a time on a single
+  low-priority daemon thread (including Smile's internal parallel split
+  search), so a fit takes at most one core and never a virtual-thread carrier
+  the prediction loop needs; the ShedLock lock is held until every feed is done.
+- **Heap sizing.** The JVM's default maximum heap is 25% of the container
+  memory (256 MB under the chart's 1 Gi limit). When a feed lists `smile_gbm`,
+  give the `PREDICTOR` node room for a fit on top of its usual load, e.g.
+  `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50` (512 MB under a 1 Gi limit), and
+  raise it further with `max-training-rows` or `trees`. Every node that
+  predicts also holds each feed's model (~1 MB serialized, a few MB in memory).
 
 ### 9.3 Range
 

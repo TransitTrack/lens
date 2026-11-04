@@ -3,6 +3,7 @@ package eu.transittrack.predict.smile
 import smile.base.cart.Loss
 import smile.data.DataFrame
 import smile.data.formula.Formula
+import smile.data.vector.DoubleVector
 import smile.math.MathEx
 import smile.regression.GradientTreeBoost
 
@@ -20,6 +21,48 @@ data class TrainingSample(
 }
 
 /**
+ * Training data held column-wise: one primitive array per [StopToStopFeatures.NAMES] feature, plus
+ * the travel times, which become the model's data frame without another copy when the set is full.
+ * Samples with a non-finite feature or travel time, or the wrong feature count, are dropped on [add].
+ */
+class TrainingSet(
+    capacity: Int,
+) {
+    private val features = Array(StopToStopFeatures.NAMES.size) { DoubleArray(capacity) }
+    private val travelSecs = DoubleArray(capacity)
+
+    var size: Int = 0
+        private set
+
+    /** Returns `false` (and keeps nothing) for an unusable sample. */
+    fun add(
+        sample: DoubleArray,
+        travelSec: Double,
+    ): Boolean {
+        if (sample.size != features.size || !travelSec.isFinite() || sample.any { !it.isFinite() }) return false
+        check(size < travelSecs.size) { "training set is full (${travelSecs.size})" }
+        for (j in sample.indices) features[j][size] = sample[j]
+        travelSecs[size] = travelSec
+        size++
+        return true
+    }
+
+    internal fun dataFrame(target: String): DataFrame {
+        val columns =
+            StopToStopFeatures.NAMES.mapIndexed { j, name -> DoubleVector(name, trimmed(features[j])) } +
+                DoubleVector(target, trimmed(travelSecs))
+        return DataFrame(*columns.toTypedArray())
+    }
+
+    private fun trimmed(column: DoubleArray): DoubleArray = if (column.size == size) column else column.copyOf(size)
+
+    companion object {
+        fun of(samples: List<TrainingSample>): TrainingSet =
+            TrainingSet(samples.size).apply { samples.forEach { add(it.features, it.travelSec) } }
+    }
+}
+
+/**
  * Fits the three [StopToStopModel] regressors: Smile `GradientTreeBoost` with quantile loss at 0.5,
  * [PredictProperties.Smile.lowQuantile] and [PredictProperties.Smile.highQuantile].
  */
@@ -32,23 +75,16 @@ class SmileTrainer(
     }
 
     /**
-     * Returns `null` when fewer than [PredictProperties.Smile.minTrainingRows] usable samples are
-     * given; samples with a non-finite feature or travel time, or the wrong feature count, are dropped.
-     * Deterministic for the same input: Smile's row subsampling uses its per-thread RNG, which is
-     * reseeded before each fit.
+     * Returns `null` when [samples] holds fewer than [PredictProperties.Smile.minTrainingRows] usable
+     * samples. Deterministic for the same input: Smile's row subsampling uses its per-thread RNG,
+     * which is reseeded before each fit.
      */
     fun train(
-        samples: List<TrainingSample>,
+        samples: TrainingSet,
         routeIndex: Map<String, Int>,
     ): StopToStopModel? {
-        val usable =
-            samples.filter { s ->
-                s.features.size == StopToStopFeatures.NAMES.size && s.travelSec.isFinite() && s.features.all { it.isFinite() }
-            }
-        if (usable.size < props.minTrainingRows) return null
-
-        val rows = Array(usable.size) { i -> usable[i].features + usable[i].travelSec }
-        val data = DataFrame.of(rows, *(StopToStopFeatures.NAMES + TARGET).toTypedArray())
+        if (samples.size < props.minTrainingRows) return null
+        val data = samples.dataFrame(TARGET)
         val formula = Formula.lhs(TARGET)
 
         return StopToStopModel(

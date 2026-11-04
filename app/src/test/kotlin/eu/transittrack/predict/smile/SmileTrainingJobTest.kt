@@ -11,13 +11,17 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isNotNull
+import assertk.assertions.isNotSameInstanceAs
 import assertk.assertions.isNull
 import assertk.assertions.isSameInstanceAs
 import assertk.assertions.isTrue
+import assertk.assertions.startsWith
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.junit.jupiter.api.BeforeEach
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.springframework.beans.factory.annotation.Autowired
@@ -172,7 +176,7 @@ class SmileTrainingJobTest(
         enableSmile()
         insertCrossings(count = 150)
         store.put(FEED, modelA, now.minusSeconds(86_400))
-        val failing = mock<SmileTrainer> { on { train(any(), any()) } doThrow IllegalStateException("boom") }
+        val failing = mock<SmileTrainer> { on { train(any<TrainingSet>(), any()) } doThrow IllegalStateException("boom") }
 
         job(failing).trainFeed(FEED)
 
@@ -182,6 +186,31 @@ class SmileTrainingJobTest(
 
     @Test
     fun refreshLoadsNewerStoredModel() {
+    @Test
+    fun fitRunsOnALowPriorityPlatformThread() {
+        enableSmile()
+        insertCrossings(count = 150)
+        var fitThread: Thread? = null
+        val probe =
+            mock<SmileTrainer> {
+                on { train(any<TrainingSet>(), any()) } doAnswer {
+                    fitThread = Thread.currentThread()
+                    null
+                }
+            }
+        val job = job(probe)
+
+        assertThat(job.trainFeed(FEED)).isEqualTo(SmileTrainingJob.Outcome.TOO_FEW_ROWS)
+
+        val t = fitThread!!
+        assertThat(t).isNotSameInstanceAs(Thread.currentThread())
+        assertThat(t.isVirtual).isFalse()
+        assertThat(t.isDaemon).isTrue()
+        assertThat(t.priority).isEqualTo(Thread.MIN_PRIORITY)
+        assertThat(t.name).startsWith("smile-train-")
+        job.close()
+    }
+
         store.put(FEED, modelA, now.minusSeconds(3_600))
         models.save(PredictionModelRow(FEED, PredictionAlgorithm.SMILE_GBM, now, 200, modelB.toBytes()))
 

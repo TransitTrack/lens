@@ -106,6 +106,11 @@ class PredictPropertiesTest {
     }
 
     @Test
+    fun `smile max training rows defaults to 100k`() {
+        assertThat(PredictProperties().smile.maxTrainingRows).isEqualTo(100_000)
+    }
+
+    @Test
     fun `late rejects non positive headway fraction`() {
         assertFailure { PredictProperties.Late(headwayFraction = 0.0) }
             .isInstanceOf(IllegalArgumentException::class)

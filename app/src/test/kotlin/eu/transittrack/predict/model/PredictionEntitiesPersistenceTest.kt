@@ -195,7 +195,7 @@ class PredictionEntitiesPersistenceTest(
         crossings.save(crossing("2026-09-02T10:00:00Z", 31.0, 10))
         crossings.save(crossing("2026-09-03T10:00:00Z", 32.0, 10))
         val rows = crossings.training("feed-1", Instant.parse("2026-08-01T00:00:00Z"), 60, 600, 2)
-        assertThat(rows.map { it.observedTravelTimeSec }).isEqualTo(listOf(32.0, 31.0))
+        assertThat(travelSecs(rows)).isEqualTo(listOf(32.0, 31.0))
     }
 
     @Test
@@ -207,6 +207,40 @@ class PredictionEntitiesPersistenceTest(
         crossings.save(crossing("2026-09-01T14:00:00Z", 30.0, 500))
         crossings.save(crossing("2026-07-01T10:00:00Z", 30.0, 10))
         val rows = crossings.training("feed-1", Instant.parse("2026-08-01T00:00:00Z"), 60, 600, 100)
-        assertThat(rows.map { it.observedTravelTimeSec }).isEqualTo(listOf(30.5, 30.0))
+        assertThat(travelSecs(rows)).isEqualTo(listOf(30.5, 30.0))
     }
+
+    @Test
+    fun `training reads the columns training uses, nulls included`() {
+        crossings.save(
+            crossing("2026-09-02T10:00:00Z", 45.0, 10).apply {
+                tripPatternId = 7L
+                revisionId = 3L
+                stopPathIndex = 4
+                tripStartSec = 25_200
+                directionId = 1
+                routeId = "R1"
+            },
+        )
+        crossings.save(crossing("2026-09-01T10:00:00Z", 30.0, 10).apply { routeId = "R1" })
+        crossings.save(crossing("2026-08-31T10:00:00Z", 20.0, 10))
+
+        val rows = crossings.training("feed-1", Instant.parse("2026-08-01T00:00:00Z"), 60, 600, 100)
+
+        assertThat(rows.size).isEqualTo(3)
+        assertThat(rows.tripPatternId(0)).isEqualTo(7L)
+        assertThat(rows.revisionId(0)).isEqualTo(3L)
+        assertThat(rows.stopPathIndex(0)).isEqualTo(4)
+        assertThat(rows.observedAt(0)).isEqualTo(Instant.parse("2026-09-02T10:00:00Z"))
+        assertThat(rows.travelSec(0)).isEqualTo(45.0)
+        assertThat(rows.tripStartSec(0)).isEqualTo(25_200)
+        assertThat(rows.directionId(0)).isEqualTo(1)
+        assertThat(rows.routeId(0)).isEqualTo("R1")
+        assertThat(rows.routeId(1)).isEqualTo("R1")
+        assertThat(rows.routeId(2)).isNull()
+        assertThat(rows.tripStartSec(2)).isNull()
+        assertThat(rows.directionId(2)).isNull()
+    }
+
+    private fun travelSecs(rows: TrainingCrossings) = (0 until rows.size).map { rows.travelSec(it) }
 }

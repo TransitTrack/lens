@@ -8,6 +8,7 @@ import kotlin.test.assertFailsWith
 import assertk.assertThat
 import assertk.assertions.isBetween
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isLessThan
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
@@ -59,6 +60,29 @@ class SmileTrainerTest {
         holdout.take(50).forEach {
             assertThat(restored.estimate(it.features)).isEqualTo(model.estimate(it.features))
         }
+    }
+
+    @Test
+    fun trainingSetDropsUnusableSamples() {
+        val set = TrainingSet(capacity = 4)
+        val good = training.first().features
+        assertThat(set.add(good, 10.0)).isTrue()
+        assertThat(set.add(good.copyOf().also { it[0] = Double.NaN }, 10.0)).isFalse()
+        assertThat(set.add(good, Double.POSITIVE_INFINITY)).isFalse()
+        assertThat(set.add(good.copyOf(good.size - 1), 10.0)).isFalse()
+        assertThat(set.size).isEqualTo(1)
+    }
+
+    @Test
+    fun partlyFilledTrainingSetTrainsLikeTheSampleList() {
+        val quick = props.copy(trees = 20)
+        val set = TrainingSet(capacity = training.size + 100)
+        training.forEach { set.add(it.features, it.travelSec) }
+
+        val fromSet = SmileTrainer(quick).train(set, ROUTE_INDEX)!!
+        val fromList = SmileTrainer(quick).train(training, ROUTE_INDEX)!!
+
+        holdout.take(50).forEach { assertThat(fromSet.estimate(it.features)).isEqualTo(fromList.estimate(it.features)) }
     }
 
     @Test

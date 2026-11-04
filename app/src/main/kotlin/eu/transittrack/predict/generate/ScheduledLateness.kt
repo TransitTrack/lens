@@ -39,11 +39,16 @@ class ScheduledLateness(
         val serviceDate: LocalDate,
     )
 
-    /** Clock-time trips' scheduled times by stop id, per route, direction and service date. */
+    /**
+     * Clock-time trips' scheduled times by stop id, per route, direction and service date. Bounded by
+     * the stop times it holds ([MAX_CACHED_STOP_TIMES]), not by entries: one busy route-day holds
+     * thousands of them, a quiet one a few dozen.
+     */
     private val stopTimesByRouteDay: Cache<RouteDay, Map<String, List<ServiceStopTime>>> =
         Caffeine
             .newBuilder()
-            .maximumSize(2_000)
+            .maximumWeight(MAX_CACHED_STOP_TIMES)
+            .weigher<RouteDay, Map<String, List<ServiceStopTime>>> { _, byStop -> weightOf(byStop) }
             .expireAfterAccess(Duration.ofHours(2))
             .build()
 
@@ -132,6 +137,19 @@ class ScheduledLateness(
         return out
     }
 }
+
+/** A cached route-day's weight: its stop times, plus one per stop for the map entry. */
+internal fun weightOf(byStop: Map<String, List<ServiceStopTime>>): Int =
+    (byStop.size.toLong() + byStop.values.sumOf { it.size.toLong() }).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
+/**
+ * The [ScheduledLateness] headway cache's bound, in stop times: measured at about 60 bytes each (a
+ * [ServiceStopTime] with its two boxed times and its list slot; the service id is shared with the
+ * schedule), some 30 MB. That holds the current route-days of a feed with about a hundred busy
+ * route-directions (~5 000 stop times each); a larger one recomputes the least recently used from
+ * the cached schedule.
+ */
+internal const val MAX_CACHED_STOP_TIMES = 500_000L
 
 /** Each pattern's stop ids by stop path index, read from [ctx] once per use. */
 class PatternStopIds(

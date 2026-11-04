@@ -128,8 +128,11 @@ data class PredictProperties(
         val refreshMs: Long = 300_000,
         /** Training is skipped when fewer crossing rows than this are available. */
         val minTrainingRows: Int = 2_000,
-        /** Training sample is capped to this many rows. */
-        val maxTrainingRows: Int = 200_000,
+        /**
+         * Training sample is capped to this many (the newest) rows. At 100 000 a feed's training adds
+         * about 30-50 MB of heap at its peak and takes ~30 s of one core; the peak grows linearly.
+         */
+        val maxTrainingRows: Int = 100_000,
         /** Days of raw crossings used for training; must not exceed retention.rawCrossingDays. */
         val trainingDays: Int = 60,
         val trees: Int = 200,

@@ -187,7 +187,7 @@ Full behavior: [docs/predictions.md](predictions.md).
 | `smile.train-cron` | `0 30 3 * * *` (daily, 03:30) | `SmileTrainingJob` cadence: trains the SMILE_GBM model of every enabled feed listing `smile_gbm`; `role-predictor` only, once per cluster (ShedLock `predict-smile-train`) |
 | `smile.refresh-ms` | `300000` | How often every node checks `prediction_model` for a newer stored model (also once on startup) |
 | `smile.min-training-rows` | `2000` | Fewer usable crossings than this: no model is trained and the feed keeps its previous one (none before the first successful run) |
-| `smile.max-training-rows` | `200000` | Training takes at most this many of the newest crossings; must be `>= smile.min-training-rows`. Raise it on very busy feeds whose window would otherwise miss weekends |
+| `smile.max-training-rows` | `100000` | Training takes at most this many of the newest crossings; must be `>= smile.min-training-rows`. About 30–50 MB of extra heap at the fit's peak at the default, growing linearly. Raise it (and the predictor's heap, see [predictions.md §9.2](predictions.md#92-training)) on very busy feeds whose window would otherwise miss weekends |
 | `smile.training-days` | `60` | Crossings from this many days back are eligible; must be `<= retention.raw-crossing-days` |
 | `smile.trees` | `200` | Boosting iterations per quantile model |
 | `smile.max-depth` | `6` | Maximum tree depth (at least 2) |
