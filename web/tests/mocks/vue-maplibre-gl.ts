@@ -1,9 +1,9 @@
 /**
- * Test stub for @indoorequal/vue-maplibre-gl (pulled in by nuxt-maplibre).
+ * Test stub for @indoorequal/vue-maplibre-gl (registered by the local Nuxt module).
  *
  * The real package boots a WebGL map through maplibre-gl, whose worker setup
  * throws under happy-dom ("obj must be an instance of Blob"). Every `mountSuspended`
- * test loads the Nuxt app — and therefore the nuxt-maplibre module — so we alias
+ * test loads the Nuxt app — and therefore the local MapLibre module — so we alias
  * the package to these inert components in vitest.config.ts.
  *
  * MglMap renders its default slot so nested markers/sources still mount; MglMarker

@@ -5,7 +5,7 @@ This subsystem (`eu.transittrack.predict`) computes per-stop arrival/departure
 what actually happened, and exposes both — plus a derived route-level
 headway/wait-time view — over a Spring GraphQL read API.
 
-Schema migrations: `src/main/resources/db/changelog/0003-predict.yaml`, reshaped
+Schema migrations: `app/src/main/resources/db/changelog/0003-predict.yaml`, reshaped
 by 0010/0012/0015/0016/0017 (feed-code keys, sequences, pattern keys, learning
 buckets), 0018/0019 (claim index, accuracy horizons), and 0020 (source freshness,
 crossing quality, persistent frequency runs and shared accuracy snapshots).
@@ -225,7 +225,8 @@ when a bucket has no row yet — the Kalman state starts there with
 predictions are sane from the very first match.
 
 **Consistency.** All reads and writes of one report go through a single
-`StatelessSession` transaction. Learner rows are read with `SELECT ... FOR UPDATE`
+`PredictionWriter.inTransaction` call: one `REQUIRES_NEW` Exposed transaction per report, independent
+of the caller's. Learner rows are read with `SELECT ... FOR UPDATE`
 in a fixed order (stop path ascending, then fine to coarse bucket, observation
 before Kalman state). A transaction-scoped advisory lock per GTFS feed/pattern
 also protects initialization when there is no row to lock yet. Concurrent first

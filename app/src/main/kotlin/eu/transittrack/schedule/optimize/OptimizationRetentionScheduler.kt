@@ -1,0 +1,57 @@
+package eu.transittrack.schedule.optimize
+
+import java.time.Duration
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock
+import org.slf4j.LoggerFactory
+import org.springframework.scheduling.annotation.Scheduled
+import org.springframework.stereotype.Component
+
+import eu.transittrack.ConditionalOnRole
+import eu.transittrack.Role
+import eu.transittrack.schedule.optimize.model.OptimizationRunRepository
+import eu.transittrack.util.observability.TransitTrackMetrics
+
+/**
+ * Age-based prune of `schedule_optimization_run` rows older than
+ * [OptimizationProperties.Retention.resultsRetentionDays] (design section 9, initial default 90
+ * days). Child `schedule_optimization_recommendation` rows are never deleted directly here — they
+ * cascade-delete via their `fk_optimization_recommendation_run` foreign key
+ * (`deleteCascade: true`, see migration `0007-optimization-runs.yaml`), so a single `run` row
+ * delete removes every recommendation it produced.
+ */
+@Component
+@ConditionalOnRole(Role.FEED_PROCESSOR)
+class OptimizationRetentionScheduler(
+    private val runs: OptimizationRunRepository,
+    props: OptimizationProperties,
+    private val metrics: TransitTrackMetrics,
+) {
+    private val log = LoggerFactory.getLogger(javaClass)
+    private val resultsRetentionDays = props.retention.resultsRetentionDays.toLong()
+
+    data class PruneCounts(
+        val runs: Int,
+    )
+
+    @Scheduled(cron = "\${transittrack.schedule.optimize.retention.sweep-cron:0 30 3 * * *}")
+    @SchedulerLock(name = "optimization-retention-prune", lockAtMostFor = "PT15M", lockAtLeastFor = "PT1M")
+    fun prune() {
+        val start = Instant.now()
+        val result = runCatching { prune(start) }
+        result.onSuccess { counts ->
+            log.info("optimization retention: pruned {} runs (recommendations cascade with them)", counts.runs)
+        }
+        metrics.scheduledJobFinished(
+            job = "optimization_retention_prune",
+            outcome = if (result.isSuccess) TransitTrackMetrics.Outcome.SUCCESS else TransitTrackMetrics.Outcome.FAILED,
+            elapsed = Duration.between(start, Instant.now()),
+            items = result.getOrNull()?.runs?.toLong(),
+        )
+        result.getOrThrow()
+    }
+
+    fun prune(now: Instant): PruneCounts = PruneCounts(runs.deleteCreatedBefore(now.minus(resultsRetentionDays, ChronoUnit.DAYS)))
+}

@@ -20,10 +20,21 @@ describe('VehicleMap', () => {
     expect(wrapper.findAll('.mgl-symbol-feature-stub')).toHaveLength(fixtures.vehicles.length)
   })
 
-  it('opens the popup for the clicked vehicle', async () => {
+  it('opens the in-place detail card for the clicked vehicle', async () => {
+    const wrapper = await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
+    expect(wrapper.find('[data-testid="vehicle-card"]').exists()).toBe(false)
+    await wrapper.get('.mgl-symbol-feature-stub').trigger('click')
+    expect(wrapper.get('[data-testid="vehicle-card"]').text()).toContain(fixtures.vehicles[0]!.label)
+  })
+
+  it('closes the card from its close button and collapses it to a bar', async () => {
     const wrapper = await mountSuspended(VehicleMap, { props: { vehicles: fixtures.vehicles } })
     await wrapper.get('.mgl-symbol-feature-stub').trigger('click')
-    expect(wrapper.find('.mgl-popup-stub').text()).toContain(fixtures.vehicles[0]!.label)
+    const card = () => wrapper.get('[data-testid="vehicle-card"]')
+    await card().get('button[aria-expanded="true"]').trigger('click')
+    expect(card().get('button[aria-expanded="false"]').exists()).toBe(true)
+    await card().findAll('button').at(1)!.trigger('click')
+    expect(wrapper.find('[data-testid="vehicle-card"]').exists()).toBe(false)
   })
 
   it('keeps polling the active vehicle while its popup stays open', async () => {

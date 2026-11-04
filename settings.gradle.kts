@@ -9,7 +9,6 @@ pluginManagement {
     plugins {
         kotlin("jvm") version kotlinVersion
         kotlin("plugin.spring") version kotlinVersion
-        kotlin("plugin.jpa") version kotlinVersion
         kotlin("kapt") version kotlinVersion
         kotlin("plugin.serialization") version kotlinVersion
         id("org.springframework.boot") version springBootVersion
@@ -21,5 +20,6 @@ pluginManagement {
 }
 
 rootProject.name = "lens"
-include(":extension-api")
+include(":app")
+include(":api")
 include(":examples:example-extension")

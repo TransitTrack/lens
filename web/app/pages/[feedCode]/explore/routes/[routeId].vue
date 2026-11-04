@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
+import ValidationFindingsPanel from '~/components/ValidationFindingsPanel.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
@@ -125,6 +126,13 @@ const splitterItems = computed<SplitterItem[]>(() =>
         variant="ghost"
         :aria-label="t('common.goBack')"
         @click="router.back()"
+      />
+    </template>
+    <template #actions>
+      <ValidationFindingsPanel
+        :feed-code="selectedFeedCode"
+        entity-type="Route"
+        :entity-id="routeId"
       />
     </template>
 

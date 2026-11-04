@@ -153,7 +153,7 @@ function rowActions(vehicle: VehicleRow): DropdownMenuItem[][] {
               class="block cursor-help truncate text-sm font-semibold text-highlighted decoration-dotted underline decoration-muted underline-offset-4 transition-colors group-hover:decoration-primary"
               :aria-label="$t('vehicles.list.showUpdateDetails')"
             >
-              #{{ vehicle.vehicleId }}
+              {{ vehicle.vehicleId }}
             </span>
             <template #content>
               <dl class="space-y-1.5 leading-tight">

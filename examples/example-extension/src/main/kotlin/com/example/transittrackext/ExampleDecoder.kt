@@ -1,8 +1,8 @@
 package com.example.transittrackext
 
-import eu.transittrack.AvlFormat
-import eu.transittrack.avl.feed.RawAvlPayload
+import eu.transittrack.avl.feed.Payload
 import eu.transittrack.avl.ingest.AvlFeedDecoder
+import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.ingest.AvlReport
 import eu.transittrack.avl.ingest.FeedDescriptor
 
@@ -14,7 +14,7 @@ class ExampleDecoder : AvlFeedDecoder {
     override val format = AvlFormat.STPT
 
     override fun decode(
-        payload: RawAvlPayload,
+        payload: Payload,
         feed: FeedDescriptor,
     ): List<AvlReport> = emptyList()
 }

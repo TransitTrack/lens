@@ -8,7 +8,7 @@ re-run, and be reasoned about) independently.
 | Lint | `lint.yml` | push to `main`, PR, manual | `spotlessCheck` (ktlint) on the backend; `eslint` and `pnpm i18n:check --strict` (locale files in sync, no unused/undefined keys) on the frontend |
 | Tests | `test.yml` | push to `main`, PR, manual | `./gradlew test` (JUnit, Testcontainers Postgres) + `vitest run` on the frontend, reported via [dorny/test-reporter](https://github.com/dorny/test-reporter) |
 | Vulnerability scan | `security.yml` | push to `main`, PR, weekly, manual | Trivy scan of the backend's resolved JVM dependencies and the frontend's `pnpm-lock.yaml`, SARIF uploaded to the Security tab |
-| Benchmark | `benchmark.yml` | push to `main`, PR, manual | `smokeBenchmark` fail-fast, then the full `benchmark` suite reported via [kitlangton/jmh-benchmark-action](https://github.com/kitlangton/jmh-benchmark-action) — see [docs/benchmarks.md](benchmarks.md) |
+| Benchmark | `benchmark.yml` | push to `main`, PR, manual | `smokeBenchmark` fail-fast, then the full `benchmark` suite; an action-only normalized JMH copy is reported via [kitlangton/jmh-benchmark-action](https://github.com/kitlangton/jmh-benchmark-action) — see [docs/benchmarks.md](benchmarks.md) |
 | Build & publish | `build-publish.yml` | push to `main`, `v*` tags, PR (build+scan only), manual | Builds + Trivy-scans the backend and frontend Docker images and packages the Helm chart on every run; **pushes** to GHCR only on a push to `main` or a `v*` tag |
 
 ## Where things land

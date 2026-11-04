@@ -101,12 +101,12 @@ function viewBlockDetails(block: { blockId: string; serviceId: string }) {
   })
 }
 
-function viewRouteDetails(routeId: string) {
-  navigateTo(feedPath(`/explore/routes/${encodeURIComponent(routeId)}`))
-}
-
 function viewVehicleDetails(vehicleId: string) {
   navigateTo(feedPath(`/vehicles/${encodeURIComponent(vehicleId)}`))
+}
+
+function viewRouteDetails(routeId: string) {
+  navigateTo(feedPath(`/explore/routes/${encodeURIComponent(routeId)}`))
 }
 
 // Side-by-side on desktop; stacked (directory above map) on narrow viewports.

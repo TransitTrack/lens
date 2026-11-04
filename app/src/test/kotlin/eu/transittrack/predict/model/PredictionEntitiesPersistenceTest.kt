@@ -1,0 +1,129 @@
+package eu.transittrack.predict.model
+
+import java.time.Instant
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+
+import assertk.assertThat
+import assertk.assertions.hasSize
+import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.springframework.beans.factory.annotation.Autowired
+
+import eu.transittrack.gtfs.support.PostgresSliceTest
+import eu.transittrack.predict.PredictionAlgorithm
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
+import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.insertAvlFeed
+
+@PostgresSliceTest
+class PredictionEntitiesPersistenceTest(
+    @Autowired val observations: TravelTimeObservationRepository,
+    @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
+    @Autowired val predictions: VehiclePredictionRepository,
+    @Autowired val accuracies: PredictionAccuracyRepository,
+    @Autowired val db: Database,
+) : PostgresPerMethodTest() {
+    // Committed on its own transaction: the test itself runs outside any Spring transaction
+    // (NOT_SUPPORTED).
+    @BeforeTest
+    fun seedFeed() {
+        db.insertAvlFeed(1, "feed-1")
+    }
+
+    @Test
+    fun `travel_time_observation round-trips`() {
+        observations.save(
+            TravelTimeObservation(
+                gtfsFeedCode = "g", patternKey = "RA|SHP|S1_to_S4|abc", stopPathIndex = 2,
+                dayType = DayType.WEEKDAY, timeBand = TimeBand.MORNING_PEAK, sampleCount = 5L, meanSec = 42.5,
+                updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
+            ),
+        )
+        val found = observations.findInBucket("g", "RA|SHP|S1_to_S4|abc", 2, DayType.WEEKDAY, TimeBand.MORNING_PEAK)
+        assertThat(found).isNotNull()
+        assertThat(found!!.meanSec).isEqualTo(42.5)
+    }
+
+    @Test
+    fun `kalman_travel_time_state round-trips`() {
+        kalmanStates.save(
+            KalmanTravelTimeState(
+                gtfsFeedCode = "g", patternKey = "RA|SHP|S1_to_S4|abc", stopPathIndex = 3,
+                dayType = DayType.ALL, timeBand = TimeBand.ALL, estimateSec = 30.0, errorVariance = 400.0,
+                sampleCount = 1L, updatedAt = Instant.parse("2026-09-04T10:00:00Z"),
+            ),
+        )
+        val found = kalmanStates.findInBucket("g", "RA|SHP|S1_to_S4|abc", 3, DayType.ALL, TimeBand.ALL)
+        assertThat(found).isNotNull()
+        assertThat(found!!.estimateSec).isEqualTo(30.0)
+    }
+
+    @Test
+    fun `vehicle_prediction ordered by stop_path_index`() {
+        predictions.save(
+            VehiclePrediction(
+                feedCode = "feed-1", vehicleId = "v1", tripRowId = 7L, blockPk = null, tripPatternId = 4L,
+                stopPathIndex = 3, algorithm = PredictionAlgorithm.KALMAN,
+                predictedArrivalTs = Instant.parse("2026-09-04T10:05:00Z"), predictedDepartureTs = null,
+                actualArrivalTs = null, actualDepartureTs = null, confidenceSec = 30,
+                computedAt = Instant.parse("2026-09-04T10:00:00Z"),
+            ),
+        )
+        predictions.save(
+            VehiclePrediction(
+                feedCode = "feed-1", vehicleId = "v1", tripRowId = 7L, blockPk = null, tripPatternId = 4L,
+                stopPathIndex = 1, algorithm = PredictionAlgorithm.KALMAN,
+                predictedArrivalTs = Instant.parse("2026-09-04T10:01:00Z"), predictedDepartureTs = null,
+                actualArrivalTs = null, actualDepartureTs = null, confidenceSec = 30,
+                computedAt = Instant.parse("2026-09-04T10:00:00Z"),
+            ),
+        )
+        val ordered = predictions.findByVehicleTrip("feed-1", "v1", 7L)
+        assertThat(ordered).hasSize(2)
+        assertThat(ordered.first().stopPathIndex).isEqualTo(1)
+        assertThat(ordered.last().stopPathIndex).isEqualTo(3)
+
+        val byPattern = predictions.findByPatternStopAlgorithm("feed-1", 4L, 1, PredictionAlgorithm.KALMAN)
+        assertThat(byPattern).hasSize(1)
+    }
+
+    @Test
+    fun `prediction_accuracy filters by created_at`() {
+        accuracies.save(
+            PredictionAccuracy(
+                feedCode = "feed-1", vehicleId = "v2", tripRowId = 8L, stopPathIndex = 1,
+                algorithm = PredictionAlgorithm.HISTORICAL_AVERAGE,
+                predictedTs = Instant.parse("2026-09-04T10:00:00Z"),
+                actualTs = Instant.parse("2026-09-04T10:00:10Z"),
+                errorSec = 10, absErrorSec = 10,
+                createdAt = Instant.parse("2026-09-04T09:00:00Z"),
+            ),
+        )
+        accuracies.save(
+            PredictionAccuracy(
+                feedCode = "feed-1", vehicleId = "v2", tripRowId = 8L, stopPathIndex = 1,
+                algorithm = PredictionAlgorithm.HISTORICAL_AVERAGE,
+                predictedTs = Instant.parse("2026-09-04T11:00:00Z"),
+                actualTs = Instant.parse("2026-09-04T11:00:05Z"),
+                errorSec = 5, absErrorSec = 5,
+                createdAt = Instant.parse("2026-09-04T11:00:00Z"),
+            ),
+        )
+        val recent = accuracies.findRecentByFeedAndAlgorithm(
+            "feed-1", PredictionAlgorithm.HISTORICAL_AVERAGE, Instant.parse("2026-09-04T10:00:00Z"),
+        )
+        assertThat(recent).hasSize(1)
+        assertThat(recent.first().errorSec).isEqualTo(5)
+    }
+
+    /** No algorithm to compare is nothing to aggregate: no `algorithm in ()` query is sent. */
+    @Test
+    fun `aggregateAccuracy without algorithms returns nothing`() {
+        assertThat(
+            accuracies.aggregateAccuracy("feed-1", emptyList(), 0, Instant.EPOCH, null, null, null, null),
+        ).isEqualTo(emptyList())
+    }
+}

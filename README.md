@@ -47,6 +47,16 @@ flowchart TD
 
 ## Quickstart (local dev)
 
+The root Gradle project aggregates the backend modules:
+
+- `app/`: Spring Boot application, tests, benchmarks, and migration tooling (`app/src/`).
+- `api/`: standalone extension interfaces consumed by the application and example extension.
+- `examples/example-extension/`: sample extension depending on `api`.
+
+Run Gradle commands from the repository root. Unqualified commands such as `test`
+and `bootRun` still work; use `:app:bootRun` or `:api:test` to target a module.
+Application jars and reports are written under `app/build/`.
+
 ```bash
 docker compose up -d      # Postgres + Prometheus + Grafana
 ./gradlew bootRun          # runs everything in one process (monolith mode)
@@ -90,7 +100,7 @@ Custom AVL feed decoders, GTFS validators, vehicle matchers, and
 prediction strategies load from extra jars on the classpath — no fork, no
 rebuild.
 
-→ **[extension-api/README.md](extension-api/README.md)** — the four
+→ **[api/README.md](api/README.md)** — the four
 extension points and their stability guarantees.
 → **[docs/deployment.md §8](docs/deployment.md#8-extensions)** —
 `loader.path`/Helm `extraVolumes` runtime wiring.
@@ -115,9 +125,10 @@ metrics up in a cluster instead.
 | [docs/schedule.md](docs/schedule.md) | Derived schedule model: patterns, stop paths, blocks, schedule times |
 | [docs/avl.md](docs/avl.md) | AVL ingestion, trip matching, GraphQL read API |
 | [docs/predictions.md](docs/predictions.md) | Prediction generation, travel-time learning, accuracy tracking |
+| [docs/database.md](docs/database.md) | Exposed + Liquibase: changeset generator, drift test, raw SQL allowlist, transaction rules |
 | [docs/deployment.md](docs/deployment.md) | Docker image, Kubernetes roles, Helm chart, scaling |
 | [docs/configuration.md](docs/configuration.md) | Full `transittrack.*` property reference |
 | [docs/benchmarks.md](docs/benchmarks.md) | Ingest/match/predict load benchmarks (kotlinx-benchmark) |
 | [docs/ci.md](docs/ci.md) | GitHub Actions: lint, tests, vulnerability scans, benchmarks, image/chart publishing |
-| [extension-api/README.md](extension-api/README.md) | Extension points: AVL decoders, GTFS validators, vehicle matchers, prediction strategies |
+| [api/README.md](api/README.md) | Extension points: AVL decoders, GTFS validators, vehicle matchers, prediction strategies |
 | [web/README.md](web/README.md) | The Nuxt/Vue vehicle dashboard |

@@ -409,6 +409,14 @@ export type DuplicateTripInput = {
   sourceTripId: Scalars['String']['input'];
 };
 
+/** How many analyzer findings one entity has, and the most severe of them. */
+export type EntityFindingCount = {
+  __typename?: 'EntityFindingCount';
+  count: Scalars['Int']['output'];
+  entityId: Scalars['String']['output'];
+  worstSeverity: FindingSeverity;
+};
+
 /** How a calendar date exception differs between the two compared revisions. */
 export type ExceptionChangeKind =
   | 'EXCEPTION_ADDED'
@@ -461,6 +469,14 @@ export type FeedInfo = {
 export type FeedSource =
   | 'API'
   | 'CONFIG';
+
+/** The analyzer's own severity scale (the API's `Severity` collapses it to three levels). */
+export type FindingSeverity =
+  | 'CRITICAL'
+  | 'HIGH'
+  | 'INFO'
+  | 'LOW'
+  | 'MEDIUM';
 
 export type ForkDraftInput = {
   /** Revision to fork from, or omit to fork the feed's current active revision. */
@@ -1041,6 +1057,10 @@ export type Query = {
   trips: Array<Trip>;
   /** Every trip that operates on a given calendar date. Pass routeId to scope to one route. */
   tripsOnDate: Array<Trip>;
+  /** Which entities of one type (Trip, Stop, Route, ...) have analyzer findings, with counts, for filtering lists to the ones with problems. */
+  validationFindingCounts: Array<EntityFindingCount>;
+  /** Analyzer findings from the feed's active (or given) revision, most severe first. Filter by entityType (e.g. Trip) and/or entityId. */
+  validationFindings: Array<ValidationFinding>;
   /** A single vehicle's latest known state, or null if the feed or vehicle is unknown. */
   vehicle?: Maybe<Vehicle>;
   /** Predicted and reached stops of one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm. */
@@ -1370,6 +1390,21 @@ export type QueryTripsOnDateArgs = {
   feedCode: Scalars['String']['input'];
   revisionId?: InputMaybe<Scalars['ID']['input']>;
   routeId?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryValidationFindingCountsArgs = {
+  entityType: Scalars['String']['input'];
+  feedCode: Scalars['String']['input'];
+  revisionId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryValidationFindingsArgs = {
+  entityId?: InputMaybe<Scalars['String']['input']>;
+  entityType?: InputMaybe<Scalars['String']['input']>;
+  feedCode: Scalars['String']['input'];
+  revisionId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -1910,6 +1945,35 @@ export type UpdateStopTimeInput = {
   expectedVersion: Scalars['Long']['input'];
   stopSequence: Scalars['Int']['input'];
   tripId: Scalars['String']['input'];
+};
+
+/**
+ * One analyzer finding on a specific GTFS entity (not rolled up per rule): where it is, what was
+ * observed versus expected, and how to fix it.
+ */
+export type ValidationFinding = {
+  __typename?: 'ValidationFinding';
+  /** Rule-specific context, e.g. distances or speeds. */
+  details?: Maybe<Scalars['JSON']['output']>;
+  entityId?: Maybe<Scalars['String']['output']>;
+  /** Feed, File, Agency, Stop, Route, Trip, Shape, Service, Fare, Transfer, Pathway, Level, ... */
+  entityType: Scalars['String']['output'];
+  expectedValue?: Maybe<Scalars['String']['output']>;
+  field?: Maybe<Scalars['String']['output']>;
+  /** Source GTFS file, e.g. stop_times.txt. */
+  file?: Maybe<Scalars['String']['output']>;
+  /** 1-based row in `file`. */
+  line?: Maybe<Scalars['Int']['output']>;
+  message: Scalars['String']['output'];
+  observedValue?: Maybe<Scalars['String']['output']>;
+  remediation: Scalars['String']['output'];
+  /** SPEC, INTEROP, QUALITY or ANALYTICS. */
+  ruleClass: Scalars['String']['output'];
+  ruleId: Scalars['String']['output'];
+  /** Set on trip-scoped findings. */
+  serviceId?: Maybe<Scalars['String']['output']>;
+  severity: FindingSeverity;
+  title: Scalars['String']['output'];
 };
 
 /** One distinct validation rule violation found in a revision, with a sample affected row. */
@@ -2538,6 +2602,23 @@ export type TripsByRouteQueryVariables = Exact<{
 
 
 export type TripsByRouteQuery = { trips: Array<{ tripId: string, tripHeadsign: string | null, tripShortName: string | null, directionId: number | null, serviceId: string, shapeId: string | null, blockId: string | null, startTimeSec: number | null, endTimeSec: number | null }> };
+
+export type ValidationFindingCountsQueryVariables = Exact<{
+  feedCode: string;
+  entityType: string;
+}>;
+
+
+export type ValidationFindingCountsQuery = { validationFindingCounts: Array<{ entityId: string, count: number, worstSeverity: FindingSeverity }> };
+
+export type ValidationFindingsQueryVariables = Exact<{
+  feedCode: string;
+  entityType?: string | null | undefined;
+  entityId?: string | null | undefined;
+}>;
+
+
+export type ValidationFindingsQuery = { validationFindings: Array<{ ruleId: string, title: string, severity: FindingSeverity, ruleClass: string, entityType: string, entityId: string | null, serviceId: string | null, file: string | null, line: number | null, field: string | null, observedValue: string | null, expectedValue: string | null, details: any, message: string, remediation: string }> };
 
 export type VehicleDetailQueryVariables = Exact<{
   feedCode: string;
@@ -5368,6 +5449,89 @@ export function useTripsByRouteLazyQuery(variables?: TripsByRouteQueryVariables 
   return VueApolloComposable.useLazyQuery<TripsByRouteQuery, TripsByRouteQueryVariables>(TripsByRouteDocument, variables, options);
 }
 export type TripsByRouteQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<TripsByRouteQuery, TripsByRouteQueryVariables>;
+export const ValidationFindingCountsDocument = gql`
+    query ValidationFindingCounts($feedCode: String!, $entityType: String!) {
+  validationFindingCounts(feedCode: $feedCode, entityType: $entityType) {
+    entityId
+    count
+    worstSeverity
+  }
+}
+    `;
+
+/**
+ * __useValidationFindingCountsQuery__
+ *
+ * To run a query within a Vue component, call `useValidationFindingCountsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useValidationFindingCountsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useValidationFindingCountsQuery({
+ *   feedCode: // value for 'feedCode'
+ *   entityType: // value for 'entityType'
+ * });
+ */
+export function useValidationFindingCountsQuery(variables: ValidationFindingCountsQueryVariables | VueCompositionApi.Ref<ValidationFindingCountsQueryVariables> | ReactiveFunction<ValidationFindingCountsQueryVariables>, options: VueApolloComposable.UseQueryOptions<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>(ValidationFindingCountsDocument, variables, options);
+}
+export function useValidationFindingCountsLazyQuery(variables?: ValidationFindingCountsQueryVariables | VueCompositionApi.Ref<ValidationFindingCountsQueryVariables> | ReactiveFunction<ValidationFindingCountsQueryVariables>, options: VueApolloComposable.UseQueryOptions<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>(ValidationFindingCountsDocument, variables, options);
+}
+export type ValidationFindingCountsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables>;
+export const ValidationFindingsDocument = gql`
+    query ValidationFindings($feedCode: String!, $entityType: String, $entityId: String) {
+  validationFindings(
+    feedCode: $feedCode
+    entityType: $entityType
+    entityId: $entityId
+  ) {
+    ruleId
+    title
+    severity
+    ruleClass
+    entityType
+    entityId
+    serviceId
+    file
+    line
+    field
+    observedValue
+    expectedValue
+    details
+    message
+    remediation
+  }
+}
+    `;
+
+/**
+ * __useValidationFindingsQuery__
+ *
+ * To run a query within a Vue component, call `useValidationFindingsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useValidationFindingsQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useValidationFindingsQuery({
+ *   feedCode: // value for 'feedCode'
+ *   entityType: // value for 'entityType'
+ *   entityId: // value for 'entityId'
+ * });
+ */
+export function useValidationFindingsQuery(variables: ValidationFindingsQueryVariables | VueCompositionApi.Ref<ValidationFindingsQueryVariables> | ReactiveFunction<ValidationFindingsQueryVariables>, options: VueApolloComposable.UseQueryOptions<ValidationFindingsQuery, ValidationFindingsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<ValidationFindingsQuery, ValidationFindingsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<ValidationFindingsQuery, ValidationFindingsQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<ValidationFindingsQuery, ValidationFindingsQueryVariables>(ValidationFindingsDocument, variables, options);
+}
+export function useValidationFindingsLazyQuery(variables?: ValidationFindingsQueryVariables | VueCompositionApi.Ref<ValidationFindingsQueryVariables> | ReactiveFunction<ValidationFindingsQueryVariables>, options: VueApolloComposable.UseQueryOptions<ValidationFindingsQuery, ValidationFindingsQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<ValidationFindingsQuery, ValidationFindingsQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<ValidationFindingsQuery, ValidationFindingsQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<ValidationFindingsQuery, ValidationFindingsQueryVariables>(ValidationFindingsDocument, variables, options);
+}
+export type ValidationFindingsQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<ValidationFindingsQuery, ValidationFindingsQueryVariables>;
 export const VehicleDetailDocument = gql`
     query VehicleDetail($feedCode: String!, $vehicleId: String!) {
   vehicle(feedCode: $feedCode, vehicleId: $vehicleId) {

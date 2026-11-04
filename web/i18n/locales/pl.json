@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Ładowanie szczegółów operacyjnych…",
-      "unassigned": "Nieprzypisana",
-      "blockWindow": "Okno brygady",
-      "tripTitle": "Kurs {id}",
       "progress": "Postęp {percent}%",
       "remaining": "Pozostało {distance} km",
       "at": "Lokalizacja",
@@ -441,15 +438,19 @@
       "estimated": "szacowana",
       "fromRoute": "Od trasy",
       "lastUpdate": "Ostatnia aktualizacja",
-      "updated": "Zaktualizowano",
-      "schedule": "Rozkład",
       "speedUnavailable": "Prędkość niedostępna",
       "estimatedParens": "(szacowana)",
       "stale": "nieaktualny",
       "viewTrip": "Zobacz kurs",
       "viewBlock": "Zobacz brygadę",
       "viewRoute": "Zobacz linię",
-      "viewVehicle": "Zobacz pojazd"
+      "viewVehicle": "Zobacz pojazd",
+      "cardLabel": "Szczegóły pojazdu {id}",
+      "stops": "Przystanki i szacunki",
+      "noStops": "Brak sekwencji przystanków dla tego kursu.",
+      "expand": "Rozwiń szczegóły",
+      "collapse": "Zwiń szczegóły",
+      "close": "Zamknij"
     },
     "detail": {
       "title": "Pojazd {name}",
@@ -595,6 +596,25 @@
       "12": "Kolej jednoszynowa"
     },
     "routeTypeOther": "Typ {type}"
+  },
+  "findings": {
+    "title": "Uwagi dotyczące jakości danych",
+    "showAll": "Pokaż wszystkie ({count})",
+    "showLess": "Pokaż mniej",
+    "analyticsTitle": "Analizy",
+    "filterWith": "Z uwagami ({count})",
+    "qualityShort": "Jakość danych",
+    "whatToDo": "Co zrobić",
+    "observed": "Zaobserwowano",
+    "expected": "Oczekiwano",
+    "location": "{file}, wiersz {line}",
+    "severity": {
+      "CRITICAL": "Krytyczna",
+      "HIGH": "Wysoka",
+      "MEDIUM": "Średnia",
+      "LOW": "Niska",
+      "INFO": "Informacja"
+    }
   },
   "explore": {
     "duration": "{hours} godz. {minutes} min",

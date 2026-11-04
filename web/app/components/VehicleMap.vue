@@ -1,16 +1,12 @@
 <script setup lang="ts">
-import { formatDottedTimestamp } from '~/utils/clock'
 import type { VehicleRow } from '../composables/useVehiclePolling'
-import { adherenceBadge } from '../utils/adherence'
+import VehicleDetailCard from './VehicleDetailCard.vue'
 import VehicleMapLegend from './VehicleMapLegend.vue'
 import FeedNetworkLayer from './FeedNetworkLayer.vue'
 import { hideBasemapLabels, useMapStyle } from '../composables/useMapStyle'
 import { useFeedGeometry } from '../composables/useFeedGeometry'
 import { extentToBounds } from '../utils/mapBounds'
 import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
-import { coarseAgeLabel, haversineM } from '../utils/vehicleTelemetry'
-import { usePollControl } from '../composables/usePollControl'
-import { useAvlTrailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
 
 export interface SelectedRouteOverlay {
   vehicleId: string
@@ -45,7 +41,6 @@ const emit = defineEmits<{
   viewVehicle: [vehicleId: string]
 }>()
 
-const { t, locale } = useI18n()
 const MAP_ID = 'vehicle-map'
 const mapStyle = useMapStyle()
 const colorMode = useColorMode()
@@ -56,7 +51,7 @@ const colorMode = useColorMode()
 // tiles instead of nearly disappearing into them.
 const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#000000' : '#ffffff'))
 
-// nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
+// The local MapLibre module auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
 // back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
 // and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
 // before that silently no-op).
@@ -131,126 +126,6 @@ const activeVehicle = computed(
   () => props.vehicles.find((v) => v.vehicleId === activeVehicleId.value) ?? null,
 )
 
-const { intervalMs } = usePollControl()
-
-const { result: activeVehicleDetailResult, loading: activeVehicleDetailLoading } =
-  useVehicleDetailQuery(
-    () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '' }),
-    () => ({
-      enabled: !!props.feedCode && !!activeVehicleId.value,
-      pollInterval: intervalMs.value,
-    }),
-  )
-
-const activeVehicleDetail = computed(() => {
-  const vehicle = activeVehicleDetailResult.value?.vehicle
-  return vehicle?.vehicleId === activeVehicleId.value ? vehicle : null
-})
-
-const activeTripId = computed(
-  () => activeVehicleDetail.value?.trip?.tripId ?? activeVehicle.value?.trip?.tripId ?? null,
-)
-const activeBlockId = computed(
-  () => activeVehicleDetail.value?.block?.blockId ?? activeVehicle.value?.block?.blockId ?? null,
-)
-const activeServiceId = computed(
-  () =>
-    activeVehicleDetail.value?.block?.serviceId ?? activeVehicle.value?.block?.serviceId ?? null,
-)
-const activeRouteId = computed(
-  () => activeVehicleDetail.value?.trip?.routeId ?? activeVehicle.value?.trip?.routeId ?? null,
-)
-
-function handleViewBlock() {
-  if (activeBlockId.value && activeServiceId.value)
-    emit('viewBlock', { blockId: activeBlockId.value, serviceId: activeServiceId.value })
-}
-
-const { result: activeVehicleTrailResult } = useAvlTrailQuery(
-  () => ({ feedCode: props.feedCode ?? '', vehicleId: activeVehicleId.value ?? '', limit: 2 }),
-  () => ({ enabled: !!props.feedCode && !!activeVehicleId.value, pollInterval: intervalMs.value }),
-)
-
-const estimatedSpeedMps = computed(() => {
-  if (activeVehicleDetail.value?.speedMps != null || activeVehicle.value?.speedMps != null)
-    return null
-  // avlReports are newest-first. A position-based estimate is only useful
-  // over a short, valid interval; otherwise GPS drift can look like movement.
-  const [latest, previous] = activeVehicleTrailResult.value?.avlReports ?? []
-  if (
-    !latest ||
-    !previous ||
-    latest.vehicleId !== activeVehicleId.value ||
-    previous.vehicleId !== activeVehicleId.value
-  )
-    return null
-  const elapsedSec = (Date.parse(latest.ts) - Date.parse(previous.ts)) / 1000
-  const distanceM = haversineM(latest.position, previous.position)
-  if (!Number.isFinite(elapsedSec) || elapsedSec < 5 || elapsedSec > 300 || distanceM == null)
-    return null
-  const speedMps = distanceM / elapsedSec
-  return speedMps <= 45 ? speedMps : null
-})
-
-const activeSpeed = computed(() => {
-  const reportedMps = activeVehicleDetail.value?.speedMps ?? activeVehicle.value?.speedMps
-  if (reportedMps != null) return { mps: reportedMps, estimated: false }
-  return estimatedSpeedMps.value == null ? null : { mps: estimatedSpeedMps.value, estimated: true }
-})
-
-// Same convention as the vehicle-detail page's "GPS offset": the perpendicular
-// gap between the raw report and the matched-shape snap. Only matched
-// vehicles carry a snappedPosition.
-const activeGpsOffsetM = computed(() =>
-  haversineM(activeVehicleDetail.value?.position, activeVehicleDetail.value?.snappedPosition),
-)
-
-const activeTripProgress = computed(() => {
-  const vehicle = activeVehicleDetail.value
-  const totalM = vehicle?.pattern?.lengthM
-  const distanceAlongM = vehicle?.distanceAlongTripM
-  if (totalM == null || totalM <= 0 || distanceAlongM == null) return null
-
-  const travelledM = Math.min(totalM, Math.max(0, distanceAlongM))
-  return {
-    percentage: Math.round((travelledM / totalM) * 100),
-    travelledKm: travelledM / 1000,
-    totalKm: totalM / 1000,
-    remainingKm: Math.max(0, totalM - travelledM) / 1000,
-  }
-})
-
-const activeNextStop = computed(() => {
-  const vehicle = activeVehicleDetail.value
-  const stops = vehicle?.pattern?.stopPaths ?? []
-  if (stops.length === 0) return null
-  const index = vehicle?.stopPathIndex ?? -1
-  return (
-    [...stops]
-      .sort((a, b) => a.stopPathIndex - b.stopPathIndex)
-      .find((stop) => stop.stopPathIndex >= index)?.stop ?? null
-  )
-})
-
-function clockTime(seconds: number | null | undefined): string {
-  if (seconds == null || seconds < 0) return '—'
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = Math.floor(seconds % 60)
-  return [hours, minutes, secs].map((value) => String(value).padStart(2, '0')).join(':')
-}
-
-function updateAge(iso: string): string {
-  const seconds = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000))
-  return coarseAgeLabel(seconds, t)
-}
-
-function updateTimestamp(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return t('vehicles.unknown')
-  return formatDottedTimestamp(date, locale.value)
-}
-
 function clipped(values: number[], lo = 0.02, hi = 0.98): [number, number] {
   const sorted = [...values].sort((a, b) => a - b)
   const at = (q: number) =>
@@ -318,10 +193,6 @@ watch(
   },
   { immediate: true },
 )
-
-function badge(v: VehicleRow) {
-  return adherenceBadge(v.scheduleAdherenceSec, t)
-}
 
 // A fleet of ~150 `MglMarker`s is 150 real Vue components + DOM nodes, all
 // re-rendered by Vue's reactivity on every poll tick — this was the source
@@ -645,263 +516,6 @@ watch(
     >
       <!-- <MglNavigationControl /> -->
 
-      <MglPopup
-        v-if="activeVehicle"
-        :key="activeVehicle.vehicleId"
-        :coordinates="[activeVehicle.position.lon, activeVehicle.position.lat]"
-        :close-on-click="true"
-        :close-button="false"
-        :anchor="'bottom'"
-        :offset="6"
-        max-width="22rem"
-        class-name="vehicle-operation-popup"
-        @close="activeVehicleId = null"
-      >
-        <div
-          class="flex max-h-[min(40rem,calc(100vh-6rem))] w-[20rem] max-w-[calc(100vw-3rem)] flex-col gap-3 overflow-y-auto p-1 text-sm"
-        >
-          <header class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <p class="text-lg font-bold text-highlighted">#{{ activeVehicle.vehicleId }}</p>
-              <p
-                v-if="activeVehicleDetail?.trip?.tripHeadsign ?? activeVehicle.trip?.tripHeadsign"
-                class="truncate text-xs text-muted"
-              >
-                {{ activeVehicleDetail?.trip?.tripHeadsign ?? activeVehicle.trip?.tripHeadsign }}
-              </p>
-            </div>
-            <UBadge
-              v-if="
-                activeVehicleDetail?.trip?.route?.routeShortName ??
-                activeVehicle.trip?.route?.routeShortName
-              "
-              size="sm"
-              :style="{
-                backgroundColor:
-                  (activeVehicleDetail?.trip?.route?.routeColor ??
-                  activeVehicle.trip?.route?.routeColor)
-                    ? `#${(activeVehicleDetail?.trip?.route?.routeColor ?? activeVehicle.trip?.route?.routeColor)?.replace('#', '')}`
-                    : undefined,
-              }"
-            >
-              {{
-                activeVehicleDetail?.trip?.route?.routeShortName ??
-                activeVehicle.trip?.route?.routeShortName
-              }}
-            </UBadge>
-          </header>
-
-          <div
-            v-if="activeVehicleDetailLoading && !activeVehicleDetail"
-            class="flex items-center gap-2 py-4 text-sm text-muted"
-          >
-            <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-            {{ $t('vehicles.popup.loading') }}
-          </div>
-
-          <template v-else-if="activeVehicleDetail">
-            <section class="border-y border-dashed border-default py-2.5">
-              <dl class="space-y-1.5">
-                <div class="flex justify-between gap-3">
-                  <dt class="text-muted">{{ $t('vehicles.field.route') }}</dt>
-                  <dd class="text-right font-semibold text-highlighted">
-                    {{
-                      activeVehicleDetail.trip?.route?.routeShortName ??
-                      activeVehicleDetail.trip?.routeId ??
-                      $t('vehicles.popup.unassigned')
-                    }}
-                  </dd>
-                </div>
-                <div v-if="activeVehicleDetail.block" class="flex justify-between gap-3">
-                  <dt class="text-muted">{{ $t('vehicles.field.block') }}</dt>
-                  <dd class="text-right font-semibold text-highlighted">
-                    {{ activeVehicleDetail.block.blockId }}
-                  </dd>
-                </div>
-                <div
-                  v-if="
-                    activeVehicleDetail.block?.startTimeSec != null ||
-                    activeVehicleDetail.block?.endTimeSec != null
-                  "
-                  class="flex justify-between gap-3"
-                >
-                  <dt class="text-muted">{{ $t('vehicles.popup.blockWindow') }}</dt>
-                  <dd class="text-right font-semibold tabular-nums text-highlighted">
-                    {{ clockTime(activeVehicleDetail.block?.startTimeSec) }}–{{
-                      clockTime(activeVehicleDetail.block?.endTimeSec)
-                    }}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-
-            <section v-if="activeVehicleDetail.trip" class="space-y-1.5">
-              <p class="font-semibold text-highlighted">
-                {{ $t('vehicles.popup.tripTitle', { id: activeVehicleDetail.trip.tripId }) }}
-              </p>
-              <div class="flex justify-between gap-3 text-muted">
-                <span>{{ $t('vehicles.field.scheduled') }}</span>
-                <span class="font-semibold tabular-nums text-highlighted">
-                  {{ clockTime(activeVehicleDetail.trip.startTimeSec) }}–{{
-                    clockTime(activeVehicleDetail.trip.endTimeSec)
-                  }}
-                </span>
-              </div>
-              <div v-if="activeTripProgress" class="pt-1">
-                <div class="flex justify-between gap-3 text-xs">
-                  <span class="font-semibold text-highlighted">{{
-                    $t('vehicles.popup.progress', { percent: activeTripProgress.percentage })
-                  }}</span>
-                  <span class="tabular-nums text-muted"
-                    >{{ activeTripProgress.travelledKm.toFixed(1) }} /
-                    {{ activeTripProgress.totalKm.toFixed(1) }} km</span
-                  >
-                </div>
-                <div
-                  class="mt-1.5 h-2 overflow-hidden rounded-full bg-elevated ring-1 ring-inset ring-default"
-                >
-                  <div
-                    class="h-full bg-primary"
-                    :style="{ width: `${activeTripProgress.percentage}%` }"
-                  />
-                </div>
-                <p class="mt-1 text-right text-xs tabular-nums text-muted">
-                  {{
-                    $t('vehicles.popup.remaining', {
-                      distance: activeTripProgress.remainingKm.toFixed(1),
-                    })
-                  }}
-                </p>
-              </div>
-            </section>
-
-            <section class="border-y border-dashed border-default py-2.5">
-              <dl class="space-y-1.5">
-                <div class="flex justify-between gap-3">
-                  <dt class="text-muted">{{ $t('vehicles.popup.at') }}</dt>
-                  <dd class="max-w-52 text-right font-semibold text-highlighted">
-                    {{ activeVehicleDetail.currentStop?.stopName ?? $t('vehicles.popup.betweenStops') }}
-                  </dd>
-                </div>
-                <div v-if="activeNextStop" class="flex justify-between gap-3">
-                  <dt class="text-muted">{{ $t('vehicles.field.nextStop') }}</dt>
-                  <dd class="max-w-52 text-right font-semibold text-highlighted">
-                    {{ activeNextStop.stopName ?? activeNextStop.stopId }}
-                  </dd>
-                </div>
-                <div class="flex justify-between gap-3">
-                  <dt class="text-muted">{{ $t('vehicles.field.speed') }}</dt>
-                  <dd class="text-right font-semibold tabular-nums text-highlighted">
-                    {{
-                      activeSpeed
-                        ? `${Math.round(activeSpeed.mps * 3.6)} km/h`
-                        : $t('vehicles.popup.unavailable')
-                    }}
-                    <span v-if="activeSpeed?.estimated" class="ml-1 text-xs font-medium text-muted">{{
-                      $t('vehicles.popup.estimated')
-                    }}</span>
-                  </dd>
-                </div>
-                <div class="flex justify-between gap-3">
-                  <dt class="text-muted">{{ $t('vehicles.popup.fromRoute') }}</dt>
-                  <dd class="text-right font-semibold tabular-nums text-highlighted">
-                    {{
-                      activeGpsOffsetM == null
-                        ? '—'
-                        : activeGpsOffsetM <= 15
-                          ? $t('vehicles.field.onRoute')
-                          : units.distance(activeGpsOffsetM)
-                    }}
-                  </dd>
-                </div>
-              </dl>
-            </section>
-
-            <section class="space-y-1.5">
-              <div class="flex justify-between gap-3">
-                <span class="text-muted">{{ $t('vehicles.popup.lastUpdate') }}</span>
-                <span class="text-right font-semibold tabular-nums text-highlighted">{{
-                  updateTimestamp(activeVehicleDetail.reportTs)
-                }}</span>
-              </div>
-              <div class="flex justify-between gap-3">
-                <span class="text-muted">{{ $t('vehicles.popup.updated') }}</span>
-                <span class="font-semibold text-highlighted">{{
-                  updateAge(activeVehicleDetail.reportTs)
-                }}</span>
-              </div>
-              <div class="flex items-center justify-between gap-3">
-                <span class="text-muted">{{ $t('vehicles.popup.schedule') }}</span>
-                <UBadge :color="badge(activeVehicleDetail).color" variant="subtle">{{
-                  badge(activeVehicleDetail).label
-                }}</UBadge>
-              </div>
-            </section>
-          </template>
-
-          <div v-else class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <UBadge :color="badge(activeVehicle).color" variant="subtle">{{
-              badge(activeVehicle).label
-            }}</UBadge>
-            <span class="text-muted">
-              {{
-                activeSpeed
-                  ? `${Math.round(activeSpeed.mps * 3.6)} km/h`
-                  : $t('vehicles.popup.speedUnavailable')
-              }}
-              <template v-if="activeSpeed?.estimated"> {{ $t('vehicles.popup.estimatedParens') }}</template>
-            </span>
-            <span v-if="activeVehicle.stale" class="text-warning">{{ $t('vehicles.popup.stale') }}</span>
-          </div>
-
-          <div class="flex flex-col gap-1.5">
-            <UFieldGroup class="w-full">
-              <UButton
-                class="flex-1 justify-center"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-milestone"
-                :label="$t('vehicles.popup.viewTrip')"
-                :disabled="!activeTripId"
-                @click="activeTripId && emit('viewTrip', activeTripId)"
-              />
-              <UButton
-                class="flex-1 justify-center"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-layers"
-                :label="$t('vehicles.popup.viewBlock')"
-                :disabled="!activeBlockId || !activeServiceId"
-                @click="handleViewBlock"
-              />
-            </UFieldGroup>
-            <UFieldGroup class="w-full">
-              <UButton
-                class="flex-1 justify-center"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-route"
-                :label="$t('vehicles.popup.viewRoute')"
-                :disabled="!activeRouteId"
-                @click="activeRouteId && emit('viewRoute', activeRouteId)"
-              />
-              <UButton
-                class="flex-1 justify-center"
-                color="neutral"
-                variant="subtle"
-                size="sm"
-                icon="i-lucide-bus"
-                :label="$t('vehicles.popup.viewVehicle')"
-                @click="emit('viewVehicle', activeVehicle.vehicleId)"
-              />
-            </UFieldGroup>
-          </div>
-        </div>
-      </MglPopup>
-
       <!-- `before` pins it below the vehicle icon layer explicitly — it's
            mounted lazily (see `networkFeedCode` above), well after the
            vehicle layer, so relying on maplibre's default "later-added
@@ -1056,6 +670,29 @@ watch(
           }"
         />
       </MglGeoJsonSource>
+
+      <MglPopup
+        v-if="activeVehicle"
+        :key="activeVehicle.vehicleId"
+        :coordinates="[activeVehicle.position.lon, activeVehicle.position.lat]"
+        :close-on-click="true"
+        :close-button="false"
+        anchor="bottom"
+        :offset="6"
+        max-width="22rem"
+        class-name="vehicle-operation-popup"
+        @close="activeVehicleId = null"
+      >
+        <VehicleDetailCard
+          :vehicle="activeVehicle"
+          :feed-code="feedCode"
+          @close="activeVehicleId = null"
+          @view-trip="emit('viewTrip', $event)"
+          @view-block="emit('viewBlock', $event)"
+          @view-route="emit('viewRoute', $event)"
+          @view-vehicle="emit('viewVehicle', $event)"
+        />
+      </MglPopup>
 
       <MapToolLayers :map-id="MAP_ID" :tools="tools" />
     </MglMap>

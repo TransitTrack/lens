@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Se încarcă detaliile operaționale…",
-      "unassigned": "Neatribuit",
-      "blockWindow": "Interval de bloc",
-      "tripTitle": "Cursa {id}",
       "progress": "Progres {percent}%",
       "remaining": "{distance} km rămași",
       "at": "La",
@@ -441,15 +438,19 @@
       "estimated": "estimat",
       "fromRoute": "De la linie",
       "lastUpdate": "Ultima actualizare",
-      "updated": "Actualizat",
-      "schedule": "Orar",
       "speedUnavailable": "Viteză indisponibilă",
       "estimatedParens": "(estimat)",
       "stale": "învechit",
       "viewTrip": "Vezi cursa",
       "viewBlock": "Vezi blocul",
       "viewRoute": "Vezi linia",
-      "viewVehicle": "Vezi vehiculul"
+      "viewVehicle": "Vezi vehiculul",
+      "cardLabel": "Detalii vehicul {id}",
+      "stops": "Stații și estimări",
+      "noStops": "Nu există secvență de stații pentru această cursă.",
+      "expand": "Extinde detaliile",
+      "collapse": "Restrânge detaliile",
+      "close": "Închide"
     },
     "detail": {
       "title": "Vehiculul {name}",
@@ -595,6 +596,25 @@
       "12": "Monoșină"
     },
     "routeTypeOther": "Tip {type}"
+  },
+  "findings": {
+    "title": "Constatări privind calitatea datelor",
+    "showAll": "Arată toate ({count})",
+    "showLess": "Arată mai puține",
+    "analyticsTitle": "Analize",
+    "filterWith": "Cu constatări ({count})",
+    "qualityShort": "Calitatea datelor",
+    "whatToDo": "Ce de făcut",
+    "observed": "Observat",
+    "expected": "Așteptat",
+    "location": "{file}, rândul {line}",
+    "severity": {
+      "CRITICAL": "Critică",
+      "HIGH": "Ridicată",
+      "MEDIUM": "Medie",
+      "LOW": "Scăzută",
+      "INFO": "Informativă"
+    }
   },
   "explore": {
     "duration": "{hours} h {minutes} min",

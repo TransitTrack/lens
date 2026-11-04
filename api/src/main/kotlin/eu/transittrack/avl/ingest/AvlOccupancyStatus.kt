@@ -1,0 +1,13 @@
+package eu.transittrack.avl.ingest
+
+enum class AvlOccupancyStatus {
+    EMPTY,
+    MANY_SEATS_AVAILABLE,
+    FEW_SEATS_AVAILABLE,
+    STANDING_ROOM_ONLY,
+    CRUSHED_STANDING_ROOM_ONLY,
+    FULL,
+    NOT_ACCEPTING_PASSENGERS,
+    NO_DATA_AVAILABLE,
+    NOT_BOARDABLE,
+}

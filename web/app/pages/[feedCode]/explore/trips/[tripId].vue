@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/AppPage.vue'
+import ValidationFindingsPanel from '~/components/ValidationFindingsPanel.vue'
 import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
@@ -138,8 +139,13 @@ const splitterItems = computed<SplitterItem[]>(() =>
         @click="router.back()"
       />
     </template>
-    <template v-if="trip?.route?.routeShortName" #actions>
-      <UBadge :style="{ backgroundColor: '#ff0000' }">
+    <template #actions>
+      <ValidationFindingsPanel
+        :feed-code="selectedFeedCode"
+        entity-type="Trip"
+        :entity-id="tripId"
+      />
+      <UBadge v-if="trip?.route?.routeShortName" :style="{ backgroundColor: '#ff0000' }">
         {{ trip.route.routeShortName }}
       </UBadge>
     </template>

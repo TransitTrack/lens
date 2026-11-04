@@ -38,13 +38,13 @@ jobs:
       # Spring Boot fat jar) to resolve the real, locked dependency versions - far more reliable
       # for a Gradle project without a lockfile than parsing build.gradle.kts as text.
       - name: Build jar
-        run: ./gradlew bootJar --no-daemon -x test
+        run: ./gradlew :app:bootJar --no-daemon -x test
 
       - name: Trivy scan (backend jar)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
-          scan-ref: build/libs
+          scan-ref: app/build/libs
           format: sarif
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH,MEDIUM

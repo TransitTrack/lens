@@ -1,7 +1,7 @@
 # Configuration Reference
 
 Every application-specific setting lives under the `transittrack.*` namespace
-in `src/main/resources/application.yaml`, backed by `@ConfigurationProperties`
+in `app/src/main/resources/application.yaml`, backed by `@ConfigurationProperties`
 classes (`eu.transittrack.*Properties`). Standard Spring Boot mechanisms apply
 throughout: environment variables (`TRANSITTRACK_AVL_ENABLED=true`), a mounted
 `application.yaml`/`application-*.yaml`, or `-D`/`--` JVM args all override the
@@ -230,7 +230,7 @@ coordination this relies on: **[docs/deployment.md](deployment.md#3-roles)**.
 
 ---
 
-## 10. Infrastructure — Spring/JPA/Liquibase/logging
+## 10. Infrastructure — Spring/Exposed/Liquibase/logging
 
 Standard Spring Boot properties, listed here because they're commonly
 overridden per environment:
@@ -241,7 +241,7 @@ overridden per environment:
 | `spring.datasource.username` | `postgres` | DB username |
 | `spring.datasource.password` | `${POSTGRES_PASSWORD:password}` | DB password — set via `POSTGRES_PASSWORD` env var |
 | `spring.liquibase.enabled` | `true` | Run migrations on startup |
-| `spring.jpa.hibernate.ddl-auto` | `validate` | Never auto-generates schema — Liquibase owns it; this only validates the mapping matches |
+| `spring.exposed.generate-ddl` | `false` | Never auto-generates schema — Liquibase owns it (`SchemaDriftTest` checks the Exposed tables match it) |
 | `management.endpoints.web.exposure.include` | `health,info,prometheus,configprops` | Which actuator endpoints are reachable over HTTP |
 | `management.endpoint.configprops.show-values` | `always` | Shows resolved values for the web dashboard's Docs → Live configuration page; `ActuatorConfiguration` still masks credential-named keys and feed request headers whole, and redacts keys/passwords inside URLs |
 | `logging.level.eu.transittrack` | `debug` | Application log level — turn down for production (`info` or `warn`) |
@@ -252,8 +252,8 @@ overridden per environment:
 ## 11. ShedLock — the `shedlock` table
 
 Not application-configurable — it's infrastructure the app manages itself.
-`SchedulerLockConfig` wires a `JdbcTemplateLockProvider` against the same
-`DataSource`, backed by the `shedlock` table (migration
+`SchedulerLockConfig` wires an `ExposedLockProvider` against the same
+`Database`, backed by the `shedlock` table (migration
 `0009-shedlock.yaml`). Every cluster-singleton scheduled job carries its own
 `@SchedulerLock(lockAtMostFor, lockAtLeastFor)`, and the per-feed processors
 (`AvlPoller`, `AvlMatchProcessor`, `PredictionProcessor`) coordinate through

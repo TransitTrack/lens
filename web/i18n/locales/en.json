@@ -430,9 +430,6 @@
     },
     "popup": {
       "loading": "Loading operational details…",
-      "unassigned": "Unassigned",
-      "blockWindow": "Block window",
-      "tripTitle": "Trip {id}",
       "progress": "Progress {percent}%",
       "remaining": "{distance} km remaining",
       "at": "At",
@@ -441,15 +438,19 @@
       "estimated": "estimated",
       "fromRoute": "From route",
       "lastUpdate": "Last update",
-      "updated": "Updated",
-      "schedule": "Schedule",
       "speedUnavailable": "Speed unavailable",
       "estimatedParens": "(estimated)",
       "stale": "stale",
       "viewTrip": "View trip",
       "viewBlock": "View block",
       "viewRoute": "View route",
-      "viewVehicle": "View vehicle"
+      "viewVehicle": "View vehicle",
+      "cardLabel": "Vehicle {id} details",
+      "stops": "Stops and estimates",
+      "noStops": "No stop sequence available for this trip.",
+      "expand": "Expand details",
+      "collapse": "Collapse details",
+      "close": "Close"
     },
     "detail": {
       "title": "Vehicle {name}",
@@ -595,6 +596,25 @@
       "12": "Monorail"
     },
     "routeTypeOther": "Type {type}"
+  },
+  "findings": {
+    "title": "Data quality findings",
+    "showAll": "Show all {count}",
+    "showLess": "Show less",
+    "analyticsTitle": "Analytics",
+    "filterWith": "With findings ({count})",
+    "qualityShort": "Data quality",
+    "whatToDo": "What to do",
+    "observed": "Observed",
+    "expected": "Expected",
+    "location": "{file}, row {line}",
+    "severity": {
+      "CRITICAL": "Critical",
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low",
+      "INFO": "Informational"
+    }
   },
   "explore": {
     "duration": "{hours}h {minutes}m",

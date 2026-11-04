@@ -5,7 +5,7 @@ Location) data from provider real-time feeds, matches each vehicle report to the
 derived schedule model of a GTFS feed, and exposes live vehicle state over a
 Spring GraphQL read API.
 
-Schema migrations: `src/main/resources/db/changelog/0002-avl.yaml`.
+Schema migrations: `app/src/main/resources/db/changelog/0002-avl.yaml`.
 
 GTFS-Realtime `VehiclePosition` is the first (and currently only) supported
 feed format. Out of scope — see [§8](#8-assumptions--deferred).
@@ -134,9 +134,9 @@ Each tick calls `AvlIngestService.pollOnce(feed)`:
 3. **Dedup** — reports whose `(vehicleId, ts)` already equals the latest stored
    row for that vehicle are dropped.
 4. **Append** — survivors are batch-inserted as `avl_report` rows with
-   `match_status = PENDING` (via `AvlWriter`, on its own stateless-session
-   transaction). `last_poll_at` / `last_poll_status` / `last_poll_report_count`
-   are updated on the feed.
+   `match_status = PENDING` (via `AvlWriter`, each method its own `REQUIRES_NEW`
+   Exposed transaction). `last_poll_at` / `last_poll_status` /
+   `last_poll_report_count` are updated on the feed.
 
 No matching happens here.
 

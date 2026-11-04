@@ -64,6 +64,10 @@ const directionItems = computed(() => {
   ]
 })
 
+const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(
+  selectedFeedCode,
+  'Trip',
+)
 const search = ref('')
 const rows = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -73,6 +77,7 @@ const rows = computed(() => {
     .filter((t) => {
       if (dir.value != null && String(t.directionId) !== dir.value) return false
       if (!inWindow(t.startTimeSec, fromSec, toSec)) return false
+      if (!hasFindings(t.tripId)) return false
       if (
         q &&
         ![t.tripHeadsign, t.tripShortName, t.tripId, t.serviceId].some((v) =>
@@ -155,6 +160,12 @@ function onSelect(_e: Event, row: { original: Trip }) {
             icon="i-lucide-search"
             :placeholder="t('explore.trips.filterPlaceholder')"
             class="w-72"
+          />
+          <USwitch
+            v-if="findingsCount > 0 || onlyWithFindings"
+            v-model="onlyWithFindings"
+            size="sm"
+            :label="t('findings.filterWith', { count: findingsCount })"
           />
         </template>
       </div>

@@ -12,6 +12,6 @@ repositories {
 val springContextVersion = project.property("springContextVersion") as String
 
 dependencies {
-    implementation(project(":extension-api"))
+    implementation(project(":api"))
     implementation("org.springframework:spring-context:$springContextVersion")
 }
