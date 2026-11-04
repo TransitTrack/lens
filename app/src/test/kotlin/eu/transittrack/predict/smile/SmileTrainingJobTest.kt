@@ -24,6 +24,8 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 
 import eu.transittrack.avl.match.cache.CachedAgencyReader
@@ -185,8 +187,6 @@ class SmileTrainingJobTest(
     }
 
     @Test
-    fun refreshLoadsNewerStoredModel() {
-    @Test
     fun fitRunsOnALowPriorityPlatformThread() {
         enableSmile()
         insertCrossings(count = 150)
@@ -211,6 +211,8 @@ class SmileTrainingJobTest(
         job.close()
     }
 
+    @Test
+    fun refreshLoadsNewerStoredModel() {
         store.put(FEED, modelA, now.minusSeconds(3_600))
         models.save(PredictionModelRow(FEED, PredictionAlgorithm.SMILE_GBM, now, 200, modelB.toBytes()))
 
@@ -232,6 +234,16 @@ class SmileTrainingJobTest(
         store.refresh()
 
         assertThat(store.current(FEED)).isSameInstanceAs(modelA)
+    }
+
+    @Test
+    fun startupRefreshNeverThrows() {
+        val failing = spy(store)
+        doThrow(IllegalStateException("boom")).whenever(failing).refresh()
+
+        failing.refreshOnStartup()
+
+        assertThat(failing.current(FEED)).isNull()
     }
 
     @Test

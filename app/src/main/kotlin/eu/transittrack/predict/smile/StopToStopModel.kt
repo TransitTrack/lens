@@ -106,9 +106,18 @@ class StopToStopModel(
         @Serial
         private const val serialVersionUID = 1L
 
-        /** Defence in depth: the bytes come from our own database, but only model classes may be revived. */
+        /**
+         * Defence in depth: the bytes come from our own database, but only model classes may be
+         * revived, within bounds. A default model (200 trees of depth 6) is ~1 MB, nests 11 deep and
+         * holds ~30 000 references; depth 12 gives ~3.5 MB, 16 deep, ~100 000 references. Its longest
+         * array is the tree array (`trees` long). The limits leave room for far larger settings while
+         * stopping a corrupt or hostile payload from exhausting the stack or the heap.
+         */
         private val INPUT_FILTER: ObjectInputFilter =
-            ObjectInputFilter.Config.createFilter("java.**;kotlin.**;smile.**;eu.transittrack.predict.smile.**;!*")
+            ObjectInputFilter.Config.createFilter(
+                "maxdepth=256;maxrefs=2000000;maxarray=1000000;maxbytes=67108864;" +
+                    "java.**;kotlin.**;smile.**;eu.transittrack.predict.smile.**;!*",
+            )
 
         /** @throws IllegalArgumentException when [bytes] don't hold a serialized [StopToStopModel]. */
         fun fromBytes(bytes: ByteArray): StopToStopModel {
@@ -120,6 +129,10 @@ class StopToStopModel(
                     }
                 } catch (e: Exception) {
                     throw IllegalArgumentException("not a serialized StopToStopModel", e)
+                } catch (e: StackOverflowError) {
+                    // Deep nesting under the depth limit can still overflow a small stack; the
+                    // failure is confined to this payload's own frames, which are unwound by now.
+                    throw IllegalArgumentException("not a serialized StopToStopModel: nested too deep", e)
                 }
             return restored as? StopToStopModel
                 ?: throw IllegalArgumentException("not a serialized StopToStopModel: ${restored?.javaClass?.name}")

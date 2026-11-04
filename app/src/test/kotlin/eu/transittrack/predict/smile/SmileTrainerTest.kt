@@ -86,6 +86,29 @@ class SmileTrainerTest {
     }
 
     @Test
+    fun deeplyNestedPayloadIsRejected() {
+        var nested: Any = "leaf"
+        repeat(400) { nested = arrayListOf(nested) }
+        assertFailsWith<IllegalArgumentException> { StopToStopModel.fromBytes(serialize(nested)) }
+    }
+
+    @Test
+    fun oversizedArrayIsRejected() {
+        assertFailsWith<IllegalArgumentException> { StopToStopModel.fromBytes(serialize(IntArray(2_000_000))) }
+    }
+
+    @Test
+    fun foreignClassIsRejected() {
+        assertFailsWith<IllegalArgumentException> { StopToStopModel.fromBytes(serialize(java.util.ArrayList<Int>())) }
+    }
+
+    private fun serialize(o: Any): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        java.io.ObjectOutputStream(out).use { it.writeObject(o) }
+        return out.toByteArray()
+    }
+
+    @Test
     fun corruptBytesThrowIllegalArgumentException() {
         assertFailsWith<IllegalArgumentException> { StopToStopModel.fromBytes(byteArrayOf(1, 2, 3)) }
     }

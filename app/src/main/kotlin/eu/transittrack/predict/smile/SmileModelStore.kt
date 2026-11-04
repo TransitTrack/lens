@@ -80,9 +80,18 @@ class SmileModelStore(
         }
     }
 
-    /** The first [refresh]; the scheduled ones start one interval later. */
+    /**
+     * The first [refresh]; the scheduled ones start one interval later. Never fails startup: a feed
+     * whose model can't be loaded predicts nothing with SMILE_GBM until a later refresh or training.
+     */
     @EventListener(ApplicationReadyEvent::class)
-    fun refreshOnStartup() = refresh()
+    fun refreshOnStartup() {
+        try {
+            refresh()
+        } catch (e: Exception) {
+            log.error("smile model refresh on startup failed; retrying on the next scheduled refresh", e)
+        }
+    }
 
     private fun load(feedCode: String) {
         val row = models.find(feedCode, PredictionAlgorithm.SMILE_GBM) ?: return
