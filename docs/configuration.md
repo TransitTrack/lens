@@ -43,7 +43,7 @@ transittrack:
           poll-interval-sec: 15              # default 15
           assignment-mode: FULL_INFERENCE    # TRUST_DESCRIPTOR | DESCRIPTOR_THEN_INFER | FULL_INFERENCE
           enabled: true                      # default true
-          prediction-algorithms: [ KALMAN, SCHEDULE_ADHERENCE ] # first is the designated read/UI default
+          prediction-algorithms: [ KALMAN, SCHEDULE_ADHERENCE ] # SCHEDULE_ADHERENCE | HISTORICAL_AVERAGE | KALMAN | SMILE_GBM; first is the designated read/UI default
           headers:                           # optional outbound request headers
             x-api-key: "…"
 ```
@@ -184,10 +184,25 @@ Full behavior: [docs/predictions.md](predictions.md).
 | `retention.accuracy-days` | `30` | Age-based prune of `prediction_accuracy` |
 | `retention.raw-crossing-days` | `90` | Age-based prune of raw `avl_stop_crossing` history |
 | `retention.sweep-cron` | `0 15 * * * *` (hourly, minute 15) | `PredictionRetentionScheduler` cadence |
+| `smile.train-cron` | `0 30 3 * * *` (daily, 03:30) | `SmileTrainingJob` cadence: trains the SMILE_GBM model of every enabled feed listing `smile_gbm`; `role-predictor` only, once per cluster (ShedLock `predict-smile-train`) |
+| `smile.refresh-ms` | `300000` | How often every node checks `prediction_model` for a newer stored model (also once on startup) |
+| `smile.min-training-rows` | `2000` | Fewer usable crossings than this: no model is trained and the feed keeps its previous one (none before the first successful run) |
+| `smile.max-training-rows` | `200000` | Training takes at most this many of the newest crossings; must be `>= smile.min-training-rows`. Raise it on very busy feeds whose window would otherwise miss weekends |
+| `smile.training-days` | `60` | Crossings from this many days back are eligible; must be `<= retention.raw-crossing-days` |
+| `smile.trees` | `200` | Boosting iterations per quantile model |
+| `smile.max-depth` | `6` | Maximum tree depth (at least 2) |
+| `smile.shrinkage` | `0.1` | Learning rate, in `(0, 1]` |
+| `smile.subsample` | `0.7` | Fraction of rows sampled per tree, in `(0, 1]` |
+| `smile.low-quantile` | `0.1` | Lower range quantile, in `(0, 0.5)`; with `high-quantile` it sets the range's width (0.1..0.9 = ~80%) |
+| `smile.high-quantile` | `0.9` | Upper range quantile, in `(0.5, 1)` |
+| `late.schedule-tolerance-sec` | `300` | Seconds past the scheduled arrival tolerated before a SMILE_GBM prediction (and its scored actual) counts as late; `>= 0` |
+| `late.headway-fraction` | `0.5` | Where a scheduled headway is known, the margin is tightened to this fraction of it when smaller than the tolerance; `> 0` |
 
 Per-feed `prediction-algorithms` is set in `transittrack.feed.feeds[].avl` —
-see §1. The configuration-class master-switch default is `false`; the table
-above reflects the shipped `application.yaml`, which explicitly enables it.
+see §1. SMILE_GBM, its range and late assessment, and the shadow-to-live
+rollout are described in [predictions.md §9](predictions.md#9-smile_gbm-gradient-boosting).
+The configuration-class master-switch default is `false`; the table above
+reflects the shipped `application.yaml`, which explicitly enables it.
 
 ---
 
@@ -226,7 +241,7 @@ coordination this relies on: **[docs/deployment.md](deployment.md#3-roles)**.
 | `role-api` | GraphQL/web layer only — no background schedulers (they're always loaded, but this is the role meant to receive traffic) |
 | `role-ingester` | `GtfsIngestScheduler` |
 | `role-feed-processor` | `AvlPoller`, `AvlMatchProcessor`, plus all cluster-singleton housekeeping jobs |
-| `role-predictor` | `PredictionProcessor` |
+| `role-predictor` | `PredictionProcessor`, `SmileTrainingJob` |
 
 ---
 

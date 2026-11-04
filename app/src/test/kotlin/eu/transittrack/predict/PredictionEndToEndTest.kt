@@ -3,11 +3,14 @@ package eu.transittrack.predict
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import kotlin.random.Random
 import kotlin.test.Test
 
 import assertk.assertThat
+import assertk.assertions.contains
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
+import assertk.assertions.isGreaterThan
 import assertk.assertions.isGreaterThanOrEqualTo
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNotNull
@@ -21,6 +24,9 @@ import com.google.transit.realtime.GtfsRealtime.VehiclePosition
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.deleteAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -55,10 +61,20 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.learn.DayType
+import eu.transittrack.predict.learn.TimeBand
+import eu.transittrack.predict.model.AvlStopCrossingRepository
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
 import eu.transittrack.predict.model.PredictionAccuracyRepository
+import eu.transittrack.predict.model.PredictionCheckpointTable
+import eu.transittrack.predict.model.PredictionFrequencyRunTable
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.predict.smile.SmileModelStore
+import eu.transittrack.predict.smile.SmileTrainer
+import eu.transittrack.predict.smile.StopToStopFeatures
+import eu.transittrack.predict.smile.StopToStopModel
+import eu.transittrack.predict.smile.TrainingSample
 import eu.transittrack.support.PostgresPerClassTest
 
 /**
@@ -107,6 +123,9 @@ class PredictionEndToEndTest(
     @Autowired val travelTimeObservations: TravelTimeObservationRepository,
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
+    @Autowired val crossings: AvlStopCrossingRepository,
+    @Autowired val smileModels: SmileModelStore,
+    @Autowired val exposedDatabase: Database,
 ) : PostgresPerClassTest() {
     @MockitoBean
     lateinit var clock: Clock
@@ -143,14 +162,28 @@ class PredictionEndToEndTest(
     @AfterAll
     fun cleanup() {
         server.shutdown()
+        resetVehicleState()
+        feeds.deleteAll()
+    }
+
+    /**
+     * Forgets everything a driven vehicle left behind (reports, match and vehicle state, predictions,
+     * snapshots, accuracy, learned travel times), so each test drives `bus-1` from a clean slate
+     * whatever order the tests run in.
+     */
+    private fun resetVehicleState() {
         predictionAccuracies.deleteAll()
+        transaction(exposedDatabase) {
+            PredictionCheckpointTable.deleteAll()
+            PredictionFrequencyRunTable.deleteAll()
+        }
+        crossings.deleteAll()
         vehiclePredictions.deleteAll()
         travelTimeObservations.deleteAll()
         kalmanStates.deleteAll()
         vehicleMatches.deleteAll()
         vehicleStates.deleteAll()
         reports.deleteAll()
-        feeds.deleteAll()
     }
 
     private fun feedMessageBytes(
@@ -275,5 +308,142 @@ class PredictionEndToEndTest(
         assertThat(headway["waitSec"]).isNotNull()
         @Suppress("UNCHECKED_CAST")
         assertThat(headway["gapsSec"] as List<Int>).isEmpty()
+    }
+
+    /**
+     * SMILE_GBM in shadow: listed after KALMAN, it predicts and is scored (range included) on every
+     * report, but a stop board without an explicit algorithm keeps serving KALMAN.
+     *
+     * The model is a real Smile model, trained here with [SmileTrainer] on synthetic samples shaped
+     * like this fixture (route RA, 10-minute legs) and published straight to this context's
+     * [SmileModelStore]: nothing is written to `prediction_model`, so no other cached context's
+     * store refresh can pick it up. The nightly job that trains from `avl_stop_crossing` is covered
+     * by `SmileTrainingJobTest`.
+     */
+    @Test
+    fun smileRunsInShadowAndIsScoredWithoutBeingServed() {
+        resetVehicleState()
+        val feedRow = feeds.findByCode("mbta-vp")!!
+        val configured = feedRow.predictionAlgorithms
+        feedRow.predictionAlgorithms = listOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feedRow)
+        try {
+            smileModels.put(feedRow.code, syntheticModel(), Instant.parse("2026-09-07T01:30:00Z"))
+
+            val ctx = contextFactory.open(feedRow)!!
+            val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+            val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+            val len = geom.line.lengthM
+            val svcTs = { minute: Int ->
+                LocalDate
+                    .of(2026, 9, 7)
+                    .atTime(8, minute)
+                    .atZone(ctx.zone)
+                    .toInstant()
+            }
+
+            // T1 runs S1 08:00 -> S2 08:10 (1/3 along) -> S3 08:20 (2/3) -> S4 08:30. Reports every
+            // two minutes (within the reliable report gap), roughly on schedule, crossing S2 and S3.
+            val drive = listOf(6 to 0.20, 8 to 0.27, 10 to 0.36, 12 to 0.41, 14 to 0.47, 16 to 0.54, 18 to 0.60, 20 to 0.70)
+            for ((minute, fraction) in drive) {
+                server
+                    .enqueue(
+                        MockResponse()
+                            .setBody(Buffer().write(feedMessageBytes(geom.line.pointAt(len * fraction), svcTs(minute).epochSecond))),
+                    )
+                whenever(clock.instant()).thenReturn(svcTs(minute))
+                assertThat(ingestService.pollOnce(feedRow)).isEqualTo(1)
+                processor.processBatch()
+                predictionProcessor.processBatch()
+            }
+
+            // Both algorithms predict the vehicle's trip; SMILE_GBM's rows carry a symmetric range.
+            val vehicleRows =
+                tester
+                    .document(
+                        """{ vehiclePredictions(feedCode:"mbta-vp", vehicleId:"bus-1") {
+                             stopPathIndex algorithm predictedArrival actualArrival rangeLowSec rangeHighSec late
+                           } }""",
+                    ).execute()
+                    .path("vehiclePredictions")
+                    .entityList(Map::class.java)
+                    .get()
+            val algorithms = vehicleRows.mapNotNull { it["algorithm"] }.toSet()
+            assertThat(algorithms).contains("KALMAN")
+            assertThat(algorithms).contains("SMILE_GBM")
+            val smileRanged = vehicleRows.filter { it["algorithm"] == "SMILE_GBM" && it["rangeHighSec"] != null }
+            assertThat(smileRanged).isNotEmpty()
+            assertThat(smileRanged.all { (it["rangeLowSec"] as Number).toInt() == -(it["rangeHighSec"] as Number).toInt() }).isTrue()
+
+            // The stop board without an algorithm serves the first configured one: KALMAN, not SMILE_GBM.
+            val board = { algorithm: String? ->
+                tester
+                    .document(
+                        """{ stopPredictions(feedCode:"mbta-vp", stopId:"S4", routeId:"RA", directionId:0
+                             ${algorithm?.let { ", algorithm:$it" } ?: ""}) { algorithm predictedArrival rangeHighSec } }""",
+                    ).execute()
+                    .path("stopPredictions")
+                    .entityList(Map::class.java)
+                    .get()
+            }
+            val served = board(null)
+            assertThat(served).isNotEmpty()
+            assertThat(served.map { it["algorithm"] }.toSet()).isEqualTo(setOf("KALMAN"))
+            // Asked for explicitly, the shadow algorithm's board is there too.
+            val shadow = board("SMILE_GBM")
+            assertThat(shadow).isNotEmpty()
+            assertThat(shadow.map { it["algorithm"] }.toSet()).isEqualTo(setOf("SMILE_GBM"))
+
+            // Accuracy compares both configured algorithms; SMILE_GBM's forecasts were scored with their range.
+            val accuracy =
+                tester
+                    .document(
+                        """{ predictionAccuracy(feedCode:"mbta-vp") {
+                             algorithm sampleCount rangeSampleCount rangeCoverage
+                           } }""",
+                    ).execute()
+                    .path("predictionAccuracy")
+                    .entityList(Map::class.java)
+                    .get()
+            assertThat(accuracy.map { it["algorithm"] }.toSet()).isEqualTo(setOf("KALMAN", "SMILE_GBM"))
+            val smile = accuracy.single { it["algorithm"] == "SMILE_GBM" }
+            assertThat((smile["sampleCount"] as Number).toInt()).isGreaterThan(0)
+            assertThat((smile["rangeSampleCount"] as Number).toInt()).isGreaterThan(0)
+            assertThat(smile["rangeCoverage"]).isNotNull()
+            // KALMAN gives no range, so it has nothing to score one with.
+            val kalman = accuracy.single { it["algorithm"] == "KALMAN" }
+            assertThat((kalman["sampleCount"] as Number).toInt()).isGreaterThan(0)
+            assertThat((kalman["rangeSampleCount"] as Number).toInt()).isEqualTo(0)
+        } finally {
+            feedRow.predictionAlgorithms = configured
+            feeds.save(feedRow)
+            resetVehicleState()
+        }
+    }
+
+    /**
+     * A small but real SMILE_GBM model for route RA: stop-to-stop time ~1.05x the schedule seed with
+     * about 30 s of noise, over seeds around this fixture's 10-minute legs.
+     */
+    private fun syntheticModel(): StopToStopModel {
+        val routeIndex = mapOf("RA" to 0)
+        val rng = Random(7)
+        val samples =
+            List(600) {
+                val seedSec = 300.0 + rng.nextDouble() * 600.0
+                val features =
+                    StopToStopFeatures.vector(
+                        stopPathIndex = 1 + rng.nextInt(3),
+                        seedSec = seedSec,
+                        dayType = DayType.entries[rng.nextInt(DayType.entries.size)],
+                        timeBand = TimeBand.entries[rng.nextInt(TimeBand.entries.size)],
+                        tripStartSec = 6 * 3_600 + rng.nextInt(4 * 3_600),
+                        directionId = rng.nextInt(2),
+                        routeIndex = 0,
+                    )
+                TrainingSample(features, 1.05 * seedSec + (rng.nextDouble() - 0.5) * 60.0)
+            }
+        val props = PredictProperties.Smile(minTrainingRows = 100, maxTrainingRows = 1_000, trees = 30, maxDepth = 3)
+        return requireNotNull(SmileTrainer(props).train(samples, routeIndex)) { "synthetic training returned null" }
     }
 }
