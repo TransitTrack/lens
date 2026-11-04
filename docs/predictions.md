@@ -489,8 +489,8 @@ trained per AVL feed on that feed's own past stop crossings. Where
 `HISTORICAL_AVERAGE` and `KALMAN` learn one number per pattern, stop path and
 bucket, one model covers the whole feed and can combine its inputs (a route's
 evening legs run long on Saturdays, the long legs of one direction stretch in
-the morning peak), so it helps most on feeds with a lot of history and
-patterns whose learner buckets fill slowly. It is also the only algorithm that
+the morning peak); how much that gains on a given feed is what the shadow
+comparison (§9.7) measures. It is also the only algorithm that
 gives an arrival **range** and a **late assessment**.
 
 Predictions are accumulated stop by stop exactly as for the learned
@@ -571,7 +571,10 @@ leg's spread is taken from the gap between its 10th and 90th percentile
 (`(high - low) / (2 × 1.2816)`, a standard deviation); the legs' variances
 accumulate along the walk like the Kalman confidence, giving `confidenceSec`,
 and the range is `± round(1.2816 × confidenceSec)` — so it is **symmetric**
-(`rangeLowSec = -rangeHighSec`) and widens with the horizon. Stop path 0 is a
+(`rangeLowSec = -rangeHighSec`) and widens with the horizon. Summing the legs'
+variances assumes they vary independently; delays along a trip are usually
+correlated, so at long horizons the range can be too narrow and its coverage
+fall below 0.8 (see `byHorizon.rangeCoverage`). Stop path 0 is a
 departure, not an arrival, and gets neither range nor late assessment.
 
 `predictionAccuracy.rangeCoverage` (§5) checks the calibration: a healthy
