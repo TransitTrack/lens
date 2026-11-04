@@ -44,17 +44,26 @@ jobs:
       - name: Run full benchmark suite
         run: ./gradlew benchmark --no-daemon
 
-      # kotlinx-benchmark writes to a timestamped directory per run; the action needs one stable
-      # file path.
-      - name: Locate latest JMH output
+      # kotlinx-benchmark writes to a timestamped directory per run. The comparison action only
+      # accepts bare time units (for example, `ms`), while JMH reports per-operation units such as
+      # `ms/op`; it also identifies parameterized rows by `benchmark` alone. Keep the raw report
+      # untouched for the artifact/HTML view, and give the action a normalized copy with each
+      # parameter set encoded in its benchmark name.
+      - name: Prepare JMH output for comparison
         run: |
           latest=$(find app/build/reports/benchmarks/main -name benchmark.json -printf '%T@ %p\n' | sort -rn | head -n1 | cut -d' ' -f2-)
-          cp "$latest" app/build/benchmark-latest.json
+          jq '
+            map(
+              (.params // {} | to_entries | sort_by(.key) | map("\(.key)=\(.value)") | join(", ")) as $params |
+              .benchmark += (if $params == "" then "" else " [\($params)]" end) |
+              .primaryMetric.scoreUnit |= sub("/op$"; "")
+            )
+          ' "$latest" > app/build/benchmark-comparison.json
 
       - name: JMH Benchmark Action
         uses: kitlangton/jmh-benchmark-action@v0.1.1
         with:
-          jmh-output-path: app/build/benchmark-latest.json
+          jmh-output-path: app/build/benchmark-comparison.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Render HTML report
