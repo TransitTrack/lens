@@ -190,7 +190,7 @@ Full behavior: [docs/predictions.md](predictions.md).
 | `smile.max-training-rows` | `100000` | Training takes at most this many of the newest crossings; must be `>= smile.min-training-rows`. About 30–50 MB of extra heap at the fit's peak at the default, growing linearly. Raise it (and the predictor's heap, see [predictions.md §9.2](predictions.md#92-training)) on very busy feeds whose window would otherwise miss weekends |
 | `smile.training-days` | `60` | Crossings from this many days back are eligible; must be `<= retention.raw-crossing-days` |
 | `smile.trees` | `200` | Boosting iterations per quantile model |
-| `smile.max-depth` | `6` | Maximum tree depth (at least 2) |
+| `smile.max-depth` | `6` | Maximum tree depth; at least 2 (checked at startup) |
 | `smile.shrinkage` | `0.1` | Learning rate, in `(0, 1]` |
 | `smile.subsample` | `0.7` | Fraction of rows sampled per tree, in `(0, 1]` |
 | `smile.low-quantile` | `0.1` | Lower range quantile, in `(0, 0.5)`; with `high-quantile` it sets the range's width (0.1..0.9 = ~80%) |

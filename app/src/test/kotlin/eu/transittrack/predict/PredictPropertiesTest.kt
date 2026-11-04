@@ -106,6 +106,12 @@ class PredictPropertiesTest {
     }
 
     @Test
+    fun `smile rejects a max depth under 2`() {
+        assertFailure { PredictProperties.Smile(maxDepth = 1) }.isInstanceOf(IllegalArgumentException::class)
+        assertThat(PredictProperties.Smile(maxDepth = 2).maxDepth).isEqualTo(2)
+    }
+
+    @Test
     fun `smile max training rows defaults to 100k`() {
         assertThat(PredictProperties().smile.maxTrainingRows).isEqualTo(100_000)
     }

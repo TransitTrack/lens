@@ -150,7 +150,8 @@ data class PredictProperties(
             require(maxTrainingRows >= minTrainingRows) { "maxTrainingRows must be >= minTrainingRows" }
             require(trainingDays > 0) { "trainingDays must be > 0" }
             require(trees > 0) { "trees must be > 0" }
-            require(maxDepth > 0) { "maxDepth must be > 0" }
+            // Smile rejects a depth under 2 only once a fit starts; fail at startup instead.
+            require(maxDepth >= 2) { "maxDepth must be >= 2" }
             require(shrinkage.isFinite() && shrinkage > 0 && shrinkage <= 1) { "shrinkage must be in (0, 1]" }
             require(subsample.isFinite() && subsample > 0 && subsample <= 1) { "subsample must be in (0, 1]" }
             require(lowQuantile.isFinite() && lowQuantile > 0 && lowQuantile < 0.5) { "lowQuantile must be in (0, 0.5)" }

@@ -69,10 +69,11 @@ class TrainingSet(
 class SmileTrainer(
     private val props: PredictProperties.Smile,
 ) {
-    init {
-        // Smile rejects maxDepth < 2 only once training starts; fail at wiring time instead.
-        require(props.maxDepth >= 2) { "smile.maxDepth must be >= 2" }
-    }
+    /** [train] over [samples]; see there. */
+    fun train(
+        samples: List<TrainingSample>,
+        routeIndex: Map<String, Int>,
+    ): StopToStopModel? = train(TrainingSet.of(samples), routeIndex)
 
     /**
      * Returns `null` when [samples] holds fewer than [PredictProperties.Smile.minTrainingRows] usable
