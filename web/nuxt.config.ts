@@ -8,7 +8,10 @@ export default defineNuxtConfig({
   // universal code (e.g. the Apollo plugin) runs during server rendering with no
   // browser origin to resolve relative GraphQL URIs against.
   ssr: false,
-  modules: ['@nuxt/ui', '@nuxt/eslint', 'nuxt-maplibre', '@vueuse/nuxt', '@nuxt/content', '@nuxtjs/i18n'],
+  // Nuxt 4.6 resolves an omitted dev-server host to an internal resolver object;
+  // pin it to a loopback hostname so the CLI receives the string it expects.
+  devServer: { host: 'localhost' },
+  modules: ['@nuxt/ui', '@nuxt/eslint', '@vueuse/nuxt', '@nuxt/content', '@nuxtjs/i18n'],
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
@@ -39,7 +42,9 @@ export default defineNuxtConfig({
         remarkPlugins: {
           'docs-links': {
             instance: remarkDocLinks,
-            src: fileURLToPath(new URL('./content-plugins/remarkDocLinks.default.ts', import.meta.url)),
+            src: fileURLToPath(
+              new URL('./content-plugins/remarkDocLinks.default.ts', import.meta.url),
+            ),
             options: { repoBlobUrl: 'https://github.com/TransitTrack/lens/blob/main/' },
           },
         },
@@ -48,7 +53,9 @@ export default defineNuxtConfig({
           // stringifies the whole plugin object, leaking `src` in as the call argument
           'docs-mermaid': {
             instance: rehypeMermaid,
-            src: fileURLToPath(new URL('./content-plugins/rehypeMermaid.default.ts', import.meta.url)),
+            src: fileURLToPath(
+              new URL('./content-plugins/rehypeMermaid.default.ts', import.meta.url),
+            ),
             options: {},
           },
         },
@@ -71,11 +78,7 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       exclude: ['maplibre-gl'],
-      include: [
-        '@apollo/client/core',
-        '@indoorequal/vue-maplibre-gl',
-        '@vue/apollo-composable',
-      ]
+      include: ['@apollo/client/core', '@indoorequal/vue-maplibre-gl', '@vue/apollo-composable'],
     },
   },
   nitro: {

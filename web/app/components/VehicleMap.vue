@@ -51,7 +51,7 @@ const colorMode = useColorMode()
 // tiles instead of nearly disappearing into them.
 const markerContrastColor = computed(() => (colorMode.value === 'dark' ? '#000000' : '#ffffff'))
 
-// nuxt-maplibre auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
+// The local MapLibre module auto-imports vue-maplibre-gl's `useMap` as `useMglMap`. It hands
 // back the maplibre-gl Map registered under MAP_ID: `map.map` is the raw instance
 // and `map.isLoaded` flips true once style + canvas are ready (fitBounds/flyTo
 // before that silently no-op).
