@@ -20,6 +20,8 @@ import org.springframework.context.annotation.Primary
 import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.avl.model.AvlReportRow
+import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -79,7 +81,7 @@ class TrustDescriptorMatcherTest(
         currentStopId: String? = null,
         currentStopSequence: Int? = null,
     ): AvlReportView =
-        AvlReportView(
+        AvlReportRow(
             id = 1L,
             feedCode = "f1",
             vehicleId = "v",
@@ -101,6 +103,9 @@ class TrustDescriptorMatcherTest(
             currentStatus = null,
             occupancyStatus = null,
             congestionLevel = null,
+            matchStatus = MatchStatus.PENDING,
+            matchedAt = null,
+            createdAt = Instant.EPOCH,
         )
 
     @Test

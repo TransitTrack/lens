@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.avl.match.VehicleStateView
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportTable
 import eu.transittrack.avl.model.VehicleMatch
@@ -19,29 +20,29 @@ import eu.transittrack.db.batchInsertWithoutResults
 import eu.transittrack.db.batchUpsertWithoutResults
 
 data class VehicleStateUpsert(
-    val feedCode: String,
-    val vehicleId: String,
-    val vehicleLabel: String?,
-    val reportTs: Instant,
-    val lat: Double,
-    val lon: Double,
-    val bearing: Double?,
-    val speedMps: Double?,
-    val occupancyStatus: Int?,
-    val matched: Boolean,
-    val stale: Boolean,
-    val consecutiveFailures: Int,
-    val revisionId: Long?,
-    val tripRowId: Long?,
-    val blockPk: Long?,
-    val tripPatternId: Long?,
-    val stopPathIndex: Int?,
-    val distanceAlongTripM: Double?,
-    val scheduleAdherenceSec: Int?,
-    val snappedLat: Double?,
-    val snappedLon: Double?,
+    override val feedCode: String,
+    override val vehicleId: String,
+    override val vehicleLabel: String?,
+    override val reportTs: Instant,
+    override val lat: Double,
+    override val lon: Double,
+    override val bearing: Double?,
+    override val speedMps: Double?,
+    override val occupancyStatus: Int?,
+    override val matched: Boolean,
+    override val stale: Boolean,
+    override val consecutiveFailures: Int,
+    override val revisionId: Long?,
+    override val tripRowId: Long?,
+    override val blockPk: Long?,
+    override val tripPatternId: Long?,
+    override val stopPathIndex: Int?,
+    override val distanceAlongTripM: Double?,
+    override val scheduleAdherenceSec: Int?,
+    override val snappedLat: Double?,
+    override val snappedLon: Double?,
     val updatedAt: Instant,
-)
+) : VehicleStateView
 
 /**
  * Bulk persistence for the AVL pipeline: JDBC-batched inserts of `avl_report` and `vehicle_match`

@@ -28,6 +28,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.db.RowTable
 import eu.transittrack.util.paging.PageRequest
 import eu.transittrack.util.paging.PageResult
@@ -36,31 +37,31 @@ import eu.transittrack.util.paging.PageResult
 enum class MatchStatus { PENDING, MATCHED, UNMATCHED, SKIPPED }
 
 class AvlReportRow(
-    var feedCode: String,
-    var vehicleId: String,
-    var vehicleLabel: String?,
-    var ts: Instant,
-    var lat: Double,
-    var lon: Double,
-    var bearing: Double?,
-    var speedMps: Double?,
-    var odometerM: Double?,
-    var descTripId: String?,
-    var descRouteId: String?,
-    var descDirectionId: Int?,
-    var descStartDate: LocalDate?,
-    var descStartTimeSec: Int?,
-    var descScheduleRelationship: Int?,
-    var currentStopSequence: Int?,
-    var currentStopId: String?,
-    var currentStatus: Int?,
-    var occupancyStatus: Int?,
-    var congestionLevel: Int?,
+    override var feedCode: String,
+    override var vehicleId: String,
+    override var vehicleLabel: String?,
+    override var ts: Instant,
+    override var lat: Double,
+    override var lon: Double,
+    override var bearing: Double?,
+    override var speedMps: Double?,
+    override var odometerM: Double?,
+    override var descTripId: String?,
+    override var descRouteId: String?,
+    override var descDirectionId: Int?,
+    override var descStartDate: LocalDate?,
+    override var descStartTimeSec: Int?,
+    override var descScheduleRelationship: Int?,
+    override var currentStopSequence: Int?,
+    override var currentStopId: String?,
+    override var currentStatus: Int?,
+    override var occupancyStatus: Int?,
+    override var congestionLevel: Int?,
     var matchStatus: MatchStatus,
     var matchedAt: Instant?,
     var createdAt: Instant,
-    var id: Long? = null,
-)
+    override var id: Long? = null,
+) : AvlReportView
 
 data class VehicleTsProjection(
     val vehicleId: String,

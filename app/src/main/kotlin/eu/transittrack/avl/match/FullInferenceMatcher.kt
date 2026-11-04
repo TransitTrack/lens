@@ -14,7 +14,6 @@ import eu.transittrack.schedule.model.TripRef
 @Component
 class FullInferenceMatcher(
     private val spatial: SpatialMatcher,
-    private val temporal: TemporalMatcher,
     private val scorer: MatchScorer,
     props: AvlProperties,
 ) : VehicleMatcher {
@@ -37,7 +36,7 @@ class FullInferenceMatcher(
         val serviceDate = report.descStartDate ?: report.ts.atZone(ctx.zone).toLocalDate()
         val serviceIds = ctx.activeServiceIds(serviceDate)
         if (serviceIds.isEmpty()) return MatchOutcome.Failed
-        val actualServiceSec = temporal.toServiceSeconds(report.ts, ctx.zone, serviceDate)
+        val actualServiceSec = TemporalMatcher.toServiceSeconds(report.ts, ctx.zone, serviceDate)
 
         // 2. candidate trips: derived, active service, ts within [start-lead, end+slack], extent near the point.
         val descTrip = report.descTripId?.let { ctx.tripByGtfsId(it) }
@@ -76,7 +75,7 @@ class FullInferenceMatcher(
 
                 // temporal matching
                 val adherence =
-                    temporal.adherenceSec(
+                    TemporalMatcher.adherenceSec(
                         schedule,
                         geom.stopPathCumM,
                         sm.distanceAlongTripM,

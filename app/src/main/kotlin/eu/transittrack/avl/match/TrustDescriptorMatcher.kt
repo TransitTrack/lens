@@ -20,7 +20,6 @@ import eu.transittrack.util.observability.TransitTrackMetrics
 @Component
 class TrustDescriptorMatcher(
     private val spatial: SpatialMatcher,
-    private val temporal: TemporalMatcher,
     private val metrics: TransitTrackMetrics,
     props: AvlProperties,
 ) : VehicleMatcher {
@@ -38,7 +37,7 @@ class TrustDescriptorMatcher(
 
         // 2. service date + actual service seconds
         val serviceDate = inferServiceDate(report, trip, ctx.zone)
-        val actualServiceSec = temporal.toServiceSeconds(report.ts, ctx.zone, serviceDate)
+        val actualServiceSec = TemporalMatcher.toServiceSeconds(report.ts, ctx.zone, serviceDate)
 
         // 3. spatial match with the sequential constraint: prev on the SAME trip, and the descriptor's
         //    current stop, whichever is further along.
@@ -82,7 +81,7 @@ class TrustDescriptorMatcher(
 
         // 5. temporal
         val adherence =
-            temporal.adherenceSec(
+            TemporalMatcher.adherenceSec(
                 ctx.scheduleOf(activeTrip.id),
                 activeGeom.stopPathCumM,
                 match.distanceAlongTripM,

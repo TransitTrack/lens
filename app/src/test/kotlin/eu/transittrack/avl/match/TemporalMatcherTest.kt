@@ -10,8 +10,6 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 
 class TemporalMatcherTest {
-    private val tm = TemporalMatcher()
-
     // Mirrors production pattern geometry: stop_path 0 always has zero length - it's the degenerate
     // path ending at the trip's own first stop (see PatternBuild.kt's `i == 0 -> segLen = 0.0`), so
     // stopPathCumM[0] == stopPathCumM[1]. Path 1 then runs from stop 0 to stop 1 (1000m), path 2
@@ -27,7 +25,7 @@ class TemporalMatcherTest {
     fun `interpolates scheduled clock at a mid-path distance`() {
         // halfway along path 1 (stop 0 -> stop 1): dep 36000 (stop 0) to arr 36120 (stop 1) → 36060
         // actual 36090 → +30 s late
-        assertThat(tm.adherenceSec(sched, cum, 500.0, 36090, noSchedule = false, patternLengthM = 2000.0)).isEqualTo(30)
+        assertThat(TemporalMatcher.adherenceSec(sched, cum, 500.0, 36090, noSchedule = false, patternLengthM = 2000.0)).isEqualTo(30)
     }
 
     @Test
@@ -35,29 +33,29 @@ class TemporalMatcherTest {
         // distanceAlongTripM = 0, the degenerate path-0 segment - scheduledSec must resolve to
         // schedule[0]'s own time (36000, the trip start), not a time borrowed from the NEXT stop's
         // SchedulePoint. 5 minutes early (35700) must read -300s, never positive/"late".
-        assertThat(tm.adherenceSec(sched, cum, 0.0, 35700, noSchedule = false, patternLengthM = 2000.0)).isEqualTo(-300)
+        assertThat(TemporalMatcher.adherenceSec(sched, cum, 0.0, 35700, noSchedule = false, patternLengthM = 2000.0)).isEqualTo(-300)
     }
 
     @Test
     fun `no schedule returns null`() {
-        assertThat(tm.adherenceSec(sched, cum, 500.0, 36090, noSchedule = true, patternLengthM = 2000.0)).isNull()
+        assertThat(TemporalMatcher.adherenceSec(sched, cum, 500.0, 36090, noSchedule = true, patternLengthM = 2000.0)).isNull()
     }
 
     @Test
     fun `absurd adherence is nulled`() {
-        assertThat(tm.adherenceSec(sched, cum, 500.0, 50000, noSchedule = false, patternLengthM = 2000.0)).isNull()
+        assertThat(TemporalMatcher.adherenceSec(sched, cum, 500.0, 50000, noSchedule = false, patternLengthM = 2000.0)).isNull()
     }
 
     @Test
     fun `interpolates the last path through the end of the geometry`() {
-        assertThat(tm.adherenceSec(sched, cum, 1500.0, 36225, false, 2000.0)).isEqualTo(0)
-        assertThat(tm.adherenceSec(sched, cum, 2000.0, 36300, false, 2000.0)).isEqualTo(0)
+        assertThat(TemporalMatcher.adherenceSec(sched, cum, 1500.0, 36225, false, 2000.0)).isEqualTo(0)
+        assertThat(TemporalMatcher.adherenceSec(sched, cum, 2000.0, 36300, false, 2000.0)).isEqualTo(0)
     }
 
     @Test
     fun `interpolates the only travel path of a two-stop trip`() {
         val schedule = listOf(SchedulePoint(0, 36000, 36000), SchedulePoint(1, 36600, 36600))
-        assertThat(tm.adherenceSec(schedule, doubleArrayOf(0.0, 0.0), 500.0, 36300, false, 1000.0)).isEqualTo(0)
+        assertThat(TemporalMatcher.adherenceSec(schedule, doubleArrayOf(0.0, 0.0), 500.0, 36300, false, 1000.0)).isEqualTo(0)
     }
 
     @Test
@@ -69,7 +67,7 @@ class TemporalMatcherTest {
             .atTime(1, 0)
             .atZone(z)
             .toInstant()
-        assertThat(tm.toServiceSeconds(ts, z, LocalDate.of(2026, 9, 4))).isEqualTo(90000)
+        assertThat(TemporalMatcher.toServiceSeconds(ts, z, LocalDate.of(2026, 9, 4))).isEqualTo(90000)
     }
 
     @Test
@@ -77,9 +75,9 @@ class TemporalMatcherTest {
         val z = ZoneId.of("Europe/Bucharest")
         // 2026-10-25: clocks go back at 04:00. A GTFS 06:11 must stay 06:11 on the wall, not 05:11.
         val autumn = LocalDate.of(2026, 10, 25)
-        assertThat(tm.toServiceSeconds(autumn.atTime(6, 11).atZone(z).toInstant(), z, autumn)).isEqualTo(6 * 3600 + 11 * 60)
+        assertThat(TemporalMatcher.toServiceSeconds(autumn.atTime(6, 11).atZone(z).toInstant(), z, autumn)).isEqualTo(6 * 3600 + 11 * 60)
         // 2026-03-29: clocks go forward at 03:00. A GTFS 08:00 is 08:00 on the wall, not 09:00.
         val spring = LocalDate.of(2026, 3, 29)
-        assertThat(tm.toServiceSeconds(spring.atTime(8, 0).atZone(z).toInstant(), z, spring)).isEqualTo(8 * 3600)
+        assertThat(TemporalMatcher.toServiceSeconds(spring.atTime(8, 0).atZone(z).toInstant(), z, spring)).isEqualTo(8 * 3600)
     }
 }

@@ -4,19 +4,21 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-
-import org.springframework.stereotype.Component
+import kotlin.math.abs
 
 /**
  * Schedule adherence: interpolate the scheduled service-day clock at the vehicle's along-trip
  * distance from the trip's ordered [SchedulePoint]s and the per-pattern cumulative stop-path
  * distances, then subtract from the actual service-day seconds. Negative = early.
  */
-@Component
-class TemporalMatcher {
-    private companion object {
-        const val MAX_ABS_ADHERENCE_SEC = 7_200
-    }
+object TemporalMatcher {
+    const val MAX_ABS_ADHERENCE_SEC = 7_200
+
+    fun toServiceSeconds(
+        ts: Instant,
+        zone: ZoneId,
+        serviceDate: LocalDate,
+    ): Int = Duration.between(serviceDayStart(serviceDate, zone), ts).seconds.toInt()
 
     fun adherenceSec(
         schedule: List<SchedulePoint>,
@@ -53,12 +55,6 @@ class TemporalMatcher {
         val scheduledSec = from + frac * (to - from)
 
         val adherence = (actualServiceSec - scheduledSec).toInt()
-        return if (kotlin.math.abs(adherence) > MAX_ABS_ADHERENCE_SEC) null else adherence
+        return if (abs(adherence) > MAX_ABS_ADHERENCE_SEC) null else adherence
     }
-
-    fun toServiceSeconds(
-        ts: Instant,
-        zone: ZoneId,
-        serviceDate: LocalDate,
-    ): Int = Duration.between(serviceDayStart(serviceDate, zone), ts).seconds.toInt()
 }

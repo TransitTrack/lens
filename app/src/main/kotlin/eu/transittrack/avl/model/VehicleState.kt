@@ -29,34 +29,35 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.avl.match.VehicleStateView
 import eu.transittrack.db.EpochSecondsBetween
 import eu.transittrack.db.RowTable
 
 class VehicleState(
-    var feedCode: String,
-    var vehicleId: String,
-    var vehicleLabel: String?,
-    var reportTs: Instant,
-    var lat: Double,
-    var lon: Double,
-    var bearing: Double?,
-    var speedMps: Double?,
-    var occupancyStatus: Int?,
-    var matched: Boolean,
-    var stale: Boolean,
-    var consecutiveFailures: Int,
-    var revisionId: Long?,
-    var tripRowId: Long?,
-    var blockPk: Long?,
-    var tripPatternId: Long?,
-    var stopPathIndex: Int?,
-    var distanceAlongTripM: Double?,
-    var scheduleAdherenceSec: Int?,
-    var snappedLat: Double?,
-    var snappedLon: Double?,
+    override var feedCode: String,
+    override var vehicleId: String,
+    override var vehicleLabel: String?,
+    override var reportTs: Instant,
+    override var lat: Double,
+    override var lon: Double,
+    override var bearing: Double?,
+    override var speedMps: Double?,
+    override var occupancyStatus: Int?,
+    override var matched: Boolean,
+    override var stale: Boolean,
+    override var consecutiveFailures: Int,
+    override var revisionId: Long?,
+    override var tripRowId: Long?,
+    override var blockPk: Long?,
+    override var tripPatternId: Long?,
+    override var stopPathIndex: Int?,
+    override var distanceAlongTripM: Double?,
+    override var scheduleAdherenceSec: Int?,
+    override var snappedLat: Double?,
+    override var snappedLon: Double?,
     var updatedAt: Instant,
     var id: Long? = null,
-)
+) : VehicleStateView
 
 object VehicleStateTable : RowTable<VehicleState>("vehicle_state") {
     val id = long("id").autoIncrement(Sequence("vehicle_state_seq", startWith = 1, incrementBy = 50))

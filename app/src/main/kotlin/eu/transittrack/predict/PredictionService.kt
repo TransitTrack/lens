@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.match.AvlMatchContext
-import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.avl.match.MatchOutcome
 import eu.transittrack.avl.match.cache.CachedLearningKeyReader
 import eu.transittrack.avl.match.cache.CachedTravelTimesReader
@@ -107,7 +106,7 @@ class PredictionService(
         generatePredictions: Boolean = true,
     ) {
         val trip = ctx.trip(outcome.tripRowId) ?: return
-        val serviceDate = inferServiceDate(report.toView(), trip, ctx.zone)
+        val serviceDate = inferServiceDate(report, trip, ctx.zone)
         val receivedAt = clock.instant()
 
         val detected = if (prev != null && prev.tripRowId == outcome.tripRowId) detectPasses(report, prev, outcome, ctx) else null
@@ -531,28 +530,3 @@ class PredictionService(
         writer.insertAccuracy(rows)
     }
 }
-
-private fun AvlReportRow.toView() =
-    AvlReportView(
-        id = id!!,
-        feedCode = feedCode,
-        vehicleId = vehicleId,
-        vehicleLabel = vehicleLabel,
-        ts = ts,
-        lat = lat,
-        lon = lon,
-        bearing = bearing,
-        speedMps = speedMps,
-        odometerM = odometerM,
-        descTripId = descTripId,
-        descRouteId = descRouteId,
-        descDirectionId = descDirectionId,
-        descStartDate = descStartDate,
-        descStartTimeSec = descStartTimeSec,
-        descScheduleRelationship = descScheduleRelationship,
-        currentStopSequence = currentStopSequence,
-        currentStopId = currentStopId,
-        currentStatus = currentStatus,
-        occupancyStatus = occupancyStatus,
-        congestionLevel = congestionLevel,
-    )
