@@ -168,6 +168,31 @@ class SmileGbmAlgorithmTest {
     }
 
     @Test
+    fun continuationTripFirstStopGetsNoRangeOrLateness() {
+        // T1 runs to S3, then the block continues as T2 from S0 at 08:10. T2's stop path 0 is a
+        // departure event: it keeps the accumulated confidence but gets no arrival-anchored range or late flag.
+        val ctx =
+            FakeContext(
+                listOf(trip(1), trip(2, EIGHT + 600)),
+                mapOf(1L to schedule(EIGHT), 2L to schedule(EIGHT + 600)),
+            )
+
+        val predictions = strategy(model()).run(horizon(1, 2, 3) + horizon(0, 1, 2, tripRowId = 2), at(EIGHT), ctx)
+
+        val continuation = predictions.single { it.tripRowId == 2L && it.stopPathIndex == 0 }
+        assertThat(continuation.confidenceSec).isNotNull()
+        assertThat(continuation.rangeLowSec).isNull()
+        assertThat(continuation.rangeHighSec).isNull()
+        assertThat(continuation.lateProbability).isNull()
+        assertThat(continuation.late).isNull()
+        for (p in predictions.filter { it.stopPathIndex > 0 }) {
+            assertThat(p.rangeHighSec).isNotNull()
+            assertThat(p.late).isNotNull()
+        }
+        assertThat(predictions.count { it.tripRowId == 2L && it.stopPathIndex > 0 }).isEqualTo(2)
+    }
+
+    @Test
     fun lateWhenPredictedBeyondTolerance() {
         // Predicted at S1 at 08:01:40; scheduled 10 minutes earlier.
         val ctx = FakeContext(listOf(trip(1)), mapOf(1L to schedule(EIGHT + 100 - 600 - 100)))

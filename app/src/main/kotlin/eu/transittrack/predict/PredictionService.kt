@@ -485,7 +485,8 @@ class PredictionService(
      *
      * A snapshot's range and late assessment are kept with its score; a late assessment is scored
      * against the same scheduled arrival and margin it was made with ([ScheduledLateness]), rebuilt
-     * from the schedule here rather than stored with the snapshot.
+     * from the schedule here rather than stored with the snapshot. Stop path 0 is a departure event,
+     * so neither is scored there.
      */
     private fun scoreCheckpoints(
         feed: AvlFeed,
@@ -503,6 +504,9 @@ class PredictionService(
         val stopIds = PatternStopIds(ctx)
         for ((stopIndex, snapshots) in checkpoints.groupBy { it.stopPathIndex }) {
             val actualTs = passedAt.getValue(stopIndex)
+            // Stop path 0's snapshot and crossing are departures: an arrival-anchored range or late
+            // assessment there (e.g. on rows written before generation stopped emitting them) is not scored.
+            val arrivalEvent = stopIndex != 0
             val lateReference: LatenessReference? by lazy { lateness.reference(ctx, serviceDate, trip, stopIndex, stopIds) }
             val cohorts = snapshots
                 .filter {
@@ -540,10 +544,10 @@ class PredictionService(
                             directionId = trip.directionId,
                             dayType = bucket.dayType,
                             timeBand = bucket.timeBand,
-                            rangeLowSec = c.rangeLowSec,
-                            rangeHighSec = c.rangeHighSec,
+                            rangeLowSec = c.rangeLowSec.takeIf { arrivalEvent },
+                            rangeHighSec = c.rangeHighSec.takeIf { arrivalEvent },
                             predictedLate = c.late,
-                            actualLate = c.late?.let { lateReference?.let { lateness.isLate(it, actualTs) } },
+                            actualLate = c.late?.takeIf { arrivalEvent }?.let { lateReference?.let { lateness.isLate(it, actualTs) } },
                         ),
                     )
                     if (errorSec != null) metrics.predictionAccuracy(feed.code, c.algorithm.name.lowercase(), errorSec)

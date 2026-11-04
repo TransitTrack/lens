@@ -27,7 +27,8 @@ import eu.transittrack.schedule.model.TripRef
  * seconds, and a late assessment ([ScheduledLateness]) against its scheduled arrival, with the
  * scheduled headway at that stop (as the `headway` read model computes it) as the margin where the
  * route has one; scoring judges the actual arrival against the same reference. A frequency-based
- * trip has no clock-time arrival, so it gets a range but no late assessment.
+ * trip has no clock-time arrival, so it gets a range but no late assessment. Stop path 0 (a trip's
+ * first stop, also a block continuation's) is a departure event and gets neither.
  *
  * Never throws for model reasons: with no model for the feed it predicts nothing; a stop path
  * without a schedule seed, or one the model can't estimate (rejected features, non-finite output),
@@ -121,6 +122,9 @@ class SmileGbmAlgorithm(
         trip: TripRef?,
         stopIds: PatternStopIds,
     ): GeneratedPrediction {
+        // Stop path 0 is a departure event (its snapshot and its crossing are departures), so a range
+        // and late flag anchored on the arrival there would be scored against the wrong event.
+        if (p.stopPathIndex == 0) return p
         val confidenceSec = p.confidenceSec ?: return p
         val rangeHighSec = (Z_80 * confidenceSec).roundToInt()
         val lateness = lateness(p, confidenceSec, serviceDate, ctx, trip, stopIds)

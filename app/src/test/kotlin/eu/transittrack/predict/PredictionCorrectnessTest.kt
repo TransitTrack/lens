@@ -243,6 +243,23 @@ class PredictionCorrectnessTest(
     }
 
     @Test
+    fun firstStopDepartureIsNeverScoredForRangeOrLateness() {
+        // Leaving S1 at about 08:20, twenty minutes after its 08:00 departure: stop path 0 is a
+        // departure, so an (arrival-anchored) range or late flag on its snapshot is not scored.
+        val at = serviceSecToInstant(date, 8 * 3600 + 20 * 60, ctx.zone)
+        advance("T1", 0.0, at)
+        forecastSmileCheckpoints(at.plusSeconds(20), late = false)
+        advance("T1", 60.0, at.plusSeconds(60))
+
+        val scored = accuracy.findAll().filter { it.stopPathIndex == 0 }
+        val smile = scored.single { it.algorithm == PredictionAlgorithm.SMILE_GBM }
+        assertThat(smile.predictedTs).isEqualTo(at.plusSeconds(20))
+        assertThat(smile.rangeLowSec).isNull()
+        assertThat(smile.rangeHighSec).isNull()
+        assertThat(smile.actualLate).isNull()
+    }
+
+    @Test
     fun checkpointWithoutLateAssessmentHasNullOutcome() {
         crossS2TenMinutesLate(late = null)
 
