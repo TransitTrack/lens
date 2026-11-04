@@ -3,7 +3,7 @@ package eu.transittrack.avl.match
 import java.time.Instant
 import java.time.LocalDate
 
-import eu.transittrack.Point
+import eu.transittrack.geo.Point
 
 /** Lean, JPA-free mirror of `eu.transittrack.avl.model.AvlReportRow`. */
 data class AvlReportView(

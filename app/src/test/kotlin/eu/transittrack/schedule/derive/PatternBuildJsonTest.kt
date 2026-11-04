@@ -5,8 +5,8 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 
-import eu.transittrack.Point
 import eu.transittrack.ProjectJson
+import eu.transittrack.geo.Point
 
 class PatternBuildJsonTest {
     @Test

@@ -1,6 +1,6 @@
 package eu.transittrack.gtfs.api.dto
 
-import eu.transittrack.Extent
+import eu.transittrack.geo.Extent
 
 data class ExtentDto(
     val minLat: Double,

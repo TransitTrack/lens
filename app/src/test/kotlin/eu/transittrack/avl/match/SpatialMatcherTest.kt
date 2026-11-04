@@ -8,9 +8,9 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 
-import eu.transittrack.Point
-import eu.transittrack.Polyline
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Polyline
 
 class SpatialMatcherTest {
     private val matcher = SpatialMatcher(AvlProperties())

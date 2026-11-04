@@ -6,10 +6,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
-import eu.transittrack.Polyline
 import eu.transittrack.ScheduleProperties
+import eu.transittrack.geo.Extent
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Polyline
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.ShapePointRepository

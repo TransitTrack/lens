@@ -1,4 +1,4 @@
-package eu.transittrack
+package eu.transittrack.geo
 
 class Extent {
     // Initialized to NaN to represent "unset" values safely without

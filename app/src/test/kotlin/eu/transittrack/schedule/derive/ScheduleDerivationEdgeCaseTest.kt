@@ -34,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional
 import eu.transittrack.GtfsProperties
 import eu.transittrack.ProjectJson
 import eu.transittrack.ScheduleProperties
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.haversineDistance
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -60,7 +62,6 @@ import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.gtfs.support.noOpEventPublisher
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
-import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.model.BlockRepository
 import eu.transittrack.schedule.model.BlockTripRepository
 import eu.transittrack.schedule.model.ScheduleTables
@@ -291,7 +292,7 @@ class ScheduleDerivationEdgeCaseTest(
         val paths = stopPaths.findByTripPatternOrdered(rev, pattern.id!!)
         assertThat(paths).hasSize(2)
         assertThat(paths[0].lengthM).isEqualTo(0.0)
-        val expected = haversineMeters(51.100, 17.000, 51.120, 17.020)
+        val expected = haversineDistance(51.100, 17.000, 51.120, 17.020)
         assertThat(paths[1].lengthM).isCloseTo(expected, 1.0)
         // A straight-line fallback geometry is exactly the two stop coordinates.
         assertThat(jsonMapper.decodeFromString<List<List<Double>>>(paths[1].pathGeometry!!))
@@ -312,11 +313,11 @@ class ScheduleDerivationEdgeCaseTest(
 
         // OFF is ~700 m from SHP_OUT (> the 100 m default), so both of its segments are
         // straight lines between stop coordinates rather than shape slices.
-        val s1ToOff = haversineMeters(51.100, 17.000, 51.115, 17.000)
+        val s1ToOff = haversineDistance(51.100, 17.000, 51.115, 17.000)
         assertThat(paths[1].lengthM).isCloseTo(s1ToOff, 1.0)
         assertThat(jsonMapper.decodeFromString<List<List<Double>>>(paths[1].pathGeometry!!))
             .isEqualTo(listOf(listOf(17.000, 51.100), listOf(17.000, 51.115)))
-        val offToS4 = haversineMeters(51.115, 17.000, 51.130, 17.030)
+        val offToS4 = haversineDistance(51.115, 17.000, 51.130, 17.030)
         assertThat(paths[2].lengthM).isCloseTo(offToS4, 1.0)
     }
 
@@ -491,10 +492,10 @@ class ScheduleDerivationEdgeCaseTest(
                                 stopCount = 2,
                                 lengthM = 10.0,
                                 extent =
-                                    eu.transittrack.Extent.of(
+                                    eu.transittrack.geo.Extent.of(
                                         listOf(
-                                            eu.transittrack.Point(51.0, 17.0),
-                                            eu.transittrack.Point(51.1, 17.1),
+                                            Point(51.0, 17.0),
+                                            Point(51.1, 17.1),
                                         ),
                                     ),
                                 tripCount = 0,

@@ -2,8 +2,8 @@ package eu.transittrack.avl.match
 
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.Point
 import eu.transittrack.schedule.model.TripRef
 
 /**

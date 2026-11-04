@@ -2,9 +2,9 @@ package eu.transittrack.avl.match
 
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
-import eu.transittrack.Vector
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Vector
 
 data class SpatialMatch(
     val stopPathIndex: Int,

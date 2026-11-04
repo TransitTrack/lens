@@ -23,8 +23,8 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.bearingDegrees
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.bearingDegrees
+import eu.transittrack.geo.haversineDistance
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler
 import eu.transittrack.util.observability.TransitTrackMetrics
@@ -309,7 +309,7 @@ private fun AvlReportRow.fillMissingKinematics(
     val elapsedSec = Duration.between(prevTs, ts).seconds
     if (elapsedSec <= 0) return
     if (bearing == null) bearing = bearingDegrees(prevLat, prevLon, lat, lon)
-    if (speedMps == null) speedMps = haversineMeters(prevLat, prevLon, lat, lon) / elapsedSec
+    if (speedMps == null) speedMps = haversineDistance(prevLat, prevLon, lat, lon) / elapsedSec
 }
 
 private fun AvlReportRow.toView() =

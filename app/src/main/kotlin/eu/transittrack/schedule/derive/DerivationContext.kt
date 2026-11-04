@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Extent
+import eu.transittrack.geo.Extent
 
 /** Per-stop visit after cleaning + the trip's resolved schedule; filled across the derive stages. */
 class DerivationState {

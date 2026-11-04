@@ -1,7 +1,6 @@
-package eu.transittrack.schedule.derive
+package eu.transittrack.geo
 
 import kotlin.test.Test
-
 import assertk.assertThat
 import assertk.assertions.hasSize
 import assertk.assertions.isCloseTo
@@ -9,18 +8,14 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThan
 import assertk.assertions.isLessThan
 
-import eu.transittrack.Point
-import eu.transittrack.Polyline
-import eu.transittrack.haversineMeters
-
-class ShapeProjectionTest {
+class PolylineTest {
     private val line = Polyline(listOf(Point(51.100, 17.000), Point(51.110, 17.000), Point(51.120, 17.000)))
 
     @Test
     fun `cumulative distances are monotonic and start at zero`() {
         assertThat(line.cumulative[0]).isEqualTo(0.0)
         assertThat(line.cumulative[1]).isLessThan(line.cumulative[2])
-        assertThat(line.lengthM).isCloseTo(haversineMeters(51.100, 17.000, 51.120, 17.000), 5.0)
+        assertThat(line.lengthM).isCloseTo(haversineDistance(51.100, 17.000, 51.120, 17.000), 5.0)
     }
 
     @Test
@@ -44,21 +39,21 @@ class ShapeProjectionTest {
 
     @Test
     fun `slice keeps intermediate vertices`() {
-        val s = ShapeProjection.slice(line, 0.0, line.lengthM)
-        assertThat(s).hasSize(3)
-        assertThat(s[1].lat).isCloseTo(51.110, 1e-9)
+        val s = line.slice(0.0, line.lengthM)
+        assertThat(s.points.size).equals(3)
+        assertThat(s.points[1].lat).isCloseTo(51.110, 1e-9)
     }
 
     @Test
     fun `slice with no vertex between yields two points`() {
-        val s = ShapeProjection.slice(line, line.cumulative[1] + 10.0, line.cumulative[2] - 10.0)
-        assertThat(s).hasSize(2)
+        val s = line.slice(line.cumulative[1] + 10.0, line.cumulative[2] - 10.0)
+        assertThat(s.points).hasSize(2)
     }
 
     @Test
     fun `straightLine is the two endpoints`() {
-        val s = ShapeProjection.straightLine(Point(1.0, 2.0), Point(3.0, 4.0))
-        assertThat(s).isEqualTo(listOf(Point(1.0, 2.0), Point(3.0, 4.0)))
+        val s = Polyline.of(Point(1.0, 2.0), Point(3.0, 4.0))
+        assertThat(s.points).isEqualTo(listOf(Point(1.0, 2.0), Point(3.0, 4.0)))
     }
 
     @Test
@@ -73,8 +68,8 @@ class ShapeProjectionTest {
 
     @Test
     fun `L-shaped polyline length is the sum of both legs`() {
-        val leg1 = haversineMeters(51.100, 17.000, 51.100, 17.020)
-        val leg2 = haversineMeters(51.100, 17.020, 51.120, 17.020)
+        val leg1 = haversineDistance(51.100, 17.000, 51.100, 17.020)
+        val leg2 = haversineDistance(51.100, 17.020, 51.120, 17.020)
         assertThat(lShape.cumulative[1]).isCloseTo(leg1, 1.0)
         assertThat(lShape.lengthM).isCloseTo(leg1 + leg2, 1.0)
     }
@@ -114,13 +109,12 @@ class ShapeProjectionTest {
     @Test
     fun `slice across the elbow keeps the corner vertex`() {
         val s =
-            ShapeProjection.slice(
-                lShape,
+            lShape.slice(
                 lShape.cumulative[1] - 100.0,
                 lShape.cumulative[1] + 100.0,
             )
-        assertThat(s).hasSize(3)
-        assertThat(s[1]).isEqualTo(elbow)
+        assertThat(s.points).hasSize(3)
+        assertThat(s.points[1]).isEqualTo(elbow)
     }
 
     // --- degenerate polylines ---
@@ -145,7 +139,7 @@ class ShapeProjectionTest {
     @Test
     fun `slicing a duplicate-point polyline yields two coincident points`() {
         val degenerate = Polyline(listOf(Point(51.0, 17.0), Point(51.0, 17.0)))
-        val s = ShapeProjection.slice(degenerate, 0.0, 100.0)
-        assertThat(s).isEqualTo(listOf(Point(51.0, 17.0), Point(51.0, 17.0)))
+        val s = degenerate.slice(0.0, 100.0)
+        assertThat(s.points).isEqualTo(listOf(Point(51.0, 17.0), Point(51.0, 17.0)))
     }
 }

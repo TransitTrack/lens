@@ -7,6 +7,7 @@ COPY gradle gradle
 RUN ./gradlew --version
 
 COPY app app
+COPY geo geo
 COPY api api
 COPY examples examples
 

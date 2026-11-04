@@ -1,44 +1,5 @@
 package eu.transittrack
 
-import kotlin.math.PI
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
-
-fun toRadians(deg: Double): Double = deg / 180.0 * PI
-
-fun toDegrees(rad: Double): Double = rad * 180.0 / PI
-
-/** Great-circle distance between two WGS-84 points, in metres. */
-fun haversineMeters(
-    lat1: Double,
-    lon1: Double,
-    lat2: Double,
-    lon2: Double,
-): Double {
-    val r = 6_371_000.0
-    val dLat = toRadians(lat2 - lat1)
-    val dLon = toRadians(lon2 - lon1)
-    val a = sin(dLat / 2) * sin(dLat / 2) + cos(toRadians(lat1)) * cos(toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
-    return r * 2 * atan2(sqrt(a), sqrt(1 - a))
-}
-
-/** Initial forward azimuth from point 1 to point 2, in compass degrees `[0, 360)` (0 = north). */
-fun bearingDegrees(
-    lat1: Double,
-    lon1: Double,
-    lat2: Double,
-    lon2: Double,
-): Double {
-    val phi1 = toRadians(lat1)
-    val phi2 = toRadians(lat2)
-    val dLon = toRadians(lon2 - lon1)
-    val y = sin(dLon) * cos(phi2)
-    val x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dLon)
-    return (toDegrees(atan2(y, x)) + 360.0) % 360.0
-}
-
 fun median(values: List<Int>): Int? {
     if (values.isEmpty()) {
         return null
@@ -46,6 +7,3 @@ fun median(values: List<Int>): Int? {
     val s = values.sorted()
     return if (s.size % 2 == 1) s[s.size / 2] else ((s[s.size / 2 - 1] + s[s.size / 2]) / 2)
 }
-
-/** `v` squared. A readability shorthand for the geometry code in [eu.transittrack.Vector]. */
-fun sqrd(v: Double): Double = v * v

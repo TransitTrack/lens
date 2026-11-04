@@ -7,9 +7,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
-import eu.transittrack.Polyline
 import eu.transittrack.avl.match.PatternGeometry
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Polyline
 
 /**
  * Revision-scoped, cached [PatternGeometry] — the *assembled* polyline plus cumulative stop-path

@@ -1,4 +1,4 @@
-package eu.transittrack
+package eu.transittrack.geo
 
 import kotlin.test.Test
 
@@ -18,13 +18,13 @@ class MathTest {
     @Test
     fun `haversine matches a known distance`() {
         // ~1.11 km per 0.01 deg latitude near the equator/mid-latitudes.
-        val d = haversineMeters(51.100, 17.000, 51.110, 17.000)
+        val d = haversineDistance(51.100, 17.000, 51.110, 17.000)
         assertThat(d).isCloseTo(1112.0, 15.0)
     }
 
     @Test
     fun `haversine is zero for identical points`() {
-        assertThat(haversineMeters(51.1, 17.0, 51.1, 17.0)).isZero()
+        assertThat(haversineDistance(51.1, 17.0, 51.1, 17.0)).isZero()
     }
 
     @Test

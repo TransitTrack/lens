@@ -1,4 +1,4 @@
-package eu.transittrack
+package eu.transittrack.geo
 
 import kotlin.math.PI
 import kotlin.test.Test
@@ -36,28 +36,28 @@ class GeoVectorTest {
     fun `distance to a point on the segment is ~zero and matches halfway along`() {
         val mid = Point(51.005, 17.0)
         assertThat(northSegment.distance(mid)).isCloseTo(0.0, 5.0)
-        assertThat(northSegment.matchDistanceAlongVector(mid)).isCloseTo(556.0, 5.0)
+        assertThat(northSegment.distanceAlongVector(mid)).isCloseTo(556.0, 5.0)
     }
 
     @Test
     fun `distance to a point beside the segment is the perpendicular offset`() {
         val beside = Point(51.005, 17.01)
         assertThat(northSegment.distance(beside)).isCloseTo(700.0, 10.0)
-        assertThat(northSegment.matchDistanceAlongVector(beside)).isCloseTo(556.0, 5.0)
+        assertThat(northSegment.distanceAlongVector(beside)).isCloseTo(556.0, 5.0)
     }
 
     @Test
     fun `a point past the start clamps to the start`() {
         val before = Point(50.99, 17.0)
         assertThat(northSegment.distance(before)).isCloseTo(1112.0, 5.0)
-        assertThat(northSegment.matchDistanceAlongVector(before)).isZero()
+        assertThat(northSegment.distanceAlongVector(before)).isZero()
     }
 
     @Test
     fun `a point past the end clamps to the end`() {
         val after = Point(51.02, 17.0)
         assertThat(northSegment.distance(after)).isCloseTo(1112.0, 5.0)
-        assertThat(northSegment.matchDistanceAlongVector(after)).isCloseTo(northSegment.length(), 1e-6)
+        assertThat(northSegment.distanceAlongVector(after)).isCloseTo(northSegment.length(), 1e-6)
     }
 
     @Test
@@ -65,7 +65,7 @@ class GeoVectorTest {
         val degenerate = Vector(south, Point(51.0, 17.0))
         assertThat(degenerate.length()).isZero()
         assertThat(degenerate.distance(north)).isCloseTo(1112.0, 5.0)
-        assertThat(degenerate.matchDistanceAlongVector(north)).isZero()
+        assertThat(degenerate.distanceAlongVector(north)).isZero()
     }
 
     @Test

@@ -7,8 +7,8 @@ import assertk.assertions.isEqualTo
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
-import eu.transittrack.Point
 import eu.transittrack.ProjectJson
+import eu.transittrack.geo.Point
 import eu.transittrack.schedule.model.StopPath
 
 class CachedPatternGeometryJsonTest {

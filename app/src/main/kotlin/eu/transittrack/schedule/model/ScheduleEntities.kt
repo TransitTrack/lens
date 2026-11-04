@@ -5,8 +5,8 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.json.jsonb
 
-import eu.transittrack.Extent
 import eu.transittrack.ProjectJson
+import eu.transittrack.geo.Extent
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.RevisionScopedTable

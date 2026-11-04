@@ -21,5 +21,6 @@ pluginManagement {
 
 rootProject.name = "lens"
 include(":app")
+include(":geo")
 include(":api")
 include(":examples:example-extension")

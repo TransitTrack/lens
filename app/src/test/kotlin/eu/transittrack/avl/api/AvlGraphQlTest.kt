@@ -36,6 +36,7 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.geo.Point
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -112,7 +113,7 @@ class AvlGraphQlTest(
                 .toInstant()
 
         fun insert(
-            p: eu.transittrack.Point,
+            p: Point,
             at: Instant,
         ) {
             reports.save(

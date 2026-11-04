@@ -21,8 +21,8 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
+import eu.transittrack.geo.Extent
+import eu.transittrack.geo.Point
 import eu.transittrack.schedule.model.TripPatternTable
 
 /**

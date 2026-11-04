@@ -26,7 +26,6 @@ import org.springframework.context.annotation.Primary
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.Point
 import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.match.AvlAssignmentMode
 import eu.transittrack.avl.match.AvlMatchContextFactory
@@ -38,6 +37,7 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.geo.Point
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService

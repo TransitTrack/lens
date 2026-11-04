@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Import
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
+import eu.transittrack.geo.Extent
+import eu.transittrack.geo.Point
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.AgencyRepository
 import eu.transittrack.gtfs.model.RouteRepository

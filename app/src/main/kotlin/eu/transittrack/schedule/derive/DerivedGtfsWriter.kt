@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.Extent
+import eu.transittrack.geo.Extent
 import eu.transittrack.gtfs.model.AgencyTable
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScopedTable

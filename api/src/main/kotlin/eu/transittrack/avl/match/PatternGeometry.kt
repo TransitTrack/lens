@@ -1,7 +1,7 @@
 package eu.transittrack.avl.match
 
-import eu.transittrack.Point
-import eu.transittrack.Polyline
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Polyline
 
 /** A trip pattern's shape as one polyline, plus where each stop path begins along it (metres). */
 @Suppress("ArrayInDataClass")

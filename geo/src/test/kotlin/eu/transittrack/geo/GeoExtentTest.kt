@@ -1,4 +1,4 @@
-package eu.transittrack
+package eu.transittrack.geo
 
 import kotlin.test.Test
 

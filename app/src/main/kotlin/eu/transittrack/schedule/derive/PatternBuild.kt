@@ -1,13 +1,12 @@
 package eu.transittrack.schedule.derive
 
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
-import eu.transittrack.Polyline
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.Extent
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Polyline
+import eu.transittrack.geo.haversineDistance
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
 
@@ -79,28 +78,22 @@ fun buildPattern(
     val hasTimepointColumn = rows.any { it.timepoint != null }
     for (i in stopIds.indices) {
         val r = rows[i]
-        val geom: List<Point>
+        val geom: Polyline
         val segLen: Double
         when {
             i == 0 -> {
-                geom = listOf(coords[0])
+                geom = Polyline.of(coords[0])
                 segLen = 0.0
             }
 
             line != null && !projected[i - 1].isNaN() && !projected[i].isNaN() && projected[i] > projected[i - 1] -> {
-                geom = ShapeProjection.slice(line, projected[i - 1], projected[i])
+                geom = line.slice(projected[i - 1], projected[i])
                 segLen = projected[i] - projected[i - 1]
             }
 
             else -> {
-                geom = ShapeProjection.straightLine(coords[i - 1], coords[i])
-                segLen =
-                    haversineMeters(
-                        coords[i - 1].lat,
-                        coords[i - 1].lon,
-                        coords[i].lat,
-                        coords[i].lon,
-                    )
+                geom = Polyline.of(coords[i - 1], coords[i])
+                segLen = haversineDistance(coords[i - 1], coords[i])
             }
         }
         val timed =
@@ -118,7 +111,7 @@ fun buildPattern(
                 routeId = routeId,
                 stopSeq = r.stopSequence,
                 lengthM = segLen,
-                pathGeometry = json.encodeToString(geom.map { listOf(it.lon, it.lat) }),
+                pathGeometry = json.encodeToString(geom.points.map { listOf(it.lon, it.lat) }),
                 pickupType = r.pickupType,
                 dropOffType = r.dropOffType,
                 waitStop = timed,

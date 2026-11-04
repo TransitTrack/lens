@@ -21,6 +21,7 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.PredictionStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.geo.Point
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler
 import eu.transittrack.util.observability.TransitTrackMetrics
@@ -150,7 +151,7 @@ private fun VehicleMatch.toMatchOutcome(): MatchOutcome.Matched? {
         distanceAlongTripM = distanceAlongTripM,
         deviationM = deviationM,
         scheduleAdherenceSec = scheduleAdherenceSec,
-        snapped = eu.transittrack.Point(snappedLat, snappedLon),
+        snapped = Point(snappedLat, snappedLon),
         heading = heading,
         score = score,
         revisionId = revisionId,
