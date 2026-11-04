@@ -126,7 +126,7 @@ class PredictionEntitiesPersistenceTest(
     @Test
     fun `aggregateAccuracy without algorithms returns nothing`() {
         assertThat(
-            accuracies.aggregateAccuracy("feed-1", emptyList(), 0, Instant.EPOCH, null, null, null, null),
+            accuracies.aggregateAccuracy("feed-1", emptyList(), Instant.EPOCH, null, null, null, null),
         ).isEqualTo(emptyList())
     }
 

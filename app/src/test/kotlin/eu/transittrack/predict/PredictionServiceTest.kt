@@ -395,6 +395,37 @@ class PredictionServiceTest(
     }
 
     @Test
+    fun `smile gbm gets no checkpoints until its feed has a model`() {
+        val (_, geom) = t1Geom()
+        val feed = feedRow()
+        feed.predictionAlgorithms = listOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feed)
+
+        insertReport("bus-u", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        fun checkpointAlgorithms(vehicleId: String) =
+            transaction(exposedDatabase) { PredictionCheckpointTable.selectAll().map { PredictionCheckpointTable.read(it) } }
+                .filter { it.vehicleId == vehicleId }
+                .map { it.algorithm }
+                .toSet()
+        assertThat(checkpointAlgorithms("bus-u")).isEqualTo(setOf(PredictionAlgorithm.KALMAN))
+
+        val model =
+            mock<StopToStopModel> {
+                on { routeIndex } doReturn emptyMap()
+                on { estimate(any()) } doReturn StopToStopEstimate(100.0, 80.0, 120.0)
+            }
+        doReturn(model).whenever(smileModels).current(feed.code)
+        insertReport("bus-m", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        assertThat(checkpointAlgorithms("bus-m")).isEqualTo(setOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SMILE_GBM))
+    }
+
+    @Test
     fun `rangeAndLateAreStoredOnPredictionAndCheckpoint`() {
         val (trip, geom) = t1Geom()
         doAnswer { inv ->

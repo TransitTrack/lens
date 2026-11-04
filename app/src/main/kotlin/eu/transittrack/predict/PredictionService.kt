@@ -302,7 +302,10 @@ class PredictionService(
         val generated = generation.generated.associate { (algorithm, predictions) ->
             algorithm to predictions.associateBy { it.tripRowId to it.stopPathIndex }
         }
-        val checkpoints = feed.predictionAlgorithms.distinct().flatMap { algorithm ->
+        // An algorithm that can't predict for the feed yet (SMILE_GBM before its first model) gets
+        // no checkpoints: scored as all-missing, it would leave no cohort fully paired.
+        val scored = feed.predictionAlgorithms.distinct().filter { strategies[it]?.isReady(feed.code) ?: true }
+        val checkpoints = scored.flatMap { algorithm ->
             horizon.map { stop ->
                 val p = generated[algorithm]?.get(stop.tripRowId to stop.stopPathIndex)
                 CheckpointCandidate(

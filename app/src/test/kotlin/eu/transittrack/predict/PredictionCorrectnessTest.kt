@@ -21,6 +21,8 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.TestInstance
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -29,6 +31,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean
 
 import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.match.AvlAssignmentMode
@@ -46,6 +49,7 @@ import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.generate.SmileGbmAlgorithm
 import eu.transittrack.predict.generate.serviceSecToInstant
 import eu.transittrack.predict.learn.DayType
 import eu.transittrack.predict.learn.TimeBand
@@ -89,6 +93,13 @@ class PredictionCorrectnessTest(
     @MockitoBean
     lateinit var clock: Clock
 
+    /**
+     * Reports itself ready, so it is scored, while still predicting nothing (it has no model): the
+     * tests below give its snapshots a forecast by hand.
+     */
+    @MockitoSpyBean
+    lateinit var smile: SmileGbmAlgorithm
+
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
         @Bean
@@ -120,6 +131,7 @@ class PredictionCorrectnessTest(
         )
         ctx = factory.open(feed)!!
         previous = null
+        doReturn(true).whenever(smile).isReady(any())
     }
 
     @AfterEach
@@ -188,7 +200,7 @@ class PredictionCorrectnessTest(
         advance("T1", (geom.stopPathCumM[1] + geom.stopPathCumM[2]) / 2, at, at.plusSeconds(30))
         advance("T1", geom.stopPathCumM[2] + 10, at.plusSeconds(120))
         val scored = accuracy.findAll().filter { it.stopPathIndex == 1 }
-        // SMILE_GBM has no trained model here, so it is scored as a missing forecast.
+        // SMILE_GBM is ready but has no trained model here, so it is scored as a missing forecast.
         assertThat(scored.single { it.predictedTs == null }.algorithm).isEqualTo(PredictionAlgorithm.SMILE_GBM)
         val forecasts = scored.filter { it.predictedTs != null }
         assertThat(forecasts.size).isEqualTo(3)

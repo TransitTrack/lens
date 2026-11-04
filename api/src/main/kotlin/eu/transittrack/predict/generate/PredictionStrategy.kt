@@ -38,4 +38,11 @@ interface PredictionStrategy {
         ctx: MatchContext,
         feedCode: String,
     ): List<GeneratedPrediction> = predict(horizon, serviceDate, adherenceSec, startTs, ctx)
+
+    /**
+     * Whether this strategy can predict for the AVL feed [feedCode] at all, such as a trained model
+     * existing for it. A strategy that isn't ready still runs, but its (empty) forecasts aren't
+     * scored, so it doesn't count in the feed's accuracy comparison until it is.
+     */
+    fun isReady(feedCode: String): Boolean = true
 }

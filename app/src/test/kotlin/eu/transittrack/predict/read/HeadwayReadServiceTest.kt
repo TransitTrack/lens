@@ -349,6 +349,68 @@ class HeadwayReadServiceTest(
     }
 
     @Test
+    fun `an algorithm not yet scored doesn't hold back the others' paired accuracy`() {
+        val feed = feeds.findById(feedId)!!
+        val configured = feed.predictionAlgorithms
+        feed.predictionAlgorithms =
+            listOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feed)
+
+        fun sample(
+            algorithm: PredictionAlgorithm,
+            vehicle: String,
+            error: Int,
+        ): PredictionAccuracy {
+            val actual = clock.instant().minusSeconds(100)
+            return PredictionAccuracy(
+                feedCode = "a", vehicleId = vehicle, tripRowId = 1L, stopPathIndex = 2, algorithm = algorithm,
+                predictedTs = actual.minusSeconds(error.toLong()), actualTs = actual, errorSec = error,
+                absErrorSec = kotlin.math.abs(error), createdAt = clock.instant(), horizonSec = 300,
+                predictedAt = actual.minusSeconds(240), producedAt = actual.minusSeconds(240), actualLeadSec = 240,
+                routeId = "RA", directionId = 0, dayType = DayType.WEEKDAY, timeBand = TimeBand.MORNING_PEAK,
+            )
+        }
+        val inserted =
+            predictionAccuracies
+                .saveAll(
+                    listOf(
+                        sample(PredictionAlgorithm.KALMAN, "before-model", 20),
+                        sample(PredictionAlgorithm.SCHEDULE_ADHERENCE, "before-model", 40),
+                    ),
+                ).toMutableList()
+        try {
+            // SMILE_GBM has no model yet, so it has no snapshots: the other two still pair.
+            val before = read.predictionAccuracy("a", null, 7).associateBy { it.algorithm }
+            assertThat(before.keys).isEqualTo(setOf(PredictionAlgorithm.KALMAN, PredictionAlgorithm.SCHEDULE_ADHERENCE))
+            assertThat(before.getValue(PredictionAlgorithm.KALMAN).pairedSampleCount).isEqualTo(1)
+            assertThat(before.getValue(PredictionAlgorithm.KALMAN).meanAbsErrorSec).isEqualTo(20.0)
+            assertThat(before.getValue(PredictionAlgorithm.SCHEDULE_ADHERENCE).p90AbsErrorSec).isEqualTo(40.0)
+
+            // Once it is scored, all three are compared on the cohorts they share.
+            inserted +=
+                predictionAccuracies.saveAll(
+                    listOf(
+                        sample(PredictionAlgorithm.KALMAN, "with-model", 10),
+                        sample(PredictionAlgorithm.SCHEDULE_ADHERENCE, "with-model", 30),
+                        sample(PredictionAlgorithm.SMILE_GBM, "with-model", 5),
+                    ),
+                )
+            val after = read.predictionAccuracy("a", null, 7).associateBy { it.algorithm }
+            assertThat(after.keys).isEqualTo(feed.predictionAlgorithms.toSet())
+            after.values.forEach {
+                assertThat(it.eligibleCount).isEqualTo(1)
+                assertThat(it.pairedSampleCount).isEqualTo(1)
+            }
+            assertThat(after.getValue(PredictionAlgorithm.KALMAN).meanAbsErrorSec).isEqualTo(10.0)
+            assertThat(after.getValue(PredictionAlgorithm.SMILE_GBM).meanAbsErrorSec).isEqualTo(5.0)
+        } finally {
+            predictionAccuracies.deleteAllById(inserted.map { it.id!! })
+            feed.predictionAlgorithms = configured
+            feeds.save(feed)
+        }
+    }
+
+    @Test
     fun rangeCoverageCountsOnlyRowsWithRange() {
         val at = clock.instant()
 

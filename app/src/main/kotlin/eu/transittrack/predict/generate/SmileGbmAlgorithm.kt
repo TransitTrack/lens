@@ -48,6 +48,9 @@ class SmileGbmAlgorithm(
     /** The last model whose estimate failed, so a broken model is logged once, not every 5 s per vehicle. */
     @Volatile private var lastFailedModel: StopToStopModel? = null
 
+    /** Ready once the feed has a model: until its first training it predicts nothing and isn't scored. */
+    override fun isReady(feedCode: String): Boolean = store.current(feedCode) != null
+
     /** Without the AVL feed there is no model to pick. */
     override fun predict(
         horizon: List<HorizonStop>,

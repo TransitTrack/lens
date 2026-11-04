@@ -288,7 +288,7 @@ class PredictionReadService(
         val algorithms = algorithm?.let { listOf(it) } ?: feed.predictionAlgorithms.distinct()
         return accuracy
             .aggregateAccuracy(
-                feed.code, algorithms.map { it.ordinal.toShort() }, algorithms.size, since,
+                feed.code, algorithms.map { it.ordinal.toShort() }, since,
                 routeId, directionId, dayType?.ordinal?.toShort(), timeBand?.ordinal?.toShort(),
             ).groupBy { it.algorithmOrdinal }
             .toSortedMap()

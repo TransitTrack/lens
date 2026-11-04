@@ -186,11 +186,15 @@ class PredictionAccuracyRepository {
      * Raw SQL ([AGGREGATE_ACCURACY_SQL]); [algorithms] binds one placeholder per value, as the Spring
      * Data native query expanded it. No [algorithms] means nothing to aggregate (and `in ()` isn't
      * valid SQL), so nothing is queried.
+     *
+     * A cohort counts only if every one of [algorithms] scored in the window has a snapshot in it, so
+     * all compared algorithms are judged on the same cohorts. An algorithm that wasn't scored at all
+     * in the window (one that isn't ready yet, see `PredictionStrategy.isReady`) doesn't hold the
+     * others' cohorts back; once it is scored, the cohorts from before then drop out.
      */
     fun aggregateAccuracy(
         feedCode: String,
         algorithms: Collection<Short>,
-        algorithmCount: Int,
         since: Instant,
         routeId: String?,
         directionId: Int?,
@@ -214,8 +218,6 @@ class PredictionAccuracyRepository {
                 add(short to dayType)
                 add(short to timeBand)
                 add(short to timeBand)
-                // Five FILTERs and the cohort's eligible_algorithms check.
-                repeat(6) { add(int to algorithmCount) }
             }
         val sql = AGGREGATE_ACCURACY_SQL.replace(ALGORITHMS, algorithms.joinToString { "?" })
         return TransactionManager.current().exec(sql, args, StatementType.SELECT) { rs ->
@@ -330,13 +332,13 @@ class PredictionAccuracyRepository {
             )
             select s.algorithm as "algorithmOrdinal", s.horizon_sec as "horizonSec",
                    count(*) as "eligibleCount", count(s.error_sec) as "sampleCount",
-                   count(*) filter (where c.available_algorithms = ?) as "pairedSampleCount",
-                   avg(s.error_sec) filter (where c.available_algorithms = ?) as "meanErrorSec",
-                   avg(s.abs_error_sec) filter (where c.available_algorithms = ?) as "meanAbsErrorSec",
+                   count(*) filter (where c.available_algorithms = c.eligible_algorithms) as "pairedSampleCount",
+                   avg(s.error_sec) filter (where c.available_algorithms = c.eligible_algorithms) as "meanErrorSec",
+                   avg(s.abs_error_sec) filter (where c.available_algorithms = c.eligible_algorithms) as "meanAbsErrorSec",
                    percentile_cont(0.90) within group (order by s.abs_error_sec)
-                       filter (where c.available_algorithms = ?) as "p90AbsErrorSec",
+                       filter (where c.available_algorithms = c.eligible_algorithms) as "p90AbsErrorSec",
                    percentile_cont(0.95) within group (order by s.abs_error_sec)
-                       filter (where c.available_algorithms = ?) as "p95AbsErrorSec",
+                       filter (where c.available_algorithms = c.eligible_algorithms) as "p95AbsErrorSec",
                    avg(case when s.confidence_sec is null or s.error_sec is null then null
                             when s.abs_error_sec <= s.confidence_sec then 1.0 else 0.0 end) as "confidenceCoverage",
                    count(*) filter (where s.confidence_sec is not null and s.error_sec is not null) as "confidenceSampleCount",
@@ -346,7 +348,7 @@ class PredictionAccuracyRepository {
                        as "rangeSampleCount"
             from snapshots s join cohorts c using
                 (vehicle_id, trip_row_id, stop_path_index, horizon_sec, predicted_at, produced_at, actual_ts)
-            where c.eligible_algorithms = ?
+            where c.eligible_algorithms = (select count(distinct algorithm) from snapshots)
             group by grouping sets ((s.algorithm), (s.algorithm, s.horizon_sec))
             order by s.algorithm, s.horizon_sec nulls first
         """

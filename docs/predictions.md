@@ -359,7 +359,10 @@ pruned as new ones are captured; retention also removes abandoned checkpoints.
 
 `predictionAccuracy` compares the feed's configured algorithms by default, or
 one explicitly requested algorithm. Cohorts must contain a recorded outcome
-for every compared algorithm at identical source/production times. `eligibleCount`
+for every compared algorithm scored in the window at identical
+source/production times; an algorithm that isn't ready yet (`SMILE_GBM`
+before its first model, `PredictionStrategy.isReady`) is not scored and so
+doesn't hold the others back. `eligibleCount`
 is that denominator; `sampleCount` and `predictionCoverage` show available
 forecasts. MAE, signed error and P90/P95 use **only fully paired cohorts**,
 reported as `pairedSampleCount`. Unavailable comparisons return null error
@@ -647,10 +650,10 @@ so a new algorithm is introduced in **shadow**:
    scored crossings.
 2. **Compare.** `predictionAccuracy` per algorithm and per horizon
    (`byHorizon`): MAE, signed error and P90/P95 over paired cohorts, plus
-   `rangeCoverage` for `SMILE_GBM` (near 0.8 is healthy). Paired statistics
-   need every compared algorithm to have a forecast in the cohort, so until
-   the first model exists the default comparison has no paired samples; query
-   one `algorithm` at a time then. Context filters (`routeId`, `dayType`,
+   `rangeCoverage` for `SMILE_GBM` (near 0.8 is healthy). `SMILE_GBM` isn't
+   scored until its first model exists, so until then the comparison covers
+   the other algorithms only; it joins once the model is trained, and the
+   comparison then keeps to the cohorts scored since. Context filters (`routeId`, `dayType`,
    `timeBand`, …) show where it helps.
 3. **Serve.** Move `smile_gbm` to the **front** of the feed's
    `prediction-algorithms`: `stopPredictions` and `headway` then use it by
