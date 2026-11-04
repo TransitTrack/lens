@@ -28,9 +28,9 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 
 import eu.transittrack.Application
-import eu.transittrack.AvlFormat
 import eu.transittrack.avl.feed.AvlFeedSource
 import eu.transittrack.avl.feed.Payload
+import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.ingest.AvlIngestService
 import eu.transittrack.avl.ingest.AvlWriter
 import eu.transittrack.avl.match.AvlAssignmentMode
