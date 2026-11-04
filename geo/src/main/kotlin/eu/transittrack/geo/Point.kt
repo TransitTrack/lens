@@ -1,9 +1,17 @@
 package eu.transittrack.geo
 
+typealias PointCoordinates = Position
+
 data class Point(
-    val lat: Double,
-    val lon: Double,
-) {
+    override val coordinates: PointCoordinates,
+    override val bbox: BBox? = null,
+) : Geometry<PointCoordinates>("Point"){
+
+    constructor(lat: Double, lon: Double) : this(PointCoordinates(lon, lat))
+
+    val lat: Double get() = coordinates.lat
+    val lon: Double get() = coordinates.lng
+
     /**
      * Straight-line ground distance from this point to [other], in metres.
      *
@@ -25,4 +33,8 @@ data class Point(
      * fix into a "how far along this shape am I" scalar.
      */
     fun distanceAlongVector(v: Vector): Double = matchDistanceAlongVector(this, v)
+
+    override fun calculateBBox(): BBox {
+        return BBox.from(listOf(coordinates))
+    }
 }
