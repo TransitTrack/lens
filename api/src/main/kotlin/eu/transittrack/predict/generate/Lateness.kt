@@ -37,7 +37,8 @@ fun assessLateness(
     val margin = latenessMarginSec(policy, scheduledHeadwaySec)
     val late = delay > margin
     val probability =
-        if (sigmaSec <= 0.0) {
+        // A NaN or infinite spread says nothing usable: judge by the delay alone, as with none.
+        if (!sigmaSec.isFinite() || sigmaSec <= 0.0) {
             if (late) 1.0 else 0.0
         } else {
             1.0 - normalCdf((margin - delay) / sigmaSec)

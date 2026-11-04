@@ -43,6 +43,14 @@ class LatenessTest {
     }
 
     @Test
+    fun nonFiniteSigmaIsAStep() {
+        for (sigma in listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            assertThat(assess(301, sigma)).isEqualTo(LateAssessment(true, 1.0))
+            assertThat(assess(300, sigma)).isEqualTo(LateAssessment(false, 0.0))
+        }
+    }
+
+    @Test
     fun frequentRouteUsesHeadwayFraction() {
         assertThat(assess(240, 60.0, headway = 600)!!.late).isFalse()
         assertThat(assess(360, 60.0, headway = 600)!!.late).isTrue()
