@@ -1,10 +1,10 @@
 package eu.transittrack.predict.smile
 
-import smile.base.cart.Loss
 import smile.data.DataFrame
 import smile.data.formula.Formula
 import smile.data.vector.DoubleVector
 import smile.math.MathEx
+import smile.model.cart.Loss
 import smile.regression.GradientTreeBoost
 
 import eu.transittrack.predict.PredictProperties
