@@ -227,7 +227,7 @@ class PredictionService(
                 val algorithmTag = algorithm.name.lowercase()
                 runCatching {
                     val strategy = checkNotNull(strategies[algorithm]) { "No prediction strategy registered for $algorithm" }
-                    strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx)
+                    strategy.predict(horizon, serviceDate, outcome.scheduleAdherenceSec, report.ts, ctx, feed.code)
                 }.onSuccess {
                     val elapsed = Duration.between(startedAt, Instant.now())
                     metrics.predictionRun(feed.code, algorithmTag, TransitTrackMetrics.Outcome.SUCCESS, elapsed, it.size)

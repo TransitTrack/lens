@@ -355,7 +355,8 @@ class PredictionServiceTest(
         assertThat(algorithms).contains(PredictionAlgorithm.HISTORICAL_AVERAGE)
         assertThat(algorithms).contains(PredictionAlgorithm.KALMAN)
         assertThat(preds.size % 3).isEqualTo(0)
-        assertThat(algorithms).isEqualTo(PredictionAlgorithm.entries.toSet())
+        // SMILE_GBM runs too, but has no trained model in this context, so it predicts nothing.
+        assertThat(algorithms).isEqualTo(PredictionAlgorithm.entries.toSet() - PredictionAlgorithm.SMILE_GBM)
     }
 
     @Test

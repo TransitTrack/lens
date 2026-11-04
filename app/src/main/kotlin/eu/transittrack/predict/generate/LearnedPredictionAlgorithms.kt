@@ -62,12 +62,8 @@ internal data class LearnedStopToStop(
 /**
  * Walks the horizon accumulating stop-to-stop times (learned for the day type and time band each
  * stop path is driven in, falling back to coarser roll-ups, else the schedule seed) from
- * [startTs]. Only the uncovered share of the vehicle's current stop path is counted. At a trip's
- * first stop the vehicle isn't predicted to leave before its scheduled departure, which also
- * carries it across into the next block trip (a frequency-based trip has no clock-time departure to
- * hold for). Learned arrival-to-arrival times are split into dwell and travel in the schedule's
- * proportions, so departures and subsequent arrivals describe the same timeline. Confidence is the
- * accumulated standard deviation, including [fallbackVarianceSec2] for unlearned legs when supplied.
+ * [startTs]; see [walkHorizonWith]. Confidence is the accumulated standard deviation, including
+ * [fallbackVarianceSec2] for unlearned legs when supplied.
  */
 internal fun walkHorizon(
     horizon: List<HorizonStop>,
@@ -80,7 +76,38 @@ internal fun walkHorizon(
     learnedFor: (tripPatternId: Long) -> Map<Int, Map<TravelTimeBucket, LearnedStopToStop>>,
 ): List<GeneratedPrediction> {
     val learnedByPattern = HashMap<Long, Map<Int, Map<TravelTimeBucket, LearnedStopToStop>>>()
+    return walkHorizonWith(horizon, serviceDate, startTs, ctx, seedReader) { stop, bucket, _ ->
+        val learned = learnedByPattern.getOrPut(stop.tripPatternId) { learnedFor(stop.tripPatternId) }
+        val learnedHere = learned[stop.stopPathIndex]?.let { pickLearned(it, bucket, minBucketSamples) { l -> l.sampleCount } }
+        if (learnedHere != null) {
+            learnedHere.copy(varianceSec2 = learnedHere.varianceSec2 ?: fallbackVarianceSec2)
+        } else {
+            seedStopToStopSec(seedReader.byStopPath(ctx.revisionId, stop.tripPatternId), stop.stopPathIndex)
+                ?.let { LearnedStopToStop(it, fallbackVarianceSec2, 0) }
+        }
+    }
+}
 
+/**
+ * Walks the horizon accumulating the stop-to-stop time [lookup] gives for each stop path from
+ * [startTs]. [lookup] is asked by when the vehicle passes (or leaves) the previous stop
+ * (`passTs`) and that moment's bucket - a trip running into the morning peak picks up peak times
+ * for its later stop paths; `null` ends the walk there. Only the uncovered share of the vehicle's
+ * current stop path is counted. At a trip's first stop the vehicle isn't predicted to leave before
+ * its scheduled departure, which also carries it across into the next block trip (a
+ * frequency-based trip has no clock-time departure to hold for). Arrival-to-arrival times are
+ * split into dwell and travel in the schedule's proportions, so departures and subsequent arrivals
+ * describe the same timeline. Confidence is the accumulated standard deviation of the legs that
+ * carry a variance.
+ */
+internal fun walkHorizonWith(
+    horizon: List<HorizonStop>,
+    serviceDate: LocalDate,
+    startTs: Instant,
+    ctx: MatchContext,
+    seedReader: CachedTravelTimesReader,
+    lookup: (stop: HorizonStop, bucket: TravelTimeBucket, passTs: Instant) -> LearnedStopToStop?,
+): List<GeneratedPrediction> {
     // The last predicted pass: arrival at the previous stop, or the departure from it when it held.
     var passTs = startTs
     var leftPassedStop = true
@@ -88,7 +115,6 @@ internal fun walkHorizon(
     val out = ArrayList<GeneratedPrediction>()
     for (stop in horizon) {
         val seeds = seedReader.byStopPath(ctx.revisionId, stop.tripPatternId)
-        val learned = learnedByPattern.getOrPut(stop.tripPatternId) { learnedFor(stop.tripPatternId) }
         val i = stop.stopPathIndex
         val previousDeparture =
             out.lastOrNull()?.takeIf { i == 0 && it.tripRowId != stop.tripRowId }?.predictedDepartureTs
@@ -100,11 +126,8 @@ internal fun walkHorizon(
                 // standing at) the first stop.
                 passTs
             } else {
-                // Looked up by when the vehicle leaves the previous stop - a trip running into the
-                // morning peak picks up peak times for its later stop paths.
-                val bucket = TravelTimeBucket.at(serviceDate, ctx.zone, passTs)
-                val learnedHere = learned[i]?.let { pickLearned(it, bucket, minBucketSamples) { l -> l.sampleCount } }
-                val stopToStop = learnedHere?.sec ?: seedStopToStopSec(seeds, i) ?: break
+                val leg = lookup(stop, TravelTimeBucket.at(serviceDate, ctx.zone, passTs), passTs) ?: break
+                val stopToStop = leg.sec
                 require(stopToStop.isFinite() && stopToStop >= 0.0) {
                     "Invalid stop-to-stop time for pattern ${stop.tripPatternId}, stop $i"
                 }
@@ -120,7 +143,7 @@ internal fun walkHorizon(
                 // Once the vehicle has left the previous stop, its dwell there is behind it.
                 val ahead = if (leftPassedStop) stopToStop - dwellBefore else stopToStop
                 val travelSec = ahead.coerceAtLeast(0.0) * stop.remainingFraction
-                (learnedHere?.varianceSec2 ?: fallbackVarianceSec2)?.let { v ->
+                leg.varianceSec2?.let { v ->
                     require(v.isFinite() && v >= 0.0) { "Invalid travel-time variance for pattern ${stop.tripPatternId}, stop $i" }
                     varianceSum = (varianceSum ?: 0.0) + v * stop.remainingFraction * stop.remainingFraction
                 }

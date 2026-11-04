@@ -23,4 +23,19 @@ interface PredictionStrategy {
         startTs: Instant,
         ctx: MatchContext,
     ): List<GeneratedPrediction>
+
+    /**
+     * [predict] for a vehicle of the AVL feed [feedCode] (`avl_feed.code`), which is what the
+     * prediction pipeline calls. [MatchContext] is per GTFS revision, which several AVL feeds can
+     * share, so it doesn't carry the feed. A strategy whose output depends on the feed (such as a
+     * model trained per feed) overrides this; the default ignores the feed.
+     */
+    fun predict(
+        horizon: List<HorizonStop>,
+        serviceDate: LocalDate,
+        adherenceSec: Int?,
+        startTs: Instant,
+        ctx: MatchContext,
+        feedCode: String,
+    ): List<GeneratedPrediction> = predict(horizon, serviceDate, adherenceSec, startTs, ctx)
 }

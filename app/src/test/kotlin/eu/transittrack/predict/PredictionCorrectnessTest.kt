@@ -186,8 +186,11 @@ class PredictionCorrectnessTest(
         advance("T1", (geom.stopPathCumM[1] + geom.stopPathCumM[2]) / 2, at, at.plusSeconds(30))
         advance("T1", geom.stopPathCumM[2] + 10, at.plusSeconds(120))
         val scored = accuracy.findAll().filter { it.stopPathIndex == 1 }
-        assertThat(scored.size).isEqualTo(3)
-        assertThat(scored.map { it.predictedTs }.toSet().size).isEqualTo(2)
+        // SMILE_GBM has no trained model here, so it is scored as a missing forecast.
+        assertThat(scored.single { it.predictedTs == null }.algorithm).isEqualTo(PredictionAlgorithm.SMILE_GBM)
+        val forecasts = scored.filter { it.predictedTs != null }
+        assertThat(forecasts.size).isEqualTo(3)
+        assertThat(forecasts.map { it.predictedTs }.toSet().size).isEqualTo(2)
         assertThat(scored.map { it.horizonSec }.toSet()).isEqualTo(setOf(180))
         assertThat(scored.all { it.predictedAt == at && it.producedAt == at.plusSeconds(30) }).isEqualTo(true)
         scored.forEach {
