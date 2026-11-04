@@ -15,10 +15,36 @@ data class StopPredictionDto(
     val sourceReportTs: String? = null,
     val actualReportGapSec: Int? = null,
     val actualReliable: Boolean? = null,
+    val rangeLowSec: Int? = null,
+    val rangeHighSec: Int? = null,
+    val lateProbability: Double? = null,
+    val late: Boolean? = null,
     // resolver-only, not exposed as schema fields:
     val revisionId: Long,
     val gtfsFeedCode: String,
     val stopId: String,
+)
+
+data class LateAssessmentDto(
+    val stopPathIndex: Int,
+    val predictedArrival: String?,
+    val scheduledArrival: String?,
+    val rangeLowSec: Int?,
+    val rangeHighSec: Int?,
+    val late: Boolean?,
+    val lateProbability: Double?,
+    // resolver-only, not exposed as schema fields:
+    val revisionId: Long,
+    val gtfsFeedCode: String,
+    val stopId: String,
+)
+
+data class TripLatenessDto(
+    val vehicleId: String,
+    val algorithm: PredictionAlgorithm,
+    val nextStop: LateAssessmentDto?,
+    val nextTimepoint: LateAssessmentDto?,
+    val terminal: LateAssessmentDto?,
 )
 
 data class PredictionAccuracySummaryDto(

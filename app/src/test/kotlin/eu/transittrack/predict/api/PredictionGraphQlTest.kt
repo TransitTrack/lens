@@ -11,8 +11,10 @@ import assertk.assertThat
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isGreaterThanOrEqualTo
+import assertk.assertions.isLessThan
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNotNull
+import assertk.assertions.isNull
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -48,11 +50,16 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.model.KalmanTravelTimeStateRepository
+import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
+import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.StopPath
+import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(
@@ -85,6 +92,7 @@ class PredictionGraphQlTest(
     @Autowired val kalmanStates: KalmanTravelTimeStateRepository,
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
+    @Autowired val stopPaths: StopPathRepository,
 ) : PostgresPerClassTest() {
     @MockitoBean(reset = MockReset.NONE)
     lateinit var clock: Clock
@@ -298,4 +306,246 @@ class PredictionGraphQlTest(
         assertThat((rows.first()["predictionCoverage"] as Number).toDouble()).isEqualTo(1.0)
         assertThat(rows.first()["p95AbsErrorSec"]).isNotNull()
     }
+
+    @Test
+    fun stopPredictionExposesRangeAndLate() {
+        withSmileRows { smile ->
+            val target = smile.first { it.stopPathIndex > 0 }
+            val stopId = stopPathsOfTrip().single { it.stopPathIndex == target.stopPathIndex }.stopId
+            val rows =
+                tester
+                    .document(
+                        """{ stopPredictions(feedCode:"a", stopId:"$stopId", routeId:"RA", directionId:0, algorithm:SMILE_GBM) {
+                             stopPathIndex predictedArrival algorithm rangeLowSec rangeHighSec lateProbability late
+                           } }""",
+                    ).execute()
+                    .path("stopPredictions")
+                    .entityList(Map::class.java)
+                    .get()
+
+            val row = rows.single { it["predictedArrival"] == target.predictedArrivalTs.toString() }
+            assertThat(row["algorithm"]).isEqualTo("SMILE_GBM")
+            assertThat((row["rangeLowSec"] as Number).toInt()).isEqualTo(-60)
+            assertThat((row["rangeHighSec"] as Number).toInt()).isEqualTo(120)
+            assertThat((row["lateProbability"] as Number).toDouble()).isEqualTo(0.7)
+            assertThat(row["late"]).isEqualTo(true)
+        }
+    }
+
+    @Test
+    fun tripLatenessReturnsNextStopAndTerminal() {
+        withSmileRows { smile ->
+            val paths = stopPathsOfTrip()
+            val next = smile.minBy { it.stopPathIndex }
+            val expectedTimepoint = paths.first { it.stopPathIndex >= next.stopPathIndex && it.scheduleAdherenceStop }
+            val result =
+                tester
+                    .document(
+                        """{ tripLateness(feedCode:"a", vehicleId:"bus-1", algorithm:SMILE_GBM) {
+                             vehicleId algorithm
+                             nextStop { stopPathIndex stop { stopId } predictedArrival scheduledArrival rangeLowSec rangeHighSec late lateProbability }
+                             nextTimepoint { stopPathIndex stop { stopId } }
+                             terminal { stopPathIndex stop { stopId } }
+                           } }""",
+                    ).execute()
+                    .path("tripLateness")
+                    .entity(Map::class.java)
+                    .get()
+
+            assertThat(result["vehicleId"]).isEqualTo("bus-1")
+            assertThat(result["algorithm"]).isEqualTo("SMILE_GBM")
+            @Suppress("UNCHECKED_CAST")
+            val nextStop = result["nextStop"] as Map<String, Any?>
+            assertThat((nextStop["stopPathIndex"] as Number).toInt()).isEqualTo(next.stopPathIndex)
+            assertThat(nextStop["predictedArrival"]).isEqualTo(next.predictedArrivalTs.toString())
+            assertThat(nextStop["scheduledArrival"]).isNotNull()
+            @Suppress("UNCHECKED_CAST")
+            assertThat((nextStop["stop"] as Map<String, Any?>)["stopId"]).isEqualTo(paths[next.stopPathIndex].stopId)
+            if (next.stopPathIndex > 0) {
+                assertThat((nextStop["rangeLowSec"] as Number).toInt()).isEqualTo(-60)
+                assertThat(nextStop["late"]).isEqualTo(true)
+            }
+            @Suppress("UNCHECKED_CAST")
+            val timepoint = result["nextTimepoint"] as Map<String, Any?>
+            assertThat((timepoint["stopPathIndex"] as Number).toInt()).isEqualTo(expectedTimepoint.stopPathIndex)
+            @Suppress("UNCHECKED_CAST")
+            val terminal = result["terminal"] as Map<String, Any?>
+            assertThat((terminal["stopPathIndex"] as Number).toInt()).isEqualTo(paths.last().stopPathIndex)
+            @Suppress("UNCHECKED_CAST")
+            assertThat((terminal["stop"] as Map<String, Any?>)["stopId"]).isEqualTo(paths.last().stopId)
+        }
+    }
+
+    @Test
+    fun tripLatenessNextTimepointFollowsTheScheduleFlag() {
+        val nextIndex =
+            tester
+                .document("""{ tripLateness(feedCode:"a", vehicleId:"bus-1") { nextStop { stopPathIndex } } }""")
+                .execute()
+                .path("tripLateness.nextStop.stopPathIndex")
+                .entity(Int::class.java)
+                .get()
+        val paths = stopPathsOfTrip()
+        // The fixture's next stop is not a timepoint, so the next timepoint lies further on.
+        assertThat(paths[nextIndex].scheduleAdherenceStop).isEqualTo(false)
+        assertThat(nextIndex).isLessThan(paths.last().stopPathIndex)
+
+        fun nextTimepoint() =
+            tester
+                .document("""{ tripLateness(feedCode:"a", vehicleId:"bus-1") { nextTimepoint { stopPathIndex } } }""")
+                .execute()
+                .path("tripLateness.nextTimepoint.stopPathIndex")
+                .entity(Int::class.java)
+                .get()
+
+        assertThat(nextTimepoint()).isEqualTo(paths.first { it.stopPathIndex > nextIndex && it.scheduleAdherenceStop }.stopPathIndex)
+        val flipped = paths[nextIndex].apply { scheduleAdherenceStop = true }
+        stopPaths.save(flipped)
+        try {
+            assertThat(nextTimepoint()).isEqualTo(nextIndex)
+        } finally {
+            stopPaths.save(flipped.apply { scheduleAdherenceStop = false })
+        }
+    }
+
+    @Test
+    fun tripLatenessDefaultsToFirstConfiguredAlgorithmWithAnAssessment() {
+        val feed = feedRow()
+        val configured = feed.predictionAlgorithms
+        feed.predictionAlgorithms = listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feed)
+        try {
+            withSmileRows {
+                val algorithm =
+                    tester
+                        .document("""{ tripLateness(feedCode:"a", vehicleId:"bus-1") { algorithm } }""")
+                        .execute()
+                        .path("tripLateness.algorithm")
+                        .entity(String::class.java)
+                        .get()
+                // SCHEDULE_ADHERENCE comes first but never assesses lateness.
+                assertThat(algorithm).isEqualTo("SMILE_GBM")
+            }
+            val withoutAssessment =
+                tester
+                    .document("""{ tripLateness(feedCode:"a", vehicleId:"bus-1") { algorithm nextStop { late } } }""")
+                    .execute()
+                    .path("tripLateness")
+                    .entity(Map::class.java)
+                    .get()
+            assertThat(withoutAssessment["algorithm"]).isEqualTo("SCHEDULE_ADHERENCE")
+            @Suppress("UNCHECKED_CAST")
+            assertThat((withoutAssessment["nextStop"] as Map<String, Any?>)["late"]).isNull()
+        } finally {
+            feed.predictionAlgorithms = configured
+            feeds.save(feed)
+        }
+    }
+
+    @Test
+    fun tripLatenessIsNullWithoutPredictions() {
+        tester
+            .document("""{ tripLateness(feedCode:"a", vehicleId:"nobody") { vehicleId } }""")
+            .execute()
+            .path("tripLateness")
+            .valueIsNull()
+        tester
+            .document("""{ tripLateness(feedCode:"a", vehicleId:"bus-1", algorithm:KALMAN) { vehicleId } }""")
+            .execute()
+            .path("tripLateness")
+            .valueIsNull()
+    }
+
+    @Test
+    fun accuracyExposesRangeCoverage() {
+        val seeded =
+            predictionAccuracies.saveAll(
+                predictionAccuracies
+                    .findAll()
+                    .filter { it.feedCode == feedRow().code && it.algorithm == PredictionAlgorithm.SCHEDULE_ADHERENCE }
+                    .map { smileAccuracy(it) },
+            )
+        assertThat(seeded).isNotEmpty()
+        try {
+            val rows =
+                tester
+                    .document(
+                        """{ predictionAccuracy(feedCode:"a", algorithm:SMILE_GBM) {
+                             algorithm sampleCount rangeCoverage rangeSampleCount byHorizon { rangeCoverage rangeSampleCount }
+                           } }""",
+                    ).execute()
+                    .path("predictionAccuracy")
+                    .entityList(Map::class.java)
+                    .get()
+
+            val row = rows.single()
+            assertThat(row["algorithm"]).isEqualTo("SMILE_GBM")
+            assertThat((row["rangeSampleCount"] as Number).toInt()).isEqualTo((row["sampleCount"] as Number).toInt())
+            assertThat((row["rangeCoverage"] as Number).toDouble()).isEqualTo(1.0)
+            @Suppress("UNCHECKED_CAST")
+            val byHorizon = row["byHorizon"] as List<Map<String, Any?>>
+            assertThat(byHorizon.sumOf { (it["rangeSampleCount"] as Number).toInt() })
+                .isEqualTo((row["rangeSampleCount"] as Number).toInt())
+
+            val withoutRange =
+                tester
+                    .document("""{ predictionAccuracy(feedCode:"a", algorithm:SCHEDULE_ADHERENCE) { rangeCoverage rangeSampleCount } }""")
+                    .execute()
+                    .path("predictionAccuracy")
+                    .entityList(Map::class.java)
+                    .get()
+                    .single()
+            assertThat((withoutRange["rangeSampleCount"] as Number).toInt()).isEqualTo(0)
+            assertThat(withoutRange["rangeCoverage"]).isNull()
+        } finally {
+            predictionAccuracies.deleteAllById(seeded.map { it.id!! })
+        }
+    }
+
+    private fun stopPathsOfTrip(): List<StopPath> {
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-1")!!
+        return stopPaths.findByTripPatternOrdered(state.revisionId!!, state.tripPatternId!!)
+    }
+
+    /**
+     * Copies bus-1's open SCHEDULE_ADHERENCE predictions as SMILE_GBM rows carrying a range and a
+     * late assessment (none at stop path 0, a departure), and removes them once [block] returns.
+     */
+    private fun withSmileRows(block: (List<VehiclePrediction>) -> Unit) {
+        val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-1")!!
+        val open =
+            vehiclePredictions
+                .findByVehicleTrip(feedRow().code, "bus-1", state.tripRowId!!, PredictionAlgorithm.SCHEDULE_ADHERENCE)
+                .filter { it.actualArrivalTs == null && it.actualDepartureTs == null }
+        assertThat(open).isNotEmpty()
+        val smile = vehiclePredictions.saveAll(open.map { smilePrediction(it) })
+        try {
+            block(smile)
+        } finally {
+            smile.forEach { vehiclePredictions.deleteById(it.id!!) }
+        }
+    }
+
+    private fun smilePrediction(p: VehiclePrediction): VehiclePrediction {
+        val assessed = p.stopPathIndex > 0
+        return VehiclePrediction(
+            feedCode = p.feedCode, vehicleId = p.vehicleId, tripRowId = p.tripRowId, blockPk = p.blockPk,
+            tripPatternId = p.tripPatternId, stopPathIndex = p.stopPathIndex, algorithm = PredictionAlgorithm.SMILE_GBM,
+            predictedArrivalTs = p.predictedArrivalTs, predictedDepartureTs = p.predictedDepartureTs,
+            actualArrivalTs = null, actualDepartureTs = null, confidenceSec = p.confidenceSec, computedAt = p.computedAt,
+            sourceReportTs = p.sourceReportTs, serviceDate = p.serviceDate,
+            rangeLowSec = if (assessed) -60 else null, rangeHighSec = if (assessed) 120 else null,
+            lateProbability = if (assessed) 0.7 else null, late = if (assessed) true else null,
+        )
+    }
+
+    private fun smileAccuracy(a: PredictionAccuracy): PredictionAccuracy =
+        PredictionAccuracy(
+            feedCode = a.feedCode, vehicleId = a.vehicleId, tripRowId = a.tripRowId, stopPathIndex = a.stopPathIndex,
+            algorithm = PredictionAlgorithm.SMILE_GBM, predictedTs = a.predictedTs, actualTs = a.actualTs,
+            errorSec = a.errorSec, absErrorSec = a.absErrorSec, createdAt = a.createdAt, horizonSec = a.horizonSec,
+            predictedAt = a.predictedAt, producedAt = a.producedAt, actualLeadSec = a.actualLeadSec,
+            confidenceSec = a.confidenceSec, routeId = a.routeId, directionId = a.directionId, dayType = a.dayType,
+            timeBand = a.timeBand, rangeLowSec = -86_400, rangeHighSec = 86_400,
+        )
 }

@@ -50,6 +50,13 @@ class PredictionQueryController(
     ) = read.stopPredictions(feedCode, stopId, routeId, directionId, algorithm)
 
     @QueryMapping
+    fun tripLateness(
+        @Argument feedCode: String,
+        @Argument vehicleId: String,
+        @Argument algorithm: PredictionAlgorithm?,
+    ) = read.tripLateness(feedCode, vehicleId, algorithm)
+
+    @QueryMapping
     fun headway(
         @Argument feedCode: String,
         @Argument stopId: String,
