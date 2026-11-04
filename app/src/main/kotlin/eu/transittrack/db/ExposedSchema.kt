@@ -15,6 +15,7 @@ import eu.transittrack.predict.model.KalmanTravelTimeStateTable
 import eu.transittrack.predict.model.PredictionAccuracyTable
 import eu.transittrack.predict.model.PredictionCheckpointTable
 import eu.transittrack.predict.model.PredictionFrequencyRunTable
+import eu.transittrack.predict.model.PredictionModelTable
 import eu.transittrack.predict.model.TravelTimeObservationTable
 import eu.transittrack.predict.model.VehiclePredictionTable
 import eu.transittrack.schedule.model.ScheduleTables
@@ -39,6 +40,7 @@ object ExposedSchema {
                 PredictionAccuracyTable,
                 PredictionCheckpointTable,
                 PredictionFrequencyRunTable,
+                PredictionModelTable,
                 TravelTimeObservationTable,
                 VehiclePredictionTable,
             ),
