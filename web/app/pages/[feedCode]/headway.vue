@@ -152,8 +152,9 @@ function formatTs(iso: string | null | undefined): string {
 }
 
 /**
- * `confidenceSec` is the Kalman filter's ±1σ error on the predicted arrival
- * (only the KALMAN algorithm reports it). Bucket it into a legible rating.
+ * `confidenceSec` is the ±1σ error on the predicted arrival, reported by
+ * KALMAN (its filter's error) and SMILE_GBM (from its quantile spread).
+ * Bucket it into a legible rating.
  */
 function confidenceRating(
   sec: number | null | undefined,

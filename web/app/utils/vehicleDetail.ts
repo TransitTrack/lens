@@ -155,6 +155,21 @@ export function preferredAlgorithm(
   return configured.find((algorithm) => available.includes(algorithm)) ?? available[0]
 }
 
+/**
+ * Whether to ask for the trip's late assessment yet: only once the algorithm the page shows is
+ * settled — selected explicitly, or picked from the feed's configured order. Before that the
+ * backend would pick one itself (the first with late assessments, e.g. SMILE_GBM in shadow) and its
+ * badges could flash for one poll.
+ */
+export function latenessQueryEnabled(
+  feedCode: string | undefined,
+  algorithm: string | undefined,
+  configured: string[],
+  selected?: string,
+): boolean {
+  return !!feedCode && !!algorithm && (!!selected || configured.length > 0)
+}
+
 export function accuracyFor(
   algorithm: string | undefined,
   accuracy: Accuracy[],

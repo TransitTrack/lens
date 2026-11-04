@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
-import { preferredAlgorithm, stopRows } from '../../app/utils/vehicleDetail'
+import { latenessQueryEnabled, preferredAlgorithm, stopRows } from '../../app/utils/vehicleDetail'
 
 describe('preferredAlgorithm', () => {
   it('uses the feed-designated algorithm rather than prediction ordering', () => {
@@ -25,6 +25,20 @@ describe('preferredAlgorithm', () => {
       preferredAlgorithm(['KALMAN', 'SCHEDULE_ADHERENCE'], ['KALMAN'], 'SCHEDULE_ADHERENCE'),
     ).toBe('SCHEDULE_ADHERENCE')
     expect(preferredAlgorithm(['KALMAN'], ['KALMAN'], 'SCHEDULE_ADHERENCE')).toBe('KALMAN')
+  })
+})
+
+describe('latenessQueryEnabled', () => {
+  it('waits for the feed and an algorithm', () => {
+    expect(latenessQueryEnabled(undefined, 'KALMAN', ['KALMAN'])).toBe(false)
+    expect(latenessQueryEnabled('stpt', undefined, ['KALMAN'])).toBe(false)
+  })
+
+  it('waits for the feed configuration unless the algorithm was selected', () => {
+    // Predictions arrived before the feed: the fallback pick is not the page's settled choice.
+    expect(latenessQueryEnabled('stpt', 'SMILE_GBM', [])).toBe(false)
+    expect(latenessQueryEnabled('stpt', 'SMILE_GBM', [], 'SMILE_GBM')).toBe(true)
+    expect(latenessQueryEnabled('stpt', 'KALMAN', ['KALMAN', 'SMILE_GBM'])).toBe(true)
   })
 })
 

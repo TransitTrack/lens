@@ -35,6 +35,7 @@ import {
   stopFeatureCollection,
   algorithmsIn,
   preferredAlgorithm,
+  latenessQueryEnabled,
   accuracyFor,
   stopRows,
   trailCoords,
@@ -146,14 +147,22 @@ const algorithmOptions = computed(() =>
 )
 const selectedAccuracy = computed(() => accuracyFor(algorithm.value, accuracy.value))
 
-// Late assessment from the same model as the stop list (backend picks one when none is selected).
+// Late assessment from the same model as the stop list, asked for only once that model is settled.
 const { result: latenessResult } = useTripLatenessQuery(
   () => ({
     feedCode: selectedAvlFeedCode.value ?? '',
     vehicleId: vehicleId.value,
     algorithm: (algorithm.value ?? null) as PredictionAlgorithm | null,
   }),
-  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
+  () => ({
+    enabled: latenessQueryEnabled(
+      selectedAvlFeedCode.value,
+      algorithm.value,
+      selectedFeed.value?.predictionAlgorithms ?? [],
+      selectedAlgorithm.value,
+    ),
+    pollInterval: intervalMs.value,
+  }),
 )
 
 const routeColor = computed(() => {
