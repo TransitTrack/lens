@@ -510,6 +510,8 @@
         "coverage": "Pokrycie",
         "withinSd": "W granicach ±1 SD",
         "spread": "{count} prognoza z oszacowanym rozrzutem | {count} prognozy z oszacowanym rozrzutem | {count} prognoz z oszacowanym rozrzutem",
+        "inRange": "W przedziale",
+        "rangeSamples": "{count} prognoza z prognozowanym przedziałem; około 80% powinno się w nim mieścić | {count} prognozy z prognozowanym przedziałem; około 80% powinno się w nim mieścić | {count} prognoz z prognozowanym przedziałem; około 80% powinno się w nim mieścić",
         "pairedEligible": "{paired} sparowanych / {eligible} kwalifikujących się",
         "none": "Brak porównywalnych próbek prognoz dla tego źródła danych."
       },
@@ -526,7 +528,22 @@
       "actualVsSchedule": "rzeczywiście vs rozkład",
       "noComputation": "brak jeszcze obliczeń",
       "noScheduleComparison": "Brak porównania z rozkładem",
-      "vsPrediction": "wobec prognozy {value}"
+      "vsPrediction": "wobec prognozy {value}",
+      "range": {
+        "minutes": "{eta} min, prawdopodobnie od {low} do {high}",
+        "minutesExact": "{eta} min",
+        "seconds": "{eta} s, prawdopodobnie od {low} do {high}",
+        "secondsExact": "{eta} s",
+        "title": "Czas do prognozowanego przyjazdu wraz z przedziałem, w który trafia on w około 80% przypadków"
+      },
+      "lateness": {
+        "title": "Ocena opóźnienia",
+        "nextTimepoint": "Następny punkt kontrolny",
+        "terminal": "Przystanek końcowy",
+        "late": "Opóźniony",
+        "onTime": "Punktualnie",
+        "probability": "Prawdopodobieństwo opóźnienia: {percent}"
+      }
     }
   },
   "map": {

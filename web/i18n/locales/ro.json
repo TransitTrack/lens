@@ -510,6 +510,8 @@
         "coverage": "Acoperire",
         "withinSd": "În limita ±1 DS",
         "spread": "{count} prognoză cu dispersie estimată | {count} prognoze cu dispersie estimată | {count} de prognoze cu dispersie estimată",
+        "inRange": "În interval",
+        "rangeSamples": "{count} prognoză cu interval prezis; aproximativ 80% ar trebui să se încadreze în el | {count} prognoze cu interval prezis; aproximativ 80% ar trebui să se încadreze în el | {count} de prognoze cu interval prezis; aproximativ 80% ar trebui să se încadreze în el",
         "pairedEligible": "{paired} perechi / {eligible} eligibile",
         "none": "Nu există eșantioane de prognoză comparabile pentru acest flux."
       },
@@ -526,7 +528,22 @@
       "actualVsSchedule": "real față de orar",
       "noComputation": "încă nu a fost calculat",
       "noScheduleComparison": "Fără comparație cu orarul",
-      "vsPrediction": "față de predicție {value}"
+      "vsPrediction": "față de predicție {value}",
+      "range": {
+        "minutes": "{eta} min, probabil între {low} și {high}",
+        "minutesExact": "{eta} min",
+        "seconds": "{eta} s, probabil între {low} și {high}",
+        "secondsExact": "{eta} s",
+        "title": "Timpul până la sosirea prezisă, cu intervalul în care se încadrează în aproximativ 80% din cazuri"
+      },
+      "lateness": {
+        "title": "Evaluarea întârzierii",
+        "nextTimepoint": "Următorul punct orar",
+        "terminal": "Capăt de linie",
+        "late": "Întârziat",
+        "onTime": "La timp",
+        "probability": "Probabilitate de întârziere: {percent}"
+      }
     }
   },
   "map": {

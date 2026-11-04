@@ -179,6 +179,9 @@ export interface StopRow {
   confidenceSec: number | null
   actualReportGapSec: number | null
   actualReliable: boolean | null
+  /** predicted arrival range around `eta`, in signed seconds; null once reached, at stop 0 or without a range */
+  rangeLowSec: number | null
+  rangeHighSec: number | null
 }
 
 /** One row per pattern stop, joined with the selected algorithm's prediction. */
@@ -210,6 +213,8 @@ export function stopRows(
           : p?.scheduledArrival
       const arrived = !!actual
       const eta = actual ?? predicted ?? null
+      // The range is relative to predictedArrival; stop 0 shows a departure instead.
+      const ranged = !arrived && sp.stopPathIndex !== 0
       return {
         stopPathIndex: sp.stopPathIndex,
         stopId: sp.stopId,
@@ -223,6 +228,8 @@ export function stopRows(
         confidenceSec: p?.confidenceSec ?? null,
         actualReportGapSec: p?.actualReportGapSec ?? null,
         actualReliable: p?.actualReliable ?? null,
+        rangeLowSec: ranged ? (p?.rangeLowSec ?? null) : null,
+        rangeHighSec: ranged ? (p?.rangeHighSec ?? null) : null,
       }
     })
 }

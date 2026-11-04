@@ -1,0 +1,45 @@
+query TripLateness($feedCode: String!, $vehicleId: String!, $algorithm: PredictionAlgorithm) {
+  tripLateness(feedCode: $feedCode, vehicleId: $vehicleId, algorithm: $algorithm) {
+    vehicleId
+    algorithm
+    nextStop {
+      stopPathIndex
+      stop {
+        stopId
+        stopName
+      }
+      predictedArrival
+      scheduledArrival
+      rangeLowSec
+      rangeHighSec
+      late
+      lateProbability
+    }
+    nextTimepoint {
+      stopPathIndex
+      stop {
+        stopId
+        stopName
+      }
+      predictedArrival
+      scheduledArrival
+      rangeLowSec
+      rangeHighSec
+      late
+      lateProbability
+    }
+    terminal {
+      stopPathIndex
+      stop {
+        stopId
+        stopName
+      }
+      predictedArrival
+      scheduledArrival
+      rangeLowSec
+      rangeHighSec
+      late
+      lateProbability
+    }
+  }
+}

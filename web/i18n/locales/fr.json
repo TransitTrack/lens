@@ -510,6 +510,8 @@
         "coverage": "Couverture",
         "withinSd": "Dans ±1 écart type",
         "spread": "{count} prévision avec une dispersion estimée | {count} prévisions avec une dispersion estimée",
+        "inRange": "Dans l'intervalle",
+        "rangeSamples": "{count} prévision avec un intervalle prévu ; environ 80 % devraient y tomber | {count} prévisions avec un intervalle prévu ; environ 80 % devraient y tomber",
         "pairedEligible": "{paired} appariées / {eligible} éligibles",
         "none": "Aucun échantillon de prévision comparable pour ce flux."
       },
@@ -526,7 +528,22 @@
       "actualVsSchedule": "réel vs horaire",
       "noComputation": "pas encore de calcul",
       "noScheduleComparison": "Aucune comparaison avec l'horaire",
-      "vsPrediction": "vs prévision {value}"
+      "vsPrediction": "vs prévision {value}",
+      "range": {
+        "minutes": "{eta} min, probablement entre {low} et {high}",
+        "minutesExact": "{eta} min",
+        "seconds": "{eta} s, probablement entre {low} et {high}",
+        "secondsExact": "{eta} s",
+        "title": "Temps restant jusqu'à l'arrivée prévue, avec l'intervalle dans lequel elle tombe environ 80 % du temps"
+      },
+      "lateness": {
+        "title": "Évaluation du retard",
+        "nextTimepoint": "Prochain point de contrôle",
+        "terminal": "Terminus",
+        "late": "En retard",
+        "onTime": "À l'heure",
+        "probability": "{percent} de risque de retard"
+      }
     }
   },
   "map": {

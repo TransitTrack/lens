@@ -92,6 +92,10 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
     sourceReportTs
     algorithm
     confidenceSec
+    rangeLowSec
+    rangeHighSec
+    lateProbability
+    late
   }
   predictionAccuracy(feedCode: $feedCode) {
     algorithm
@@ -105,5 +109,7 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
     p95AbsErrorSec
     confidenceCoverage
     confidenceSampleCount
+    rangeCoverage
+    rangeSampleCount
   }
 }

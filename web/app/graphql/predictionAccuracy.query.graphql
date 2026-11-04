@@ -4,5 +4,7 @@ query PredictionAccuracy($feedCode: String!, $sinceDays: Int) {
     sampleCount
     meanErrorSec
     meanAbsErrorSec
+    rangeCoverage
+    rangeSampleCount
   }
 }

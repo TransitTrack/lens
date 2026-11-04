@@ -17,6 +17,8 @@ import {
   useVehicleDetailQuery,
   useAvlTrailQuery,
   useAgenciesDetailQuery,
+  useTripLatenessQuery,
+  type PredictionAlgorithm,
 } from '~~/generated/graphql'
 import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { formatClock } from '~/utils/clock'
@@ -37,6 +39,7 @@ import {
   stopRows,
   trailCoords,
 } from '~/utils/vehicleDetail'
+import { arrivalRangeLabel, lateBadge } from '~/utils/predictionRange'
 import type { GeoJSON } from 'geojson'
 
 const { t, locale } = useI18n()
@@ -143,6 +146,16 @@ const algorithmOptions = computed(() =>
 )
 const selectedAccuracy = computed(() => accuracyFor(algorithm.value, accuracy.value))
 
+// Late assessment from the same model as the stop list (backend picks one when none is selected).
+const { result: latenessResult } = useTripLatenessQuery(
+  () => ({
+    feedCode: selectedAvlFeedCode.value ?? '',
+    vehicleId: vehicleId.value,
+    algorithm: (algorithm.value ?? null) as PredictionAlgorithm | null,
+  }),
+  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
+)
+
 const routeColor = computed(() => {
   const raw = vehicle.value?.trip?.route?.routeColor
   if (!raw) return '#3b82f6'
@@ -233,6 +246,50 @@ onMounted(() => {
   timer = setInterval(() => (now.value = Date.now()), 15_000)
 })
 onBeforeUnmount(() => clearInterval(timer))
+
+const latenessEntries = computed(() => {
+  const lateness = latenessResult.value?.tripLateness
+  if (!lateness) return []
+  const assessed = [
+    { key: 'nextStop', label: t('vehicles.field.nextStop'), assessment: lateness.nextStop },
+    {
+      key: 'nextTimepoint',
+      label: t('vehicles.detail.lateness.nextTimepoint'),
+      assessment: lateness.nextTimepoint,
+    },
+    { key: 'terminal', label: t('vehicles.detail.lateness.terminal'), assessment: lateness.terminal },
+  ]
+  return assessed.flatMap(({ key, label, assessment }) =>
+    assessment
+      ? [
+          {
+            key,
+            label,
+            stopName: assessment.stop?.stopName ?? assessment.stop?.stopId ?? '—',
+            predictedArrival: assessment.predictedArrival,
+            range: arrivalRangeLabel(assessment, now.value, t),
+            badge: lateBadge(assessment, t),
+          },
+        ]
+      : [],
+  )
+})
+// Only worth a panel when the model actually assessed lateness somewhere.
+const showLateness = computed(() => latenessEntries.value.some((entry) => entry.badge))
+
+const rowRanges = computed(
+  () =>
+    new Map(
+      rows.value.map((r) => [
+        r.stopPathIndex,
+        arrivalRangeLabel(
+          { predictedArrival: r.eta, rangeLowSec: r.rangeLowSec, rangeHighSec: r.rangeHighSec },
+          now.value,
+          t,
+        ),
+      ]),
+    ),
+)
 
 const reportAgeSec = computed(() => {
   const ts = vehicle.value?.reportTs
@@ -503,6 +560,47 @@ function adherenceTextClass(sec: number | null): string {
             </div>
           </section>
 
+          <section v-if="showLateness" class="app-frame flex flex-col gap-1 p-3">
+            <div class="text-sm font-medium text-highlighted">
+              {{ t('vehicles.detail.lateness.title') }}
+            </div>
+            <ul class="divide-y divide-default">
+              <li
+                v-for="entry in latenessEntries"
+                :key="entry.key"
+                class="flex items-start justify-between gap-3 py-2"
+              >
+                <div class="min-w-0">
+                  <div class="text-xs font-medium text-dimmed">{{ entry.label }}</div>
+                  <div class="truncate text-sm font-semibold text-highlighted">
+                    {{ entry.stopName }}
+                  </div>
+                  <div
+                    v-if="entry.predictedArrival"
+                    class="text-xs tabular-nums text-muted"
+                  >
+                    <time>{{ hhmm(entry.predictedArrival) }}</time>
+                    <span v-if="entry.range" :title="t('vehicles.detail.range.title')">
+                      · {{ entry.range }}</span
+                    >
+                  </div>
+                </div>
+                <div v-if="entry.badge" class="flex shrink-0 flex-col items-end gap-0.5">
+                  <UBadge
+                    :color="entry.badge.color"
+                    variant="subtle"
+                    :icon="entry.badge.color === 'error' ? 'i-lucide-clock-alert' : 'i-lucide-circle-check'"
+                  >
+                    {{ entry.badge.label }}
+                  </UBadge>
+                  <span v-if="entry.badge.probability" class="text-xs tabular-nums text-dimmed">{{
+                    entry.badge.probability
+                  }}</span>
+                </div>
+              </li>
+            </ul>
+          </section>
+
           <!-- Position & progress -->
           <section class="app-frame flex flex-col gap-2 p-3">
             <div class="text-sm font-medium text-highlighted">{{ t('vehicles.field.position') }}</div>
@@ -718,6 +816,24 @@ function adherenceTextClass(sec: number | null): string {
                           >{{ Math.round(selectedAccuracy.confidenceCoverage * 100) }}%</strong
                         ></span
                       >
+                      <span
+                        v-if="
+                          selectedAccuracy.rangeSampleCount > 0 &&
+                          selectedAccuracy.rangeCoverage != null
+                        "
+                        class="text-dimmed"
+                        :title="
+                          t(
+                            'vehicles.detail.quality.rangeSamples',
+                            { count: selectedAccuracy.rangeSampleCount },
+                            selectedAccuracy.rangeSampleCount,
+                          )
+                        "
+                        >{{ t('vehicles.detail.quality.inRange') }}
+                        <strong class="font-semibold text-highlighted"
+                          >{{ Math.round(selectedAccuracy.rangeCoverage * 100) }}%</strong
+                        ></span
+                      >
                       <span class="text-dimmed"
                         >{{
                           t('vehicles.detail.quality.pairedEligible', {
@@ -812,8 +928,9 @@ function adherenceTextClass(sec: number | null): string {
                     <span
                       v-if="r.eta && !r.arrived && r.state !== 'passed'"
                       class="block text-xs leading-4 text-muted"
+                      :title="rowRanges.get(r.stopPathIndex) ? t('vehicles.detail.range.title') : undefined"
                     >
-                      {{ relative(r.eta) }}
+                      {{ rowRanges.get(r.stopPathIndex) ?? relative(r.eta) }}
                     </span>
                   </div>
 

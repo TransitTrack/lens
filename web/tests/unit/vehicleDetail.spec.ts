@@ -59,6 +59,10 @@ describe('stopRows', () => {
     sourceReportTs: '2026-09-07T08:04:00Z',
     algorithm: 'KALMAN',
     confidenceSec: 20,
+    rangeLowSec: null,
+    rangeHighSec: null,
+    lateProbability: null,
+    late: null,
   }
 
   it('marks the first stop passed using its actual departure', () => {
@@ -87,6 +91,53 @@ describe('stopRows', () => {
     expect(stopRows(vehicle, [sparse], 'KALMAN')[0]).toMatchObject({
       actualReportGapSec: 180,
       actualReliable: false,
+    })
+  })
+
+  describe('prediction range', () => {
+    const twoStops: Parameters<typeof stopRows>[0] = {
+      stopPathIndex: 1,
+      pattern: {
+        patternKey: 'pattern',
+        lengthM: 0,
+        stopPaths: [
+          { stopPathIndex: 0, stopId: 'S1', waitStop: true, stop: null, pathGeometry: null },
+          { stopPathIndex: 1, stopId: 'S2', waitStop: false, stop: null, pathGeometry: null },
+        ],
+      },
+    }
+    const ranged = {
+      ...prediction,
+      stopPathIndex: 1,
+      actualDeparture: null,
+      algorithm: 'SMILE_GBM' as const,
+      rangeLowSec: -60,
+      rangeHighSec: 120,
+    }
+
+    it('carries the range of an upcoming arrival', () => {
+      expect(stopRows(twoStops, [ranged], 'SMILE_GBM')[1]).toMatchObject({
+        eta: ranged.predictedArrival,
+        rangeLowSec: -60,
+        rangeHighSec: 120,
+      })
+    })
+
+    it('drops the range once the stop is reached', () => {
+      const reached = { ...ranged, actualArrival: '2026-09-07T08:01:00Z' }
+      expect(stopRows(twoStops, [reached], 'SMILE_GBM')[1]).toMatchObject({
+        arrived: true,
+        rangeLowSec: null,
+        rangeHighSec: null,
+      })
+    })
+
+    it('has no range at the first stop, which shows a departure', () => {
+      const first = { ...ranged, stopPathIndex: 0 }
+      expect(stopRows(twoStops, [first], 'SMILE_GBM')[0]).toMatchObject({
+        rangeLowSec: null,
+        rangeHighSec: null,
+      })
     })
   })
 })

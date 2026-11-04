@@ -510,6 +510,8 @@
         "coverage": "Coverage",
         "withinSd": "Within ±1 SD",
         "spread": "{count} forecasts with an estimated spread | {count} forecasts with an estimated spread",
+        "inRange": "In range",
+        "rangeSamples": "{count} forecast with a predicted range; about 80% should fall inside | {count} forecasts with a predicted range; about 80% should fall inside",
         "pairedEligible": "{paired} paired / {eligible} eligible",
         "none": "No comparable forecast samples for this feed."
       },
@@ -526,7 +528,22 @@
       "actualVsSchedule": "actual vs schedule",
       "noComputation": "no computation yet",
       "noScheduleComparison": "No schedule comparison",
-      "vsPrediction": "vs prediction {value}"
+      "vsPrediction": "vs prediction {value}",
+      "range": {
+        "minutes": "{eta} min, likely {low} to {high}",
+        "minutesExact": "{eta} min",
+        "seconds": "{eta} s, likely {low} to {high}",
+        "secondsExact": "{eta} s",
+        "title": "Time to the predicted arrival, with the range it falls in about 80% of the time"
+      },
+      "lateness": {
+        "title": "Late assessment",
+        "nextTimepoint": "Next timepoint",
+        "terminal": "Terminal",
+        "late": "Late",
+        "onTime": "On time",
+        "probability": "{percent} chance of being late"
+      }
     }
   },
   "map": {

@@ -544,6 +544,26 @@ export type LatLon = {
   lon: Scalars['Float']['output'];
 };
 
+/** Arrival prediction and late assessment for one stop of a vehicle's current trip. */
+export type LateAssessment = {
+  __typename?: 'LateAssessment';
+  /** Whether the vehicle is assessed as late here. Null when no assessment exists: algorithms other than SMILE_GBM, frequency-based trips, stop path 0 (a departure, not an arrival) and routes with neither a schedule nor a headway. */
+  late?: Maybe<Scalars['Boolean']['output']>;
+  /** Probability (0..1) that the vehicle arrives late here; null in the same cases as late. */
+  lateProbability?: Maybe<Scalars['Float']['output']>;
+  /** ISO-8601 predicted arrival; null when the algorithm has no open prediction for this stop (e.g. beyond its prediction horizon). */
+  predictedArrival?: Maybe<Scalars['String']['output']>;
+  /** Upper end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (>= 0); null without a range. */
+  rangeHighSec?: Maybe<Scalars['Int']['output']>;
+  /** Lower end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (<= 0); null without a range. */
+  rangeLowSec?: Maybe<Scalars['Int']['output']>;
+  /** ISO-8601 scheduled arrival, or null if the trip has no scheduled arrival at this stop. */
+  scheduledArrival?: Maybe<Scalars['String']['output']>;
+  stop?: Maybe<Stop>;
+  /** Index into the trip pattern's stopPaths. */
+  stopPathIndex: Scalars['Int']['output'];
+};
+
 /** GTFS levels.txt: one floor/level of a station, for indoor wayfinding. */
 export type Level = {
   __typename?: 'Level';
@@ -917,6 +937,10 @@ export type PredictionAccuracyHorizon = {
   p95AbsErrorSec?: Maybe<Scalars['Float']['output']>;
   pairedSampleCount: Scalars['Int']['output'];
   predictionCoverage: Scalars['Float']['output'];
+  /** Observed fraction of outcomes inside the predicted arrival range, among scored forecasts with a range. Null when no forecast had a range. */
+  rangeCoverage?: Maybe<Scalars['Float']['output']>;
+  /** Scored forecasts with a predicted range: the denominator of rangeCoverage. */
+  rangeSampleCount: Scalars['Int']['output'];
   sampleCount: Scalars['Int']['output'];
 };
 
@@ -941,6 +965,10 @@ export type PredictionAccuracySummary = {
   pairedSampleCount: Scalars['Int']['output'];
   /** Available forecasts divided by eligibleCount; conditional on matched observations, not total scheduled service. */
   predictionCoverage: Scalars['Float']['output'];
+  /** Observed fraction of outcomes inside the predicted arrival range, among scored forecasts with a range (about 0.8 when the range is well calibrated). Null when no forecast had a range. */
+  rangeCoverage?: Maybe<Scalars['Float']['output']>;
+  /** Scored forecasts with a predicted range: the denominator of rangeCoverage. */
+  rangeSampleCount: Scalars['Int']['output'];
   /** Available forecasts across eligible shared snapshots and all horizons. */
   sampleCount: Scalars['Int']['output'];
 };
@@ -952,7 +980,9 @@ export type PredictionAlgorithm =
   /** Predicts using a Kalman filter over observed travel times. */
   | 'KALMAN'
   /** Projects the vehicle's current schedule adherence forward along the rest of its trip. */
-  | 'SCHEDULE_ADHERENCE';
+  | 'SCHEDULE_ADHERENCE'
+  /** Predicts with gradient-boosted trees trained on past stop crossings; also gives a confidence range and a late assessment. */
+  | 'SMILE_GBM';
 
 export type PredictionDayType =
   | 'SATURDAY'
@@ -1040,7 +1070,7 @@ export type Query = {
   stop?: Maybe<Stop>;
   /** Per-stop adherence detail for one stop over a date range, across every trip serving it. */
   stopAdherence: Array<StopPassage>;
-  /** Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm. */
+  /** Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. An explicit algorithm is never substituted. Without one, the feed's configured algorithms are tried in order and the first that has live predictions for the stop is used for the whole board (all-or-nothing per stop board, never mixed per vehicle). */
   stopPredictions: Array<StopPrediction>;
   /** Every scheduled stop of one trip, in stop_sequence order. */
   stopTimes: Array<StopTime>;
@@ -1049,6 +1079,8 @@ export type Query = {
   trip?: Maybe<Trip>;
   /** Per-stop adherence detail for one trip over a date range (one trip execution per service date it ran). */
   tripAdherence: Array<StopPassage>;
+  /** Late assessment for the next stop, the next timepoint and the terminal of one vehicle's current trip. Null when the vehicle has no open (not yet reached) predictions for the chosen algorithm. An explicit algorithm is never substituted. Without one, the feed's configured algorithms are tried in order: the first whose open predictions carry a late assessment is used; if none does, the first that has open predictions at all (its late fields are then null). */
+  tripLateness?: Maybe<TripLateness>;
   /** A single trip pattern by its key, or null if unknown. */
   tripPattern?: Maybe<TripPattern>;
   /** Derived trip patterns (distinct stop sequences) in the feed's active (or given) revision. Pass routeId to scope to one route. */
@@ -1360,6 +1392,13 @@ export type QueryTripAdherenceArgs = {
   feedCode: Scalars['String']['input'];
   startDate: Scalars['String']['input'];
   tripId: Scalars['String']['input'];
+};
+
+
+export type QueryTripLatenessArgs = {
+  algorithm?: InputMaybe<PredictionAlgorithm>;
+  feedCode: Scalars['String']['input'];
+  vehicleId: Scalars['String']['input'];
 };
 
 
@@ -1746,9 +1785,17 @@ export type StopPrediction = {
   algorithm?: Maybe<PredictionAlgorithm>;
   /** Estimated arrival standard deviation in seconds (one SD), not a guaranteed confidence interval. Includes uncertainty of unlearned legs and ageing Kalman state. */
   confidenceSec?: Maybe<Scalars['Int']['output']>;
+  /** Whether the vehicle is assessed as late (see lateProbability). Null when no assessment exists, in the same cases as lateProbability. */
+  late?: Maybe<Scalars['Boolean']['output']>;
+  /** Probability (0..1) that the vehicle arrives late: later than its scheduled arrival by more than the lateness margin (the schedule tolerance, tightened to a fraction of the scheduled headway on frequent routes). Null when no assessment exists: algorithms other than SMILE_GBM, frequency-based trips, stop path 0 (a departure, not an arrival) and routes with neither a schedule nor a headway. */
+  lateProbability?: Maybe<Scalars['Float']['output']>;
   /** ISO-8601 predicted arrival, retained after arrival for comparison with the actual. */
   predictedArrival?: Maybe<Scalars['String']['output']>;
   predictedDeparture?: Maybe<Scalars['String']['output']>;
+  /** Upper end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (>= 0). Null when the algorithm gives no range (only SMILE_GBM does). */
+  rangeHighSec?: Maybe<Scalars['Int']['output']>;
+  /** Lower end of the predicted arrival range (about an 80% interval), in signed seconds relative to predictedArrival (<= 0). Null when the algorithm gives no range (only SMILE_GBM does). */
+  rangeLowSec?: Maybe<Scalars['Int']['output']>;
   /** ISO-8601 instant of the scheduled arrival, or null if the trip has no scheduled arrival at this stop. */
   scheduledArrival?: Maybe<Scalars['String']['output']>;
   scheduledDeparture?: Maybe<Scalars['String']['output']>;
@@ -1899,6 +1946,20 @@ export type TripChangeKind =
   | 'MODIFIED'
   /** Present in fromRevisionId but not toRevisionId. */
   | 'REMOVED';
+
+/** Late assessment along one vehicle's current trip. */
+export type TripLateness = {
+  __typename?: 'TripLateness';
+  /** The algorithm whose predictions the assessments come from. */
+  algorithm?: Maybe<PredictionAlgorithm>;
+  /** The first stop of the current trip the vehicle has not yet reached (no actual arrival or departure). */
+  nextStop?: Maybe<LateAssessment>;
+  /** The first not-yet-reached stop, from nextStop on, that the schedule marks as a timepoint (GTFS stop_times.timepoint = 1; when the feed has no timepoint column, any stop with explicit times). Null if no such stop remains. */
+  nextTimepoint?: Maybe<LateAssessment>;
+  /** The last stop of the current trip. */
+  terminal?: Maybe<LateAssessment>;
+  vehicleId: Scalars['String']['output'];
+};
 
 /** A distinct sequence of stops shared by one or more trips of a route, derived from the GTFS stop_times. Vehicles are matched against patterns rather than individual trips. */
 export type TripPattern = {
@@ -2537,7 +2598,7 @@ export type PredictionAccuracyQueryVariables = Exact<{
 }>;
 
 
-export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null }> };
+export type PredictionAccuracyQuery = { predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, rangeCoverage: number | null, rangeSampleCount: number }> };
 
 export type RevisionsQueryVariables = Exact<{
   feedCode: string;
@@ -2595,6 +2656,15 @@ export type TripDetailQueryVariables = Exact<{
 
 export type TripDetailQuery = { trip: { tripId: string, tripHeadsign: string | null, routeId: string, directionId: number | null, serviceId: string, shapeId: string | null, startTimeSec: number | null, endTimeSec: number | null, frequencyBased: boolean | null, noSchedule: boolean | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, pattern: { patternKey: string, stopCount: number, lengthM: number | null } | null, block: { blockId: string, serviceId: string } | null, scheduleTimes: Array<{ stopPathIndex: number, arrivalSec: number | null, departureSec: number | null, interpolated: boolean, schedTravelTimeSec: number | null, schedDwellTimeSec: number | null }>, stopTimes: Array<{ stopSequence: number, arrivalTime: string | null, departureTime: string | null, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }>, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null };
 
+export type TripLatenessQueryVariables = Exact<{
+  feedCode: string;
+  vehicleId: string;
+  algorithm?: PredictionAlgorithm | null | undefined;
+}>;
+
+
+export type TripLatenessQuery = { tripLateness: { vehicleId: string, algorithm: PredictionAlgorithm | null, nextStop: { stopPathIndex: number, predictedArrival: string | null, scheduledArrival: string | null, rangeLowSec: number | null, rangeHighSec: number | null, late: boolean | null, lateProbability: number | null, stop: { stopId: string, stopName: string | null } | null } | null, nextTimepoint: { stopPathIndex: number, predictedArrival: string | null, scheduledArrival: string | null, rangeLowSec: number | null, rangeHighSec: number | null, late: boolean | null, lateProbability: number | null, stop: { stopId: string, stopName: string | null } | null } | null, terminal: { stopPathIndex: number, predictedArrival: string | null, scheduledArrival: string | null, rangeLowSec: number | null, rangeHighSec: number | null, late: boolean | null, lateProbability: number | null, stop: { stopId: string, stopName: string | null } | null } | null } | null };
+
 export type TripsByRouteQueryVariables = Exact<{
   feedCode: string;
   routeId: string;
@@ -2626,7 +2696,7 @@ export type VehicleDetailQueryVariables = Exact<{
 }>;
 
 
-export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, scheduledDeparture: string | null, predictedArrival: string | null, predictedDeparture: string | null, actualArrival: string | null, actualDeparture: string | null, actualReportGapSec: number | null, actualReliable: boolean | null, sourceReportTs: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, eligibleCount: number, predictionCoverage: number, pairedSampleCount: number, p90AbsErrorSec: number | null, p95AbsErrorSec: number | null, confidenceCoverage: number | null, confidenceSampleCount: number }> };
+export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, scheduledDeparture: string | null, predictedArrival: string | null, predictedDeparture: string | null, actualArrival: string | null, actualDeparture: string | null, actualReportGapSec: number | null, actualReliable: boolean | null, sourceReportTs: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, rangeLowSec: number | null, rangeHighSec: number | null, lateProbability: number | null, late: boolean | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, eligibleCount: number, predictionCoverage: number, pairedSampleCount: number, p90AbsErrorSec: number | null, p95AbsErrorSec: number | null, confidenceCoverage: number | null, confidenceSampleCount: number, rangeCoverage: number | null, rangeSampleCount: number }> };
 
 export type VehiclesQueryVariables = Exact<{
   feedCode: string;
@@ -5053,6 +5123,8 @@ export const PredictionAccuracyDocument = gql`
     sampleCount
     meanErrorSec
     meanAbsErrorSec
+    rangeCoverage
+    rangeSampleCount
   }
 }
     `;
@@ -5410,6 +5482,78 @@ export function useTripDetailLazyQuery(variables?: TripDetailQueryVariables | Vu
   return VueApolloComposable.useLazyQuery<TripDetailQuery, TripDetailQueryVariables>(TripDetailDocument, variables, options);
 }
 export type TripDetailQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<TripDetailQuery, TripDetailQueryVariables>;
+export const TripLatenessDocument = gql`
+    query TripLateness($feedCode: String!, $vehicleId: String!, $algorithm: PredictionAlgorithm) {
+  tripLateness(feedCode: $feedCode, vehicleId: $vehicleId, algorithm: $algorithm) {
+    vehicleId
+    algorithm
+    nextStop {
+      stopPathIndex
+      stop {
+        stopId
+        stopName
+      }
+      predictedArrival
+      scheduledArrival
+      rangeLowSec
+      rangeHighSec
+      late
+      lateProbability
+    }
+    nextTimepoint {
+      stopPathIndex
+      stop {
+        stopId
+        stopName
+      }
+      predictedArrival
+      scheduledArrival
+      rangeLowSec
+      rangeHighSec
+      late
+      lateProbability
+    }
+    terminal {
+      stopPathIndex
+      stop {
+        stopId
+        stopName
+      }
+      predictedArrival
+      scheduledArrival
+      rangeLowSec
+      rangeHighSec
+      late
+      lateProbability
+    }
+  }
+}
+    `;
+
+/**
+ * __useTripLatenessQuery__
+ *
+ * To run a query within a Vue component, call `useTripLatenessQuery` and pass it any options that fit your needs.
+ * When your component renders, `useTripLatenessQuery` returns an object from Apollo Client that contains result, loading and error properties
+ * you can use to render your UI.
+ *
+ * @param variables that will be passed into the query
+ * @param options that will be passed into the query, supported options are listed on: https://v4.apollo.vuejs.org/guide-composable/query.html#options;
+ *
+ * @example
+ * const { result, loading, error } = useTripLatenessQuery({
+ *   feedCode: // value for 'feedCode'
+ *   vehicleId: // value for 'vehicleId'
+ *   algorithm: // value for 'algorithm'
+ * });
+ */
+export function useTripLatenessQuery(variables: TripLatenessQueryVariables | VueCompositionApi.Ref<TripLatenessQueryVariables> | ReactiveFunction<TripLatenessQueryVariables>, options: VueApolloComposable.UseQueryOptions<TripLatenessQuery, TripLatenessQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<TripLatenessQuery, TripLatenessQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<TripLatenessQuery, TripLatenessQueryVariables>> = {}) {
+  return VueApolloComposable.useQuery<TripLatenessQuery, TripLatenessQueryVariables>(TripLatenessDocument, variables, options);
+}
+export function useTripLatenessLazyQuery(variables?: TripLatenessQueryVariables | VueCompositionApi.Ref<TripLatenessQueryVariables> | ReactiveFunction<TripLatenessQueryVariables>, options: VueApolloComposable.UseQueryOptions<TripLatenessQuery, TripLatenessQueryVariables> | VueCompositionApi.Ref<VueApolloComposable.UseQueryOptions<TripLatenessQuery, TripLatenessQueryVariables>> | ReactiveFunction<VueApolloComposable.UseQueryOptions<TripLatenessQuery, TripLatenessQueryVariables>> = {}) {
+  return VueApolloComposable.useLazyQuery<TripLatenessQuery, TripLatenessQueryVariables>(TripLatenessDocument, variables, options);
+}
+export type TripLatenessQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<TripLatenessQuery, TripLatenessQueryVariables>;
 export const TripsByRouteDocument = gql`
     query TripsByRoute($feedCode: String!, $routeId: String!) {
   trips(feedCode: $feedCode, routeId: $routeId) {
@@ -5627,6 +5771,10 @@ export const VehicleDetailDocument = gql`
     sourceReportTs
     algorithm
     confidenceSec
+    rangeLowSec
+    rangeHighSec
+    lateProbability
+    late
   }
   predictionAccuracy(feedCode: $feedCode) {
     algorithm
@@ -5640,6 +5788,8 @@ export const VehicleDetailDocument = gql`
     p95AbsErrorSec
     confidenceCoverage
     confidenceSampleCount
+    rangeCoverage
+    rangeSampleCount
   }
 }
     `;
