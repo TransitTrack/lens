@@ -186,7 +186,11 @@ class PredictionReadService(
             return LateAssessmentDto(
                 stopPathIndex = path.stopPathIndex,
                 predictedArrival = r?.predictedArrivalTs?.toString(),
-                scheduledArrival = schedule[path.stopPathIndex]?.arrivalSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
+                // As the assessment judges it: the arrival time, else the departure time.
+                scheduledArrival =
+                    schedule[path.stopPathIndex]
+                        ?.let { it.arrivalSec ?: it.departureSec }
+                        ?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
                 rangeLowSec = r?.rangeLowSec,
                 rangeHighSec = r?.rangeHighSec,
                 late = r?.late,

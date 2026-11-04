@@ -15,6 +15,11 @@ import assertk.assertions.isLessThan
 import assertk.assertions.isNotEmpty
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
@@ -58,6 +63,7 @@ import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.ScheduleTimeTable
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.support.PostgresPerClassTest
@@ -93,6 +99,7 @@ class PredictionGraphQlTest(
     @Autowired val predictionAccuracies: PredictionAccuracyRepository,
     @Autowired val scheduleTimes: ScheduleTimeRepository,
     @Autowired val stopPaths: StopPathRepository,
+    @Autowired val exposedDatabase: Database,
 ) : PostgresPerClassTest() {
     @MockitoBean(reset = MockReset.NONE)
     lateinit var clock: Clock
@@ -373,6 +380,42 @@ class PredictionGraphQlTest(
             assertThat((terminal["stopPathIndex"] as Number).toInt()).isEqualTo(paths.last().stopPathIndex)
             @Suppress("UNCHECKED_CAST")
             assertThat((terminal["stop"] as Map<String, Any?>)["stopId"]).isEqualTo(paths.last().stopId)
+        }
+    }
+
+    @Test
+    fun tripLatenessScheduledArrivalFallsBackToTheDeparture() {
+        withSmileRows {
+            fun terminalScheduled() =
+                tester
+                    .document(
+                        """{ tripLateness(feedCode:"a", vehicleId:"bus-1", algorithm:SMILE_GBM) { terminal { scheduledArrival } } }""",
+                    ).execute()
+                    .path("tripLateness.terminal.scheduledArrival")
+                    .entity(String::class.java)
+                    .get()
+
+            val state = vehicleStates.findByFeedCodeAndVehicleId(feedRow().code, "bus-1")!!
+            val terminal = scheduleTimes.findByTripOrdered(state.revisionId!!, state.tripRowId!!).last()
+            val arrival = Instant.parse(terminalScheduled())
+            val t = ScheduleTimeTable
+            val atTerminal = { (t.tripId eq state.tripRowId!!) and (t.stopPathIndex eq terminal.stopPathIndex) }
+            transaction(exposedDatabase) {
+                t.update(atTerminal) {
+                    it[t.arrivalSec] = null
+                    it[t.departureSec] = terminal.arrivalSec!! + 60
+                }
+            }
+            try {
+                assertThat(Instant.parse(terminalScheduled())).isEqualTo(arrival.plusSeconds(60))
+            } finally {
+                transaction(exposedDatabase) {
+                    t.update(atTerminal) {
+                        it[t.arrivalSec] = terminal.arrivalSec
+                        it[t.departureSec] = terminal.departureSec
+                    }
+                }
+            }
         }
     }
 
