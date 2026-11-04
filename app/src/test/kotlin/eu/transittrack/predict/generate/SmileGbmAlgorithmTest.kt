@@ -91,7 +91,7 @@ class SmileGbmAlgorithmTest {
     ): SmileGbmAlgorithm {
         val store = SmileModelStore(mock<PredictionModelRepository>(), Clock.systemUTC())
         if (model != null) store.put(FEED, model)
-        return SmileGbmAlgorithm(store, seeds, props)
+        return SmileGbmAlgorithm(store, seeds, ScheduledLateness(props))
     }
 
     private fun horizon(

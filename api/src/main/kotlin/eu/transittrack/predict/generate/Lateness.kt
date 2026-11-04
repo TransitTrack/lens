@@ -33,14 +33,8 @@ fun assessLateness(
     scheduledHeadwaySec: Int?,
 ): LateAssessment? {
     if (scheduledArrival == null) return null
-    val delay = Duration.between(scheduledArrival, predictedArrival).toMillis() / 1000.0
-    val tolerance = policy.scheduleToleranceSec.toDouble()
-    val margin =
-        if (scheduledHeadwaySec != null && scheduledHeadwaySec > 0) {
-            minOf(tolerance, policy.headwayFraction * scheduledHeadwaySec)
-        } else {
-            tolerance
-        }
+    val delay = delaySec(scheduledArrival, predictedArrival)
+    val margin = latenessMarginSec(policy, scheduledHeadwaySec)
     val late = delay > margin
     val probability =
         if (sigmaSec <= 0.0) {
@@ -50,6 +44,38 @@ fun assessLateness(
         }
     return LateAssessment(late, probability)
 }
+
+/**
+ * Whether [arrival] is late against [scheduledArrival]: the same rule, and margin, [assessLateness]
+ * judges a predicted arrival by, so an actual arrival can be scored against the assessment made for it.
+ */
+fun isLateArrival(
+    policy: LatenessPolicy,
+    scheduledArrival: Instant,
+    arrival: Instant,
+    scheduledHeadwaySec: Int?,
+): Boolean = delaySec(scheduledArrival, arrival) > latenessMarginSec(policy, scheduledHeadwaySec)
+
+/**
+ * Seconds past the scheduled arrival tolerated before an arrival counts as late: the schedule
+ * tolerance, or [LatenessPolicy.headwayFraction] of a known (positive) scheduled headway where that is smaller.
+ */
+fun latenessMarginSec(
+    policy: LatenessPolicy,
+    scheduledHeadwaySec: Int?,
+): Double {
+    val tolerance = policy.scheduleToleranceSec.toDouble()
+    return if (scheduledHeadwaySec != null && scheduledHeadwaySec > 0) {
+        minOf(tolerance, policy.headwayFraction * scheduledHeadwaySec)
+    } else {
+        tolerance
+    }
+}
+
+private fun delaySec(
+    scheduledArrival: Instant,
+    arrival: Instant,
+): Double = Duration.between(scheduledArrival, arrival).toMillis() / 1000.0
 
 /** Standard normal CDF via Abramowitz-Stegun 7.1.26 erf approximation (abs error < 1.5e-7). */
 private fun normalCdf(z: Double): Double {

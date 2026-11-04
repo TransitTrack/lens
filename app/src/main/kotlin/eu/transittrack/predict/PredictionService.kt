@@ -19,7 +19,10 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.predict.generate.GeneratedPrediction
 import eu.transittrack.predict.generate.HorizonStop
+import eu.transittrack.predict.generate.LatenessReference
+import eu.transittrack.predict.generate.PatternStopIds
 import eu.transittrack.predict.generate.PredictionStrategy
+import eu.transittrack.predict.generate.ScheduledLateness
 import eu.transittrack.predict.generate.buildHorizon
 import eu.transittrack.predict.generate.seedStopToStopSec
 import eu.transittrack.predict.generate.serviceSecToInstant
@@ -71,6 +74,7 @@ class PredictionService(
     private val metrics: TransitTrackMetrics,
     private val clock: Clock,
     private val avlProps: AvlProperties,
+    private val lateness: ScheduledLateness,
 ) {
     private val strategies: Map<PredictionAlgorithm, PredictionStrategy> = strategyList.associateBy { it.algorithm }
     private val horizonsSec: List<Int> = props.accuracy.horizonsSec
@@ -478,6 +482,10 @@ class PredictionService(
      * [passedAt]. Horizons use actual lead time, never an algorithm's predicted ETA. Within each
      * horizon, all algorithms use the same earliest snapshot, including explicitly missing forecasts.
      * Crossings interpolated over excessive report gaps are retained but not treated as ground truth.
+     *
+     * A snapshot's range and late assessment are kept with its score; a late assessment is scored
+     * against the same scheduled arrival and margin it was made with ([ScheduledLateness]), rebuilt
+     * from the schedule here rather than stored with the snapshot.
      */
     private fun scoreCheckpoints(
         feed: AvlFeed,
@@ -492,8 +500,10 @@ class PredictionService(
         val checkpoints = writer.takeCheckpoints(feed.code, vehicleId, trip.id, passedAt.keys)
         if (!reliable) return
         val rows = ArrayList<PredictionAccuracy>()
+        val stopIds = PatternStopIds(ctx)
         for ((stopIndex, snapshots) in checkpoints.groupBy { it.stopPathIndex }) {
             val actualTs = passedAt.getValue(stopIndex)
+            val lateReference: LatenessReference? by lazy { lateness.reference(ctx, serviceDate, trip, stopIndex, stopIds) }
             val cohorts = snapshots
                 .filter {
                     it.serviceDate == serviceDate && it.producedAt?.let { at -> !at.isAfter(actualTs) } == true
@@ -530,6 +540,10 @@ class PredictionService(
                             directionId = trip.directionId,
                             dayType = bucket.dayType,
                             timeBand = bucket.timeBand,
+                            rangeLowSec = c.rangeLowSec,
+                            rangeHighSec = c.rangeHighSec,
+                            predictedLate = c.late,
+                            actualLate = c.late?.let { lateReference?.let { lateness.isLate(it, actualTs) } },
                         ),
                     )
                     if (errorSec != null) metrics.predictionAccuracy(feed.code, c.algorithm.name.lowercase(), errorSec)

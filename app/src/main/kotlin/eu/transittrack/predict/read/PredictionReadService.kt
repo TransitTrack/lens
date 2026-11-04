@@ -24,6 +24,7 @@ import eu.transittrack.predict.read.dto.PredictionAccuracyHorizonDto
 import eu.transittrack.predict.read.dto.PredictionAccuracySummaryDto
 import eu.transittrack.predict.read.dto.StopPredictionDto
 import eu.transittrack.schedule.model.ScheduleTimeRepository
+import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
 
@@ -95,19 +96,15 @@ class PredictionReadService(
         val patternIds = tripPatterns(revisionId, routeId, directionId).map { it.id!! }.toSet()
         val matchingStopPaths = stopPaths.findByStopId(revisionId, stopId).filter { it.tripPatternId in patternIds }
         val zone = agencies.timezoneOf(revisionId) ?: ZoneId.systemDefault()
-        val resolvedAlgorithm = algorithm ?: feed.predictionAlgorithms.first()
         val now = clock.instant()
+        // An explicit algorithm is never substituted; otherwise the feed's algorithms are tried in
+        // order, so a primary that has nothing live yet (e.g. SMILE_GBM before its first model) falls back.
         val rows =
-            matchingStopPaths
-                .flatMap { sp -> predictions.findByPatternStopAlgorithm(feed.code, sp.tripPatternId, sp.stopPathIndex, resolvedAlgorithm) }
-                .filter {
-                    it.predictedArrivalTs != null &&
-                        it.actualArrivalTs == null &&
-                        it.actualDepartureTs == null &&
-                        it.sourceReportTs?.let { source -> props.run.isFreshSource(source, now) } == true
-                }.let { onePerTrip(feed.code, it) }
-                .sortedWith(compareBy({ it.predictedArrivalTs }, { it.tripRowId }, { it.vehicleId }, { it.stopPathIndex }))
-        if (rows.isEmpty()) return emptyList()
+            (algorithm?.let { listOf(it) } ?: feed.predictionAlgorithms.distinct())
+                .asSequence()
+                .map { liveStopPredictions(feed.code, matchingStopPaths, it, now) }
+                .firstOrNull { it.isNotEmpty() }
+                ?: return emptyList()
 
         // Each trip's row at this stop, plus its first one for the trip's start time.
         val scheduleRows =
@@ -136,6 +133,23 @@ class PredictionReadService(
             )
         }
     }
+
+    /** [algorithm]'s upcoming, freshly sourced arrivals at [stopPaths], one per trip, earliest first. */
+    private fun liveStopPredictions(
+        feedCode: String,
+        stopPaths: List<StopPath>,
+        algorithm: PredictionAlgorithm,
+        now: Instant,
+    ): List<VehiclePrediction> =
+        stopPaths
+            .flatMap { sp -> predictions.findByPatternStopAlgorithm(feedCode, sp.tripPatternId, sp.stopPathIndex, algorithm) }
+            .filter {
+                it.predictedArrivalTs != null &&
+                    it.actualArrivalTs == null &&
+                    it.actualDepartureTs == null &&
+                    it.sourceReportTs?.let { source -> props.run.isFreshSource(source, now) } == true
+            }.let { onePerTrip(feedCode, it) }
+            .sortedWith(compareBy({ it.predictedArrivalTs }, { it.tripRowId }, { it.vehicleId }, { it.stopPathIndex }))
 
     /**
      * One prediction per trip: a trip can be predicted by two vehicles at once - the one running it,
@@ -218,6 +232,8 @@ class PredictionReadService(
                     p95AbsErrorSec = summary.p95AbsErrorSec,
                     confidenceCoverage = summary.confidenceCoverage,
                     confidenceSampleCount = summary.confidenceSampleCount.toInt(),
+                    rangeCoverage = summary.rangeCoverage,
+                    rangeSampleCount = summary.rangeSampleCount.toInt(),
                     byHorizon =
                         horizons.filter { it.horizonSec != null }.map {
                             PredictionAccuracyHorizonDto(
@@ -232,6 +248,8 @@ class PredictionReadService(
                                 p95AbsErrorSec = it.p95AbsErrorSec,
                                 confidenceCoverage = it.confidenceCoverage,
                                 confidenceSampleCount = it.confidenceSampleCount.toInt(),
+                                rangeCoverage = it.rangeCoverage,
+                                rangeSampleCount = it.rangeSampleCount.toInt(),
                             )
                         },
                 )

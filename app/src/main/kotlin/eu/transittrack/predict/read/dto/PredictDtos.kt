@@ -33,6 +33,8 @@ data class PredictionAccuracySummaryDto(
     val p95AbsErrorSec: Double?,
     val confidenceCoverage: Double?,
     val confidenceSampleCount: Int,
+    val rangeCoverage: Double?,
+    val rangeSampleCount: Int,
     val byHorizon: List<PredictionAccuracyHorizonDto> = emptyList(),
 )
 
@@ -48,6 +50,8 @@ data class PredictionAccuracyHorizonDto(
     val p95AbsErrorSec: Double?,
     val confidenceCoverage: Double?,
     val confidenceSampleCount: Int,
+    val rangeCoverage: Double?,
+    val rangeSampleCount: Int,
 )
 
 data class HeadwayDto(

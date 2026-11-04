@@ -75,6 +75,9 @@ data class PredictionAccuracyAggregate(
     val p95AbsErrorSec: Double?,
     val confidenceCoverage: Double?,
     val confidenceSampleCount: Long,
+    /** Fraction of scored rows with a range whose error (actual minus predicted) lies within it; null without any. */
+    val rangeCoverage: Double?,
+    val rangeSampleCount: Long,
 )
 
 object PredictionAccuracyTable : RowTable<PredictionAccuracy>("prediction_accuracy") {
@@ -231,6 +234,8 @@ class PredictionAccuracyRepository {
                             p95AbsErrorSec = rs.getObject("p95AbsErrorSec")?.let { (it as Number).toDouble() },
                             confidenceCoverage = rs.getObject("confidenceCoverage")?.let { (it as Number).toDouble() },
                             confidenceSampleCount = rs.getLong("confidenceSampleCount"),
+                            rangeCoverage = rs.getObject("rangeCoverage")?.let { (it as Number).toDouble() },
+                            rangeSampleCount = rs.getLong("rangeSampleCount"),
                         ),
                     )
                 }
@@ -334,7 +339,11 @@ class PredictionAccuracyRepository {
                        filter (where c.available_algorithms = ?) as "p95AbsErrorSec",
                    avg(case when s.confidence_sec is null or s.error_sec is null then null
                             when s.abs_error_sec <= s.confidence_sec then 1.0 else 0.0 end) as "confidenceCoverage",
-                   count(*) filter (where s.confidence_sec is not null and s.error_sec is not null) as "confidenceSampleCount"
+                   count(*) filter (where s.confidence_sec is not null and s.error_sec is not null) as "confidenceSampleCount",
+                   avg(case when s.range_low_sec is null or s.range_high_sec is null or s.error_sec is null then null
+                            when s.error_sec between s.range_low_sec and s.range_high_sec then 1.0 else 0.0 end) as "rangeCoverage",
+                   count(*) filter (where s.range_low_sec is not null and s.range_high_sec is not null and s.error_sec is not null)
+                       as "rangeSampleCount"
             from snapshots s join cohorts c using
                 (vehicle_id, trip_row_id, stop_path_index, horizon_sec, predicted_at, produced_at, actual_ts)
             where c.eligible_algorithms = ?

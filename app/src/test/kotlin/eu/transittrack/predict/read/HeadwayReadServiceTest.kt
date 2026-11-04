@@ -349,6 +349,102 @@ class HeadwayReadServiceTest(
     }
 
     @Test
+    fun rangeCoverageCountsOnlyRowsWithRange() {
+        val at = clock.instant()
+
+        fun sample(
+            vehicle: String,
+            error: Int,
+            range: IntRange?,
+        ) = PredictionAccuracy(
+            feedCode = "a", vehicleId = vehicle, tripRowId = 1L, stopPathIndex = 2, algorithm = PredictionAlgorithm.SMILE_GBM,
+            predictedTs = at.minusSeconds(60L + error), actualTs = at.minusSeconds(60), errorSec = error,
+            absErrorSec = kotlin.math.abs(error), createdAt = at, horizonSec = 300, predictedAt = at.minusSeconds(300),
+            producedAt = at.minusSeconds(300), actualLeadSec = 240, rangeLowSec = range?.first, rangeHighSec = range?.last,
+        )
+        val inserted = predictionAccuracies.saveAll(
+            listOf(
+                // Asymmetric ranges: error is actual minus predicted, the same sign as the range offsets.
+                sample("late-inside", 30, -5..40),
+                sample("early-outside", -10, -5..40),
+                sample("inside", 10, -20..20),
+                sample("no-range", 500, null),
+            ),
+        )
+        try {
+            val smile = read.predictionAccuracy("a", PredictionAlgorithm.SMILE_GBM, 7).single()
+            assertThat(smile.rangeCoverage).isEqualTo(2.0 / 3)
+            assertThat(smile.rangeSampleCount).isEqualTo(3)
+            val horizon = smile.byHorizon.single()
+            assertThat(horizon.rangeCoverage).isEqualTo(2.0 / 3)
+            assertThat(horizon.rangeSampleCount).isEqualTo(3)
+        } finally {
+            predictionAccuracies.deleteAllById(inserted.map { it.id!! })
+        }
+    }
+
+    /** Copies of bus-1's and bus-2's live predictions under [algorithm]. */
+    private fun copyPredictionsAs(algorithm: PredictionAlgorithm): List<VehiclePrediction> =
+        vehiclePredictions.saveAll(
+            vehiclePredictions.findAll().filter { it.algorithm == PredictionAlgorithm.SCHEDULE_ADHERENCE }.map {
+                VehiclePrediction(
+                    feedCode = it.feedCode, vehicleId = it.vehicleId, tripRowId = it.tripRowId, blockPk = it.blockPk,
+                    tripPatternId = it.tripPatternId, stopPathIndex = it.stopPathIndex, algorithm = algorithm,
+                    predictedArrivalTs = it.predictedArrivalTs, predictedDepartureTs = it.predictedDepartureTs,
+                    actualArrivalTs = it.actualArrivalTs, actualDepartureTs = it.actualDepartureTs, confidenceSec = it.confidenceSec,
+                    computedAt = it.computedAt, sourceReportTs = it.sourceReportTs, serviceDate = it.serviceDate,
+                )
+            },
+        )
+
+    /** Runs [block] with feed `a` configured for [algorithms], restoring its configuration after. */
+    private fun withAlgorithms(
+        algorithms: List<PredictionAlgorithm>,
+        block: () -> Unit,
+    ) {
+        val feed = feeds.findById(feedId)!!
+        val configured = feed.predictionAlgorithms
+        feed.predictionAlgorithms = algorithms
+        feeds.save(feed)
+        try {
+            block()
+        } finally {
+            feed.predictionAlgorithms = configured
+            feeds.save(feed)
+        }
+    }
+
+    @Test
+    fun stopPredictionsFallsBackWhenFirstAlgorithmHasNoRows() {
+        val kalman = copyPredictionsAs(PredictionAlgorithm.KALMAN)
+        try {
+            withAlgorithms(listOf(PredictionAlgorithm.SMILE_GBM, PredictionAlgorithm.KALMAN)) {
+                val board = read.stopPredictions("a", "S3", "RA", 0)
+
+                assertThat(board.size).isEqualTo(2)
+                assertThat(board.map { it.algorithm }.toSet()).isEqualTo(setOf(PredictionAlgorithm.KALMAN))
+            }
+        } finally {
+            kalman.forEach { vehiclePredictions.deleteById(it.id!!) }
+        }
+    }
+
+    @Test
+    fun explicitAlgorithmIsNeverSubstituted() {
+        val kalman = copyPredictionsAs(PredictionAlgorithm.KALMAN)
+        try {
+            withAlgorithms(listOf(PredictionAlgorithm.SMILE_GBM, PredictionAlgorithm.KALMAN)) {
+                assertThat(read.stopPredictions("a", "S3", "RA", 0, PredictionAlgorithm.SMILE_GBM)).isEmpty()
+                assertThat(read.stopPredictions("a", "S3", "RA", 0, PredictionAlgorithm.HISTORICAL_AVERAGE)).isEmpty()
+                val explicit = read.stopPredictions("a", "S3", "RA", 0, PredictionAlgorithm.KALMAN)
+                assertThat(explicit.map { it.algorithm }.toSet()).isEqualTo(setOf(PredictionAlgorithm.KALMAN))
+            }
+        } finally {
+            kalman.forEach { vehiclePredictions.deleteById(it.id!!) }
+        }
+    }
+
+    @Test
     fun `an unavailable forecast has zero coverage but no fabricated error statistics`() {
         val at = clock.instant()
         val row = predictionAccuracies.save(

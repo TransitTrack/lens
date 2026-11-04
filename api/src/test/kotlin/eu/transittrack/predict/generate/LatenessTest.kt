@@ -85,4 +85,18 @@ class LatenessTest {
     fun earlyIsNeverLate() {
         assertThat(assess(-200, 60.0)!!.late).isFalse()
     }
+
+    @Test
+    fun actualArrivalIsJudgedWithTheAssessmentMargin() {
+        for (headway in listOf(null, 0, 240, 3600)) {
+            for (delay in listOf(-60L, 119L, 120L, 121L, 299L, 300L, 301L, 900L)) {
+                val arrival = scheduled.plusSeconds(delay)
+                assertThat(isLateArrival(policy, scheduled, arrival, headway))
+                    .isEqualTo(assessLateness(policy, scheduled, arrival, 60.0, headway)!!.late)
+            }
+        }
+        // A 240 s headway tightens the margin to 120 s.
+        assertThat(isLateArrival(policy, scheduled, scheduled.plusSeconds(121), 240)).isTrue()
+        assertThat(isLateArrival(policy, scheduled, scheduled.plusSeconds(121), null)).isFalse()
+    }
 }
