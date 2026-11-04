@@ -159,7 +159,7 @@ data class PredictProperties(
     data class Late(
         /** Seconds past schedule tolerated before a trip is considered late. */
         val scheduleToleranceSec: Int = 300,
-        /** For headway-based services: fraction of the headway tolerated. */
+        /** Fraction of the scheduled headway tolerated, where that is tighter than [scheduleToleranceSec] (frequent routes). */
         val headwayFraction: Double = 0.5,
     ) {
         init {

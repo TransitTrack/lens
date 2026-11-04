@@ -180,6 +180,21 @@ class SmileGbmAlgorithmTest {
     }
 
     @Test
+    fun scheduledDepartureStandsInForMissingArrival() {
+        // S1 has only a scheduled departure, 10 minutes before the predicted 08:01:40 arrival.
+        val ctx =
+            FakeContext(
+                listOf(trip(1)),
+                mapOf(1L to schedule(EIGHT).map { if (it.stopPathIndex == 1) SchedulePoint(1, null, EIGHT + 100 - 600) else it }),
+            )
+
+        val p = strategy(model()).run(horizon(1), at(EIGHT), ctx).single()
+
+        assertThat(p.late).isEqualTo(true)
+        assertThat(p.lateProbability).isNotNull()
+    }
+
+    @Test
     fun onTimeWithinTolerance() {
         // Predicted three minutes behind schedule: inside the 300 s tolerance.
         val ctx = FakeContext(listOf(trip(1)), mapOf(1L to schedule(EIGHT - 180)))

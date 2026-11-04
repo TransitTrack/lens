@@ -49,6 +49,29 @@ class LatenessTest {
     }
 
     @Test
+    fun frequentRouteMarginIsTighterThanTolerance() {
+        // Half of a 240 s headway (120 s) is tighter than the 300 s tolerance.
+        assertThat(assess(130, 0.0, headway = 240)!!.late).isTrue()
+        assertThat(assess(100, 0.0, headway = 240)!!.late).isFalse()
+    }
+
+    @Test
+    fun longHeadwayKeepsTolerance() {
+        // Half of an hourly headway would be 30 minutes: the 300 s tolerance stays the margin.
+        assertThat(assess(301, 0.0, headway = 3600)!!.late).isTrue()
+        assertThat(assess(299, 0.0, headway = 3600)!!.late).isFalse()
+    }
+
+    @Test
+    fun zeroHeadwayIsTreatedAsUnknown() {
+        // A zero (or negative) headway is no headway rule: the tolerance applies.
+        assertThat(assess(301, 0.0, headway = 0)).isEqualTo(LateAssessment(true, 1.0))
+        assertThat(assess(299, 0.0, headway = 0)).isEqualTo(LateAssessment(false, 0.0))
+        assertThat(assess(299, 0.0, headway = -60)).isEqualTo(LateAssessment(false, 0.0))
+        assertThat(assessLateness(policy, null, scheduled, 60.0, 0)).isNull()
+    }
+
+    @Test
     fun noScheduleAndNoHeadwayIsNull() {
         assertThat(assessLateness(policy, null, scheduled, 60.0, null)).isNull()
     }

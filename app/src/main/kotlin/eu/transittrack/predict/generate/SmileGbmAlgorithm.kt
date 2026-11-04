@@ -154,7 +154,10 @@ class SmileGbmAlgorithm(
         )
     }
 
-    /** `null` for a frequency-based trip, or a stop without a scheduled arrival: the delay is unknown. */
+    /**
+     * `null` for a frequency-based trip, or a stop without a scheduled time: the delay is unknown. The
+     * scheduled arrival is the stop's arrival time, else its departure time, as the headway uses.
+     */
     private fun lateness(
         p: GeneratedPrediction,
         confidenceSec: Int,
@@ -165,13 +168,9 @@ class SmileGbmAlgorithm(
     ): LateAssessment? {
         if (trip == null || trip.frequencyBased == true) return null
         val predictedArrival = p.predictedArrivalTs ?: return null
+        val point = ctx.scheduleOf(p.tripRowId).firstOrNull { it.stopPathIndex == p.stopPathIndex } ?: return null
         val scheduledArrival =
-            ctx
-                .scheduleOf(p.tripRowId)
-                .firstOrNull { it.stopPathIndex == p.stopPathIndex }
-                ?.arrivalSec
-                ?.let { serviceSecToInstant(serviceDate, it, ctx.zone) }
-                ?: return null
+            (point.arrivalSec ?: point.departureSec)?.let { serviceSecToInstant(serviceDate, it, ctx.zone) } ?: return null
         val headwaySec = scheduledHeadwaySec(ctx, serviceDate, trip, stopIds, p.stopPathIndex, scheduledArrival)
         return assessLateness(policy, scheduledArrival, predictedArrival, confidenceSec.toDouble(), headwaySec)
     }

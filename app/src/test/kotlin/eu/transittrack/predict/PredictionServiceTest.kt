@@ -23,7 +23,9 @@ import org.junit.jupiter.api.TestInstance
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.doThrow
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -65,6 +67,9 @@ import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.PredictionCheckpointTable
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
+import eu.transittrack.predict.smile.SmileModelStore
+import eu.transittrack.predict.smile.StopToStopEstimate
+import eu.transittrack.predict.smile.StopToStopModel
 import eu.transittrack.schedule.model.TripPatternRepository
 import eu.transittrack.support.PostgresPerClassTest
 
@@ -107,6 +112,9 @@ class PredictionServiceTest(
 
     @MockitoSpyBean
     lateinit var scheduleAdherence: ScheduleAdherenceAlgorithm
+
+    @MockitoSpyBean
+    lateinit var smileModels: SmileModelStore
 
     @MockitoBean
     lateinit var clock: Clock
@@ -357,6 +365,33 @@ class PredictionServiceTest(
         assertThat(preds.size % 3).isEqualTo(0)
         // SMILE_GBM runs too, but has no trained model in this context, so it predicts nothing.
         assertThat(algorithms).isEqualTo(PredictionAlgorithm.entries.toSet() - PredictionAlgorithm.SMILE_GBM)
+    }
+
+    @Test
+    fun `smile gbm predicts with the model of the vehicle's avl feed`() {
+        val (trip, geom) = t1Geom()
+        val feed = feedRow()
+        feed.predictionAlgorithms = listOf(PredictionAlgorithm.SCHEDULE_ADHERENCE, PredictionAlgorithm.SMILE_GBM)
+        feeds.save(feed)
+        // The store hands out a model only for this feed's code (`avl_feed.code`), so SMILE_GBM
+        // predicts only when the service passes the feed code on to the strategy. The spy's stubbing
+        // is reset after the test.
+        val model =
+            mock<StopToStopModel> {
+                on { routeIndex } doReturn emptyMap()
+                on { estimate(any()) } doReturn StopToStopEstimate(100.0, 80.0, 120.0)
+            }
+        doReturn(model).whenever(smileModels).current(feed.code)
+
+        insertReport("bus-s", geom.line.pointAt(0.25 * geom.line.lengthM), ts(8, 5))
+        processor.processBatch()
+        predictionProcessor.processBatch()
+
+        val smile =
+            vehiclePredictions.findByVehicleTrip(feed.code, "bus-s", trip.id!!).filter { it.algorithm == PredictionAlgorithm.SMILE_GBM }
+        assertThat(smile).isNotEmpty()
+        assertThat(smile.all { it.predictedArrivalTs != null }).isTrue()
+        assertThat(smile.any { it.rangeHighSec != null && it.rangeLowSec == -it.rangeHighSec!! }).isTrue()
     }
 
     @Test

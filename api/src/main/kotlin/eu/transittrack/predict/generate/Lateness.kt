@@ -19,6 +19,11 @@ data class LateAssessment(
 /**
  * Decides whether a predicted arrival is late and with what probability.
  * Returns null when the delay cannot be determined (no scheduled arrival).
+ *
+ * The margin is the schedule tolerance, tightened to [LatenessPolicy.headwayFraction] of the
+ * scheduled headway where that is smaller: on a frequent route a delay of half a headway already
+ * bunches vehicles, while a long-headway route keeps the tolerance. A [scheduledHeadwaySec] of zero
+ * or less counts as unknown.
  */
 fun assessLateness(
     policy: LatenessPolicy,
@@ -29,11 +34,12 @@ fun assessLateness(
 ): LateAssessment? {
     if (scheduledArrival == null) return null
     val delay = Duration.between(scheduledArrival, predictedArrival).toMillis() / 1000.0
+    val tolerance = policy.scheduleToleranceSec.toDouble()
     val margin =
-        if (scheduledHeadwaySec != null) {
-            policy.headwayFraction * scheduledHeadwaySec
+        if (scheduledHeadwaySec != null && scheduledHeadwaySec > 0) {
+            minOf(tolerance, policy.headwayFraction * scheduledHeadwaySec)
         } else {
-            policy.scheduleToleranceSec.toDouble()
+            tolerance
         }
     val late = delay > margin
     val probability =
