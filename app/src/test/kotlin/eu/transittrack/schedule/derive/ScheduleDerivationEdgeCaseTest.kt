@@ -35,6 +35,7 @@ import eu.transittrack.GtfsProperties
 import eu.transittrack.ProjectJson
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.geo.Point
+import eu.transittrack.geo.Position
 import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
@@ -295,8 +296,8 @@ class ScheduleDerivationEdgeCaseTest(
         val expected = haversineDistance(51.100, 17.000, 51.120, 17.020)
         assertThat(paths[1].lengthM).isCloseTo(expected, 1.0)
         // A straight-line fallback geometry is exactly the two stop coordinates.
-        assertThat(jsonMapper.decodeFromString<List<List<Double>>>(paths[1].pathGeometry!!))
-            .isEqualTo(listOf(listOf(17.000, 51.100), listOf(17.020, 51.120)))
+        assertThat(pattern.geometry!!.coordinates)
+            .isEqualTo(listOf(Position(17.000, 51.100), Position(17.020, 51.120)))
     }
 
     @Test
@@ -315,10 +316,11 @@ class ScheduleDerivationEdgeCaseTest(
         // straight lines between stop coordinates rather than shape slices.
         val s1ToOff = haversineDistance(51.100, 17.000, 51.115, 17.000)
         assertThat(paths[1].lengthM).isCloseTo(s1ToOff, 1.0)
-        assertThat(jsonMapper.decodeFromString<List<List<Double>>>(paths[1].pathGeometry!!))
-            .isEqualTo(listOf(listOf(17.000, 51.100), listOf(17.000, 51.115)))
         val offToS4 = haversineDistance(51.115, 17.000, 51.130, 17.030)
         assertThat(paths[2].lengthM).isCloseTo(offToS4, 1.0)
+        // The pattern polyline is those straight legs concatenated: S1 -> OFF -> S4.
+        assertThat(pattern.geometry!!.coordinates)
+            .isEqualTo(listOf(Position(17.000, 51.100), Position(17.000, 51.115), Position(17.030, 51.130)))
     }
 
     @Test

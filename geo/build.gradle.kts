@@ -20,6 +20,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xreturn-value-checker=check")
+    }
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
 }

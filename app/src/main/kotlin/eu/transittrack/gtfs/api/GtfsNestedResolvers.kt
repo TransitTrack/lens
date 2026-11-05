@@ -78,6 +78,9 @@ class GtfsNestedResolvers(
         return ShapeDto.of(shape, pts, t.revisionId, t.feedCode)
     }
 
+    @SchemaMapping(typeName = "Shape")
+    fun geometry(s: ShapeDto): String? = s.geometry()
+
     @SchemaMapping(typeName = "StopTime")
     fun stop(st: StopTimeDto): StopDto? =
         st.stopId

@@ -127,7 +127,6 @@ private fun StopPath.toRef() =
         routeId = routeId,
         stopSeq = stopSeq,
         lengthM = lengthM,
-        pathGeometry = pathGeometry,
         pickupType = pickupType,
         dropOffType = dropOffType,
         waitStop = waitStop,

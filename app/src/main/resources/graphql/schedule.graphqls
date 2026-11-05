@@ -1,4 +1,6 @@
 extend type Query {
+    "The feed's whole network layer as one GeoJSON FeatureCollection (trip-pattern LineStrings, simplified to ~3 m, plus boarding-stop Points), gzip-compressed then base64-encoded. Each feature has a `kind` property: `pattern` or `stop`."
+    feedGeometry(feedCode: String!, revisionId: ID): String!
     "Derived trip patterns (distinct stop sequences) in the feed's active (or given) revision. Pass routeId to scope to one route."
     tripPatterns(feedCode: String!, routeId: String, revisionId: ID): [TripPattern!]!
     "A single trip pattern by its key, or null if unknown."
@@ -29,6 +31,8 @@ type TripPattern {
     tripCount: Int!
     "Geographic bounding box of this pattern's shape."
     extent: Extent
+    "The pattern's whole polyline as a GeoJSON LineString (coordinates are [lng, lat]), gzip-compressed then base64-encoded; null if the pattern has fewer than two usable points."
+    geometry: String
     route: Route
     "This pattern's scheduled stops, in order."
     stopPaths: [StopPath!]!
@@ -45,8 +49,6 @@ type StopPath {
     stopSeq: Int!
     "Distance in meters along the pattern's shape from the start of the trip to this stop."
     lengthM: Float!
-    "This stop path's segment of the pattern's shape geometry."
-    pathGeometry: JSON
     "GTFS pickup_type for this stop across the pattern's trips, if consistent."
     pickupType: Int
     dropOffType: Int

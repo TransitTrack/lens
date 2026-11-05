@@ -6,7 +6,7 @@ import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useRouteDetailQuery } from '~~/generated/graphql'
-import { routeTypeLabel, patternLine, patternStopFeatures } from '~/utils/gtfs'
+import { routeTypeLabel, geometryLine, patternStopFeatures } from '~/utils/gtfs'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -49,7 +49,7 @@ const patternItems = computed(() =>
   })),
 )
 
-const line = computed(() => (pattern.value ? patternLine(pattern.value.stopPaths) : []))
+const line = computed(() => (pattern.value ? geometryLine(pattern.value.geometry) : []))
 const stops = computed(
   () =>
     (pattern.value

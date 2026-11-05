@@ -24,8 +24,8 @@ step entirely.
 
 | Table | One row per | Key fields |
 | --- | --- | --- |
-| `trip_pattern` | distinct `(routeId, shapeId, ordered stop-id list)` | `pattern_key`, `route_id`, `direction_id`, `shape_id`, extent bbox |
-| `stop_path` | stop in a pattern (segment prev-stop -> this-stop) | `stop_path_index`, `length_m`, `path_geometry`, `wait_stop`, `layover_stop` |
+| `trip_pattern` | distinct `(routeId, shapeId, ordered stop-id list)` | `pattern_key`, `route_id`, `direction_id`, `shape_id`, extent bbox, `geometry` (GeoJSON LineString: the stop-path segments concatenated, with straight legs where a stop could not be projected onto the shape) |
+| `stop_path` | stop in a pattern (segment prev-stop -> this-stop) | `stop_path_index`, `length_m` (segment length; cumulative distances along the pattern geometry come from these), `wait_stop`, `layover_stop` |
 | `travel_times_for_stop_path` | `(trip_pattern_id, stop_path_index)` | `travel_time_sec`, `dwell_time_sec`, `how_set` (median scheduled travel/dwell for the pattern) |
 | `schedule_time` | stop in a trip (keyed by `trips.id`) | `arrival_sec`, `departure_sec`, `interpolated`, `sched_travel_time_sec` |
 | `block` | `(block_id, service_id)` | `start_time_sec`, `end_time_sec`, `route_ids` |

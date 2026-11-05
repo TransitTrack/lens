@@ -1,5 +1,6 @@
 import type { VehicleDetailQuery } from '../../generated/graphql'
 import { formatClock } from './clock'
+import { geometryLine } from './gtfs'
 
 type Vehicle = NonNullable<VehicleDetailQuery['vehicle']>
 type Prediction = VehicleDetailQuery['vehiclePredictions'][number]
@@ -7,33 +8,14 @@ type Accuracy = VehicleDetailQuery['predictionAccuracy'][number]
 
 /**
  * The route line, as an ordered list of [lon, lat] pairs. Prefers the schedule
- * pattern's per-segment `pathGeometry` (already [lon, lat]); falls back to the
+ * pattern's `geometry` (a GeoJSON LineString, already [lon, lat]); falls back to the
  * GTFS shape, then to a straight line through the ordered stops.
  */
 export function routeLine(vehicle: Vehicle): LngLat[] {
-  const paths = vehicle.pattern?.stopPaths ?? []
-  const fromPattern: LngLat[] = []
-  for (const p of [...paths].sort((a, b) => a.stopPathIndex - b.stopPathIndex)) {
-    const geom = p.pathGeometry
-    if (Array.isArray(geom)) {
-      for (const pt of geom) {
-        if (
-          Array.isArray(pt) &&
-          pt.length >= 2 &&
-          typeof pt[0] === 'number' &&
-          typeof pt[1] === 'number'
-        ) {
-          fromPattern.push([pt[0], pt[1]])
-        }
-      }
-    }
-  }
+  const fromPattern = geometryLine(vehicle.pattern?.geometry)
   if (fromPattern.length >= 2) return dedupe(fromPattern)
 
-  const shapePts = vehicle.trip?.shape?.points ?? []
-  const fromShape: LngLat[] = shapePts
-    .filter((pt): pt is { lat: number; lon: number } => pt.lat != null && pt.lon != null)
-    .map((pt) => [pt.lon, pt.lat])
+  const fromShape = geometryLine(vehicle.trip?.shape?.geometry)
   if (fromShape.length >= 2) return dedupe(fromShape)
 
   return dedupe(stopCoords(vehicle))

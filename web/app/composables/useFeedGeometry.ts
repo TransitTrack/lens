@@ -1,11 +1,18 @@
-import { patternLine, simplifyLine, hexColor, routeTypeLabel } from '~/utils/gtfs'
+import { hexColor, routeTypeLabel } from '~/utils/gtfs'
+import { decodeGeoJson } from '~/utils/geojson'
 import { useFeedGeometryQuery } from '~~/generated/graphql'
 import type { GeoJSON } from 'geojson'
 
-/** ~3m at mid latitudes — well under what's visually distinguishable at the
- * zoom levels this network layer is shown at, but cuts raw GPS-resolution
- * shape points substantially (see `simplifyLine`). */
-const LINE_SIMPLIFY_TOLERANCE_DEG = 0.00003
+/** Properties the backend puts on each `kind: 'pattern'` feature. */
+interface PatternProps {
+  routeId: string
+  headsign?: string
+  tripCount: number
+  routeShortName?: string
+  routeLongName?: string
+  routeType?: number
+  routeColor?: string
+}
 
 /** Feature properties carried on each route polyline — read by hover handlers. */
 export interface RouteLineProps {
@@ -49,43 +56,37 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
     }),
   )
 
+  // Decode once per result; `lines` and `stops` are views over the same collection.
+  const all = computed<GeoJSON.Feature[]>(() => {
+    const encoded = result.value?.feedGeometry
+    return encoded ? decodeGeoJson<GeoJSON.FeatureCollection>(encoded).features : []
+  })
+
   const lines = computed<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
-    features: (result.value?.tripPatterns ?? [])
-      .map((p) => {
-        const coords = simplifyLine(patternLine(p.stopPaths), LINE_SIMPLIFY_TOLERANCE_DEG)
-        if (coords.length < 2) return null
+    features: all.value
+      .filter((f) => f.properties?.kind === 'pattern')
+      .map((f) => {
+        const p = f.properties as unknown as PatternProps
         const props: RouteLineProps = {
           routeId: p.routeId,
-          color: hexColor(p.route?.routeColor),
+          color: hexColor(p.routeColor),
           distinctColor: distinctRouteColor(p.routeId),
-          shortName: p.route?.routeShortName ?? '',
-          longName: p.route?.routeLongName ?? '',
-          typeLabel: routeTypeLabel(p.route?.routeType, t),
+          shortName: p.routeShortName ?? '',
+          longName: p.routeLongName ?? '',
+          typeLabel: routeTypeLabel(p.routeType, t),
           headsign: p.headsign ?? '',
           tripCount: p.tripCount,
         }
-        return {
-          type: 'Feature' as const,
-          properties: props,
-          geometry: { type: 'LineString' as const, coordinates: coords },
-        }
-      })
-      .filter((f): f is GeoJSON.Feature => f != null),
+        return { ...f, properties: props }
+      }),
   }))
 
   const stops = computed<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
-    features: (result.value?.stops ?? [])
-      .filter((s) => s.stopLat != null && s.stopLon != null && (s.locationType ?? 0) === 0)
-      .map((s) => ({
-        type: 'Feature' as const,
-        properties: { name: s.stopName ?? s.stopId },
-        geometry: {
-          type: 'Point' as const,
-          coordinates: [s.stopLon as number, s.stopLat as number],
-        },
-      })),
+    features: all.value
+      .filter((f) => f.properties?.kind === 'stop')
+      .map((f) => ({ ...f, properties: { name: f.properties?.name } })),
   }))
 
   return { lines, stops, loading }

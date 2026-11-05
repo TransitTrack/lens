@@ -1,4 +1,5 @@
 import { displayLocale } from './intlLocale'
+import { decodeGeoJson } from './geojson'
 
 const KNOWN_ROUTE_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7, 11, 12])
 
@@ -86,22 +87,28 @@ export type LngLat = [number, number]
 
 interface StopPathLike {
   stopPathIndex: number
-  pathGeometry?: unknown
   stop?: { stopName?: string | null, stopLat?: number | null, stopLon?: number | null } | null
   stopId?: string
 }
 
-/** Concatenate a pattern's per-segment pathGeometry ([lon,lat] arrays) into one line. */
-export function patternLine(stopPaths: StopPathLike[]): LngLat[] {
+/**
+ * A pattern's `geometry` (GeoJSON LineString, coordinates [lon,lat], gzip + base64 encoded by the
+ * backend) as a plain line; [] if absent or undecodable.
+ */
+export function geometryLine(encoded: string | null | undefined): LngLat[] {
+  if (!encoded) return []
+  let coords: unknown
+  try {
+    coords = decodeGeoJson<{ coordinates?: unknown }>(encoded).coordinates
+  } catch {
+    return []
+  }
+  if (!Array.isArray(coords)) return []
   const out: LngLat[] = []
-  for (const p of [...stopPaths].sort((a, b) => a.stopPathIndex - b.stopPathIndex)) {
-    const geom = p.pathGeometry
-    if (!Array.isArray(geom)) continue
-    for (const pt of geom) {
-      if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
-        const last = out[out.length - 1]
-        if (!last || last[0] !== pt[0] || last[1] !== pt[1]) out.push([pt[0], pt[1]])
-      }
+  for (const pt of coords) {
+    if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
+      const last = out[out.length - 1]
+      if (!last || last[0] !== pt[0] || last[1] !== pt[1]) out.push([pt[0], pt[1]])
     }
   }
   return out

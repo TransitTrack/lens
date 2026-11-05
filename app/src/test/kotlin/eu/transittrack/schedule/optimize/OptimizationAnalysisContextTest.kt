@@ -63,7 +63,7 @@ class OptimizationAnalysisContextTest(
             )
         stopPaths.save(
             StopPath(
-                revision.id!!, pattern.id!!, 0, "S1", "R1", 1, 0.0, null, null, null,
+                revision.id!!, pattern.id!!, 0, "S1", "R1", 1, 0.0, null, null,
                 waitStop = true, scheduleAdherenceStop = true, layoverStop = true, breakTimeSec = null,
             ),
         )

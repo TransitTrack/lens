@@ -52,15 +52,13 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
         routeTextColor
       }
       shape {
-        points {
-          lat
-          lon
-        }
+        geometry
       }
     }
     pattern {
       patternKey
       lengthM
+      geometry
       stopPaths {
         stopPathIndex
         stopId
@@ -71,7 +69,6 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
           stopLat
           stopLon
         }
-        pathGeometry
       }
     }
   }

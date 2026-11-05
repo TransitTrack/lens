@@ -8,6 +8,10 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.annotation.Transactional
 
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Position
+import eu.transittrack.geo.json.toGeoJsonBase64
+
 /**
  * Typed row classes for GTFS `shapes.txt`.
  *
@@ -22,7 +26,22 @@ class Shape(
     // Trailing single capital: CamelCaseToUnderscoresNamingStrategy yields "lengthm", so name it
     // explicitly.
     var lengthM: Double?,
+    /** Display geometry: GeoJSON LineString, gzip + base64 (see [compactLineGeometry]). Null for older revisions. */
+    var geometry: String? = null,
 ) : RevisionScoped(revisionId)
+
+/**
+ * Encodes ordered `(lat, lon)` points as a GeoJSON `LineString` (`[lng, lat]`), gzip-compressed then
+ * base64-encoded. Points with missing or out-of-range coordinates are skipped; null if fewer than two
+ * valid points remain.
+ */
+fun compactLineGeometry(latLon: List<Pair<Double?, Double?>>): String? {
+    val positions =
+        latLon.mapNotNull { (lat, lon) ->
+            if (lat == null || lon == null || lon !in -180.0..180.0 || lat !in -90.0..90.0) null else Position(lon, lat)
+        }
+    return if (positions.size >= 2) Line(positions).toGeoJsonBase64() else null
+}
 
 class ShapePoint(
     revisionId: Long,
@@ -37,13 +56,20 @@ object ShapeTable : RevisionScopedTable<Shape>("shapes", Shape::class.java, "fk_
     val shapeId = varchar("shape_id", 255)
     val pointCount = integer("point_count")
     val lengthM = double("length_m").nullable()
+    val geometry = text("geometry").nullable()
 
     init {
         uniqueIndex("uq_shape_rev_id", revisionId, shapeId)
     }
 
     override fun read(row: ResultRow) =
-        Shape(revisionId = row[revisionId], shapeId = row[shapeId], pointCount = row[pointCount], lengthM = row[lengthM]).withId(row)
+        Shape(
+            revisionId = row[revisionId],
+            shapeId = row[shapeId],
+            pointCount = row[pointCount],
+            lengthM = row[lengthM],
+            geometry = row[geometry],
+        ).withId(row)
 
     override fun bind(
         s: UpdateBuilder<*>,
@@ -53,6 +79,7 @@ object ShapeTable : RevisionScopedTable<Shape>("shapes", Shape::class.java, "fk_
         s[shapeId] = row.shapeId
         s[pointCount] = row.pointCount
         s[lengthM] = row.lengthM
+        s[geometry] = row.geometry
     }
 }
 

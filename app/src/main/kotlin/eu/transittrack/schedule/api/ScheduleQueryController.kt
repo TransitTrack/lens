@@ -6,13 +6,21 @@ import org.springframework.stereotype.Controller
 
 import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
+import eu.transittrack.schedule.read.FeedGeometryService
 import eu.transittrack.schedule.read.ScheduleReadService
 
 @Controller
 @ConditionalOnRole(Role.API)
 class ScheduleQueryController(
     private val read: ScheduleReadService,
+    private val feedGeometry: FeedGeometryService,
 ) {
+    @QueryMapping
+    fun feedGeometry(
+        @Argument feedCode: String,
+        @Argument revisionId: String?,
+    ) = feedGeometry.feedGeometry(feedCode, revisionId)
+
     @QueryMapping
     fun tripPatterns(
         @Argument feedCode: String,

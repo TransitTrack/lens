@@ -102,7 +102,6 @@ class ScheduleWriterTest(
                 0.0,
                 null,
                 null,
-                null,
                 false,
                 false,
                 false,
@@ -211,7 +210,7 @@ class ScheduleWriterTest(
 
     private fun pattern(key: String) = TripPattern(rev, key, "RA", null, 0, "H", "SHP", 1, null, tripCount = 0)
 
-    private fun stopPath(patternId: Long) = StopPath(rev, patternId, 0, "S1", null, 1, 0.0, null, null, null, false, false, false, null)
+    private fun stopPath(patternId: Long) = StopPath(rev, patternId, 0, "S1", null, 1, 0.0, null, null, false, false, false, null)
 
     @Test
     fun `writesSurviveCallerFailure - write`() {

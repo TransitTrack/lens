@@ -1005,6 +1005,8 @@ export type Query = {
   drafts: Array<Draft>;
   /** A single feed by its code, or null if unknown. */
   feed?: Maybe<Feed>;
+  /** The feed's whole network layer as one GeoJSON FeatureCollection (trip-pattern LineStrings, simplified to ~3 m, plus boarding-stop Points), gzip-compressed then base64-encoded. Each feature has a `kind` property: `pattern` or `stop`. */
+  feedGeometry: Scalars['String']['output'];
   /** Feed-level publisher/validity metadata, or null if the feed's GTFS didn't include a feed_info.txt. */
   feedInfo?: Maybe<FeedInfo>;
   /** Every configured GTFS static feed. */
@@ -1191,6 +1193,12 @@ export type QueryDraftsArgs = {
 
 export type QueryFeedArgs = {
   code: Scalars['String']['input'];
+};
+
+
+export type QueryFeedGeometryArgs = {
+  feedCode: Scalars['String']['input'];
+  revisionId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -1622,6 +1630,8 @@ export type Severity =
 /** GTFS shapes.txt: a trip's physical path, summarized from its points. */
 export type Shape = {
   __typename?: 'Shape';
+  /** The whole shape as a GeoJSON LineString (coordinates are [lng, lat]), gzip-compressed then base64-encoded; null if it has fewer than two valid points. Prefer this over `points` for drawing. */
+  geometry?: Maybe<Scalars['String']['output']>;
   lengthM?: Maybe<Scalars['Float']['output']>;
   pointCount: Scalars['Int']['output'];
   points: Array<ShapePoint>;
@@ -1712,8 +1722,6 @@ export type StopPath = {
   layoverStop: Scalars['Boolean']['output'];
   /** Distance in meters along the pattern's shape from the start of the trip to this stop. */
   lengthM: Scalars['Float']['output'];
-  /** This stop path's segment of the pattern's shape geometry. */
-  pathGeometry?: Maybe<Scalars['JSON']['output']>;
   /** GTFS pickup_type for this stop across the pattern's trips, if consistent. */
   pickupType?: Maybe<Scalars['Int']['output']>;
   /** True if schedule adherence is meaningfully measured at this stop (e.g. a timepoint). */
@@ -1906,6 +1914,8 @@ export type TripPattern = {
   directionId?: Maybe<Scalars['Int']['output']>;
   /** Geographic bounding box of this pattern's shape. */
   extent?: Maybe<Extent>;
+  /** The pattern's whole polyline as a GeoJSON LineString (coordinates are [lng, lat]), gzip-compressed then base64-encoded; null if the pattern has fewer than two usable points. */
+  geometry?: Maybe<Scalars['String']['output']>;
   /** Representative headsign shared by this pattern's trips, if consistent. */
   headsign?: Maybe<Scalars['String']['output']>;
   /** Total pattern length in meters, from its shape. */
@@ -2426,7 +2436,7 @@ export type FeedGeometryQueryVariables = Exact<{
 }>;
 
 
-export type FeedGeometryQuery = { tripPatterns: Array<{ patternKey: string, routeId: string, headsign: string | null, tripCount: number, route: { routeId: string, routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeType: number | null } | null, stopPaths: Array<{ stopPathIndex: number, pathGeometry: any }> }>, stops: Array<{ stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null, locationType: number | null }> };
+export type FeedGeometryQuery = { feedGeometry: string };
 
 export type IngestFeedMutationVariables = Exact<{
   feedCode: string;
@@ -2552,7 +2562,7 @@ export type RouteDetailQueryVariables = Exact<{
 }>;
 
 
-export type RouteDetailQuery = { route: { routeId: string, routeShortName: string | null, routeLongName: string | null, routeDesc: string | null, routeType: number | null, routeColor: string | null, routeTextColor: string | null, agencyId: string | null } | null, tripPatterns: Array<{ patternKey: string, directionId: number | null, headsign: string | null, shapeId: string | null, stopCount: number, tripCount: number, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, lengthM: number, pathGeometry: any, pickupType: number | null, dropOffType: number | null, waitStop: boolean, scheduleAdherenceStop: boolean, layoverStop: boolean, breakTimeSec: number | null, typicalTravelTimeSec: number | null, typicalDwellTimeSec: number | null, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> }> };
+export type RouteDetailQuery = { route: { routeId: string, routeShortName: string | null, routeLongName: string | null, routeDesc: string | null, routeType: number | null, routeColor: string | null, routeTextColor: string | null, agencyId: string | null } | null, tripPatterns: Array<{ patternKey: string, directionId: number | null, headsign: string | null, shapeId: string | null, stopCount: number, tripCount: number, lengthM: number | null, geometry: string | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, lengthM: number, pickupType: number | null, dropOffType: number | null, waitStop: boolean, scheduleAdherenceStop: boolean, layoverStop: boolean, breakTimeSec: number | null, typicalTravelTimeSec: number | null, typicalDwellTimeSec: number | null, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> }> };
 
 export type RoutesQueryVariables = Exact<{
   feedCode: string;
@@ -2626,7 +2636,7 @@ export type VehicleDetailQueryVariables = Exact<{
 }>;
 
 
-export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { points: Array<{ lat: number | null, lon: number | null }> } | null } | null, pattern: { patternKey: string, lengthM: number | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, pathGeometry: any, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, scheduledDeparture: string | null, predictedArrival: string | null, predictedDeparture: string | null, actualArrival: string | null, actualDeparture: string | null, actualReportGapSec: number | null, actualReliable: boolean | null, sourceReportTs: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, eligibleCount: number, predictionCoverage: number, pairedSampleCount: number, p90AbsErrorSec: number | null, p95AbsErrorSec: number | null, confidenceCoverage: number | null, confidenceSampleCount: number }> };
+export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { geometry: string | null } | null } | null, pattern: { patternKey: string, lengthM: number | null, geometry: string | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, scheduledDeparture: string | null, predictedArrival: string | null, predictedDeparture: string | null, actualArrival: string | null, actualDeparture: string | null, actualReportGapSec: number | null, actualReliable: boolean | null, sourceReportTs: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, eligibleCount: number, predictionCoverage: number, pairedSampleCount: number, p90AbsErrorSec: number | null, p95AbsErrorSec: number | null, confidenceCoverage: number | null, confidenceSampleCount: number }> };
 
 export type VehiclesQueryVariables = Exact<{
   feedCode: string;
@@ -4523,30 +4533,7 @@ export function useFeedDetailLazyQuery(variables?: FeedDetailQueryVariables | Vu
 export type FeedDetailQueryCompositionFunctionResult = VueApolloComposable.UseQueryReturn<FeedDetailQuery, FeedDetailQueryVariables>;
 export const FeedGeometryDocument = gql`
     query FeedGeometry($feedCode: String!) {
-  tripPatterns(feedCode: $feedCode) {
-    patternKey
-    routeId
-    headsign
-    tripCount
-    route {
-      routeId
-      routeShortName
-      routeLongName
-      routeColor
-      routeType
-    }
-    stopPaths {
-      stopPathIndex
-      pathGeometry
-    }
-  }
-  stops(feedCode: $feedCode) {
-    stopId
-    stopName
-    stopLat
-    stopLon
-    locationType
-  }
+  feedGeometry(feedCode: $feedCode)
 }
     `;
 
@@ -5133,11 +5120,11 @@ export const RouteDetailDocument = gql`
     stopCount
     tripCount
     lengthM
+    geometry
     stopPaths {
       stopPathIndex
       stopId
       lengthM
-      pathGeometry
       pickupType
       dropOffType
       waitStop
@@ -5587,15 +5574,13 @@ export const VehicleDetailDocument = gql`
         routeTextColor
       }
       shape {
-        points {
-          lat
-          lon
-        }
+        geometry
       }
     }
     pattern {
       patternKey
       lengthM
+      geometry
       stopPaths {
         stopPathIndex
         stopId
@@ -5606,7 +5591,6 @@ export const VehicleDetailDocument = gql`
           stopLat
           stopLon
         }
-        pathGeometry
       }
     }
   }

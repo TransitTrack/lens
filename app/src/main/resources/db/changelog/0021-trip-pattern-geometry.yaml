@@ -1,0 +1,35 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0021-trip-pattern-geometry
+      author: transittrack
+      comment: >
+        Store the pattern's polyline once on trip_patterns (GeoJSON LineString) instead of per
+        stop_path segment. Backfilled by concatenating the existing segments in stop order and
+        dropping consecutive duplicate points (the shared boundary point of adjacent segments).
+        stop_path.length_m stays the source of cumulative distances.
+      changes:
+        - addColumn:
+            tableName: trip_patterns
+            columns:
+              - column: { name: geometry, type: JSONB }
+        - sql:
+            sql: >
+              UPDATE trip_patterns tp
+              SET geometry = jsonb_build_object('type', 'LineString', 'coordinates', g.coords)
+              FROM (
+                SELECT trip_pattern_id, jsonb_agg(pt ORDER BY stop_path_index, ord) AS coords
+                FROM (
+                  SELECT sp.trip_pattern_id, sp.stop_path_index, e.ord, e.pt,
+                         lag(e.pt) OVER (PARTITION BY sp.trip_pattern_id ORDER BY sp.stop_path_index, e.ord) AS prev
+                  FROM stop_path sp
+                  CROSS JOIN LATERAL jsonb_array_elements(sp.path_geometry) WITH ORDINALITY AS e(pt, ord)
+                  WHERE sp.path_geometry IS NOT NULL
+                ) pts
+                WHERE prev IS NULL OR pt <> prev
+                GROUP BY trip_pattern_id
+                HAVING count(*) >= 2
+              ) g
+              WHERE tp.id = g.trip_pattern_id
+        - dropColumn:
+            tableName: stop_path
+            columnName: path_geometry

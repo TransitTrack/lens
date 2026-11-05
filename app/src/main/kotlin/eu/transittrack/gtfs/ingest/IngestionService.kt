@@ -24,6 +24,7 @@ import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.Shape
 import eu.transittrack.gtfs.model.ShapePoint
 import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.compactLineGeometry
 import eu.transittrack.gtfs.parse.GtfsCsv
 import eu.transittrack.gtfs.parse.GtfsFileDef
 import eu.transittrack.gtfs.parse.GtfsFileRegistry
@@ -313,7 +314,13 @@ class IngestionService(
         val aggregates =
             perShape.map { (shapeId, pts) ->
                 val ordered = pts.sortedBy { it.shapePtSequence }
-                Shape(revisionId, shapeId, ordered.size, polylineLengthMeters(ordered))
+                Shape(
+                    revisionId,
+                    shapeId,
+                    ordered.size,
+                    polylineLengthMeters(ordered),
+                    compactLineGeometry(ordered.map { it.shapePtLat to it.shapePtLon }),
+                )
             }
         writer.write(aggregates)
 

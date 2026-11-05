@@ -34,13 +34,13 @@ describe('stopRows', () => {
     pattern: {
       patternKey: 'pattern',
       lengthM: 0,
+      geometry: null,
       stopPaths: [
         {
           stopPathIndex: 0,
           stopId: 'S1',
           waitStop: true,
           stop: null,
-          pathGeometry: null,
         },
       ],
     },

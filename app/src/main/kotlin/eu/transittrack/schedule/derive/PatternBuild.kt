@@ -1,11 +1,11 @@
 package eu.transittrack.schedule.derive
 
-import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 
 import eu.transittrack.geo.BBox
 import eu.transittrack.geo.Line
 import eu.transittrack.geo.Point
+import eu.transittrack.geo.Position
 import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
@@ -55,7 +55,6 @@ fun buildPattern(
     stopCoord: Map<String, Point>,
     line: Line?,
     maxDeviationM: Double,
-    json: Json,
 ): PatternBuild {
     // Callers filter out trips with unresolvable stop coordinates, so this never misses.
     val coords = stopIds.map { stopCoord.getValue(it) }
@@ -75,26 +74,31 @@ fun buildPattern(
         }
     }
     val paths = ArrayList<StopPath>(stopIds.size)
+    // Pattern polyline = every segment concatenated; adjacent segments share their boundary point.
+    val patternPoints = ArrayList<Position>()
     val hasTimepointColumn = rows.any { it.timepoint != null }
     for (i in stopIds.indices) {
         val r = rows[i]
-        val geom: Line
+        val segment: List<Position>
         val segLen: Double
         when {
             i == 0 -> {
-                geom = Line(listOf(coords[0].coordinates))
+                segment = listOf(coords[0].coordinates)
                 segLen = 0.0
             }
 
             line != null && !projected[i - 1].isNaN() && !projected[i].isNaN() && projected[i] > projected[i - 1] -> {
-                geom = line.slice(projected[i - 1], projected[i])
+                segment = line.slice(projected[i - 1], projected[i]).coordinates
                 segLen = projected[i] - projected[i - 1]
             }
 
             else -> {
-                geom = Line(listOf(coords[i - 1].coordinates, coords[i].coordinates))
+                segment = listOf(coords[i - 1].coordinates, coords[i].coordinates)
                 segLen = haversineDistance(coords[i - 1].coordinates, coords[i].coordinates)
             }
+        }
+        for (p in segment) {
+            if (patternPoints.isEmpty() || patternPoints.last() != p) patternPoints.add(p)
         }
         val timed =
             if (hasTimepointColumn) {
@@ -111,7 +115,6 @@ fun buildPattern(
                 routeId = routeId,
                 stopSeq = r.stopSequence,
                 lengthM = segLen,
-                pathGeometry = json.encodeToString(geom.coordinates.map { listOf(it.lng, it.lat) }),
                 pickupType = r.pickupType,
                 dropOffType = r.dropOffType,
                 waitStop = timed,
@@ -134,6 +137,7 @@ fun buildPattern(
             lengthM = paths.sumOf { it.lengthM },
             extent = BBox.of(coords),
             tripCount = 0,
+            geometry = if (patternPoints.size >= 2) Line(patternPoints) else null,
         )
     return PatternBuild(pattern, paths)
 }

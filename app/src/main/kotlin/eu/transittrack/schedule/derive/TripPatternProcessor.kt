@@ -113,7 +113,7 @@ class TripPatternProcessor(
                     buildPattern(
                         revisionId, p.trip.routeId, p.trip.shapeId, p.trip.directionId, headsign,
                         p.rows, p.stopIds, stopCoord, polyline(p.trip.shapeId),
-                        props.stopProjectionMaxDeviationM, json,
+                        props.stopProjectionMaxDeviationM,
                     )
                 newPatterns.add(build.pattern)
                 newPaths[key] = build.paths

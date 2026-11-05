@@ -9,6 +9,8 @@ import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
 import org.springframework.beans.factory.annotation.Autowired
 
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Position
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -76,6 +78,7 @@ class ScheduleEntitiesTest(
                     stopCount = 2,
                     lengthM = 1500.0,
                     tripCount = 1,
+                    geometry = Line(listOf(Position(17.0, 51.1), Position(17.01, 51.11))),
                 ),
             )
         stopPaths.save(
@@ -86,7 +89,6 @@ class ScheduleEntitiesTest(
                 stopId = "S1",
                 stopSeq = 1,
                 lengthM = 0.0,
-                pathGeometry = "[[17.0,51.1]]",
                 pickupType = null,
                 dropOffType = null,
                 waitStop = true,
@@ -142,6 +144,8 @@ class ScheduleEntitiesTest(
 
         assertThat(patterns.findByRevisionId(rev)).hasSize(1)
         assertThat(patterns.findByPatternKey(rev, "SHP|S1_to_S4|abc123")!!.routeId).isEqualTo("RA")
+        assertThat(patterns.findByPatternKey(rev, "SHP|S1_to_S4|abc123")!!.geometry)
+            .isEqualTo(Line(listOf(Position(17.0, 51.1), Position(17.01, 51.11))))
         assertThat(stopPaths.findByTripPatternOrdered(rev, tp.id!!)).hasSize(1)
         val reloaded = trips.findByTripId(rev, "T1")!!
         assertThat(reloaded.tripId).isEqualTo("T1")
