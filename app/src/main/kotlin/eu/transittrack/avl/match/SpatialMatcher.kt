@@ -3,8 +3,8 @@ package eu.transittrack.avl.match
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.Edge
 import eu.transittrack.geo.Point
-import eu.transittrack.geo.Vector
 
 data class SpatialMatch(
     val stopPathIndex: Int,
@@ -38,7 +38,6 @@ class SpatialMatcher(
         minAlongM: Double?,
     ): SpatialMatch? {
         val line = geom.line
-        if (line.points.size < 2) return null
         val pr = line.project(report)
         if (minAlongM != null && pr.distanceAlong < minAlongM - cfg.backtrackToleranceM) return null
 
@@ -53,7 +52,7 @@ class SpatialMatcher(
             } else {
                 val a = (pr.distanceAlong - 5.0).coerceIn(0.0, line.lengthM)
                 val b = (pr.distanceAlong + 5.0).coerceIn(0.0, line.lengthM)
-                Vector(line.pointAt(a), line.pointAt(b)).heading()
+                Edge(line.pointAt(a), line.pointAt(b)).heading()
             }
         return SpatialMatch(idx, pr.distanceAlong, pr.deviationM, line.pointAt(pr.distanceAlong), heading)
     }

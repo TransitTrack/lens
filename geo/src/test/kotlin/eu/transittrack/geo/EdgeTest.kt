@@ -9,15 +9,15 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isZero
 
 /**
- * Exercises [Vector] and the point/segment geometry helpers in `Geo.kt`.
+ * Exercises [Edge] measurements and the point/segment helpers in `Distance.kt`.
  *
  * Coordinates sit around Wrocław (lat ≈ 51°, lon ≈ 17°). At that latitude the equirectangular
  * approximation gives ≈ 1112 m per 0.01° of latitude and ≈ 700 m per 0.01° of longitude.
  */
-class GeoVectorTest {
+class EdgeTest {
     private val south = Point(51.0, 17.0)
     private val north = Point(51.01, 17.0)
-    private val northSegment = Vector(south, north)
+    private val northSegment = Edge(south, north)
 
     @Test
     fun `length is the ground distance between endpoints`() {
@@ -62,7 +62,7 @@ class GeoVectorTest {
 
     @Test
     fun `zero-length vector degrades gracefully`() {
-        val degenerate = Vector(south, Point(51.0, 17.0))
+        val degenerate = Edge(south, Point(51.0, 17.0))
         assertThat(degenerate.length()).isZero()
         assertThat(degenerate.distance(north)).isCloseTo(1112.0, 5.0)
         assertThat(degenerate.distanceAlongVector(north)).isZero()
@@ -71,11 +71,11 @@ class GeoVectorTest {
     @Test
     fun `beginning end and middle carve the segment by distance`() {
         val head = northSegment.beginning(556.0)
-        assertThat(head.l1).isEqualTo(south)
+        assertThat(head.startPosition).isEqualTo(south.coordinates)
         assertThat(head.length()).isCloseTo(556.0, 5.0)
 
         val tail = northSegment.end(556.0)
-        assertThat(tail.l2).isEqualTo(north)
+        assertThat(tail.endPosition).isEqualTo(north.coordinates)
         assertThat(tail.length()).isCloseTo(556.0, 5.0)
 
         val core = northSegment.middle(278.0, 834.0)
@@ -91,14 +91,14 @@ class GeoVectorTest {
 
     @Test
     fun `heading is degrees clockwise from north`() {
-        assertThat(Vector(south, north).heading()).isCloseTo(0.0, 1.0)
-        assertThat(Vector(south, Point(51.0, 17.01)).heading()).isCloseTo(90.0, 1.0)
-        assertThat(Vector(south, Point(51.0, 16.99)).heading()).isCloseTo(-90.0, 1.0)
+        assertThat(Edge(south, north).heading()).isCloseTo(0.0, 1.0)
+        assertThat(Edge(south, Point(51.0, 17.01)).heading()).isCloseTo(90.0, 1.0)
+        assertThat(Edge(south, Point(51.0, 16.99)).heading()).isCloseTo(-90.0, 1.0)
     }
 
     @Test
     fun `angle is radians counterclockwise from east`() {
-        assertThat(Vector(south, Point(51.0, 17.01)).angle()).isCloseTo(0.0, 0.02)
-        assertThat(Vector(south, north).angle()).isCloseTo(PI / 2, 0.02)
+        assertThat(Edge(south, Point(51.0, 17.01)).angle()).isCloseTo(0.0, 0.02)
+        assertThat(Edge(south, north).angle()).isCloseTo(PI / 2, 0.02)
     }
 }

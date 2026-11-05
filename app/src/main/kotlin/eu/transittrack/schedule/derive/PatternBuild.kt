@@ -4,8 +4,9 @@ import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 
 import eu.transittrack.geo.BBox
+import eu.transittrack.geo.Line
 import eu.transittrack.geo.Point
-import eu.transittrack.geo.Polyline
+import eu.transittrack.geo.Position
 import eu.transittrack.geo.haversineDistance
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
@@ -53,7 +54,7 @@ fun buildPattern(
     rows: List<CleanStopTime>,
     stopIds: List<String>,
     stopCoord: Map<String, Point>,
-    line: Polyline?,
+    line: Line?,
     maxDeviationM: Double,
     json: Json,
 ): PatternBuild {
@@ -78,11 +79,11 @@ fun buildPattern(
     val hasTimepointColumn = rows.any { it.timepoint != null }
     for (i in stopIds.indices) {
         val r = rows[i]
-        val geom: Polyline
+        val geom: Line
         val segLen: Double
         when {
             i == 0 -> {
-                geom = Polyline.of(coords[0])
+                geom = Line(listOf(coords[0].coordinates))
                 segLen = 0.0
             }
 
@@ -92,8 +93,8 @@ fun buildPattern(
             }
 
             else -> {
-                geom = Polyline.of(coords[i - 1], coords[i])
-                segLen = haversineDistance(coords[i - 1], coords[i])
+                geom = Line(listOf(coords[i - 1].coordinates, coords[i].coordinates))
+                segLen = haversineDistance(coords[i - 1].coordinates, coords[i].coordinates)
             }
         }
         val timed =
@@ -111,7 +112,7 @@ fun buildPattern(
                 routeId = routeId,
                 stopSeq = r.stopSequence,
                 lengthM = segLen,
-                pathGeometry = json.encodeToString(geom.points.map { listOf(it.lon, it.lat) }),
+                pathGeometry = json.encodeToString(geom.coordinates.map { listOf(it.lng, it.lat) }),
                 pickupType = r.pickupType,
                 dropOffType = r.dropOffType,
                 waitStop = timed,

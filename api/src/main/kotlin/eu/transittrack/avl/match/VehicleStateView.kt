@@ -1,6 +1,7 @@
 package eu.transittrack.avl.match
 
 import java.time.Instant
+import eu.transittrack.geo.Point
 
 /**
  * Read-only, persistence-free view of a vehicle's last known state, as handed to matchers.
@@ -31,4 +32,7 @@ interface VehicleStateView {
     val scheduleAdherenceSec: Int?
     val snappedLat: Double?
     val snappedLon: Double?
+
+    /** The report's position. Derived from [lat]/[lon] on access, so it can't go stale if they change. */
+    val point: Point get() = Point(lat, lon)
 }

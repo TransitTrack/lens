@@ -20,7 +20,7 @@ class BBoxTest {
 
     @Test
     fun `of points is null when given nothing`() {
-        assertThat(BBox.of(emptyList())).isNull()
+        assertThat(BBox.of(emptyList<Point>())).isNull()
     }
 
     @Test

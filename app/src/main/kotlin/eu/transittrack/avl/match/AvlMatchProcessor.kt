@@ -23,6 +23,8 @@ import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
+import eu.transittrack.geo.Edge
+import eu.transittrack.geo.Point
 import eu.transittrack.geo.bearingDegrees
 import eu.transittrack.geo.haversineDistance
 import eu.transittrack.util.concurrency.FeedLockCoordinator
@@ -114,8 +116,7 @@ class AvlMatchProcessor(
             // immediate predecessor's outcome (sequential constraint, block advance, failure count),
             // not against the state from before the whole batch.
             var prevState: VehicleStateView? = prev
-            var cursorLat = prev?.lat
-            var cursorLon = prev?.lon
+            var prevPoint = prev?.point
             var cursorTs = prev?.reportTs
 
             // oldest-first so the sequential constraint sees a vehicle's reports in order
@@ -126,9 +127,8 @@ class AvlMatchProcessor(
                     // known position when the feed itself doesn't report them. The cursor walks the
                     // batch's own reports (not just `prev`) so a multi-report batch derives each
                     // report's kinematics from its immediate predecessor, not a stale starting point.
-                    report.fillMissingKinematics(cursorLat, cursorLon, cursorTs)
-                    cursorLat = report.lat
-                    cursorLon = report.lon
+                    report.fillMissingKinematics(prevPoint, cursorTs)
+                    prevPoint = report.point
                     cursorTs = report.ts
 
                     val match = matcher.match(report, prevState, ctx)
@@ -301,13 +301,14 @@ class AvlMatchProcessor(
  * alone rather than dividing by a non-positive elapsed time.
  */
 private fun AvlReportRow.fillMissingKinematics(
-    prevLat: Double?,
-    prevLon: Double?,
+    prevPoint: Point?,
     prevTs: Instant?,
 ) {
-    if (prevLat == null || prevLon == null || prevTs == null) return
+    if (prevPoint == null || prevTs == null) return
     val elapsedSec = Duration.between(prevTs, ts).seconds
     if (elapsedSec <= 0) return
-    if (bearing == null) bearing = bearingDegrees(prevLat, prevLon, lat, lon)
-    if (speedMps == null) speedMps = haversineDistance(prevLat, prevLon, lat, lon) / elapsedSec
+
+    val edge = Edge(prevPoint, point)
+    if (bearing == null) bearing = edge.heading()
+    if (speedMps == null) speedMps = edge.length / elapsedSec
 }

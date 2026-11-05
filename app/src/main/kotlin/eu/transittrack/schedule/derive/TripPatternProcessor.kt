@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.geo.BBox
+import eu.transittrack.geo.Line
 import eu.transittrack.geo.Point
-import eu.transittrack.geo.Polyline
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.ShapePointRepository
@@ -58,9 +58,9 @@ class TripPatternProcessor(
                     if (la != null && lo != null) it.stopId to Point(la, lo) else null
                 }.toMap()
 
-        val polylineCache = HashMap<String, Polyline?>()
+        val polylineCache = HashMap<String, Line?>()
 
-        fun polyline(shapeId: String?): Polyline? {
+        fun polyline(shapeId: String?): Line? {
             if (shapeId == null) return null
             return polylineCache.getOrPut(shapeId) {
                 val pts =
@@ -69,7 +69,7 @@ class TripPatternProcessor(
                         val lo = p.shapePtLon
                         if (la != null && lo != null) Point(la, lo) else null
                     }
-                if (pts.size >= 2) Polyline(pts) else null
+                if (pts.size >= 2) Line.of(pts) else null
             }
         }
 

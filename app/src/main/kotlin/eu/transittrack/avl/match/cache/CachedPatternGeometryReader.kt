@@ -8,8 +8,8 @@ import org.springframework.cache.annotation.Cacheable
 import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.match.PatternGeometry
-import eu.transittrack.geo.Point
-import eu.transittrack.geo.Polyline
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Position
 
 /**
  * Revision-scoped, cached [PatternGeometry] — the *assembled* polyline plus cumulative stop-path
@@ -27,7 +27,7 @@ class CachedPatternGeometryReader(
     ): PatternGeometry? {
         val paths = stopPaths.orderedByPattern(revisionId, tripPatternId)
         if (paths.isEmpty()) return null
-        val pts = ArrayList<Point>()
+        val pts = ArrayList<Position>()
         val cum = DoubleArray(paths.size)
         val layover = BooleanArray(paths.size)
         var acc = 0.0
@@ -41,11 +41,11 @@ class CachedPatternGeometryReader(
             val coords = json.parseToJsonElement(raw).jsonArray
             for (c in coords) {
                 val coordinate = c.jsonArray
-                val p = Point(coordinate[1].jsonPrimitive.double, coordinate[0].jsonPrimitive.double)
+                val p = Position(coordinate[0].jsonPrimitive.double, coordinate[1].jsonPrimitive.double)
                 if (pts.isEmpty() || pts.last() != p) pts.add(p)
             }
         }
         if (pts.size < 2) return null
-        return PatternGeometry(Polyline(pts), cum, layover)
+        return PatternGeometry(Line(pts), cum, layover)
     }
 }

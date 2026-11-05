@@ -23,7 +23,7 @@ data class MultiLineString(
     constructor(vararg lines: Line) :
         this(
             lines.map { it.coordinates },
-            BBox.of(lines.map { it.coordinates }.flatten()),
+            BBox.of(lines.flatMap { it.coordinates }),
         )
 
     /**

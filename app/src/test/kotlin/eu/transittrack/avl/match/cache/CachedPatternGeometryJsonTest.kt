@@ -8,7 +8,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 import eu.transittrack.ProjectJson
-import eu.transittrack.geo.Point
+import eu.transittrack.geo.Position
 import eu.transittrack.schedule.model.StopPath
 
 class CachedPatternGeometryJsonTest {
@@ -25,11 +25,11 @@ class CachedPatternGeometryJsonTest {
 
         val geometry = CachedPatternGeometryReader(stopPaths, ProjectJson).geometry(1, 2)!!
 
-        assertThat(geometry.line.points).isEqualTo(
+        assertThat(geometry.line.coordinates).isEqualTo(
             listOf(
-                Point(51.98765432109876, 17.123456789012345),
-                Point(52.0, 18.0),
-                Point(51.98765432109876, 17.123456789012345),
+                Position(17.123456789012345, 51.98765432109876),
+                Position(18.0, 52.0),
+                Position(17.123456789012345, 51.98765432109876),
             ),
         )
         assertThat(geometry.stopPathCumM.toList()).isEqualTo(listOf(0.0, 0.0, 125.5))

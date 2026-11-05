@@ -19,7 +19,7 @@ const val earthRadius = 6371000.0
  * [haversineDistance] and accurate to well under 1% at city scale, but the error grows with distance
  * and near the poles.
  */
-fun equirectangularDistance(l1: Point, l2: Point) = equirectangularDistance(l1.lat, l1.lon, l2.lat, l2.lon)
+fun equirectangularDistance(l1: PointCoordinates, l2: PointCoordinates) = equirectangularDistance(l1.lat, l1.lng, l2.lat, l2.lng)
 
 fun equirectangularDistance(p1lat: Double, p1lon: Double, p2lat: Double, p2lon: Double): Double {
     val lat1 = Math.toRadians(p1lat)
@@ -56,7 +56,7 @@ fun haversineDistance(p1lat: Double, p1lon: Double, p2lat: Double, p2lon: Double
  * @param p2 The destination point
  * @return The surface distance between the points in meters
  */
-fun haversineDistance(p1: Point, p2: Point) = haversineDistance(p1.lat, p1.lon, p2.lat, p2.lon)
+fun haversineDistance(p1: PointCoordinates, p2: PointCoordinates) = haversineDistance(p1.lat, p1.lng, p2.lat, p2.lng)
 
 /**
  * Calculates the geodetic distance between two GeoPoints on the WGS 84 ellipsoid
@@ -66,7 +66,7 @@ fun haversineDistance(p1: Point, p2: Point) = haversineDistance(p1.lat, p1.lon, 
  * @param p2 The destination point
  * @return The ground distance between the points in meters
  */
-fun lambertDistance(p1: Point, p2: Point) = lambertDistance(p1.lat, p1.lon, p2.lat, p2.lon)
+fun lambertDistance(p1: PointCoordinates, p2: PointCoordinates) = lambertDistance(p1.lat, p1.lng, p2.lat, p2.lng)
 
 fun lambertDistance(p1lat: Double, p1lon: Double, p2lat: Double, p2lon: Double): Double {
     // WGS-84 Ellipsoid Constants
@@ -125,5 +125,5 @@ fun bearingDegrees(
     return (Math.toDegrees(atan2(y, x)) + 360.0) % 360.0
 }
 
-/** `v` squared. A readability shorthand for the geometry code in [Vector]. */
+/** `v` squared. A readability shorthand for the geometry code in [Edge]. */
 fun sqrd(v: Double): Double = v.pow(2)
