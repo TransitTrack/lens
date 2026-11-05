@@ -21,7 +21,7 @@ class EdgeTest {
 
     @Test
     fun `length is the ground distance between endpoints`() {
-        assertThat(northSegment.length()).isCloseTo(1112.0, 5.0)
+        assertThat(northSegment.length).isCloseTo(1112.0, 5.0)
     }
 
     @Test
@@ -57,13 +57,13 @@ class EdgeTest {
     fun `a point past the end clamps to the end`() {
         val after = Point(51.02, 17.0)
         assertThat(northSegment.distance(after)).isCloseTo(1112.0, 5.0)
-        assertThat(northSegment.distanceAlongVector(after)).isCloseTo(northSegment.length(), 1e-6)
+        assertThat(northSegment.distanceAlongVector(after)).isCloseTo(northSegment.length, 1e-6)
     }
 
     @Test
     fun `zero-length vector degrades gracefully`() {
         val degenerate = Edge(south, Point(51.0, 17.0))
-        assertThat(degenerate.length()).isZero()
+        assertThat(degenerate.length).isZero()
         assertThat(degenerate.distance(north)).isCloseTo(1112.0, 5.0)
         assertThat(degenerate.distanceAlongVector(north)).isZero()
     }
@@ -72,14 +72,14 @@ class EdgeTest {
     fun `beginning end and middle carve the segment by distance`() {
         val head = northSegment.beginning(556.0)
         assertThat(head.startPosition).isEqualTo(south.coordinates)
-        assertThat(head.length()).isCloseTo(556.0, 5.0)
+        assertThat(head.length).isCloseTo(556.0, 5.0)
 
         val tail = northSegment.end(556.0)
         assertThat(tail.endPosition).isEqualTo(north.coordinates)
-        assertThat(tail.length()).isCloseTo(556.0, 5.0)
+        assertThat(tail.length).isCloseTo(556.0, 5.0)
 
         val core = northSegment.middle(278.0, 834.0)
-        assertThat(core.length()).isCloseTo(556.0, 5.0)
+        assertThat(core.length).isCloseTo(556.0, 5.0)
     }
 
     @Test

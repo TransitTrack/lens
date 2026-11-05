@@ -21,12 +21,9 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
-import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
 import eu.transittrack.geo.Edge
 import eu.transittrack.geo.Point
-import eu.transittrack.geo.bearingDegrees
-import eu.transittrack.geo.haversineDistance
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler
 import eu.transittrack.util.observability.TransitTrackMetrics

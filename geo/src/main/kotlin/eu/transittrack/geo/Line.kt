@@ -5,6 +5,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sqrt
 
+import eu.transittrack.geo.algorithm.earthRadius
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.geo.validator.LineStringValidator
 
 typealias LineCoordinates = List<Position>

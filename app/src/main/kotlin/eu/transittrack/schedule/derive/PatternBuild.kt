@@ -6,8 +6,7 @@ import org.slf4j.Logger
 import eu.transittrack.geo.BBox
 import eu.transittrack.geo.Line
 import eu.transittrack.geo.Point
-import eu.transittrack.geo.Position
-import eu.transittrack.geo.haversineDistance
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
 

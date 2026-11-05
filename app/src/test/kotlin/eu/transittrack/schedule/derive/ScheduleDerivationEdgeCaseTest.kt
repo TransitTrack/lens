@@ -35,7 +35,7 @@ import eu.transittrack.GtfsProperties
 import eu.transittrack.ProjectJson
 import eu.transittrack.ScheduleProperties
 import eu.transittrack.geo.Point
-import eu.transittrack.geo.haversineDistance
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedRepository

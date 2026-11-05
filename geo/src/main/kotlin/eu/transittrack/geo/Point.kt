@@ -1,5 +1,8 @@
 package eu.transittrack.geo
 
+import eu.transittrack.geo.algorithm.distance
+import eu.transittrack.geo.algorithm.matchDistanceAlongVector
+
 typealias PointCoordinates = Position
 
 data class Point(

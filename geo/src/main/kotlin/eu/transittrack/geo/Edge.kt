@@ -3,7 +3,11 @@ package eu.transittrack.geo
 import eu.transittrack.geo.algorithm.calculateCrossProduct
 import eu.transittrack.geo.algorithm.calculateDotProduct
 import eu.transittrack.geo.algorithm.calculateSquareDist
+import eu.transittrack.geo.algorithm.bearingDegrees
+import eu.transittrack.geo.algorithm.distance
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.geo.algorithm.isBetween
+import eu.transittrack.geo.algorithm.matchDistanceAlongVector
 import kotlin.math.atan2
 
 /**

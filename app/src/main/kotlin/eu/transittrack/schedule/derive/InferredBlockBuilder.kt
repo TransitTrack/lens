@@ -1,7 +1,7 @@
 package eu.transittrack.schedule.derive
 
 import eu.transittrack.ScheduleProperties
-import eu.transittrack.geo.haversineDistance
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.gtfs.model.RouteTypes
 
 /** A timed trip that may be assigned to an inferred vehicle block. */

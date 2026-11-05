@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service
 
 import eu.transittrack.GtfsProperties
 import eu.transittrack.ParseException
-import eu.transittrack.geo.haversineDistance
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService

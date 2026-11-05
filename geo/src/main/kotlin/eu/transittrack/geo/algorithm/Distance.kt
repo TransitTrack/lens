@@ -1,6 +1,10 @@
-package eu.transittrack.geo
+package eu.transittrack.geo.algorithm
 
 import kotlin.math.sqrt
+
+import eu.transittrack.geo.Edge
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Position
 
 
 internal fun distance(l1: Position, l2: Position) = haversineDistance(l1, l2)

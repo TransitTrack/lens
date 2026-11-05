@@ -1,4 +1,4 @@
-package eu.transittrack.geo
+package eu.transittrack.geo.algorithm
 
 import kotlin.math.acos
 import kotlin.math.atan
@@ -8,6 +8,8 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
+
+import eu.transittrack.geo.PointCoordinates
 
 
 // Earth's mean radius in meters (WGS-84 standard approximation)

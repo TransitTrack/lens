@@ -1,6 +1,7 @@
 package eu.transittrack.geo
 
 import kotlin.test.Test
+import eu.transittrack.geo.algorithm.haversineDistance
 import kotlin.test.assertFailsWith
 import assertk.assertThat
 import assertk.assertions.hasSize
