@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { formatNumber } from '~/utils/intlLocale'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import FeedFeatures from '~/components/FeedFeatures.vue'
-import FeedDatasetHistory from '~/components/FeedDatasetHistory.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
+import FeedFeatures from '~/components/explore/FeedFeatures.vue'
+import FeedDatasetHistory from '~/components/explore/FeedDatasetHistory.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import {
   useFeedDetailQuery,
@@ -189,7 +189,7 @@ async function saveFeed() {
         :label="t('explore.feed.reingest')"
         @click="reingest"
       />
-      <NavbarActions />
+      <PollControl />
     </template>
     <template #toolbar>
       <ExploreToolbar :show-agency="false" />

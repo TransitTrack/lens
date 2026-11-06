@@ -1,4 +1,4 @@
-import type { VehicleDetailQuery } from '../../generated/graphql'
+import type { VehicleDetailQuery } from '~~/generated/graphql'
 import { formatClock } from './clock'
 import { geometryLine } from './gtfs'
 
@@ -212,14 +212,6 @@ export function stopRows(
 function diffSec(a: string | null, b: string | null): number | null {
   if (!a || !b) return null
   return Math.round((new Date(a).getTime() - new Date(b).getTime()) / 1000)
-}
-
-const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-
-/** Compass label for a bearing in degrees, e.g. 63 → "NE". */
-export function cardinal(bearing: number | null | undefined): string | null {
-  if (bearing == null || !Number.isFinite(bearing)) return null
-  return COMPASS[Math.round((((bearing % 360) + 360) % 360) / 45) % 8]!
 }
 
 interface TrailReport {

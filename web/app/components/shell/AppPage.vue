@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import HeaderNotificationsButton from '~/components/HeaderNotificationsButton.vue'
+import NotificationsButton from '~/components/shell/NotificationsButton.vue'
 
 withDefaults(
   defineProps<{
@@ -61,7 +61,9 @@ const containerClass = 'max-w-(--app-content-max-w)'
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <slot name="actions" />
-          <HeaderNotificationsButton />
+          <div class="hidden shrink-0 lg:block">
+            <NotificationsButton />
+          </div>
         </div>
       </UContainer>
     </div>

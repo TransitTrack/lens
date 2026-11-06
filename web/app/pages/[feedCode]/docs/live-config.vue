@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { ContentTocLink } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
+import AppPage from '~/components/shell/AppPage.vue'
 import DocsShell from '~/components/docs/DocsShell.vue'
-import PageState from '~/components/PageState.vue'
+import PageState from '~/components/shell/PageState.vue'
 import { useDocs } from '~/composables/useDocs'
 import {
   docSectionForPrefix,

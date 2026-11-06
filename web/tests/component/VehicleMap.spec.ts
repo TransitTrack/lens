@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll, afterAll, afterEach, vi } from 'vitest
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { graphql, HttpResponse } from 'msw'
 import { server } from '../../mocks/server'
-import VehicleMap from '../../app/components/VehicleMap.vue'
+import VehicleMap from '../../app/components/vehicles/VehicleMap.vue'
 import { fixtures } from '../../mocks/handlers'
 
 // @indoorequal/vue-maplibre-gl is aliased to tests/mocks/vue-maplibre-gl.ts:

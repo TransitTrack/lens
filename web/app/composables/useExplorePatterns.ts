@@ -1,4 +1,4 @@
-import { useExplorePatternsQuery, type ExplorePatternsQuery } from '../../generated/graphql'
+import { useExplorePatternsQuery, type ExplorePatternsQuery } from '~~/generated/graphql'
 import { useFeeds } from './useFeeds'
 
 export type Pattern = ExplorePatternsQuery['tripPatterns'][number]

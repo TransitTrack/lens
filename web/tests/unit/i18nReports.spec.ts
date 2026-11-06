@@ -62,15 +62,15 @@ describe('report plurals', () => {
 })
 
 describe('noRealtime.body agreement', () => {
-  const whats = ['noRealtime.liveVehicleData', 'noRealtime.liveVehicleOperations', 'noRealtime.liveNetwork', 'vehicles.noRealtimeWhat', 'reports.noRealtime.adherence', 'reports.noRealtime.avl', 'reports.noRealtime.headway']
+  const whats = ['noRealtime.liveVehicleData', 'noRealtime.liveVehicleOperations', 'vehicles.noRealtimeWhat', 'reports.noRealtime.adherence', 'reports.noRealtime.avl', 'reports.noRealtime.headway']
   const render = (loc: 'en' | 'pl' | 'fr', key: string) => {
     const i = make(loc)
     return i.t('noRealtime.body', { name: 'X', what: i.t(key) })
   }
 
   it('keeps the English sentence', () => {
-    expect(render('en', 'noRealtime.liveNetwork')).toBe(
-      "X has no linked AVL feed, so the live network isn't available. Explore the static GTFS data instead.",
+    expect(render('en', 'noRealtime.liveVehicleOperations')).toBe(
+      "X has no linked AVL feed, so live vehicle operations isn't available. Explore the static GTFS data instead.",
     )
   })
 

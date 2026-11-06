@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui'
-import UserMenu from '~/components/UserMenu.vue'
-import FeedSwitcher from '~/components/FeedSwitcher.vue'
-import NotificationsSlideover from '~/components/NotificationsSlideover.vue'
-import NotificationsButton from '~/components/NotificationsButton.vue'
+import UserMenu from '~/components/shell/UserMenu.vue'
+import FeedSwitcher from '~/components/shell/FeedSwitcher.vue'
+import NotificationsSlideover from '~/components/shell/NotificationsSlideover.vue'
+import NotificationsButton from '~/components/shell/NotificationsButton.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
@@ -48,10 +48,6 @@ watch(feedIsUnknown, (unknown) => {
     navigateTo(`/${feeds.value[0].code}`, { replace: true })
   }
 })
-
-const unhealthyFeedCount = computed(
-  () => feeds.value.filter((f) => f.hasRealtime && !f.realtimeHealthy).length,
-)
 
 const searchOpen = ref(false)
 const route = useRoute()
@@ -381,7 +377,7 @@ const groups = computed(() => [
 
           <template #right>
             <FeedSwitcher class="hidden w-56 xl:flex" />
-            <NotificationsButton :count="unhealthyFeedCount || undefined" />
+            <NotificationsButton />
             <UserMenu collapsed />
           </template>
         </UDashboardNavbar>

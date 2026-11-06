@@ -1,4 +1,4 @@
-import { useExploreRoutesQuery } from '../../generated/graphql'
+import { useExploreRoutesQuery } from '~~/generated/graphql'
 import { useFeeds } from './useFeeds'
 import { useExploreQuery } from './useExploreQuery'
 import { routeTypeBreakdown } from '~/utils/feedFeatures'

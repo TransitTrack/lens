@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import VehicleList from '../../app/components/VehicleList.vue'
+import VehicleList from '../../app/components/vehicles/VehicleList.vue'
 import { fixtures } from '../../mocks/handlers'
 
 describe('VehicleList', () => {

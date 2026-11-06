@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
-import ExploreToolbar from '~/components/ExploreToolbar.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'

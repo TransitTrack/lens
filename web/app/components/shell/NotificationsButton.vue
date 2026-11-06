@@ -1,11 +1,18 @@
 <script setup lang="ts">
-const props = defineProps<{ count?: number }>()
+import { useFeeds } from '~/composables/useFeeds'
+
 const { t } = useI18n()
 const { isNotificationsSlideoverOpen } = useDashboard()
+const { feeds } = useFeeds()
+
+/** Feeds that publish realtime data but are currently unhealthy. */
+const count = computed(
+  () => feeds.value.filter((feed) => feed.hasRealtime && !feed.realtimeHealthy).length,
+)
 
 const label = computed(() =>
-  props.count
-    ? t('notifications.openWithIssues', { count: props.count }, props.count)
+  count.value
+    ? t('notifications.openWithIssues', { count: count.value }, count.value)
     : t('notifications.openFeedStatus'),
 )
 </script>

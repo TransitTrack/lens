@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import AppPage from '~/components/AppPage.vue'
-import BlockTimeline from '~/components/BlockTimeline.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import BlockTimeline from '~/components/explore/BlockTimeline.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useBlockDetailQuery } from '~~/generated/graphql'
 import { hexColor, routeTextColor } from '~/utils/gtfs'

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Bar } from '../utils/chart'
+import type { Bar } from '~/utils/chart'
 
 const props = withDefaults(
   defineProps<{

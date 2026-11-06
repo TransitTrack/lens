@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
-import SparklineChart from '~/components/SparklineChart.vue'
-import VehicleFactsGrid, { type Fact } from '~/components/VehicleFactsGrid.vue'
-import VehicleTelemetry from '~/components/VehicleTelemetry.vue'
-import VehicleAvlLog from '~/components/VehicleAvlLog.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import VehicleRouteMap from '~/components/map/VehicleRouteMap.vue'
+import SparklineChart from '~/components/charts/SparklineChart.vue'
+import VehicleFactsGrid, { type Fact } from '~/components/vehicles/VehicleFactsGrid.vue'
+import VehicleTelemetry from '~/components/vehicles/VehicleTelemetry.vue'
+import VehicleAvlLog from '~/components/vehicles/VehicleAvlLog.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { usePollControl } from '~/composables/usePollControl'
@@ -38,6 +39,7 @@ import {
   trailCoords,
 } from '~/utils/vehicleDetail'
 import type { GeoJSON } from 'geojson'
+import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -96,8 +98,7 @@ const vehicleSplitterItems: SplitterItem[] = [
 ]
 
 // Details panel beside (desktop) or above (mobile) the map/stops workspace.
-const isDesktop = useMediaQuery('(min-width: 1024px)')
-const pageSplitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const { splitterOrientation: pageSplitterOrientation } = useSplitLayout()
 const pageSplitterItems: SplitterItem[] = [
   {
     id: 'details',
@@ -370,7 +371,7 @@ function adherenceTextClass(sec: number | null): string {
           @click="avlLogOpen = true"
         />
       </UTooltip>
-      <NavbarActions :updated-at="vehicle?.reportTs" />
+      <PollControl :updated-at="vehicle?.reportTs" />
     </template>
 
     <UAlert

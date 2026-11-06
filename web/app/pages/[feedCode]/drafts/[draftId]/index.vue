@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useRoutesQuery, useExploreCalendarQuery } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
 
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()

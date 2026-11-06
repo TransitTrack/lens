@@ -23,6 +23,23 @@ server-rendered data-fetching path, by design (see the spec's architecture
 section). All GraphQL queries run in the browser via Apollo Client, polling on
 an interval rather than subscribing.
 
+## Code layout
+
+Components under `app/components/` are grouped by domain and always imported by explicit
+path (`import AppPage from '~/components/shell/AppPage.vue'`), never via Nuxt auto-import,
+so moving a file breaks loudly at typecheck instead of silently at runtime.
+
+- `shell/`: App chrome and page scaffolding: `AppPage`, `PageState`, `PollControl`, notifications, user menu, feed switcher
+- `charts/`: Generic `BarChart` / `SparklineChart`
+- `map/`: Reusable MapLibre pieces: map toolbox and layers, feed network layer, `VehicleRouteMap`
+- `explore/`: Static GTFS explorer: toolbar and filters, stops map, block timeline, feed and validation panels
+- `vehicles/`: Live vehicle operations: board, live map, list, filters, detail card, telemetry, AVL log
+- `compare/`, `draft/`, `optimize/`, `docs/`: Feature screens of the same name
+- `content/`: Global components rendered from Markdown by `@nuxt/content` (e.g. `<docs-mermaid>`)
+
+Composables (`app/composables/`) hold reactive state and data fetching; `app/utils/` holds
+pure, testable functions that take `t` / the locale as arguments.
+
 ## Testing
 
 ```bash

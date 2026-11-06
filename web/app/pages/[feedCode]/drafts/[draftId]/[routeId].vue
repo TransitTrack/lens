@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type {SplitterItem} from '@nuxt/ui'
 import {
   useRoutesQuery,
@@ -16,7 +17,7 @@ import {useFeeds} from '~/composables/useFeeds'
 import {useDraftEditor} from '~/composables/useDraftEditor'
 import {useDraftEdit} from '~/composables/useDraftEdit'
 import {formatClock} from '~/utils/clock'
-import AppPage from '~/components/AppPage.vue'
+import AppPage from '~/components/shell/AppPage.vue'
 import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
 import DraftGrid from '~/components/draft/DraftGrid.vue'
 import DraftRail from '~/components/draft/DraftRail.vue'

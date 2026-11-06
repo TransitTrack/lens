@@ -6,7 +6,7 @@ import {
   useReleaseDraftEditorMutation,
   type DraftDetailQuery,
   type DraftEditResultFFragment,
-} from '../../generated/graphql'
+} from '~~/generated/graphql'
 import { useEditorIdentity } from './useEditorIdentity'
 
 export type DraftDetail = NonNullable<DraftDetailQuery['draft']>

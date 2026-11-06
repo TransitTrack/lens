@@ -1,14 +1,16 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem, TableColumn } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
-import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import StopsMap from '~/components/StopsMap.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
+import StopsMap from '~/components/explore/StopsMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExplorePatterns } from '~/composables/useExplorePatterns'
 import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
+import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const { t, locale } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
@@ -95,8 +97,7 @@ function openStop(stopId: string) {
   navigateTo(feedPath(`/explore/stops/${stopId}`))
 }
 
-const isDesktop = useMediaQuery('(min-width: 1024px)')
-const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const { isDesktop, splitterOrientation } = useSplitLayout()
 const splitterItems = computed<SplitterItem[]>(() =>
   isDesktop.value
     ? [

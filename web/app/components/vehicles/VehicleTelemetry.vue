@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import SparklineChart from './SparklineChart.vue'
-import { ageLabel } from '../utils/vehicleTelemetry'
+import SparklineChart from '~/components/charts/SparklineChart.vue'
+import { ageLabel } from '~/utils/vehicleTelemetry'
 
 const props = defineProps<{
   /** current speed, already formatted for the active unit system */

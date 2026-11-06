@@ -10,8 +10,5 @@ mutation AddTrip($input: AddTripInput!) { addTrip(input: $input) { ...DraftEditR
 mutation DuplicateTrip($input: DuplicateTripInput!) { duplicateTrip(input: $input) { ...DraftEditResultF } }
 mutation DeleteTrip($input: DeleteTripInput!) { deleteTrip(input: $input) { ...DraftEditResultF } }
 mutation BulkShiftTrips($input: BulkShiftTripsInput!) { bulkShiftTrips(input: $input) { ...DraftEditResultF } }
-mutation InsertTripStop($input: InsertTripStopInput!) { insertTripStop(input: $input) { ...DraftEditResultF } }
-mutation RemoveTripStop($input: RemoveTripStopInput!) { removeTripStop(input: $input) { ...DraftEditResultF } }
-mutation ReorderTripStops($input: ReorderTripStopsInput!) { reorderTripStops(input: $input) { ...DraftEditResultF } }
 mutation UndoDraftEdit($id: ID!, $editor: String!, $expectedVersion: Long!) { undoDraftEdit(id: $id, editor: $editor, expectedVersion: $expectedVersion) { ...DraftEditResultF } }
 mutation RedoDraftEdit($id: ID!, $editor: String!, $expectedVersion: Long!) { redoDraftEdit(id: $id, editor: $editor, expectedVersion: $expectedVersion) { ...DraftEditResultF } }

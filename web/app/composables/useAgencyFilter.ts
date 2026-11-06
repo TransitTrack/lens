@@ -1,4 +1,4 @@
-import { useAgenciesDetailQuery, type AgenciesDetailQuery } from '../../generated/graphql'
+import { useAgenciesDetailQuery, type AgenciesDetailQuery } from '~~/generated/graphql'
 import { useFeeds } from './useFeeds'
 import { useExploreQuery } from './useExploreQuery'
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import ExploreTabs from './ExploreTabs.vue'
-import AgencyFilter from './AgencyFilter.vue'
-import RouteTypeFilter from './RouteTypeFilter.vue'
+import ExploreTabs from '~/components/explore/ExploreTabs.vue'
+import AgencyFilter from '~/components/explore/AgencyFilter.vue'
+import RouteTypeFilter from '~/components/explore/RouteTypeFilter.vue'
 
 withDefaults(defineProps<{ showAgency?: boolean; showRouteType?: boolean }>(), {
   showAgency: true,

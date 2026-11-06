@@ -1,5 +1,4 @@
-import type { VehicleRow } from '../composables/useVehiclePolling'
-import type { Bar } from './chart'
+import type { VehicleRow } from '~/composables/useVehiclePolling'
 
 type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
 
@@ -45,30 +44,3 @@ export function buildOverviewStats(
   ]
 }
 
-// i18n-keys: overviewStats.bin.*
-const ADHERENCE_BINS: { labelKey: string; test: (s: number) => boolean; color: string }[] = [
-  { labelKey: 'overviewStats.bin.early5', test: (s) => s <= -300, color: '#d97706' },
-  { labelKey: 'overviewStats.bin.early2to5', test: (s) => s > -300 && s <= -120, color: '#f59e0b' },
-  { labelKey: 'overviewStats.bin.early1to2', test: (s) => s > -120 && s <= -30, color: '#fbbf24' },
-  { labelKey: 'overviewStats.bin.onTime', test: (s) => s > -30 && s < 60, color: '#22c55e' },
-  { labelKey: 'overviewStats.bin.late1to2', test: (s) => s >= 60 && s < 120, color: '#f87171' },
-  { labelKey: 'overviewStats.bin.late2to5', test: (s) => s >= 120 && s < 300, color: '#ef4444' },
-  { labelKey: 'overviewStats.bin.late5', test: (s) => s >= 300, color: '#b91c1c' },
-]
-
-/** Distribution of schedule adherence across the fleet, as chart bars. */
-export function adherenceHistogram(vehicles: VehicleRow[], t: Translate): Bar[] {
-  const secs = vehicles
-    .map((v) => v.scheduleAdherenceSec)
-    .filter((s): s is number => s != null)
-  return ADHERENCE_BINS.map((bin) => {
-    const value = secs.filter((s) => bin.test(s)).length
-    const label = t(bin.labelKey)
-    return {
-      label,
-      value,
-      color: bin.color,
-      hint: t('overviewStats.binHint', { label, count: value }, value),
-    }
-  })
-}

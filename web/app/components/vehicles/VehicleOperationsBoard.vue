@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
 import type { VehicleRow } from '~/composables/useVehiclePolling'
 import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
-import VehicleFilters from '~/components/VehicleFilters.vue'
-import VehicleList from '~/components/VehicleList.vue'
-import VehicleMap, { type SelectedRouteOverlay } from '~/components/VehicleMap.vue'
+import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
+import VehicleList from '~/components/vehicles/VehicleList.vue'
+import VehicleMap, { type SelectedRouteOverlay } from '~/components/vehicles/VehicleMap.vue'
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
 import { algorithmsIn, preferredAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
@@ -12,6 +13,7 @@ import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgenciesDetailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
+import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const props = defineProps<{
   title?: string
@@ -107,8 +109,7 @@ function viewRouteDetails(routeId: string) {
 }
 
 // Side-by-side on desktop; stacked (directory above map) on narrow viewports.
-const isDesktop = useMediaQuery('(min-width: 1024px)')
-const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const { isDesktop, splitterOrientation } = useSplitLayout()
 const desktopDirectorySize = computed(() =>
   Math.min(Math.max(props.directoryDefaultSize ?? 27, 20), 40),
 )

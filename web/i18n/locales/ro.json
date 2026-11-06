@@ -3,8 +3,6 @@
     "save": "Salvează",
     "cancel": "Anulează",
     "noFeedsConfigured": "Niciun flux configurat.",
-    "unknown": "necunoscut",
-    "never": "niciodată",
     "goBack": "Înapoi"
   },
   "timeAgo": {
@@ -99,8 +97,7 @@
   "state": {
     "loadingData": "Se încarcă datele",
     "nothingYet": "Încă nu există nimic de afișat",
-    "unavailable": "Aceste date nu sunt disponibile",
-    "loadingPage": "Se încarcă pagina"
+    "unavailable": "Aceste date nu sunt disponibile"
   },
   "poll": {
     "resume": "Reia actualizările în direct",
@@ -117,8 +114,7 @@
     "thisFeed": "Acest flux",
     "liveVehicleData": "datele vehiculelor în direct",
     "explore": "Explorează fluxul",
-    "liveVehicleOperations": "operațiunile cu vehicule în direct",
-    "liveNetwork": "rețeaua în direct"
+    "liveVehicleOperations": "operațiunile cu vehicule în direct"
   },
   "filters": {
     "allAgencies": "Toate agențiile",
@@ -148,78 +144,13 @@
     "operationsDescription": "Poziții ale vehiculelor în direct, asocierea curselor și starea serviciului"
   },
   "feed": {
-    "reports": "{count} raport | {count} rapoarte | {count} de rapoarte",
-    "metadataUnavailable": "Metadatele fluxului nu sunt disponibile.",
-    "health": {
-      "title": "Starea fluxului",
-      "disabled": "Dezactivat"
-    },
-    "processing": {
-      "title": "Procesare",
-      "pipeline": "Ultima secvență de import",
-      "lastIngest": "Ultimul import",
-      "revisions": "{count} revizie | {count} revizii | {count} de revizii",
-      "failed": "{count} eșuată | {count} eșuate | {count} de eșuate",
-      "schedule": "Programare",
-      "disabled": "dezactivat",
-      "realtimeFeed": "Flux în timp real · {format}",
-      "polled": "interogat",
-      "every": "la fiecare {seconds} s",
-      "noRealtime": "Niciun flux în timp real asociat."
-    },
-    "status": {
-      "PENDING": "În coadă",
-      "DOWNLOADING": "Se descarcă",
-      "VALIDATING": "Se validează",
-      "PARSING": "Se analizează",
-      "DERIVING": "Se derivă",
-      "READY": "Gata",
-      "ACTIVE": "Activ",
-      "SUPERSEDED": "Înlocuit",
-      "UNCHANGED": "Neschimbat",
-      "FAILED": "Eșuat",
-      "DRAFT": "Ciornă"
-    },
-    "step": {
-      "download": "Descărcare",
-      "validate": "Validare",
-      "parse": "Analizare",
-      "derive": "Derivare",
-      "ready": "Gata",
-      "active": "Activ"
-    },
-    "cron": {
-      "notScheduled": "neprogramat",
-      "everyMin": "la fiecare {n} min",
-      "everyHour": "la fiecare {n} h",
-      "daily": "zilnic la {time}"
-    },
     "overview": {
-      "title": "Flux",
       "activeRevision": "Revizia activă",
-      "activated": "activată {time}",
-      "serviceWindow": "Perioadă de serviciu",
-      "daysLeft": "{count} zi rămasă | {count} zile rămase | {count} de zile rămase",
-      "expired": "expirat acum {count} zi | expirat acum {count} zile | expirat acum {count} de zile",
-      "content": "Conținut",
       "routes": "{count} linie | {count} linii | {count} de linii",
       "stops": "{count} stație | {count} stații | {count} de stații",
       "trips": "{count} cursă | {count} curse | {count} de curse",
-      "agencies": "{count} agenție | {count} agenții | {count} de agenții",
-      "validation": "Validare",
-      "viewProblems": "Vezi problemele de validare",
       "errors": "{count} eroare | {count} erori | {count} de erori",
-      "warnings": "{count} avertisment | {count} avertismente | {count} de avertismente",
-      "noFeedInfo": "fără feed_info.txt",
-      "validationProblems": "Probleme de validare",
-      "validationSummary": "{errors} · {warnings}",
-      "noReport": "Nu există niciun raport de validare pentru această revizie.",
-      "noticeError": "{count} eroare | {count} erori | {count} de erori",
-      "noticeWarning": "{count} avertisment | {count} avertismente | {count} de avertismente",
-      "row": "rândul {n}",
-      "noSample": "Validatorul nu a furnizat exemple detaliate.",
-      "noProblems": "Această revizie nu are probleme de validare stocate.",
-      "runIngest": "Rulează sau importă o revizie pentru a vedea aici rezultatele validării."
+      "warnings": "{count} avertisment | {count} avertismente | {count} de avertismente"
     },
     "dataset": {
       "title": "Seturi de date",
@@ -260,34 +191,7 @@
       "translations": "Traduceri",
       "feedinfo": "Informații despre flux",
       "attributions": "Atribuiri"
-    },
-    "accuracy": {
-      "title": "Acuratețea predicțiilor · 7 z",
-      "none": "Încă nu există eșantioane de predicție.",
-      "note": "Eroarea absolută medie de sosire — cu cât mai mică, cu atât mai bine.",
-      "errorSeconds": "±{value} s",
-      "hint": "{algorithm}: eroare absolută ±{error} s, abatere sistematică {bias} s ({samples})",
-      "samples": "{count} eșantion | {count} eșantioane | {count} de eșantioane"
     }
-  },
-  "pulse": {
-    "title": "Pulsul rețelei",
-    "liveUpdated": "Pozițiile în direct au fost actualizate {time}",
-    "liveUnavailable": "Pozițiile în direct nu sunt disponibile",
-    "feedUnavailable": "Fluxul de vehicule nu este disponibil",
-    "operatingSignals": "Semnale operaționale",
-    "fleetHealth": "Starea curentă a flotei, din rapoartele vehiculelor în direct",
-    "viewVehicles": "Vezi vehiculele ({signal})",
-    "onTime": "Performanța punctualității",
-    "needsAttention": "Necesită atenție",
-    "coverage": "Acoperire în timp real",
-    "noVehicles": "Niciun vehicul disponibil",
-    "sourceUnhealthy": "Sursa în timp real selectată nu raportează o stare bună",
-    "sourceUnavailable": "Sursa în timp real selectată nu este disponibilă",
-    "onTimeDetail": "{onTime} din {total} vehicul asociat, în limita a 1 minut | {onTime} din {total} vehicule asociate, în limita a 1 minut | {onTime} din {total} de vehicule asociate, în limita a 1 minut",
-    "noAdherence": "Niciun vehicul asociat cu date de punctualitate disponibile",
-    "attentionDetail": "vehicul cu poziție învechită sau neasociat | {count} vehicule cu poziție învechită sau neasociate | {count} de vehicule cu poziție învechită sau neasociate",
-    "coverageDetail": "{reporting} din {tracked} vehicul raportează | {reporting} din {tracked} vehicule raportează | {reporting} din {tracked} de vehicule raportează"
   },
   "overviewStats": {
     "vehiclesTracked": "Vehicule urmărite",
@@ -295,17 +199,7 @@
     "matchedOf": "{matched} din {tracked}",
     "stalePositions": "Poziții învechite",
     "activeFeeds": "Fluxuri active",
-    "reportingOk": "{count} raportează OK | {count} raportează OK | {count} raportează OK",
-    "binHint": "{label}: {count} vehicul | {label}: {count} vehicule | {label}: {count} de vehicule",
-    "bin": {
-      "early5": "≥5 min în avans",
-      "early2to5": "2–5 min în avans",
-      "early1to2": "1–2 min în avans",
-      "onTime": "La timp",
-      "late1to2": "1–2 min întârziere",
-      "late2to5": "2–5 min întârziere",
-      "late5": "≥5 min întârziere"
-    }
+    "reportingOk": "{count} raportează OK | {count} raportează OK | {count} raportează OK"
   },
   "vehicles": {
     "title": "Vehicule",

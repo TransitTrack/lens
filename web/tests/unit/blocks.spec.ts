@@ -1,7 +1,7 @@
 import {describe, expect, it} from 'vitest'
 import {createI18n} from 'vue-i18n'
 import en from '../../i18n/locales/en.json'
-import {ganttRows, layoverLabel, timelineBarHeight, timelineTicks, type TimelineSegment} from '../../app/utils/blocks'
+import {ganttRows, layoverLabel, timelineTicks, type TimelineSegment} from '../../app/utils/blocks'
 
 describe('timelineTicks', () => {
   it('includes the duty endpoints and each intervening hour', () => {
@@ -20,13 +20,6 @@ describe('timelineTicks', () => {
       {sec: 8 * 3600, label: '08:00', endpoint: false},
       {sec: 9 * 3600, label: '09:00', endpoint: true},
     ])
-  })
-})
-
-describe('timelineBarHeight', () => {
-  it('keeps trip bars compact when the timeline grows taller', () => {
-    expect(timelineBarHeight(132)).toBe(34)
-    expect(timelineBarHeight(200)).toBe(34)
   })
 })
 

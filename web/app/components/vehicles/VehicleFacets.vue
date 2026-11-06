@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VehicleRow } from '../composables/useVehiclePolling'
+import type { VehicleRow } from '~/composables/useVehiclePolling'
 import {
   VEHICLE_STATES,
   routeFacets,
@@ -7,7 +7,7 @@ import {
   vehicleStateLabel,
   type VehicleFilterState,
   type VehicleState,
-} from '../utils/vehicleFilters'
+} from '~/utils/vehicleFilters'
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 
 /**

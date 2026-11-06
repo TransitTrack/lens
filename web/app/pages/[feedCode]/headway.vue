@@ -11,11 +11,11 @@ import {
 import {useFeeds} from '~/composables/useFeeds'
 import {usePollControl} from '~/composables/usePollControl'
 import {formatClock} from '~/utils/clock'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
-import BarChart from '~/components/BarChart.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
+import BarChart from '~/components/charts/BarChart.vue'
 import type {Bar} from '~/utils/chart'
 
 const {t, locale} = useI18n()
@@ -197,7 +197,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
 <template>
   <AppPage :title="$t('nav.headway')" :description="$t('reports.headway.description')">
     <template #actions>
-      <NavbarActions/>
+      <PollControl/>
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>

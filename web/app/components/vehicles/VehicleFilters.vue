@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VehicleRow } from '../composables/useVehiclePolling'
+import type { VehicleRow } from '~/composables/useVehiclePolling'
 import {
   VEHICLE_STATES,
   emptyFilters,
@@ -7,7 +7,7 @@ import {
   stateCounts,
   vehicleStateLabel,
   type VehicleFilterState,
-} from '../utils/vehicleFilters'
+} from '~/utils/vehicleFilters'
 
 /**
  * Compact filter bar for narrow vehicle lists (e.g. beside the Overview map): the same search,

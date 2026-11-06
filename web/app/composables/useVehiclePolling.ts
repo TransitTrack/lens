@@ -1,4 +1,4 @@
-import { useVehiclesQuery, type VehiclesQuery } from '../../generated/graphql'
+import { useVehiclesQuery, type VehiclesQuery } from '~~/generated/graphql'
 import { usePollControl } from './usePollControl'
 
 export type VehicleRow = VehiclesQuery['vehicles'][number]

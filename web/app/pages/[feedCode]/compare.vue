@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useRevisionsQuery, useDraftsQuery, useCompareRevisionsQuery } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
 import CompareTripChanges from '~/components/compare/CompareTripChanges.vue'
 import CompareCalendarChanges from '~/components/compare/CompareCalendarChanges.vue'
 import CompareHeadwaySummary from '~/components/compare/CompareHeadwaySummary.vue'

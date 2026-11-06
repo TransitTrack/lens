@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { usePollControl } from '../composables/usePollControl'
+import { usePollControl } from '~/composables/usePollControl'
 
 const props = defineProps<{ updatedAt?: string | number | null }>()
 

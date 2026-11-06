@@ -6,9 +6,9 @@ import {
   useAvlReportCatalogQuery,
   useAvlReportPageQuery,
 } from '~~/generated/graphql'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useUnits } from '~/composables/useUnits'
 import {
@@ -184,7 +184,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
     :description="$t('reports.avl.description')"
   >
     <template #actions>
-      <NavbarActions />
+      <PollControl />
     </template>
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.avl')" />

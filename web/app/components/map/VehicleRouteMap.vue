@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import VehicleHeadingMarker from './VehicleHeadingMarker.vue'
-import {hideBasemapLabels, useMapStyle} from '../composables/useMapStyle'
-import {boundsOf} from '../utils/vehicleDetail'
-import {extentToBounds} from '../utils/mapBounds'
-import type {LngLatBoundsExtent} from '../composables/useFeedExtent'
+import MapToolLayers from '~/components/map/MapToolLayers.vue'
+import MapToolbox from '~/components/map/MapToolbox.vue'
+import VehicleHeadingMarker from '~/components/map/VehicleHeadingMarker.vue'
+import {hideBasemapLabels, useMapStyle} from '~/composables/useMapStyle'
+import {boundsOf} from '~/utils/vehicleDetail'
+import {extentToBounds} from '~/utils/mapBounds'
+import type {LngLatBoundsExtent} from '~/composables/useFeedExtent'
 
 const props = withDefaults(
   defineProps<{

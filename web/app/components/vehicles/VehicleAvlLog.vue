@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { useAvlLogQuery } from '../../generated/graphql'
-import { usePollControl } from '../composables/usePollControl'
-import { useUnits } from '../composables/useUnits'
-import { adherenceBadge } from '../utils/adherence'
-import { formatClock } from '../utils/clock'
-import { matchStatusLabel } from '../utils/vehicleTelemetry'
+import { useAvlLogQuery } from '~~/generated/graphql'
+import { usePollControl } from '~/composables/usePollControl'
+import { useUnits } from '~/composables/useUnits'
+import { adherenceBadge } from '~/utils/adherence'
+import { formatClock } from '~/utils/clock'
+import { matchStatusLabel } from '~/utils/vehicleTelemetry'
 
 const props = defineProps<{
   feedCode: string

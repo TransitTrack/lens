@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import type { VehicleRow } from '../composables/useVehiclePolling'
-import VehicleDetailCard from './VehicleDetailCard.vue'
-import VehicleMapLegend from './VehicleMapLegend.vue'
-import FeedNetworkLayer from './FeedNetworkLayer.vue'
-import { hideBasemapLabels, useMapStyle } from '../composables/useMapStyle'
-import { useFeedGeometry } from '../composables/useFeedGeometry'
-import { extentToBounds } from '../utils/mapBounds'
-import type { LngLatBoundsExtent } from '../composables/useFeedExtent'
+import MapToolLayers from '~/components/map/MapToolLayers.vue'
+import MapToolbox from '~/components/map/MapToolbox.vue'
+import type { VehicleRow } from '~/composables/useVehiclePolling'
+import VehicleDetailCard from '~/components/vehicles/VehicleDetailCard.vue'
+import VehicleMapLegend from '~/components/vehicles/VehicleMapLegend.vue'
+import FeedNetworkLayer from '~/components/map/FeedNetworkLayer.vue'
+import { hideBasemapLabels, useMapStyle } from '~/composables/useMapStyle'
+import { useFeedGeometry } from '~/composables/useFeedGeometry'
+import { extentToBounds } from '~/utils/mapBounds'
+import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
 
 export interface SelectedRouteOverlay {
   vehicleId: string

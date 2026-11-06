@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
-import ValidationFindingsPanel from '~/components/ValidationFindingsPanel.vue'
-import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
+import VehicleRouteMap from '~/components/map/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useTripDetailQuery } from '~~/generated/graphql'
 import type { LngLat } from '~/utils/gtfs'
+import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -98,8 +100,7 @@ const tripStats = computed(() => ({
   start: trip.value?.startTimeSec != null ? secToHm(trip.value.startTimeSec) : '—',
 }))
 
-const isDesktop = useMediaQuery('(min-width: 1024px)')
-const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const { isDesktop, splitterOrientation } = useSplitLayout()
 const splitterItems = computed<SplitterItem[]>(() =>
   isDesktop.value
     ? [

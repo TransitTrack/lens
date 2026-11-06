@@ -1,4 +1,4 @@
-import { useAvlFeedsQuery } from '../../generated/graphql'
+import { useAvlFeedsQuery } from '~~/generated/graphql'
 
 function isHealthy(status: string | null | undefined): boolean {
   return /ok|success|healthy/i.test(status ?? '')

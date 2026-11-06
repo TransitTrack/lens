@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { formatClock, formatDottedTimestamp } from '~/utils/clock'
-import type { VehicleRow } from '../composables/useVehiclePolling'
-import { adherenceBadge } from '../utils/adherence'
-import { coarseAgeLabel, haversineM } from '../utils/vehicleTelemetry'
-import { algorithmsIn, preferredAlgorithm, stopRows } from '../utils/vehicleDetail'
-import { usePollControl } from '../composables/usePollControl'
-import { useFeeds } from '../composables/useFeeds'
-import { useUnits } from '../composables/useUnits'
+import type { VehicleRow } from '~/composables/useVehiclePolling'
+import { adherenceBadge } from '~/utils/adherence'
+import { coarseAgeLabel, haversineM } from '~/utils/vehicleTelemetry'
+import { algorithmsIn, preferredAlgorithm, stopRows } from '~/utils/vehicleDetail'
+import { usePollControl } from '~/composables/usePollControl'
+import { useFeeds } from '~/composables/useFeeds'
+import { useUnits } from '~/composables/useUnits'
 import {
   useAgenciesDetailQuery,
   useAvlTrailQuery,
