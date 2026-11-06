@@ -360,7 +360,6 @@
       "noNextStop": "No next stop identified",
       "distanceUnavailable": "Distance unavailable",
       "distanceToStop": "{distance} to stop",
-      "adherenceTrend": "Adherence trend",
       "alongTrip": "Along trip",
       "toNextStop": "To next stop",
       "gpsOffset": "GPS offset",
@@ -417,7 +416,19 @@
     },
     "strip": {
       "aria": "Trip progress: {passed} of {total} stops passed, {adherence}",
-      "timepoint": "timepoint"
+      "timepoint": "Timepoint",
+      "adherenceAt": "Adherence {value}",
+      "sincePrevious": "{value} since previous stop",
+      "avgSpeed": "Avg speed {speed}",
+      "legend": {
+        "delay": "Delay along the route",
+        "delayHint": "Delay at each stop reached, then the bus now. Higher means later: where the curve climbs the bus lost time, where it drops it caught up. Green within 1 min, yellow up to 5 min, red beyond.",
+        "speed": "Speed",
+        "speedHint": "Reported GPS speed over the stretch already driven; deeper means faster. Gaps mean no reports there.",
+        "standstill": "Stopped between stops",
+        "passed": "Passed stop",
+        "upcoming": "Upcoming stop"
+      }
     }
   },
   "map": {

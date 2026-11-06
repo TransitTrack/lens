@@ -240,12 +240,21 @@ export interface StripStop {
   eta: string | null
   /** `eta` is an actual arrival (or departure, at the first stop) rather than a prediction */
   arrived: boolean
+  /** distance along the trip, in metres (same scale as `distanceAlongTripM`) */
+  distanceM: number
+  /** seconds late (+) or early (−) on reaching this stop; null until reached */
+  adherenceSec: number | null
+  /** delay gained (+) or recovered (−) since the previous reached stop */
+  lossSec: number | null
 }
 
 export interface TripStrip {
   stops: StripStop[]
   /** the vehicle's position along the trip (0..1), or null when it has no distance yet */
   vehicleOffset: number | null
+  /** distance along the trip at offset 0 and the length the strip spans, in metres */
+  startM: number
+  spanM: number
 }
 
 type StripVehicle = Pick<Vehicle, 'distanceAlongTripM'> & {
@@ -277,10 +286,15 @@ export function tripStrip(vehicle: StripVehicle, rows: StopRow[]): TripStrip | n
   if (!(spanM > 0)) return null
   const offsetOf = (m: number) => Math.min(1, Math.max(0, (m - firstM) / spanM))
 
+  let previousAdherence: number | null = null
   const stops = rows
     .filter((row) => distanceByIndex.has(row.stopPathIndex))
-    .map((row) => {
+    .map((row): StripStop => {
       const path = distanceByIndex.get(row.stopPathIndex)!
+      const adherenceSec = row.arrived ? row.deltaVsScheduleSec : null
+      const lossSec =
+        adherenceSec !== null && previousAdherence !== null ? adherenceSec - previousAdherence : null
+      if (adherenceSec !== null) previousAdherence = adherenceSec
       return {
         stopPathIndex: row.stopPathIndex,
         name: row.stopName,
@@ -290,13 +304,117 @@ export function tripStrip(vehicle: StripVehicle, rows: StopRow[]): TripStrip | n
         next: row.state === 'current',
         eta: row.eta,
         arrived: row.arrived,
+        distanceM: path.distanceM,
+        adherenceSec,
+        lossSec,
       }
     })
   const distance = vehicle.distanceAlongTripM
   return {
     stops,
     vehicleOffset: distance == null || !Number.isFinite(distance) ? null : offsetOf(distance),
+    startM: firstM,
+    spanM,
   }
+}
+
+/** Where a distance along the trip falls on the strip, 0..1. */
+export function stripOffset(strip: TripStrip, distanceM: number): number {
+  return Math.min(1, Math.max(0, (distanceM - strip.startM) / strip.spanM))
+}
+
+export interface ProfilePoint {
+  offset: number
+  /** seconds late (+) or early (−) */
+  sec: number
+}
+
+/** The delay curve: adherence at each reached stop, then the vehicle where it is now. */
+export function adherenceProfile(strip: TripStrip, currentSec: number | null): ProfilePoint[] {
+  const points = strip.stops
+    .filter((stop) => stop.adherenceSec !== null)
+    .map((stop) => ({ offset: stop.offset, sec: stop.adherenceSec! }))
+  if (strip.vehicleOffset !== null && currentSec !== null) {
+    points.push({ offset: strip.vehicleOffset, sec: currentSec })
+  }
+  return points.sort((a, b) => a.offset - b.offset)
+}
+
+/** The stretch where the vehicle gained the most delay, if it gained at least `minSec`. */
+export function worstLoss(
+  points: ProfilePoint[],
+  minSec = 30,
+): { from: ProfilePoint; to: ProfilePoint; lossSec: number } | null {
+  let worst: { from: ProfilePoint; to: ProfilePoint; lossSec: number } | null = null
+  for (let i = 1; i < points.length; i++) {
+    const lossSec = points[i]!.sec - points[i - 1]!.sec
+    if (lossSec >= minSec && (!worst || lossSec > worst.lossSec)) {
+      worst = { from: points[i - 1]!, to: points[i]!, lossSec }
+    }
+  }
+  return worst
+}
+
+export interface SpeedPoint {
+  offset: number
+  distanceM: number
+  speedMps: number
+}
+
+interface MatchedReport {
+  ts: string
+  speedMps?: number | null
+  match?: { distanceAlongTripM: number; trip?: { tripId: string } | null } | null
+}
+
+/** Reported speeds along the current trip, ordered by distance along it. */
+export function speedProfile(
+  strip: TripStrip,
+  reports: MatchedReport[],
+  tripId: string | null | undefined,
+): SpeedPoint[] {
+  if (!tripId) return []
+  return reports
+    .filter(
+      (r) =>
+        r.match?.trip?.tripId === tripId &&
+        r.speedMps != null &&
+        Number.isFinite(r.match.distanceAlongTripM),
+    )
+    .sort((a, b) => a.ts.localeCompare(b.ts))
+    .map((r) => ({
+      offset: stripOffset(strip, r.match!.distanceAlongTripM),
+      distanceM: r.match!.distanceAlongTripM,
+      speedMps: r.speedMps!,
+    }))
+    .sort((a, b) => a.offset - b.offset)
+}
+
+/** Mean reported speed on the stretch leading to each stop, keyed by stop path index. */
+export function segmentSpeeds(strip: TripStrip, speeds: SpeedPoint[]): Map<number, number> {
+  const out = new Map<number, number>()
+  for (let i = 1; i < strip.stops.length; i++) {
+    const from = strip.stops[i - 1]!.distanceM
+    const to = strip.stops[i]!.distanceM
+    const inside = speeds.filter((p) => p.distanceM > from && p.distanceM <= to)
+    if (inside.length) {
+      out.set(strip.stops[i]!.stopPathIndex, inside.reduce((sum, p) => sum + p.speedMps, 0) / inside.length)
+    }
+  }
+  return out
+}
+
+/** Reports where the vehicle stood still away from any stop, e.g. stuck in traffic. */
+export function standstills(
+  strip: TripStrip,
+  speeds: SpeedPoint[],
+  { maxSpeedMps = 0.5, stopRadiusM = 40 } = {},
+): SpeedPoint[] {
+  return speeds.filter(
+    (p) =>
+      p.speedMps <= maxSpeedMps &&
+      strip.stops.every((stop) => Math.abs(stop.distanceM - p.distanceM) > stopRadiusM),
+  )
 }
 
 /**

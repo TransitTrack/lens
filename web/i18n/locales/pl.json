@@ -360,7 +360,6 @@
       "noNextStop": "Nie ustalono następnego przystanku",
       "distanceUnavailable": "Odległość niedostępna",
       "distanceToStop": "{distance} do przystanku",
-      "adherenceTrend": "Trend punktualności",
       "alongTrip": "Wzdłuż kursu",
       "toNextStop": "Do następnego przystanku",
       "gpsOffset": "Odchylenie GPS",
@@ -417,7 +416,19 @@
     },
     "strip": {
       "aria": "Postęp kursu: minięte przystanki {passed} z {total}, {adherence}",
-      "timepoint": "punkt kontrolny"
+      "timepoint": "Punkt kontrolny",
+      "adherenceAt": "Punktualność {value}",
+      "sincePrevious": "{value} od poprzedniego przystanku",
+      "avgSpeed": "Śr. prędkość {speed}",
+      "legend": {
+        "delay": "Opóźnienie na trasie",
+        "delayHint": "Opóźnienie na każdym osiągniętym przystanku, a potem pojazd teraz. Wyżej oznacza większe opóźnienie: gdzie krzywa rośnie, pojazd stracił czas, gdzie spada, nadrobił. Zielony do 1 min, żółty do 5 min, czerwony powyżej.",
+        "speed": "Prędkość",
+        "speedHint": "Prędkość zgłoszona przez GPS na przejechanym odcinku; głębiej oznacza szybciej. Przerwy oznaczają brak zgłoszeń.",
+        "standstill": "Postój między przystankami",
+        "passed": "Miniony przystanek",
+        "upcoming": "Kolejny przystanek"
+      }
     }
   },
   "map": {

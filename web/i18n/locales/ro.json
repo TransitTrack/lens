@@ -360,7 +360,6 @@
       "noNextStop": "Nicio stație următoare identificată",
       "distanceUnavailable": "Distanță indisponibilă",
       "distanceToStop": "{distance} până la stație",
-      "adherenceTrend": "Tendința punctualității",
       "alongTrip": "Pe parcursul cursei",
       "toNextStop": "Până la următoarea stație",
       "gpsOffset": "Abatere GPS",
@@ -417,7 +416,19 @@
     },
     "strip": {
       "aria": "Progresul cursei: {passed} din {total} stații parcurse, {adherence}",
-      "timepoint": "punct de control"
+      "timepoint": "Punct de control",
+      "adherenceAt": "Punctualitate {value}",
+      "sincePrevious": "{value} față de stația anterioară",
+      "avgSpeed": "Viteză medie {speed}",
+      "legend": {
+        "delay": "Întârziere pe traseu",
+        "delayHint": "Întârzierea la fiecare stație atinsă, apoi autobuzul acum. Mai sus înseamnă mai întârziat: unde curba urcă autobuzul a pierdut timp, unde coboară a recuperat. Verde sub 1 min, galben până la 5 min, roșu peste.",
+        "speed": "Viteză",
+        "speedHint": "Viteza raportată prin GPS pe porțiunea deja parcursă; mai adânc înseamnă mai repede. Golurile înseamnă că nu există rapoarte acolo.",
+        "standstill": "Oprit între stații",
+        "passed": "Stație parcursă",
+        "upcoming": "Stație următoare"
+      }
     }
   },
   "map": {

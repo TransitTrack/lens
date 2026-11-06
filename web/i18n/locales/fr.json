@@ -360,7 +360,6 @@
       "noNextStop": "Aucun prochain arrêt identifié",
       "distanceUnavailable": "Distance indisponible",
       "distanceToStop": "{distance} jusqu'à l'arrêt",
-      "adherenceTrend": "Tendance du respect de l'horaire",
       "alongTrip": "Le long du voyage",
       "toNextStop": "Jusqu'au prochain arrêt",
       "gpsOffset": "Écart GPS",
@@ -417,7 +416,19 @@
     },
     "strip": {
       "aria": "Progression de la course : {passed} arrêts passés sur {total}, {adherence}",
-      "timepoint": "point de contrôle"
+      "timepoint": "Point de contrôle",
+      "adherenceAt": "Ponctualité {value}",
+      "sincePrevious": "{value} depuis l’arrêt précédent",
+      "avgSpeed": "Vitesse moy. {speed}",
+      "legend": {
+        "delay": "Retard le long du trajet",
+        "delayHint": "Retard à chaque arrêt atteint, puis le véhicule maintenant. Plus haut signifie plus en retard : là où la courbe monte, le véhicule a perdu du temps, là où elle descend, il l’a rattrapé. Vert sous 1 min, jaune jusqu’à 5 min, rouge au-delà.",
+        "speed": "Vitesse",
+        "speedHint": "Vitesse GPS déclarée sur le tronçon déjà parcouru ; plus profond signifie plus rapide. Les trous indiquent l’absence de positions.",
+        "standstill": "Arrêt entre deux arrêts",
+        "passed": "Arrêt passé",
+        "upcoming": "Arrêt à venir"
+      }
     }
   },
   "map": {

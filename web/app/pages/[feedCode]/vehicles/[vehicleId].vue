@@ -4,7 +4,6 @@ import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
-import SparklineChart from '~/components/charts/SparklineChart.vue'
 import VehicleFactsGrid, { type Fact } from '~/components/vehicles/VehicleFactsGrid.vue'
 import VehicleTelemetry from '~/components/vehicles/VehicleTelemetry.vue'
 import VehicleAvlLog from '~/components/vehicles/VehicleAvlLog.vue'
@@ -12,7 +11,6 @@ import VehicleTripStrip from '~/components/vehicles/VehicleTripStrip.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { usePollControl } from '~/composables/usePollControl'
 import { useUnits } from '~/composables/useUnits'
-import { useAdherenceHistory } from '~/composables/useAdherenceHistory'
 import {
   useVehicleDetailQuery,
   useAvlTrailQuery,
@@ -35,6 +33,7 @@ import {
   stopRows,
   trailCoords,
   tripStrip,
+  speedProfile,
 } from '~/utils/vehicleDetail'
 import { useSplitLayout } from '~/composables/useSplitLayout'
 
@@ -54,7 +53,7 @@ const { result, loading, error } = useVehicleDetailQuery(() => ({
 }))
 
 const { result: trailResult } = useAvlTrailQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60 },
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 },
   enabled: !!selectedAvlFeedCode.value,
   pollInterval: intervalMs.value,
 }))
@@ -84,17 +83,13 @@ const pageSplitterItems: SplitterItem[] = [
     id: 'details',
     slot: 'details',
     sizeUnit: 'px',
-    defaultSize: 440,
+    defaultSize: 340,
     minSize: 280,
     maxSize: 680,
     class: 'flex min-h-0 flex-col overflow-hidden',
   },
   { id: 'workspace', slot: 'workspace', class: 'flex min-h-0 flex-col overflow-hidden' },
 ]
-
-const adherenceSec = computed(() => vehicle.value?.scheduleAdherenceSec ?? null)
-const { points: adherenceHistory } = useAdherenceHistory(adherenceSec, vehicleId)
-const sparkValues = computed(() => adherenceHistory.value.map((p) => p.sec))
 
 const algorithms = computed(() => algorithmsIn(predictions.value))
 const selectedAlgorithm = ref<string | undefined>()
@@ -134,25 +129,28 @@ const rows = computed(() =>
   vehicle.value ? stopRows(vehicle.value, predictions.value, algorithm.value) : [],
 )
 const strip = computed(() => (vehicle.value ? tripStrip(vehicle.value, rows.value) : null))
+const stripSpeeds = computed(() =>
+  strip.value ? speedProfile(strip.value, reports.value, vehicle.value?.trip?.tripId) : [],
+)
 const currentStopRow = ref<HTMLElement | null>(null)
-const currentStopKey = computed(() => {
-  const current = rows.value.find((row) => row.state === 'current')
-  return current ? `${vehicle.value?.trip?.tripId ?? ''}:${current.stopPathIndex}` : null
-})
+// const currentStopKey = computed(() => {
+//   const current = rows.value.find((row) => row.state === 'current')
+//   return current ? `${vehicle.value?.trip?.tripId ?? ''}:${current.stopPathIndex}` : null
+// })
 
 function setCurrentStopRow(element: unknown, isCurrent: boolean) {
   if (isCurrent) currentStopRow.value = element instanceof HTMLElement ? element : null
 }
 
-watch(
-  currentStopKey,
-  async (key) => {
-    if (!key) return
-    await nextTick()
-    currentStopRow.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  },
-  { immediate: true, flush: 'post' },
-)
+// watch(
+//   currentStopKey,
+//   async (key) => {
+//     if (!key) return
+//     await nextTick()
+//     currentStopRow.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+//   },
+//   { immediate: true, flush: 'post' },
+// )
 
 const title = computed(() => {
   const v = vehicle.value
@@ -185,13 +183,6 @@ const distToNextStopM = computed(() => {
   const cs = vehicle.value?.currentStop
   return cs ? haversineM(vehicle.value?.position, { lat: cs.stopLat, lon: cs.stopLon }) : null
 })
-
-const speedTrail = computed(() =>
-  [...reports.value]
-    .reverse()
-    .map((r) => r.speedMps)
-    .filter((s): s is number => s != null),
-)
 
 const avgInterval = computed(() => avgIntervalSec(reports.value))
 
@@ -366,10 +357,11 @@ function adherenceTextClass(sec: number | null): string {
     />
 
     <template v-else>
-      <section v-if="strip" class="shrink-0 py-5">
+      <section v-if="strip" class="shrink-0 border border-default pb-2 shadow-sm bg-primary/5">
         <VehicleTripStrip
           :strip="strip"
           :adherence-sec="vehicle.scheduleAdherenceSec ?? null"
+          :speeds="stripSpeeds"
           :stale="vehicle.stale"
           :time-zone="agencyTimezone ?? undefined"
         />
@@ -458,25 +450,6 @@ function adherenceTextClass(sec: number | null): string {
                   </div>
                 </div>
               </div>
-
-              <div v-if="sparkValues.length >= 2" class="border-t border-default p-3">
-                <div class="flex items-center justify-between text-xs text-dimmed">
-                  <span>{{ t('vehicles.detail.adherenceTrend') }}</span>
-                  <span>{{ signedSec(sparkValues[sparkValues.length - 1] ?? null) }}</span>
-                </div>
-                <SparklineChart
-                  :values="sparkValues"
-                  zero-baseline
-                  :height="30"
-                  :color="
-                    adherenceBadge(vehicle.scheduleAdherenceSec, t).color === 'error'
-                      ? '#ef4444'
-                      : adherenceBadge(vehicle.scheduleAdherenceSec, t).color === 'warning'
-                        ? '#f59e0b'
-                        : '#22c55e'
-                  "
-                />
-              </div>
             </section>
 
             <!-- Position & progress -->
@@ -513,7 +486,6 @@ function adherenceTextClass(sec: number | null): string {
             <section class="app-frame p-3">
               <VehicleTelemetry
                 :speed="units.speed(vehicle.speedMps)"
-                :speed-trail="speedTrail"
                 :report-age-sec="reportAgeSec"
                 :avg-interval-sec="avgInterval"
                 :trail-count="trail.length"
@@ -531,7 +503,7 @@ function adherenceTextClass(sec: number | null): string {
 
         <template #workspace>
           <section class="min-h-0 flex-1 overflow-y-auto bg-default">
-            <header class="sticky top-0 z-1 border-b border-default bg-elevated/80 backdrop-blur">
+            <header class="sticky top-0 z-1 border border-default bg-elevated/80 backdrop-blur">
               <div
                 class="flex flex-col gap-3 border-b border-default px-4 py-3 xl:flex-row xl:items-center xl:justify-between"
               >
@@ -707,10 +679,10 @@ function adherenceTextClass(sec: number | null): string {
                 v-for="r in rows"
                 :key="r.stopPathIndex"
                 :ref="(element) => setCurrentStopRow(element, r.state === 'current')"
-                class="grid gap-x-3 gap-y-2 border-l-2 px-4 py-2 sm:grid-cols-2 lg:grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] lg:items-center"
+                class="grid gap-x-3 gap-y-2 border-l border-default border-r px-4 py-2 sm:grid-cols-2 lg:grid-cols-[minmax(15rem,1.4fr)_minmax(8rem,0.7fr)_minmax(10rem,0.9fr)_minmax(9rem,0.8fr)] lg:items-center"
                 :class="{
-                  'border-primary bg-elevated/40': r.state === 'current',
-                  'border-default': r.state !== 'current',
+                  'border-l-primary bg-elevated/40 border-l-4': r.state === 'current',
+                  'border-l-default': r.state !== 'current',
                   'opacity-55': r.state === 'passed',
                 }"
               >

@@ -1,12 +1,18 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import {
+  adherenceProfile,
   preferredAlgorithm,
+  segmentSpeeds,
+  speedProfile,
+  standstills,
   stopRows,
   stripLabelIndexes,
   tripStrip,
+  worstLoss,
   type StripStop,
   type StopRow,
+  type TripStrip,
 } from '../../app/utils/vehicleDetail'
 
 describe('preferredAlgorithm', () => {
@@ -154,6 +160,9 @@ describe('stripLabelIndexes', () => {
     next: false,
     eta: null,
     arrived: false,
+    distanceM: offset * 1000,
+    adherenceSec: null,
+    lossSec: null,
     ...extra,
   })
 
@@ -171,5 +180,112 @@ describe('stripLabelIndexes', () => {
     // Stop 1 sits 70px in: centred, it would start at 20px, inside the first label (0..100px).
     const stops = [stop(0, 0), stop(1, 0.07), stop(2, 1)]
     expect([...stripLabelIndexes(stops, 1000, 100)].sort()).toEqual([0, 2])
+  })
+})
+
+describe('delay curve', () => {
+  const paths = [0, 1000, 1000, 1000].map((lengthM, stopPathIndex) => ({
+    stopPathIndex,
+    lengthM,
+    scheduleAdherenceStop: false,
+  }))
+  const reached = (i: number, deltaVsScheduleSec: number | null): StopRow => ({
+    stopPathIndex: i,
+    stopId: `s${i}`,
+    stopName: `Stop ${i}`,
+    state: 'passed',
+    scheduledArrival: null,
+    eta: '2026-11-06T21:00:00Z',
+    arrived: true,
+    deltaVsScheduleSec,
+    errorVsPredictionSec: null,
+    confidenceSec: null,
+    actualReportGapSec: null,
+    actualReliable: null,
+  })
+  const ahead = (i: number): StopRow => ({ ...reached(i, null), state: 'upcoming', arrived: false })
+  const rows = [reached(0, 20), reached(1, 30), reached(2, 125), ahead(3)]
+  const strip = tripStrip({ distanceAlongTripM: 2500, pattern: { stopPaths: paths } }, rows)!
+
+  it('records the delay gained since the previous reached stop', () => {
+    expect(strip.stops.map((s) => [s.adherenceSec, s.lossSec])).toEqual([
+      [20, null],
+      [30, 10],
+      [125, 95],
+      [null, null],
+    ])
+  })
+
+  it('runs from the first reached stop to the vehicle now', () => {
+    const points = adherenceProfile(strip, 140)
+    expect(points.map((p) => [Number(p.offset.toFixed(3)), p.sec])).toEqual([
+      [0, 20],
+      [0.333, 30],
+      [0.667, 125],
+      [0.833, 140],
+    ])
+  })
+
+  it('picks the stretch that gained the most delay, ignoring small changes', () => {
+    const worst = worstLoss(adherenceProfile(strip, 140))!
+    expect(worst.lossSec).toBe(95)
+    expect(Number(worst.from.offset.toFixed(3))).toBe(0.333)
+    expect(worstLoss(adherenceProfile(strip, 140), 120)).toBeNull()
+  })
+})
+
+describe('speed profile', () => {
+  const stop = (i: number, distanceM: number): StripStop => ({
+    stopPathIndex: i,
+    name: `Stop ${i}`,
+    offset: distanceM / 2000,
+    timepoint: false,
+    passed: true,
+    next: false,
+    eta: null,
+    arrived: true,
+    distanceM,
+    adherenceSec: null,
+    lossSec: null,
+  })
+  const strip: TripStrip = {
+    stops: [stop(0, 0), stop(1, 1000), stop(2, 2000)],
+    vehicleOffset: 0.9,
+    startM: 0,
+    spanM: 2000,
+  }
+  const report = (ts: string, distanceAlongTripM: number, speedMps: number | null, tripId = 'T1') => ({
+    ts,
+    speedMps,
+    match: { distanceAlongTripM, trip: { tripId } },
+  })
+  const reports = [
+    report('2026-11-06T21:03:00Z', 1500, 0),
+    report('2026-11-06T21:01:00Z', 400, 10),
+    report('2026-11-06T21:02:00Z', 990, 0),
+    report('2026-11-06T21:00:00Z', 300, 12, 'OTHER'),
+    report('2026-11-06T21:04:00Z', 1800, null),
+  ]
+
+  it('keeps only the current trip and orders reports by distance', () => {
+    const points = speedProfile(strip, reports, 'T1')
+    expect(points.map((p) => [p.distanceM, p.speedMps])).toEqual([
+      [400, 10],
+      [990, 0],
+      [1500, 0],
+    ])
+    expect(speedProfile(strip, reports, null)).toEqual([])
+  })
+
+  it('averages speed on the stretch leading to each stop', () => {
+    const speeds = segmentSpeeds(strip, speedProfile(strip, reports, 'T1'))
+    expect(speeds.get(1)).toBe(5)
+    expect(speeds.get(2)).toBe(0)
+    expect(speeds.has(0)).toBe(false)
+  })
+
+  it('flags standing still away from stops, not dwelling at one', () => {
+    const still = standstills(strip, speedProfile(strip, reports, 'T1'))
+    expect(still.map((p) => p.distanceM)).toEqual([1500])
   })
 })
