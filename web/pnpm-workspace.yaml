@@ -21,3 +21,6 @@ minimumReleaseAgeExclude:
   - vue-tsc@3.3.14
   - mermaid@12.3.0
   - '@vue/apollo-composable@5.0.0-beta.1'
+  - '@apollo/client@4.3.7'
+  - tailwindcss@4.3.5
+  - playwright-core@1.65.0

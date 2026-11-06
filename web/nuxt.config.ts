@@ -81,7 +81,12 @@ export default defineNuxtConfig({
       // pre-bundling it makes Vite load a second copy of Vue's reactivity (no `?v=` hash),
       // so getCurrentScope() never sees the component scope and no query ever starts.
       exclude: ['maplibre-gl', '@vue/apollo-composable'],
-      include: ['@apollo/client', '@indoorequal/vue-maplibre-gl'],
+      include: ['@apollo/client', '@indoorequal/vue-maplibre-gl',
+                  'fflate',
+                  'nuxt > @nuxt/devtools > @vitejs/devtools-kit/client',
+                  'nuxt > @nuxt/devtools > error-stack-parser-es',
+                  'nuxt > @nuxt/devtools > vite-plugin-vue-devtools/client',
+                  'nuxt > @nuxt/devtools > vite-plugin-vue-tracer/client/overlay'],
     },
   },
   nitro: {
