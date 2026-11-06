@@ -51,10 +51,10 @@ const {
   result: stopsResult,
   loading: stopsLoading,
   error: stopsError,
-} = useExploreStopsQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+} = useExploreStopsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const stopItems = computed(() =>
   [...(stopsResult.value?.stops ?? [])]
@@ -84,18 +84,10 @@ const {
   result: adherenceResult,
   loading: adherenceLoading,
   error: adherenceError,
-} = useStopAdherenceQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    stopId: submitted.value?.stopId ?? '',
-    startDate: submitted.value?.startDate ?? '',
-    endDate: submitted.value?.endDate ?? '',
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useStopAdherenceQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: submitted.value?.stopId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = StopAdherenceQuery['stopAdherence'][number]
 

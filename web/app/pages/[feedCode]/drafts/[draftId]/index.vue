@@ -9,14 +9,14 @@ const { selectedFeedCode, feedPath } = useFeeds()
 
 const draftId = computed(() => String(route.params.draftId))
 
-const { result: routesResult, loading: routesLoading } = useRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
-const { result: calendarResult, loading: calendarLoading } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: routesResult, loading: routesLoading } = useRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
+const { result: calendarResult, loading: calendarLoading } = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const routes = computed(() => routesResult.value?.routes ?? [])
 const services = computed(() => {

@@ -49,10 +49,10 @@ const {
   result: routesResult,
   loading: routesLoading,
   error: routesError,
-} = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+} = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
@@ -81,18 +81,10 @@ const {
   result: adherenceResult,
   loading: adherenceLoading,
   error: adherenceError,
-} = useAllTripsAdherenceQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    routeId: submitted.value?.routeId ?? undefined,
-    startDate: submitted.value?.startDate ?? '',
-    endDate: submitted.value?.endDate ?? '',
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useAllTripsAdherenceQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', routeId: submitted.value?.routeId ?? undefined, startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = AllTripsAdherenceQuery['allTripsAdherence'][number]
 

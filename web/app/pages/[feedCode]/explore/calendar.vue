@@ -9,10 +9,10 @@ import { activeDays, serviceDaysLabel, gtfsDate } from '~/utils/gtfs'
 const { t, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 
-const { result, loading } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading } = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 // i18n-keys: explore.dayInitial.*
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']

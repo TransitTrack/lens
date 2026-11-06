@@ -49,19 +49,19 @@ const units = useUnits()
 const toast = useToast()
 const vehicleId = computed(() => String(route.params.vehicleId))
 
-const { result, loading, error } = useVehicleDetailQuery(
-  () => ({ feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value }),
-  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
-)
+const { result, loading, error } = useVehicleDetailQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value },
+  enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value,
+}))
 
-const { result: trailResult } = useAvlTrailQuery(
-  () => ({ feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60 }),
-  () => ({ enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value }),
-)
-const { result: agenciesResult } = useAgenciesDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: trailResult } = useAvlTrailQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 60 },
+  enabled: !!selectedAvlFeedCode.value, pollInterval: intervalMs.value,
+}))
+const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 const agencyTimezone = computed(
   () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )

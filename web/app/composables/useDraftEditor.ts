@@ -20,14 +20,9 @@ interface MutateVars {
   expectedVersion: number
 }
 
-/** Pull the GraphQL error code out of whatever shape an ApolloError arrives in. */
+/** Pull the GraphQL error code out of whatever an Apollo call failed with. */
 function errorCode(e: unknown): string | undefined {
-  const err = e as {
-    graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }>
-    cause?: { graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }> }
-  }
-  const gql = err?.graphQLErrors ?? err?.cause?.graphQLErrors
-  const code = gql?.[0]?.extensions?.code
+  const code = graphQlErrorsOf(e)[0]?.extensions?.code
   return typeof code === 'string' ? code : undefined
 }
 
@@ -48,10 +43,10 @@ export function useDraftEditor(draftId: Ref<string>) {
     loading,
     refetch: refetchDraftDetailRaw,
     onError: onDetailError,
-  } = useDraftDetailQuery(
-    () => ({ id: draftId.value }),
-    () => ({ enabled: !!draftId.value }),
-  )
+  } = useDraftDetailQuery(() => ({
+    variables: { id: draftId.value },
+    enabled: !!draftId.value,
+  }))
 
   const draft = ref<DraftDetail | null>(null)
 
@@ -74,7 +69,7 @@ export function useDraftEditor(draftId: Ref<string>) {
    */
   async function refetchDraft(): Promise<DraftDetail | null> {
     const res = await refetchDraftDetailRaw()
-    return res?.data?.draft ?? detailResult.value?.draft ?? null
+    return res?.result?.draft ?? detailResult.value?.draft ?? null
   }
 
   /**
@@ -85,7 +80,7 @@ export function useDraftEditor(draftId: Ref<string>) {
   async function refetchDraftVersion(fallback: number): Promise<number> {
     const res = await refetchDraftDetailRaw()
     return (
-      res?.data?.draft?.version ?? detailResult.value?.draft?.version ?? fallback
+      res?.result?.draft?.version ?? detailResult.value?.draft?.version ?? fallback
     )
   }
 
@@ -93,10 +88,10 @@ export function useDraftEditor(draftId: Ref<string>) {
   const canUndo = ref(false)
   const canRedo = ref(false)
 
-  const { result: editsResult, refetch: refetchEditsRaw } = useDraftEditsQuery(
-    () => ({ id: draftId.value, limit: 500 }),
-    () => ({ enabled: !!draftId.value }),
-  )
+  const { result: editsResult, refetch: refetchEditsRaw } = useDraftEditsQuery(() => ({
+    variables: { id: draftId.value, limit: 500 },
+    enabled: !!draftId.value,
+  }))
 
   watch(
     () => editsResult.value?.draftEdits,
@@ -176,7 +171,7 @@ export function useDraftEditor(draftId: Ref<string>) {
 
       if (code === 'LOCK_LOST') {
         try {
-          await claimDraftEditor({ id: draftId.value, editor })
+          await claimDraftEditor({ variables: { id: draftId.value, editor } })
           claimed.value = true
           const freshVersion = await refetchDraftVersion(current.version)
           return await run(freshVersion)
@@ -203,7 +198,7 @@ export function useDraftEditor(draftId: Ref<string>) {
   async function takeOver() {
     const editor = await ensureIdentity()
     try {
-      await claimDraftEditor({ id: draftId.value, editor, takeOver: true })
+      await claimDraftEditor({ variables: { id: draftId.value, editor, takeOver: true } })
       claimed.value = true
       identityMissing.value = false
     } catch (e) {
@@ -226,7 +221,7 @@ export function useDraftEditor(draftId: Ref<string>) {
     claimed.value = false
     if (!editor) return
     // fire-and-forget
-    void releaseDraftEditor({ id: draftId.value, editor }).catch(() => {})
+    void releaseDraftEditor({ variables: { id: draftId.value, editor } }).catch(() => {})
   }
 
   function onBeforeUnload() {
@@ -245,7 +240,7 @@ export function useDraftEditor(draftId: Ref<string>) {
       return
     }
     try {
-      await claimDraftEditor({ id: draftId.value, editor })
+      await claimDraftEditor({ variables: { id: draftId.value, editor } })
       claimed.value = true
     } catch {
       // someone else holds the lock — `readOnly` handles display
@@ -257,7 +252,7 @@ export function useDraftEditor(draftId: Ref<string>) {
     if (disposed) return
 
     renewTimer = setInterval(() => {
-      void renewDraftEditor({ id: draftId.value, editor }).catch(() => {})
+      void renewDraftEditor({ variables: { id: draftId.value, editor } }).catch(() => {})
     }, RENEW_INTERVAL_MS)
 
     window.addEventListener('beforeunload', onBeforeUnload)

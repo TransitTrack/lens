@@ -15,13 +15,10 @@ const { t } = useI18n()
 
 const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
 
-const { result, loading, error } = useFeedReadinessQuery(
-  () => ({ code: selectedFeedCode.value ?? '' }),
-  () => ({
-    enabled: !!selectedFeedCode.value,
-    pollInterval: 10_000,
-  }),
-)
+const { result, loading, error } = useFeedReadinessQuery(() => ({
+  variables: { code: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value, pollInterval: 10_000,
+}))
 const readinessFeed = computed(() => {
   const feed = result.value?.feed ?? null
   return feed?.code === selectedFeedCode.value ? feed : null

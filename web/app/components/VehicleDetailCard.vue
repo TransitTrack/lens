@@ -38,27 +38,27 @@ const units = useUnits()
 const vehicleId = computed(() => props.vehicle.vehicleId)
 const collapsed = ref(false)
 
-const { result: detailResult, loading: detailLoading } = useVehicleDetailQuery(
-  () => ({ feedCode: props.feedCode ?? '', vehicleId: vehicleId.value }),
-  () => ({ enabled: !!props.feedCode, pollInterval: intervalMs.value }),
-)
+const { result: detailResult, loading: detailLoading } = useVehicleDetailQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value },
+  enabled: !!props.feedCode, pollInterval: intervalMs.value,
+}))
 const detail = computed(() => {
   const v = detailResult.value?.vehicle
   return v?.vehicleId === vehicleId.value ? v : null
 })
 
-const { result: agenciesResult } = useAgenciesDetailQuery(
-  () => ({ feedCode: props.feedCode ?? '' }),
-  () => ({ enabled: !!props.feedCode }),
-)
+const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '' },
+  enabled: !!props.feedCode,
+}))
 const agencyTimezone = computed(
   () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )
 
-const { result: trailResult } = useAvlTrailQuery(
-  () => ({ feedCode: props.feedCode ?? '', vehicleId: vehicleId.value, limit: 2 }),
-  () => ({ enabled: !!props.feedCode, pollInterval: intervalMs.value }),
-)
+const { result: trailResult } = useAvlTrailQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value, limit: 2 },
+  enabled: !!props.feedCode, pollInterval: intervalMs.value,
+}))
 
 const trip = computed(() => detail.value?.trip ?? props.vehicle.trip)
 const route = computed(() => trip.value?.route)

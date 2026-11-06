@@ -15,10 +15,10 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const tripId = computed(() => String(route.params.tripId))
 
-const { result, loading, error } = useTripDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', tripId: tripId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading, error } = useTripDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', tripId: tripId.value },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const trip = computed(() => result.value?.trip ?? null)
 

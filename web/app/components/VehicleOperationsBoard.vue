@@ -18,7 +18,7 @@ const props = defineProps<{
   description?: string
   vehicles: VehicleRow[]
   loading: boolean
-  error: Error | null
+  error?: { message: string } | null
   feedCode: string | null
   extent?: LngLatBoundsExtent | null
   directoryDefaultSize?: number
@@ -45,18 +45,15 @@ const { intervalMs } = usePollControl()
 const { showTripDetails } = useVehicleListPrefs()
 const { feedPath, selectedFeed } = useFeeds()
 
-const { result: selectedVehicleResult } = useVehicleDetailQuery(
-  () => ({ feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' }),
-  () => ({
-    enabled: !!props.feedCode && !!selectedVehicleId.value,
-    pollInterval: intervalMs.value,
-  }),
-)
+const { result: selectedVehicleResult } = useVehicleDetailQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' },
+  enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value,
+}))
 
-const { result: agenciesResult } = useAgenciesDetailQuery(
-  () => ({ feedCode: props.feedCode ?? '' }),
-  () => ({ enabled: !!props.feedCode }),
-)
+const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '' },
+  enabled: !!props.feedCode,
+}))
 const agencyTimezone = computed(
   () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )

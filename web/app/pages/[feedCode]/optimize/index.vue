@@ -11,10 +11,10 @@ const {selectedFeedCode, feedPath} = useFeeds()
 const { t, te, locale } = useI18n()
 const newOpen = ref(false)
 
-const {result, loading, error} = useOptimizationRunsQuery(
-  () => ({feedCode: selectedFeedCode.value ?? '', limit: 50, offset: 0}),
-  () => ({enabled: !!selectedFeedCode.value, pollInterval: 5000}),
-)
+const {result, loading, error} = useOptimizationRunsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', limit: 50, offset: 0 },
+  enabled: !!selectedFeedCode.value, pollInterval: 5000,
+}))
 
 type Run = OptimizationRunsQuery['optimizationRuns'][number]
 const runs = computed<Run[]>(() => result.value?.optimizationRuns ?? [])

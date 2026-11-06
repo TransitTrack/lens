@@ -8,10 +8,10 @@ const { t, locale } = useI18n()
 
 const props = defineProps<{ feedCode: string | null }>()
 
-const { result, loading } = usePredictionAccuracyQuery(
-  () => ({ feedCode: props.feedCode ?? '', sinceDays: 7 }),
-  () => ({ enabled: !!props.feedCode, pollInterval: 300_000 }),
-)
+const { result, loading } = usePredictionAccuracyQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '', sinceDays: 7 },
+  enabled: !!props.feedCode, pollInterval: 300_000,
+}))
 
 const rows = computed(() =>
   [...(result.value?.predictionAccuracy ?? [])].sort(

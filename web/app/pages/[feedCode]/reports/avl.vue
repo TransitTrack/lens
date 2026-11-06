@@ -51,10 +51,10 @@ const {
   result: catalogResult,
   loading: catalogLoading,
   error: catalogError,
-} = useAvlReportCatalogQuery(
-  () => ({ feedCode: selectedAvlFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedAvlFeedCode.value }),
-)
+} = useAvlReportCatalogQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '' },
+  enabled: !!selectedAvlFeedCode.value,
+}))
 
 const timeZone = computed(() => catalogResult.value?.avlReportCatalog.timeZone ?? null)
 const vehicleItems = computed(() =>
@@ -117,21 +117,10 @@ const {
   loading: pageLoading,
   error: pageError,
   refetch: refetchPage,
-} = useAvlReportPageQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    vehicleId: submitted.value?.vehicleId ?? '',
-    date: submitted.value?.date ?? '',
-    startTime: submitted.value?.startTime ?? '',
-    endTime: submitted.value?.endTime ?? '',
-    page: submitted.value?.page ?? 1,
-    pageSize: PAGE_SIZE,
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useAvlReportPageQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: submitted.value?.vehicleId ?? '', date: submitted.value?.date ?? '', startTime: submitted.value?.startTime ?? '', endTime: submitted.value?.endTime ?? '', page: submitted.value?.page ?? 1, pageSize: PAGE_SIZE },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = AvlReportPageQuery['avlReportPage']['items'][number]
 

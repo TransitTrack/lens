@@ -12,7 +12,6 @@ useHead({ htmlAttrs: { lang: computed(() => locale.value) } })
 <template>
   <UApp :locale="uiLocale">
     <NuxtRouteAnnouncer />
-    <RouteLoadingGlobe />
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>

@@ -53,17 +53,10 @@ const {
   result: adherenceResult,
   loading: adherenceLoading,
   error: adherenceError,
-} = useAllRoutesAdherenceQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    startDate: submitted.value?.startDate ?? '',
-    endDate: submitted.value?.endDate ?? '',
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useAllRoutesAdherenceQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = AllRoutesAdherenceQuery['allRoutesAdherence'][number]
 

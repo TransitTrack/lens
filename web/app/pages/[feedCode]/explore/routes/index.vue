@@ -13,10 +13,10 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
 const { typeId } = useRouteTypeFilter()
 
-const { result, loading } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading } = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 type Row = ExploreRoutesQuery['routes'][number]
 const agencyName = computed(() => {

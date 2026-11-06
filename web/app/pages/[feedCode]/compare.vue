@@ -39,14 +39,14 @@ const serviceFilter = computed({
   set: (v: string | null) => router.replace({ query: { ...route.query, service: queryString(v) } }),
 })
 
-const { result: revisionsResult } = useRevisionsQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
-const { result: draftsResult } = useDraftsQuery(
-  () => ({ feedCode: selectedFeedCode.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: revisionsResult } = useRevisionsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
+const { result: draftsResult } = useDraftsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value },
+  enabled: !!selectedFeedCode.value,
+}))
 
 // i18n-keys: feed.dataset.statusValue.*
 function statusLabel(status: string): string {
@@ -73,18 +73,10 @@ const revisionOptions = computed<RevisionOption[]>(() => {
   })
 })
 
-const { result, loading, error } = useCompareRevisionsQuery(
-  () => ({
-    fromRevisionId: fromId.value,
-    toRevisionId: toId.value,
-    routeId: routeFilter.value,
-    directionId: dirFilter.value,
-    serviceId: serviceFilter.value,
-    offset: 0,
-    limit: 200,
-  }),
-  () => ({ enabled: !!fromId.value && !!toId.value }),
-)
+const { result, loading, error } = useCompareRevisionsQuery(() => ({
+  variables: { fromRevisionId: fromId.value, toRevisionId: toId.value, routeId: routeFilter.value, directionId: dirFilter.value, serviceId: serviceFilter.value, offset: 0, limit: 200 },
+  enabled: !!fromId.value && !!toId.value,
+}))
 
 const comparison = computed(() => result.value?.compareRevisions ?? null)
 </script>

@@ -15,10 +15,10 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
 
-const { result, loading, error } = useRouteDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading, error } = useRouteDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', routeId: routeId.value },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const gtfsRoute = computed(() => result.value?.route ?? null)
 const patterns = computed(() => result.value?.tripPatterns ?? [])

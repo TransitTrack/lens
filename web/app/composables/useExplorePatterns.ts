@@ -11,10 +11,10 @@ export type Pattern = ExplorePatternsQuery['tripPatterns'][number]
 export function useExplorePatterns(enabled: Ref<boolean>) {
   const { selectedFeedCode } = useFeeds()
 
-  const { result, loading } = useExplorePatternsQuery(
-    () => ({ feedCode: selectedFeedCode.value ?? '' }),
-    () => ({ enabled: enabled.value && !!selectedFeedCode.value }),
-  )
+  const { result, loading } = useExplorePatternsQuery(() => ({
+    variables: { feedCode: selectedFeedCode.value ?? '' },
+    enabled: enabled.value && !!selectedFeedCode.value,
+  }))
 
   const patterns = computed<Pattern[]>(() => result.value?.tripPatterns ?? [])
 

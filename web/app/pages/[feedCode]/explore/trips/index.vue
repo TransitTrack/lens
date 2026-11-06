@@ -23,10 +23,10 @@ const dir = param('dir')
 const from = param('from')
 const to = param('to')
 
-const { result: routesResult } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: routesResult } = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
     .filter((r) => !agencyId.value || r.agencyId === agencyId.value)
@@ -48,10 +48,10 @@ watch(agencyId, () => {
   }
 })
 
-const { result, loading } = useTripsByRouteQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value && !!routeId.value }),
-)
+const { result, loading } = useTripsByRouteQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? '' },
+  enabled: !!selectedFeedCode.value && !!routeId.value,
+}))
 
 type Trip = TripsByRouteQuery['trips'][number]
 

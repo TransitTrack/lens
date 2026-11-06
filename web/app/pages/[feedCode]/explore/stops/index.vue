@@ -15,10 +15,10 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const { agencyId } = useAgencyFilter()
 
-const { result, loading } = useExploreStopsQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading } = useExploreStopsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 // only needed to resolve which stops an agency serves
 const { stopIdsForAgency } = useExplorePatterns(computed(() => !!agencyId.value))

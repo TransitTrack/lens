@@ -14,14 +14,10 @@ const blockId = computed(() => String(route.params.blockId))
 const serviceId = computed(() => String(route.query.service ?? ''))
 const timelineOpen = ref(false)
 
-const { result, loading, error } = useBlockDetailQuery(
-  () => ({
-    feedCode: selectedFeedCode.value ?? '',
-    blockId: blockId.value,
-    serviceId: serviceId.value,
-  }),
-  () => ({ enabled: !!selectedFeedCode.value && !!serviceId.value }),
-)
+const { result, loading, error } = useBlockDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', blockId: blockId.value, serviceId: serviceId.value },
+  enabled: !!selectedFeedCode.value && !!serviceId.value,
+}))
 
 const block = computed(() => result.value?.block ?? null)
 const trips = computed(() =>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
-import gql from 'graphql-tag'
+import { gql } from '@apollo/client'
 import { useApolloClient } from '@vue/apollo-composable'
 import AppPage from '~/components/AppPage.vue'
 import ValidationFindingsPanel from '~/components/ValidationFindingsPanel.vue'
@@ -29,17 +29,17 @@ const { extent } = useFeedExtent(selectedFeedCode)
 const { client } = useApolloClient()
 const stopId = computed(() => String(route.params.stopId))
 
-const { result: stopResult, loading: stopLoading } = useStopDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', stopId: stopId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: stopResult, loading: stopLoading } = useStopDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', stopId: stopId.value },
+  enabled: !!selectedFeedCode.value,
+}))
 const stop = computed(() => stopResult.value?.stop ?? null)
 
 const { patterns } = useExplorePatterns(ref(true))
-const { result: calResult } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: calResult } = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const serving = computed(() => servingPatterns(patterns.value, stopId.value))
 

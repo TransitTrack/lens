@@ -8,10 +8,10 @@ const { t, locale } = useI18n()
 const timeAgo = useRelativeTime()
 const {selectedFeedCode, selectedFeed} = useFeeds()
 
-const {result, loading, error} = useFeedDetailQuery(
-  () => ({code: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value, pollInterval: 30_000}),
-)
+const {result, loading, error} = useFeedDetailQuery(() => ({
+  variables: { code: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value, pollInterval: 30_000,
+}))
 const {result: avlResult} = useAvlFeedsQuery(() => ({pollInterval: 30_000}))
 
 const feed = computed(() => result.value?.feed ?? null)

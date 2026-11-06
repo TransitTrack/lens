@@ -16,10 +16,10 @@ const { t } = useI18n()
 const PREVIEW = 5
 // i18n-keys: findings.severity.*
 
-const { result } = useValidationFindingsQuery(
-  () => ({ feedCode: props.feedCode ?? '', entityType: props.entityType, entityId: props.entityId }),
-  () => ({ enabled: !!props.feedCode && !!props.entityId }),
-)
+const { result } = useValidationFindingsQuery(() => ({
+  variables: { feedCode: props.feedCode ?? '', entityType: props.entityType, entityId: props.entityId },
+  enabled: !!props.feedCode && !!props.entityId,
+}))
 
 const findings = computed(() => result.value?.validationFindings ?? [])
 type Finding = (typeof findings.value)[number]

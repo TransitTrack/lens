@@ -18,10 +18,10 @@ const emit = defineEmits<{ changed: [] }>()
 
 const { locale } = useI18n()
 
-const { result, refetch } = useDraftEditsQuery(
-  () => ({ id: props.draftId, limit: 200 }),
-  () => ({ enabled: !!props.draftId }),
-)
+const { result, refetch } = useDraftEditsQuery(() => ({
+  variables: { id: props.draftId, limit: 200 },
+  enabled: !!props.draftId,
+}))
 
 // newest-first
 const rows = computed(() => {
@@ -51,7 +51,7 @@ const { run } = useDraftEdit(props.editor, {
 async function undoOnce(): Promise<boolean> {
   const result = await run(
     (v) =>
-      undoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+      undoDraftEdit({ variables: { id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion } }),
     'undoDraftEdit',
   )
   return result != null
@@ -64,7 +64,7 @@ async function onUndo() {
 async function onRedo() {
   await run(
     (v) =>
-      redoDraftEdit({ id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }),
+      redoDraftEdit({ variables: { id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion } }),
     'redoDraftEdit',
   )
 }
@@ -82,11 +82,11 @@ async function undoToHere(targetSeq: number) {
   for (let i = 0; i < n; i++) {
     try {
       const data = await props.editor.mutate(async (vars) => {
-        const res = await undoDraftEdit({
+        const res = await undoDraftEdit({ variables: {
           id: vars.draftId,
           editor: vars.editor,
           expectedVersion: vars.expectedVersion,
-        })
+        } })
         return res?.data
       })
       if (!data?.undoDraftEdit) break

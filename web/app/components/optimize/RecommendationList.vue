@@ -8,8 +8,7 @@ const props = defineProps<{ runId: string }>()
 const selected = defineModel<string[]>('selected', {default: () => []})
 const conflictIds = defineModel<string[]>('conflictIds', {default: () => []})
 
-const {result, loading, error, refetch} = useOptimizationRecommendationsQuery(
-  () => ({runId: props.runId, status: 'PENDING', offset: 0, limit: 100}),
+const {result, loading, error, refetch} = useOptimizationRecommendationsQuery(() => ({ variables: { runId: props.runId, status: 'PENDING', offset: 0, limit: 100 } })
 )
 
 defineExpose({refetch})

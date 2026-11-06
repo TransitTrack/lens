@@ -21,20 +21,20 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
 const { get, set, param } = useExploreQuery()
 
-const { result, loading } = useBlocksListQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading } = useBlocksListQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
-const { result: routesResult } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: routesResult } = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
-const { result: calResult } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: calResult } = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 type Block = BlocksListQuery['blocks'][number]
 const allBlocks = computed(() => result.value?.blocks ?? [])

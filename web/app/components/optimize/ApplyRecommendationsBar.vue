@@ -25,28 +25,22 @@ watch(
 
 const {mutate: apply, loading: applying} = useApplyOptimizationRecommendationsMutation()
 
-interface GraphQlErrorLike {
+interface OptimizeGraphQlError extends GraphQlErrorLike {
   extensions?: { code?: string; conflictingRecommendationIds?: string[] } | null
 }
-function extractGraphQlErrors(e: unknown): GraphQlErrorLike[] {
-  const err = e as {
-    graphQLErrors?: ReadonlyArray<GraphQlErrorLike>
-    cause?: { graphQLErrors?: ReadonlyArray<GraphQlErrorLike> }
-  }
-  return [...(err?.graphQLErrors ?? err?.cause?.graphQLErrors ?? [])]
-}
+const extractGraphQlErrors = (e: unknown) => graphQlErrorsOf<OptimizeGraphQlError>(e)
 
 async function submit() {
   const name = editor.value.trim()
   if (!name || !props.selectedIds.length) return
   editorName.value = name
   try {
-    const res = await apply({
+    const res = await apply({ variables: {
       runId: props.runId,
       recommendationIds: props.selectedIds,
       label: label.value.trim() || null,
       editor: name,
-    })
+    } })
     const draft = res?.data?.applyOptimizationRecommendations
     toast.add({
       title: t('optimize.applied'),

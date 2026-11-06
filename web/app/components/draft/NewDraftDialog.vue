@@ -14,10 +14,10 @@ const { name: editorName } = useEditorIdentity()
 const label = ref('')
 const editor = ref('')
 
-const { result: feedResult } = useFeedDetailQuery(
-  () => ({ code: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value && open.value }),
-)
+const { result: feedResult } = useFeedDetailQuery(() => ({
+  variables: { code: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value && open.value,
+}))
 
 // ITEM-5 stopgap: forking is restricted to the feed's ACTIVE revision. Picking a
 // non-active base offers routes/services the draft doesn't contain and lets
@@ -46,14 +46,14 @@ async function submit() {
   editorName.value = name
   toast.add({ title: t('drafts.forking'), description: t('drafts.copyingRows'), color: 'info', icon: 'i-lucide-git-fork' })
   try {
-    const res = await fork({
+    const res = await fork({ variables: {
       input: {
         feedCode: selectedFeedCode.value ?? '',
         baseRevisionId: null,
         label: label.value.trim() || null,
         editor: name,
       },
-    })
+    } })
     const id = res?.data?.forkDraft.id
     open.value = false
     if (id) await navigateTo(feedPath('/drafts/' + id))

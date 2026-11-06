@@ -12,10 +12,10 @@ export interface LngLatBoundsExtent {
  * box the map can fit to.
  */
 export function useFeedExtent(gtfsFeedCode: Ref<string | null>) {
-  const { result: agenciesResult } = useAgenciesQuery(
-    () => ({ feedCode: gtfsFeedCode.value ?? '' }),
-    () => ({ enabled: !!gtfsFeedCode.value }),
-  )
+  const { result: agenciesResult } = useAgenciesQuery(() => ({
+    variables: { feedCode: gtfsFeedCode.value ?? '' },
+    enabled: !!gtfsFeedCode.value,
+  }))
 
   const extent = computed<LngLatBoundsExtent | null>(() => {
     const agencies = agenciesResult.value?.agencies ?? []

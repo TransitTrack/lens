@@ -35,10 +35,10 @@ const emit = defineEmits<{
 }>()
 
 // --- derived detail ---------------------------------------------------
-const { result: detailResult } = useDraftTripDetailQuery(
-  () => ({ feedCode: props.feedCode, tripId: props.trip.tripId, revisionId: props.draftId }),
-  () => ({ enabled: !props.derivationStale && !!props.trip }),
-)
+const { result: detailResult } = useDraftTripDetailQuery(() => ({
+  variables: { feedCode: props.feedCode, tripId: props.trip.tripId, revisionId: props.draftId },
+  enabled: !props.derivationStale && !!props.trip,
+}))
 const detail = computed(() => detailResult.value?.trip ?? null)
 const runTime = computed(() => {
   const d = detail.value
@@ -58,7 +58,7 @@ const shiftInvalid = computed(() => shiftRaw.value.trim() !== '' && shiftDelta.v
 async function applyShift(deltaSec: number) {
   await run(
     (v) =>
-      shiftTrip({
+      shiftTrip({ variables: {
         input: {
           draftId: v.draftId,
           editor: v.editor,
@@ -66,7 +66,7 @@ async function applyShift(deltaSec: number) {
           tripId: props.trip.tripId,
           deltaSec,
         },
-      }),
+      } }),
     'shiftTrip',
   )
 }
@@ -85,14 +85,14 @@ const deleteOpen = ref(false)
 async function confirmDelete() {
   const result = await run(
     (v) =>
-      deleteTrip({
+      deleteTrip({ variables: {
         input: {
           draftId: v.draftId,
           editor: v.editor,
           expectedVersion: v.expectedVersion,
           tripId: props.trip.tripId,
         },
-      }),
+      } }),
     'deleteTrip',
   )
   if (result) {
@@ -151,7 +151,7 @@ async function commitStopTime() {
   if (seq == null) return
   await run(
     (v) =>
-      updateStopTime({
+      updateStopTime({ variables: {
         input: {
           draftId: v.draftId,
           editor: v.editor,
@@ -161,7 +161,7 @@ async function commitStopTime() {
           arrivalSec: arr.value,
           departureSec: dep.value,
         },
-      }),
+      } }),
     'updateStopTime',
   )
 }
@@ -171,7 +171,7 @@ async function commitDwell() {
   if (seq == null || dwell.value == null) return
   await run(
     (v) =>
-      setStopDwell({
+      setStopDwell({ variables: {
         input: {
           draftId: v.draftId,
           editor: v.editor,
@@ -180,7 +180,7 @@ async function commitDwell() {
           stopSequence: seq,
           dwellSec: dwell.value as number,
         },
-      }),
+      } }),
     'setStopDwell',
   )
 }

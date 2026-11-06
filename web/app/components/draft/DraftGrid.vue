@@ -29,15 +29,10 @@ const emit = defineEmits<{
   'add-trip': []
 }>()
 
-const { result, loading, error, refetch } = useDraftGridQuery(
-  () => ({
-    draftId: props.draftId,
-    routeId: props.routeId,
-    directionId: props.directionId,
-    serviceId: props.serviceId,
-  }),
-  () => ({ enabled: !!props.draftId && !!props.routeId }),
-)
+const { result, loading, error, refetch } = useDraftGridQuery(() => ({
+  variables: { draftId: props.draftId, routeId: props.routeId, directionId: props.directionId, serviceId: props.serviceId },
+  enabled: !!props.draftId && !!props.routeId,
+}))
 
 const stops = computed(() => result.value?.draftGrid.stops ?? [])
 const trips = computed(() => result.value?.draftGrid.trips ?? [])

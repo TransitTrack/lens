@@ -18,10 +18,10 @@ const { t, locale } = useI18n()
 const units = useUnits()
 const { intervalMs } = usePollControl()
 
-const { result, loading, error } = useAvlLogQuery(
-  () => ({ feedCode: props.feedCode, vehicleId: props.vehicleId, limit: 100 }),
-  () => ({ enabled: open.value, pollInterval: open.value ? intervalMs.value : 0 }),
-)
+const { result, loading, error } = useAvlLogQuery(() => ({
+  variables: { feedCode: props.feedCode, vehicleId: props.vehicleId, limit: 100 },
+  enabled: open.value, pollInterval: open.value ? intervalMs.value : 0,
+}))
 
 type AvlLogRow = NonNullable<typeof result.value>['avlReports'][number]
 

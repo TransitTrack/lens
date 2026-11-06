@@ -41,20 +41,10 @@ function distinctRouteColor(routeId: string): string {
  */
 export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
   const { t } = useI18n()
-  const { result, loading } = useFeedGeometryQuery(
-    () => ({ feedCode: gtfsFeedCode.value ?? '' }),
-    () => ({
-      enabled: !!gtfsFeedCode.value,
-      // This is the whole agency's trip-pattern + stop geometry — hundreds to
-      // thousands of normalized entities. Writing it through the InMemoryCache
-      // bloats the store, and every *other* query's write (e.g. the 60s
-      // avlFeeds poll) then pays store-wide dependency-tracking/GC overhead
-      // proportional to that size — a periodic multi-hundred-ms stall
-      // unrelated to what actually changed. Nobody reads this back from the
-      // cache, so skip it.
-      fetchPolicy: 'no-cache',
-    }),
-  )
+  const { result, loading } = useFeedGeometryQuery(() => ({
+    variables: { feedCode: gtfsFeedCode.value ?? '' },
+    enabled: !!gtfsFeedCode.value, fetchPolicy: 'no-cache',
+  }))
 
   // Decode once per result; `lines` and `stops` are views over the same collection.
   const all = computed<GeoJSON.Feature[]>(() => {
