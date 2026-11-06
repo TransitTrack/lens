@@ -349,8 +349,6 @@
     "detail": {
       "title": "Vehicle {name}",
       "goBack": "Go back",
-      "stopFollowing": "Stop following",
-      "followVehicle": "Follow vehicle",
       "unavailable": "Vehicle unavailable",
       "notTracked": "Not tracked",
       "notTrackedBody": "No live data for {id} on this feed.",
@@ -416,6 +414,10 @@
       "noComputation": "no computation yet",
       "noScheduleComparison": "No schedule comparison",
       "vsPrediction": "vs prediction {value}"
+    },
+    "strip": {
+      "aria": "Trip progress: {passed} of {total} stops passed, {adherence}",
+      "timepoint": "timepoint"
     }
   },
   "map": {

@@ -349,8 +349,6 @@
     "detail": {
       "title": "Véhicule {name}",
       "goBack": "Retour",
-      "stopFollowing": "Ne plus suivre",
-      "followVehicle": "Suivre le véhicule",
       "unavailable": "Véhicule indisponible",
       "notTracked": "Non suivi",
       "notTrackedBody": "Aucune donnée en direct pour {id} sur ce flux.",
@@ -416,6 +414,10 @@
       "noComputation": "pas encore de calcul",
       "noScheduleComparison": "Aucune comparaison avec l'horaire",
       "vsPrediction": "vs prévision {value}"
+    },
+    "strip": {
+      "aria": "Progression de la course : {passed} arrêts passés sur {total}, {adherence}",
+      "timepoint": "point de contrôle"
     }
   },
   "map": {

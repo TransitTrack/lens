@@ -226,3 +226,105 @@ export function trailCoords(reports: TrailReport[]): LngLat[] {
     .sort((a, b) => a.ts.localeCompare(b.ts))
     .map((r) => [r.position!.lon as number, r.position!.lat as number])
 }
+
+export interface StripStop {
+  stopPathIndex: number
+  name: string
+  /** position along the trip, 0 (first stop) to 1 (last stop) */
+  offset: number
+  timepoint: boolean
+  passed: boolean
+  /** the stop the vehicle is heading to */
+  next: boolean
+  /** predicted time if still upcoming, actual time once reached */
+  eta: string | null
+  /** `eta` is an actual arrival (or departure, at the first stop) rather than a prediction */
+  arrived: boolean
+}
+
+export interface TripStrip {
+  stops: StripStop[]
+  /** the vehicle's position along the trip (0..1), or null when it has no distance yet */
+  vehicleOffset: number | null
+}
+
+type StripVehicle = Pick<Vehicle, 'distanceAlongTripM'> & {
+  pattern?: {
+    lengthM?: number | null
+    stopPaths: { stopPathIndex: number; lengthM: number; scheduleAdherenceStop: boolean }[]
+  } | null
+}
+
+/**
+ * Stops and vehicle placed at their real distance along the trip, for the vehicle page's
+ * synoptic strip. `rows` (from `stopRows`) supply names, passed state and ETAs.
+ */
+export function tripStrip(vehicle: StripVehicle, rows: StopRow[]): TripStrip | null {
+  const paths = (vehicle.pattern?.stopPaths ?? [])
+    .slice()
+    .sort((a, b) => a.stopPathIndex - b.stopPathIndex)
+  if (paths.length < 2) return null
+  // A stop path's `lengthM` is the segment from the previous stop (the first is 0), despite the
+  // schema's wording; the running total is the distance along the trip `distanceAlongTripM` uses.
+  const distanceByIndex = new Map<number, { distanceM: number; timepoint: boolean }>()
+  let distanceM = 0
+  for (const path of paths) {
+    distanceM += path.lengthM
+    distanceByIndex.set(path.stopPathIndex, { distanceM, timepoint: path.scheduleAdherenceStop })
+  }
+  const firstM = distanceByIndex.get(paths[0]!.stopPathIndex)!.distanceM
+  const spanM = distanceM - firstM
+  if (!(spanM > 0)) return null
+  const offsetOf = (m: number) => Math.min(1, Math.max(0, (m - firstM) / spanM))
+
+  const stops = rows
+    .filter((row) => distanceByIndex.has(row.stopPathIndex))
+    .map((row) => {
+      const path = distanceByIndex.get(row.stopPathIndex)!
+      return {
+        stopPathIndex: row.stopPathIndex,
+        name: row.stopName,
+        offset: offsetOf(path.distanceM),
+        timepoint: path.timepoint,
+        passed: row.state === 'passed',
+        next: row.state === 'current',
+        eta: row.eta,
+        arrived: row.arrived,
+      }
+    })
+  const distance = vehicle.distanceAlongTripM
+  return {
+    stops,
+    vehicleOffset: distance == null || !Number.isFinite(distance) ? null : offsetOf(distance),
+  }
+}
+
+/**
+ * Which stop names fit on a strip `widthPx` wide without overlapping, given labels about
+ * `labelPx` wide. End labels hug the strip edges (they extend inwards); the rest are centred
+ * under their stop. The next stop wins first, then the two ends, then timepoints, then the
+ * rest in trip order.
+ */
+export function stripLabelIndexes(stops: StripStop[], widthPx: number, labelPx: number): Set<number> {
+  const last = stops.length - 1
+  const extent = (stop: StripStop, i: number): [number, number] => {
+    const x = stop.offset * widthPx
+    if (i === 0) return [x, x + labelPx]
+    if (i === last) return [x - labelPx, x]
+    return [x - labelPx / 2, x + labelPx / 2]
+  }
+  const priority = (s: StripStop, i: number) =>
+    s.next ? 0 : i === 0 || i === last ? 1 : s.timepoint ? 2 : 3
+  const ordered = stops
+    .map((stop, i) => ({ stop, rank: priority(stop, i), span: extent(stop, i), i }))
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+  const placed: [number, number][] = []
+  const shown = new Set<number>()
+  for (const { stop, span } of ordered) {
+    if (placed.every(([from, to]) => span[1] <= from || span[0] >= to)) {
+      placed.push(span)
+      shown.add(stop.stopPathIndex)
+    }
+  }
+  return shown
+}

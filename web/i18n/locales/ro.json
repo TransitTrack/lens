@@ -349,8 +349,6 @@
     "detail": {
       "title": "Vehiculul {name}",
       "goBack": "Înapoi",
-      "stopFollowing": "Nu mai urmări",
-      "followVehicle": "Urmărește vehiculul",
       "unavailable": "Vehicul indisponibil",
       "notTracked": "Neurmărit",
       "notTrackedBody": "Nu există date în direct pentru {id} în acest flux.",
@@ -416,6 +414,10 @@
       "noComputation": "încă nu a fost calculat",
       "noScheduleComparison": "Fără comparație cu orarul",
       "vsPrediction": "față de predicție {value}"
+    },
+    "strip": {
+      "aria": "Progresul cursei: {passed} din {total} stații parcurse, {adherence}",
+      "timepoint": "punct de control"
     }
   },
   "map": {

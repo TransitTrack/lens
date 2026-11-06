@@ -349,8 +349,6 @@
     "detail": {
       "title": "Pojazd {name}",
       "goBack": "Wstecz",
-      "stopFollowing": "Przestań śledzić",
-      "followVehicle": "Śledź pojazd",
       "unavailable": "Pojazd niedostępny",
       "notTracked": "Nie jest śledzony",
       "notTrackedBody": "Brak danych na żywo dla {id} w tym źródle danych.",
@@ -416,6 +414,10 @@
       "noComputation": "brak jeszcze obliczeń",
       "noScheduleComparison": "Brak porównania z rozkładem",
       "vsPrediction": "wobec prognozy {value}"
+    },
+    "strip": {
+      "aria": "Postęp kursu: minięte przystanki {passed} z {total}, {adherence}",
+      "timepoint": "punkt kontrolny"
     }
   },
   "map": {

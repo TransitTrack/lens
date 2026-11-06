@@ -63,6 +63,8 @@ query VehicleDetail($feedCode: String!, $vehicleId: String!) {
         stopPathIndex
         stopId
         waitStop
+        lengthM
+        scheduleAdherenceStop
         stop {
           stopId
           stopName
