@@ -384,7 +384,7 @@ const groups = computed(() => [
       </template>
 
       <template #body>
-        <UContainer v-if="feedIsBlocked" class="flex min-h-dvh items-center justify-center py-6">
+        <UContainer v-if="feedIsBlocked" class="flex flex-1 items-center justify-center py-6">
           <section class="w-full max-w-md space-y-3" aria-live="polite">
             <div class="flex items-center gap-2 text-sm font-medium text-muted">
               <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />

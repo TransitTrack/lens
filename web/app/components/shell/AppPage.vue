@@ -6,7 +6,8 @@ withDefaults(
     title?: string
     description?: string
     /**
-     * true (default) → the page fills the viewport below the app chrome.
+     * true (default) → the page fills the dashboard panel below the navbar (never the
+     * whole viewport: that overflows the panel by the navbar height and lets it scroll).
      * Combine with constrainContent for map and split-pane pages. false →
      * normal-flow page: body scrolls with the document instead.
      */
@@ -39,7 +40,7 @@ const containerClass = 'max-w-(--app-content-max-w)'
 <template>
   <div
     class="app-page relative"
-    :class="fullBleed ? 'flex h-dvh flex-col' : 'flex min-h-dvh flex-col'"
+    :class="fullBleed ? 'flex min-h-0 flex-1 flex-col' : 'flex flex-1 flex-col'"
   >
     <div v-if="title || hasHeader" class="app-page__header shrink-0">
       <UContainer
