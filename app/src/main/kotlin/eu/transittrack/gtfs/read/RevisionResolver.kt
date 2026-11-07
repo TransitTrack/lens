@@ -10,8 +10,7 @@ import eu.transittrack.gtfs.revision.RevisionService
  *
  * An explicit `revisionId` argument wins verbatim; otherwise the feed's current `ACTIVE` revision
  * is used. A missing feed is an [IllegalArgumentException]; a feed with no active revision is an
- * [IllegalStateException]. Both map to a client-facing `BAD_REQUEST` GraphQL error via
- * `GtfsGraphQlConfig`.
+ * [IllegalStateException]. Both map to a client-facing `400` response.
  */
 @Component
 class RevisionResolver(

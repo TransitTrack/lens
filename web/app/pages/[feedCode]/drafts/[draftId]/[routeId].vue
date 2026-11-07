@@ -1,18 +1,10 @@
 <script setup lang="ts">
+import { useDraftEditsQuery, useDraftJobQuery } from '~/composables/useRestDraftQueries'
+import { useActivateDraftMutation, useDiscardDraftMutation, useRebuildDraftMutation, useRedoDraftEditMutation, useUndoDraftEditMutation, useUpdateStopTimeMutation } from '~/composables/useRestDraftMutations'
+import { useExploreCalendarQuery, useRoutesQuery } from '~/composables/useRestGtfs'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type {SplitterItem} from '@nuxt/ui'
-import {
-  useRoutesQuery,
-  useExploreCalendarQuery,
-  useRebuildDraftMutation,
-  useDraftJobQuery,
-  useActivateDraftMutation,
-  useDiscardDraftMutation,
-  useUndoDraftEditMutation,
-  useRedoDraftEditMutation,
-  useUpdateStopTimeMutation,
-  useDraftEditsQuery,
-} from '~~/generated/graphql'
+
 import {useFeeds} from '~/composables/useFeeds'
 import {useDraftEditor} from '~/composables/useDraftEditor'
 import {useDraftEdit} from '~/composables/useDraftEdit'

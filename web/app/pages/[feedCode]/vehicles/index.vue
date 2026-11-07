@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAvlFeedsQuery } from '~/composables/useRestGtfs'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'
@@ -8,7 +9,7 @@ import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useVehiclePolling } from '~/composables/useVehiclePolling'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
-import { useAvlFeedsQuery } from '~~/generated/graphql'
+
 import { buildOverviewStats } from '~/utils/overviewStats'
 import {
   VEHICLE_STATES,

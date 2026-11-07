@@ -1,4 +1,4 @@
-import { graphql, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 
 const feeds = [
   {
@@ -101,14 +101,14 @@ const optimizationRecommendations = [
 ]
 
 export const handlers = [
-  graphql.query('AvlFeeds', () => HttpResponse.json({ data: { avlFeeds: feeds } })),
-  graphql.query('Vehicles', () => HttpResponse.json({ data: { vehicles } })),
-  graphql.query('VehiclePredictions', () =>
-    HttpResponse.json({ data: { vehiclePredictions: predictions } }),
-  ),
-  graphql.query('OptimizationRecommendations', () =>
-    HttpResponse.json({data: {optimizationRecommendations}}),
-  ),
+  http.get('*/api/v1/optimization-runs/:runId/recommendations', () => HttpResponse.json(optimizationRecommendations)),
+  http.get('*/api/v1/avl-feeds', () => HttpResponse.json(feeds, { headers: { 'X-Total-Count': String(feeds.length) } })),
+  http.get('*/api/v1/avl-feeds/:feedCode/vehicles', () => HttpResponse.json(vehicles, { headers: { 'X-Total-Count': String(vehicles.length) } })),
+  http.get('*/api/v1/avl-feeds/:feedCode/vehicles/:vehicleId/predictions', () => HttpResponse.json(predictions, { headers: { 'X-Total-Count': String(predictions.length) } })),
+
+  http.get('*/api/v1/feeds', () => HttpResponse.json([], { headers: { 'X-Total-Count': '0' } })),
+  http.get('*/api/v1/avl-feeds/:feedCode/vehicles/:vehicleId', ({ params }) => HttpResponse.json(vehicles.find(v => v.vehicleId === params.vehicleId) ?? null)),
+  http.get('*/api/v1/avl-feeds/:feedCode/prediction-accuracy', () => HttpResponse.json([])),
 ]
 
 export const fixtures = {feeds, vehicles, predictions, optimizationRecommendations}

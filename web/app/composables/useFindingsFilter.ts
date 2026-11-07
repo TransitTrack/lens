@@ -1,4 +1,5 @@
-import { useValidationFindingCountsQuery } from '~~/generated/graphql'
+import { useValidationFindingCountsQuery } from '~/composables/useRestDetails'
+
 
 /**
  * "Only show entities with analyzer findings" for an explore list. `keep` is the row predicate to

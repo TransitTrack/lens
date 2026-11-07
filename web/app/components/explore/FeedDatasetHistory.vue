@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type {TableColumn} from '@nuxt/ui'
 import {gtfsDate} from '~/utils/gtfs'
-import type {FeedDetailQuery, RevisionStatus} from '~~/generated/graphql'
+import type {FeedDetailQuery, RevisionStatus} from '~/types/restViews'
 
 type Rev = NonNullable<FeedDetailQuery['feed']>['revisions'][number]
 

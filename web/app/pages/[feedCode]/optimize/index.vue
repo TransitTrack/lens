@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {useOptimizationRunsQuery, type OptimizationRunsQuery} from '~~/generated/graphql'
+import { useOptimizationRunsQuery } from '~/composables/useRestOptimization'
+import type { OptimizationRunsQuery } from '~/types/restViews'
 import {useFeeds} from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'

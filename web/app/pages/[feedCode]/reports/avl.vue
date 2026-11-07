@@ -1,11 +1,8 @@
 <script setup lang="ts">
+import { useAvlReportCatalogQuery, useAvlReportPageQuery } from '~/composables/useRestRealtime'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type AvlReportPageQuery,
-  useAvlReportCatalogQuery,
-  useAvlReportPageQuery,
-} from '~~/generated/graphql'
+import type { AvlReportPageQuery } from '~/types/restViews'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'

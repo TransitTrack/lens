@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { useDraftGridQuery } from '~/composables/useRestDraftQueries'
 import { computed } from 'vue'
-import { useDraftGridQuery } from '~~/generated/graphql'
+
 import { secToClock } from '~/utils/gtfsTime'
 import DraftGridCell from '~/components/draft/DraftGridCell.vue'
 

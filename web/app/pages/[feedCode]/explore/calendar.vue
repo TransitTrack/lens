@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useExploreCalendarQuery, type ExploreCalendarQuery } from '~~/generated/graphql'
+import type { ExploreCalendarQuery } from '~/types/restViews'
 import { activeDays, serviceDaysLabel, gtfsDate } from '~/utils/gtfs'
 
 const { t, locale } = useI18n()

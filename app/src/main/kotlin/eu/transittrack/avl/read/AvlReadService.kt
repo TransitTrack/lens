@@ -10,15 +10,27 @@ import org.springframework.stereotype.Service
 
 import eu.transittrack.avl.match.AvlMatchContextFactory
 import eu.transittrack.avl.model.AvlFeedRepository
+import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
+import eu.transittrack.avl.model.VehicleMatch
 import eu.transittrack.avl.model.VehicleMatchRepository
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.avl.read.dto.AvlFeedDto
-import eu.transittrack.avl.read.dto.AvlReportCatalogDto
-import eu.transittrack.avl.read.dto.AvlReportDto
-import eu.transittrack.avl.read.dto.AvlReportMatchDto
-import eu.transittrack.avl.read.dto.AvlReportPageDto
-import eu.transittrack.avl.read.dto.VehicleDto
+import eu.transittrack.gtfs.model.TripRepository
+import eu.transittrack.rest.generated.model.AvlAssignmentMode
+import eu.transittrack.rest.generated.model.AvlFeed
+import eu.transittrack.rest.generated.model.AvlFormat
+import eu.transittrack.rest.generated.model.AvlOccupancyStatus
+import eu.transittrack.rest.generated.model.AvlReport
+import eu.transittrack.rest.generated.model.AvlReportCatalog
+import eu.transittrack.rest.generated.model.AvlReportMatch
+import eu.transittrack.rest.generated.model.AvlReportPage
+import eu.transittrack.rest.generated.model.LatLon
+import eu.transittrack.rest.generated.model.MatchStatus
+import eu.transittrack.rest.generated.model.PredictionAlgorithm
+import eu.transittrack.rest.generated.model.Vehicle
+import eu.transittrack.rest.generated.model.VehicleStopStatus
+import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.util.paging.PageRequest
 
 @Service
@@ -28,32 +40,39 @@ class AvlReadService(
     private val reports: AvlReportRowRepository,
     private val vehicleMatches: VehicleMatchRepository,
     private val matchContextFactory: AvlMatchContextFactory,
+    private val trips: TripRepository,
+    private val stopPaths: StopPathRepository,
 ) {
-    fun avlFeeds(): List<AvlFeedDto> = avlFeeds.findAll().map(AvlFeedDto::of)
+    fun avlFeeds(): List<AvlFeed> = avlFeeds.findAll().map(::toApi)
 
     fun vehicles(
         feedCode: String,
         matchedOnly: Boolean,
-    ): List<VehicleDto> {
+    ): List<Vehicle> = toApi(vehicleStates(feedCode, matchedOnly))
+
+    /** The live (recently reported) vehicle states of an AVL feed, newest first. */
+    fun vehicleStates(
+        feedCode: String,
+        matchedOnly: Boolean,
+    ): List<VehicleState> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
             .findByFeedCodeOrderByUpdatedAtDesc(feed.code)
             .filter { it.reportTs.isAfter(cutoff) }
             .filter { !matchedOnly || it.matched }
-            .map { VehicleDto.of(it, feed.gtfsFeedCode) }
     }
 
     fun vehicle(
         feedCode: String,
         vehicleId: String,
-    ): VehicleDto? {
+    ): Vehicle? {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val cutoff = Instant.now().minus(MAX_REPORT_AGE)
         return vehicleStates
             .findByFeedCodeAndVehicleId(feed.code, vehicleId)
             ?.takeIf { it.reportTs.isAfter(cutoff) }
-            ?.let { VehicleDto.of(it, feed.gtfsFeedCode) }
+            ?.let { toApi(listOf(it)).single() }
     }
 
     private companion object {
@@ -65,7 +84,7 @@ class AvlReadService(
         vehicleId: String,
         since: String?,
         limit: Int,
-    ): List<AvlReportDto> {
+    ): List<AvlReport> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val pageable = PageRequest(0, limit.coerceIn(1, 1000))
         val sinceInstant = since?.let { Instant.parse(it) }
@@ -95,18 +114,12 @@ class AvlReadService(
                     vehicleMatches.findByVehicle(feed.code, vehicleId, pageable)
                 }
             ).associateBy { it.avlReportId }
-        return rows.map { r ->
-            AvlReportDto.of(
-                r,
-                matchesByReportId[r.id]?.let { AvlReportMatchDto.of(it, feed.gtfsFeedCode) },
-                feed.format,
-            )
-        }
+        return toApi(rows, matchesByReportId, feed.format)
     }
 
-    fun avlReportCatalog(feedCode: String): AvlReportCatalogDto {
+    fun avlReportCatalog(feedCode: String): AvlReportCatalog {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
-        return AvlReportCatalogDto(
+        return AvlReportCatalog(
             timeZone = reportTimeZone(feed).id,
             vehicleIds = reports.findVehicleIds(feed.code),
         )
@@ -120,7 +133,7 @@ class AvlReadService(
         endTime: String,
         page: Int,
         pageSize: Int,
-    ): AvlReportPageDto {
+    ): AvlReportPage {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val zone = reportTimeZone(feed)
         val localDate = LocalDate.parse(date)
@@ -144,14 +157,8 @@ class AvlReadService(
             vehicleMatches
                 .findByAvlReportIdIn(rows.items.mapNotNull { it.id })
                 .associateBy { it.avlReportId }
-        return AvlReportPageDto(
-            items = rows.items.map { row ->
-                AvlReportDto.of(
-                    row,
-                    matchesByReportId[row.id]?.let { AvlReportMatchDto.of(it, feed.gtfsFeedCode) },
-                    feed.format,
-                )
-            },
+        return AvlReportPage(
+            items = toApi(rows.items, matchesByReportId, feed.format),
             totalCount = rows.total.toInt(),
             page = requestedPage,
             pageSize = requestedPageSize,
@@ -176,4 +183,100 @@ class AvlReadService(
         }
         return localTime.atOffset(offsets.single()).toInstant()
     }
+
+    private fun toApi(f: eu.transittrack.avl.model.AvlFeed) =
+        AvlFeed(
+            code = f.code,
+            name = f.name,
+            gtfsFeedCode = f.gtfsFeedCode,
+            format = AvlFormat.valueOf(f.format.name),
+            pollIntervalSec = f.pollIntervalSec,
+            assignmentMode = AvlAssignmentMode.valueOf(f.assignmentMode.name),
+            predictionAlgorithms = f.predictionAlgorithms.map { PredictionAlgorithm.valueOf(it.name) },
+            enabled = f.enabled,
+            lastPollAt = f.lastPollAt?.toString(),
+            lastPollStatus = f.lastPollStatus,
+            lastPollReportCount = f.lastPollReportCount,
+        )
+
+    /** Maps [states], resolving each one's trip and current stop ids in batched lookups. */
+    private fun toApi(states: List<VehicleState>): List<Vehicle> {
+        val tripIds = trips.findAllById(states.mapNotNull { it.tripRowId }.distinct()).associate { it.id to it.tripId }
+        val stopIdsByPattern = HashMap<Pair<Long, Long>, List<String>>()
+        return states.map { s ->
+            val revision = s.revisionId
+            val pattern = s.tripPatternId
+            val index = s.stopPathIndex
+            val currentStopId =
+                if (revision == null || pattern == null || index == null) {
+                    null
+                } else {
+                    stopIdsByPattern
+                        .getOrPut(revision to pattern) { stopPaths.findByTripPatternOrdered(revision, pattern).map { it.stopId } }
+                        .getOrNull(index)
+                }
+            Vehicle(
+                vehicleId = s.vehicleId,
+                reportTs = s.reportTs.toString(),
+                position = LatLon(s.lat, s.lon),
+                matched = s.matched,
+                stale = s.stale,
+                label = s.vehicleLabel,
+                snappedPosition = if (s.snappedLat != null && s.snappedLon != null) LatLon(s.snappedLat!!, s.snappedLon!!) else null,
+                bearing = s.bearing,
+                speedMps = s.speedMps,
+                occupancyStatus = s.occupancyStatus?.let { occupancy(it) },
+                scheduleAdherenceSec = s.scheduleAdherenceSec,
+                stopPathIndex = s.stopPathIndex,
+                distanceAlongTripM = s.distanceAlongTripM,
+                revisionId = revision?.toString(),
+                tripId = s.tripRowId?.let(tripIds::get),
+                currentStopId = currentStopId,
+            )
+        }
+    }
+
+    private fun toApi(
+        rows: List<AvlReportRow>,
+        matchesByReportId: Map<Long, VehicleMatch>,
+        source: eu.transittrack.avl.ingest.AvlFormat,
+    ): List<AvlReport> {
+        val tripIds = trips.findAllById(matchesByReportId.values.map { it.tripRowId }.distinct()).associate { it.id to it.tripId }
+        return rows.map { r ->
+            AvlReport(
+                vehicleId = r.vehicleId,
+                ts = r.ts.toString(),
+                processedAt = r.createdAt.toString(),
+                source = AvlFormat.valueOf(source.name),
+                position = LatLon(r.lat, r.lon),
+                matchStatus = MatchStatus.valueOf(r.matchStatus.name),
+                bearing = r.bearing,
+                speedMps = r.speedMps,
+                currentStatus =
+                    r.currentStatus
+                        ?.let { runCatching { eu.transittrack.avl.ingest.VehicleStopStatus.entries[it] }.getOrNull() }
+                        ?.let { VehicleStopStatus.valueOf(it.name) },
+                occupancyStatus = r.occupancyStatus?.let { occupancy(it) },
+                descTripId = r.descTripId,
+                match = matchesByReportId[r.id]?.let { m ->
+                    AvlReportMatch(
+                        stopPathIndex = m.stopPathIndex,
+                        distanceAlongTripM = m.distanceAlongTripM,
+                        deviationM = m.deviationM,
+                        snappedPosition = LatLon(m.snappedLat, m.snappedLon),
+                        revisionId = m.revisionId.toString(),
+                        tripId = tripIds.getValue(m.tripRowId),
+                        scheduleAdherenceSec = m.scheduleAdherenceSec,
+                        heading = m.heading,
+                        score = m.score,
+                    )
+                },
+            )
+        }
+    }
+
+    private fun occupancy(ordinal: Int): AvlOccupancyStatus? =
+        runCatching { eu.transittrack.avl.ingest.AvlOccupancyStatus.entries[ordinal] }
+            .getOrNull()
+            ?.let { AvlOccupancyStatus.valueOf(it.name) }
 }

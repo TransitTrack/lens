@@ -1,4 +1,5 @@
-import { useAgenciesQuery } from '~~/generated/graphql'
+import { useAgenciesQuery } from '~/composables/useRestGtfs'
+
 
 export interface LngLatBoundsExtent {
   minLon: number

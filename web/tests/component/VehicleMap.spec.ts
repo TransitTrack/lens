@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll, afterEach, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import { graphql, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { server } from '../../mocks/server'
 import VehicleMap from '../../app/components/vehicles/VehicleMap.vue'
 import { fixtures } from '../../mocks/handlers'
@@ -40,9 +40,9 @@ describe('VehicleMap', () => {
   it('keeps polling the active vehicle while its popup stays open', async () => {
     let vehicleDetailRequests = 0
     server.use(
-      graphql.query('VehicleDetail', () => {
+      http.get('*/api/v1/avl-feeds/:feedCode/vehicles/:vehicleId', () => {
         vehicleDetailRequests += 1
-        return HttpResponse.json({ data: { vehicle: null } })
+        return new HttpResponse(null, { status: 404 })
       }),
     )
 

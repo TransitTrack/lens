@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAvlTrailQuery, useVehicleDetailQuery } from '~/composables/useRestRealtime'
+import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
@@ -11,11 +13,7 @@ import VehicleTripStrip from '~/components/vehicles/VehicleTripStrip.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { usePollControl } from '~/composables/usePollControl'
 import { useUnits } from '~/composables/useUnits'
-import {
-  useVehicleDetailQuery,
-  useAvlTrailQuery,
-  useAgenciesDetailQuery,
-} from '~~/generated/graphql'
+
 import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { formatClock } from '~/utils/clock'
 import {

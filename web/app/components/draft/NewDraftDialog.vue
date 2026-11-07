@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { useFeedDetailQuery, useForkDraftMutation } from '~~/generated/graphql'
+import { useForkDraftMutation } from '~/composables/useRestDraftMutations'
+import { useFeedDetailQuery } from '~/composables/useRestDetails'
+
 import { useFeeds } from '~/composables/useFeeds'
 import { useEditorIdentity } from '~/composables/useEditorIdentity'
 import { gtfsDate } from '~/utils/gtfs'

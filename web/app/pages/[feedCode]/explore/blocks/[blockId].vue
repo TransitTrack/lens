@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { useBlockDetailQuery } from '~/composables/useRestDetails'
 import AppPage from '~/components/shell/AppPage.vue'
 import BlockTimeline from '~/components/explore/BlockTimeline.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useBlockDetailQuery } from '~~/generated/graphql'
+
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 import { layoverLabel, timeSplit, timelineSegments } from '~/utils/blocks'
 

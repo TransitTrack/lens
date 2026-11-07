@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import {
-  useRoutesQuery,
-  useExploreCalendarQuery,
-  useStartOptimizationRunMutation,
-} from '~~/generated/graphql'
+import { useStartOptimizationRunMutation } from '~/composables/useRestOptimization'
+import { useExploreCalendarQuery, useRoutesQuery } from '~/composables/useRestGtfs'
+
 import {useFeeds} from '~/composables/useFeeds'
 
 const open = defineModel<boolean>('open', {default: false})

@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll, afterEach, vi } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { h } from 'vue'
-import { graphql, HttpResponse } from 'msw'
+import { http, HttpResponse } from 'msw'
 import { server } from '../../mocks/server'
 import DefaultLayout from '../../app/layouts/default.vue'
 
@@ -24,10 +24,8 @@ describe('app shell', () => {
     let readinessRequests = 0
 
     server.use(
-      graphql.query('Feeds', () =>
-        HttpResponse.json({
-          data: {
-            feeds: [
+      http.get('*/api/v1/feeds', () =>
+        HttpResponse.json([
               {
                 code: 'feed-a',
                 name: 'Feed A',
@@ -36,17 +34,13 @@ describe('app shell', () => {
                 source: 'REMOTE',
                 activeRevision: null,
               },
-            ],
-          },
-        }),
+            ], { headers: { 'X-Total-Count': '1' } }),
       ),
-      graphql.query('FeedReadiness', () => {
+      http.get('*/api/v1/feeds/:code', () => {
         readinessRequests += 1
         const preparing = readinessRequests === 1
 
         return HttpResponse.json({
-          data: {
-            feed: {
               code: 'feed-a',
               name: 'Feed A',
               activeRevision: preparing
@@ -60,8 +54,6 @@ describe('app shell', () => {
                   status: preparing ? 'VALIDATING' : 'ACTIVE',
                 },
               ],
-            },
-          },
         })
       }),
     )

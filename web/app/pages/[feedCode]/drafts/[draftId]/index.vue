@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useRoutesQuery, useExploreCalendarQuery } from '~~/generated/graphql'
+import { useExploreCalendarQuery, useRoutesQuery } from '~/composables/useRestGtfs'
+
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'

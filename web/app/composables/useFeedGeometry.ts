@@ -1,7 +1,6 @@
 import { hexColor, routeTypeLabel } from '~/utils/gtfs'
-import { decodeGeoJson } from '~/utils/geojson'
-import { useFeedGeometryQuery } from '~~/generated/graphql'
 import type { GeoJSON } from 'geojson'
+import { ScheduleApi } from '~~/generated/rest'
 
 /** Properties the backend puts on each `kind: 'pattern'` feature. */
 interface PatternProps {
@@ -36,21 +35,25 @@ function distinctRouteColor(routeId: string): string {
 
 /**
  * The GTFS network geometry for a feed — route pattern polylines (coloured by
- * route_color) and boarding stops — as ready-to-render GeoJSON. One cached fetch;
+ * route_color) and boarding stops — as ready-to-render GeoJSON. Fetched separately from live vehicle data;
  * safe to mount behind a live-polling map as a static base layer.
  */
 export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
   const { t } = useI18n()
-  const { result, loading } = useFeedGeometryQuery(() => ({
-    variables: { feedCode: gtfsFeedCode.value ?? '' },
-    enabled: !!gtfsFeedCode.value, fetchPolicy: 'no-cache',
-  }))
-
-  // Decode once per result; `lines` and `stops` are views over the same collection.
-  const all = computed<GeoJSON.Feature[]>(() => {
-    const encoded = result.value?.feedGeometry
-    return encoded ? decodeGeoJson<GeoJSON.FeatureCollection>(encoded).features : []
-  })
+  const api = new ScheduleApi()
+  const all = shallowRef<GeoJSON.Feature[]>([])
+  const loading = ref(false)
+  watch(gtfsFeedCode, (feedCode, _previous, onCleanup) => {
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
+    all.value = []
+    if (!feedCode) { loading.value = false; return }
+    loading.value = true
+    api.feedGeometry({ feedCode }, { signal: controller.signal })
+      .then((collection) => { if (!controller.signal.aborted) all.value = (collection as unknown as GeoJSON.FeatureCollection).features })
+      .catch(() => { if (!controller.signal.aborted) all.value = [] })
+      .finally(() => { if (!controller.signal.aborted) loading.value = false })
+  }, { immediate: true })
 
   const lines = computed<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',

@@ -4,9 +4,7 @@ import { rehypeMermaid, remarkDocLinks } from './content-plugins/docsMarkdown'
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-06',
   // This dashboard is a client-side-polling ops UI (see spec: no SSR data-fetching
-  // is needed or wanted). Disabling SSR also sidesteps a real crash class where
-  // universal code (e.g. the Apollo plugin) runs during server rendering with no
-  // browser origin to resolve relative GraphQL URIs against.
+  // is needed or wanted).
   ssr: false,
   // Nuxt 4.6 resolves an omitted dev-server host to an internal resolver object;
   // pin it to a loopback hostname so the CLI receives the string it expects.
@@ -77,11 +75,8 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   vite: {
     optimizeDeps: {
-      // @vue/apollo-composable v5 imports @vue/reactivity / @vue/runtime-core directly;
-      // pre-bundling it makes Vite load a second copy of Vue's reactivity (no `?v=` hash),
-      // so getCurrentScope() never sees the component scope and no query ever starts.
-      exclude: ['maplibre-gl', '@vue/apollo-composable'],
-      include: ['@apollo/client', '@indoorequal/vue-maplibre-gl',
+      exclude: ['maplibre-gl'],
+      include: ['@indoorequal/vue-maplibre-gl',
                   'fflate',
                   'nuxt > @nuxt/devtools > @vitejs/devtools-kit/client',
                   'nuxt > @nuxt/devtools > error-stack-parser-es',
@@ -91,8 +86,8 @@ export default defineNuxtConfig({
   },
   nitro: {
     devProxy: {
-      '/graphql': {
-        target: process.env.NUXT_BACKEND_URL ?? 'http://localhost:8080/graphql',
+      '/api': {
+        target: process.env.NUXT_BACKEND_API_URL ?? 'http://localhost:8080/api',
         changeOrigin: true,
       },
       // Read-only Spring Boot Actuator `configprops` for the Docs → Live configuration page.

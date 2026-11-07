@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
-import { useExploreRoutesQuery, type ExploreRoutesQuery } from '~~/generated/graphql'
+import type { ExploreRoutesQuery } from '~/types/restViews'
 import { routeTextColor, routeTypeLabel, hexColor } from '~/utils/gtfs'
 
 const { t } = useI18n()

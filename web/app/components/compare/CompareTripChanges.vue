@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CompareRevisionsQuery } from '~~/generated/graphql'
+import type { CompareRevisionsQuery } from '~/types/restViews'
 
 type TripChange = CompareRevisionsQuery['compareRevisions']['tripChanges'][number]
 

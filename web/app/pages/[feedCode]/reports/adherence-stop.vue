@@ -1,11 +1,9 @@
 <script setup lang="ts">
+import { useExploreStopsQuery } from '~/composables/useRestGtfs'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type StopAdherenceQuery,
-  useExploreStopsQuery,
-  useStopAdherenceQuery,
-} from '~~/generated/graphql'
+import type { StopAdherenceQuery } from '~/types/restViews'
+import { useStopAdherenceQuery } from '~/composables/useRestAdherence'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'

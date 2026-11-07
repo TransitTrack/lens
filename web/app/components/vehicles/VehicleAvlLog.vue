@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useAvlLogQuery } from '~/composables/useRestRealtime'
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { useAvlLogQuery } from '~~/generated/graphql'
+
 import { usePollControl } from '~/composables/usePollControl'
 import { useUnits } from '~/composables/useUnits'
 import { adherenceBadge } from '~/utils/adherence'

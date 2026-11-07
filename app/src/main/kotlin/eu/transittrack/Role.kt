@@ -39,8 +39,7 @@ class RoleCondition : Condition {
 }
 
 /**
- * Monolith-by-default role check shared by [RoleCondition] and anything else (e.g.
- * `GraphQlAutoConfigurationRoleExclusion`) that needs to decide whether a role's beans/features
+ * Monolith-by-default role check shared by [RoleCondition] and anything else that needs to decide whether a role's beans/features
  * should be active without going through a Spring `@Conditional`.
  */
 fun isRoleActive(

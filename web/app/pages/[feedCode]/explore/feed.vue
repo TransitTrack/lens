@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useActivateRevisionMutation, useDeleteRevisionMutation, useIngestFeedMutation, useUpdateFeedMutation } from '~/composables/useRestManagement'
+import { useFeedDetailQuery } from '~/composables/useRestDetails'
+import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
+import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
@@ -6,15 +10,7 @@ import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import FeedFeatures from '~/components/explore/FeedFeatures.vue'
 import FeedDatasetHistory from '~/components/explore/FeedDatasetHistory.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import {
-  useFeedDetailQuery,
-  useAgenciesDetailQuery,
-  useExploreRoutesQuery,
-  useIngestFeedMutation,
-  useActivateRevisionMutation,
-  useDeleteRevisionMutation,
-  useUpdateFeedMutation,
-} from '~~/generated/graphql'
+
 import { gtfsDate } from '~/utils/gtfs'
 import { deriveFeatures } from '~/utils/feedFeatures'
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
-import type {DraftGridQuery} from '~~/generated/graphql'
+import type {DraftGridQuery} from '~/types/restViews'
 import type {useDraftEditor} from '~/composables/useDraftEditor'
 import DraftTripPanel from '~/components/draft/DraftTripPanel.vue'
 import DraftHistoryPanel from '~/components/draft/DraftHistoryPanel.vue'

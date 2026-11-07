@@ -11,7 +11,6 @@
     "postinstall": "nuxt prepare",
     "test": "vitest run",
     "test:watch": "vitest",
-    "codegen": "graphql-codegen --config graphql-codegen.ts && node scripts/dedupe-codegen-types.mjs && node scripts/generate-apollo-composables.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:e2e": "playwright test",
@@ -20,21 +19,17 @@
     "i18n:check": "node scripts/i18n-check.mjs"
   },
   "dependencies": {
-    "@apollo/client": "^4.3.7",
     "@indoorequal/vue-maplibre-gl": "^9.0.1",
     "@nuxt/content": "^3.16.2",
     "@nuxt/ui": "^4.12.0",
     "@nuxtjs/i18n": "^10.6.0",
-    "@vue/apollo-composable": "5.0.0-beta.1",
     "@vueuse/core": "^15.0.0",
     "@vueuse/nuxt": "^15.0.0",
     "fflate": "^0.8.3",
-    "graphql": "^17.1.0",
     "hast-util-to-string": "^3.0.1",
     "maplibre-gl": "^6.16.0",
     "mermaid": "^12.3.0",
     "nuxt": "^4.6.4",
-    "rxjs": "^7.8.2",
     "tailwindcss": "^4.3.5",
     "unist-util-visit": "^5.2.0",
     "vue": "^3.5.45",
@@ -44,10 +39,6 @@
     "@nuxt/devtools": "^4.0.0"
   },
   "devDependencies": {
-    "@graphql-codegen/cli": "^7.4.6",
-    "@graphql-codegen/typed-document-node": "^7.2.0",
-    "@graphql-codegen/typescript": "^6.1.2",
-    "@graphql-codegen/typescript-operations": "^6.2.0",
     "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/fonts": "^1.2.0",
@@ -66,6 +57,7 @@
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0",
-    "vue-tsc": "^3.3.14"
+    "vue-tsc": "^3.3.14",
+    "graphql": "^17.1.0"
   }
 }

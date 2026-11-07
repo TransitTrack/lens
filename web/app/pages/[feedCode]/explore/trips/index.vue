@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useExploreRoutesQuery, useTripsByRouteQuery } from '~/composables/useRestGtfs'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
@@ -6,11 +7,7 @@ import TripTimeFilter from '~/components/explore/TripTimeFilter.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExploreQuery } from '~/composables/useExploreQuery'
-import {
-  useExploreRoutesQuery,
-  useTripsByRouteQuery,
-  type TripsByRouteQuery,
-} from '~~/generated/graphql'
+import type { TripsByRouteQuery } from '~/types/restViews'
 import { formatHm, parseHm, inWindow } from '~/utils/tripFilters'
 
 const { t } = useI18n()

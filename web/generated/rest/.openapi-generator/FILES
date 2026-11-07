@@ -1,0 +1,13 @@
+.openapi-generator-ignore
+apis/AVLApi.ts
+apis/AvlFeedCatalogApi.ts
+apis/DraftsApi.ts
+apis/GTFSApi.ts
+apis/OptimizationApi.ts
+apis/PredictionsApi.ts
+apis/ReportsApi.ts
+apis/ScheduleApi.ts
+apis/index.ts
+index.ts
+models/index.ts
+runtime.ts

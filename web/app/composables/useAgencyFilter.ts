@@ -1,4 +1,5 @@
-import { useAgenciesDetailQuery, type AgenciesDetailQuery } from '~~/generated/graphql'
+import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
+import type { AgenciesDetailQuery } from '~/types/restViews'
 import { useFeeds } from './useFeeds'
 import { useExploreQuery } from './useExploreQuery'
 

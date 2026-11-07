@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useBlocksListQuery } from '~/composables/useRestDetails'
+import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
+import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
 import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
@@ -6,12 +9,7 @@ import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExploreQuery } from '~/composables/useExploreQuery'
-import {
-  useBlocksListQuery,
-  useExploreRoutesQuery,
-  useExploreCalendarQuery,
-  type BlocksListQuery,
-} from '~~/generated/graphql'
+import type { BlocksListQuery } from '~/types/restViews'
 import { hexColor, routeTextColor, serviceDaysLabel } from '~/utils/gtfs'
 import { blockDurationSec, peakConcurrency } from '~/utils/blocks'
 

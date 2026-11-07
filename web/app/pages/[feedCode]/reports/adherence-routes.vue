@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { type AllRoutesAdherenceQuery, useAllRoutesAdherenceQuery } from '~~/generated/graphql'
+import type { AllRoutesAdherenceQuery } from '~/types/restViews'
+import { useAllRoutesAdherenceQuery } from '~/composables/useRestAdherence'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'

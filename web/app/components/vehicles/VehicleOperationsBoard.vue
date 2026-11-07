@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useVehicleDetailQuery } from '~/composables/useRestRealtime'
+import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
 import type { VehicleRow } from '~/composables/useVehiclePolling'
 import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
 import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
@@ -10,7 +12,7 @@ import { hexColor } from '~/utils/gtfs'
 import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useFeeds } from '~/composables/useFeeds'
-import { useAgenciesDetailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
+
 
 const props = defineProps<{
   title?: string

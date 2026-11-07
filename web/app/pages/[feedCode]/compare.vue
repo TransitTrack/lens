@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { useRevisionsQuery, useDraftsQuery, useCompareRevisionsQuery } from '~~/generated/graphql'
+import { useCompareRevisionsQuery } from '~/composables/useRestManagement'
+import { useDraftsQuery } from '~/composables/useRestDraftQueries'
+import { useRevisionsQuery } from '~/composables/useRestDetails'
+
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'

@@ -1,10 +1,8 @@
 <script setup lang="ts">
+import { useDraftEditsQuery } from '~/composables/useRestDraftQueries'
+import { useRedoDraftEditMutation, useUndoDraftEditMutation } from '~/composables/useRestDraftMutations'
 import { computed, watch } from 'vue'
-import {
-  useDraftEditsQuery,
-  useUndoDraftEditMutation,
-  useRedoDraftEditMutation,
-} from '~~/generated/graphql'
+
 import type { useDraftEditor } from '~/composables/useDraftEditor'
 import { useDraftEdit } from '~/composables/useDraftEdit'
 import { formatClock } from '~/utils/clock'

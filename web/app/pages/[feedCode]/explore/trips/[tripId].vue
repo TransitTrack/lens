@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useTripDetailQuery } from '~/composables/useRestDetails'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
@@ -6,7 +7,7 @@ import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPane
 import VehicleRouteMap from '~/components/map/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useTripDetailQuery } from '~~/generated/graphql'
+
 import type { LngLat } from '~/utils/gtfs'
 import { useSplitLayout } from '~/composables/useSplitLayout'
 

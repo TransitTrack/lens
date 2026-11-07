@@ -1,4 +1,4 @@
-import { useFeedsQuery, useAvlFeedsQuery } from '~~/generated/graphql'
+import { useRestFeedCatalog } from './useRestFeedCatalog'
 
 export interface AnnotatedFeed {
   code: string
@@ -27,12 +27,11 @@ function isHealthy(status: string | null | undefined): boolean {
 export function useFeeds() {
   const route = useRoute()
 
-  const { result: gtfsResult } = useFeedsQuery(() => ({ pollInterval: 120_000 }))
-  const { result: avlResult } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
+  const { gtfsFeeds, avlFeeds } = useRestFeedCatalog()
 
   const feeds = computed<AnnotatedFeed[]>(() => {
-    const avl = avlResult.value?.avlFeeds ?? []
-    return (gtfsResult.value?.feeds ?? []).map((f) => {
+    const avl = avlFeeds.value
+    return gtfsFeeds.value.map((f) => {
       const linked = avl.find((a) => a.gtfsFeedCode === f.code) ?? null
       return {
         code: f.code,

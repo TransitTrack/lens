@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CompareRevisionsQuery } from '~~/generated/graphql'
+import type { CompareRevisionsQuery } from '~/types/restViews'
 
 type HeadwaySummary = CompareRevisionsQuery['compareRevisions']['headwaySummaries'][number]
 

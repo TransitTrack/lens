@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useValidationFindingsQuery } from '~~/generated/graphql'
+import { useValidationFindingsQuery } from '~/composables/useRestDetails'
+
 
 /**
  * GTFS analyzer findings for one entity (trip, stop, route, ...), straight from the feed's active

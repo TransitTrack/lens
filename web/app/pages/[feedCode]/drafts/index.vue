@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { useDraftsQuery } from '~/composables/useRestDraftQueries'
+import { useDiscardDraftMutation } from '~/composables/useRestDraftMutations'
 import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
-import { useDraftsQuery, useDiscardDraftMutation, type DraftsQuery } from '~~/generated/graphql'
+import type { DraftsQuery } from '~/types/restViews'
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'
@@ -101,7 +103,7 @@ async function confirmDiscard() {
     discardTarget.value = null
     await refetch()
   } catch (e) {
-    const code = graphQlErrorsOf(e)[0]?.extensions?.code
+    const code = restProblemOf(e)?.code
     if (code === 'LOCK_LOST') {
       toast.add({
         title: t('drafts.lockLost'),

@@ -20,9 +20,9 @@ import eu.transittrack.predict.learn.TimeBand
 import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
-import eu.transittrack.predict.read.dto.PredictionAccuracyHorizonDto
-import eu.transittrack.predict.read.dto.PredictionAccuracySummaryDto
-import eu.transittrack.predict.read.dto.StopPredictionDto
+import eu.transittrack.rest.generated.model.PredictionAccuracyHorizon
+import eu.transittrack.rest.generated.model.PredictionAccuracySummary
+import eu.transittrack.rest.generated.model.StopPrediction
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
@@ -45,7 +45,7 @@ class PredictionReadService(
         feedCode: String,
         vehicleId: String,
         algorithm: PredictionAlgorithm? = null,
-    ): List<StopPredictionDto> {
+    ): List<StopPrediction> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val state = vehicleStates.findByFeedCodeAndVehicleId(feed.code, vehicleId) ?: return emptyList()
         val tripRowId = state.tripRowId ?: return emptyList()
@@ -63,22 +63,23 @@ class PredictionReadService(
             val stopId = stopPathsByIndex[r.stopPathIndex]?.stopId ?: return@mapNotNull null
             val sched = schedule[r.stopPathIndex]
             val serviceDate = r.serviceDate ?: displayServiceDate(r.sourceReportTs ?: r.computedAt, zone, tripStartSec)
-            StopPredictionDto(
+            StopPrediction(
                 stopPathIndex = r.stopPathIndex,
+                stopId = stopId,
                 scheduledArrival = sched?.arrivalSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
                 scheduledDeparture = sched?.departureSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
                 actualArrival = r.actualArrivalTs?.toString(),
                 actualDeparture = r.actualDepartureTs?.toString(),
                 predictedArrival = r.predictedArrivalTs?.toString(),
                 predictedDeparture = r.predictedDepartureTs?.toString(),
-                algorithm = r.algorithm,
+                algorithm = r.algorithm.let {
+                    eu.transittrack.rest.generated.model.PredictionAlgorithm
+                        .valueOf(it.name)
+                },
                 confidenceSec = r.confidenceSec,
                 sourceReportTs = r.sourceReportTs?.toString(),
                 actualReportGapSec = r.actualReportGapSec,
                 actualReliable = r.actualReportGapSec?.let { it <= props.learn.maxReliableReportGapSec },
-                revisionId = revisionId,
-                gtfsFeedCode = feed.gtfsFeedCode,
-                stopId = stopId,
             )
         }
     }
@@ -89,7 +90,7 @@ class PredictionReadService(
         routeId: String?,
         directionId: Int?,
         algorithm: PredictionAlgorithm? = null,
-    ): List<StopPredictionDto> {
+    ): List<StopPrediction> {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val revisionId = revisionResolver.resolve(feed.gtfsFeedCode, null)
         val patternIds = tripPatterns(revisionId, routeId, directionId).map { it.id!! }.toSet()
@@ -119,20 +120,21 @@ class PredictionReadService(
             val sched = tripSchedule.firstOrNull { it.stopPathIndex == r.stopPathIndex }
             val tripStartSec = tripSchedule.firstOrNull { it.stopPathIndex == 0 }?.let { it.departureSec ?: it.arrivalSec }
             val serviceDate = r.serviceDate ?: displayServiceDate(r.sourceReportTs ?: r.computedAt, zone, tripStartSec)
-            StopPredictionDto(
+            StopPrediction(
                 stopPathIndex = r.stopPathIndex,
+                stopId = stopId,
                 scheduledArrival = sched?.arrivalSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
                 scheduledDeparture = sched?.departureSec?.let { serviceSecToInstant(serviceDate, it, zone).toString() },
                 actualArrival = null,
                 actualDeparture = null,
                 predictedArrival = r.predictedArrivalTs?.toString(),
                 predictedDeparture = r.predictedDepartureTs?.toString(),
-                algorithm = r.algorithm,
+                algorithm = r.algorithm.let {
+                    eu.transittrack.rest.generated.model.PredictionAlgorithm
+                        .valueOf(it.name)
+                },
                 confidenceSec = r.confidenceSec,
                 sourceReportTs = r.sourceReportTs?.toString(),
-                revisionId = revisionId,
-                gtfsFeedCode = feed.gtfsFeedCode,
-                stopId = stopId,
             )
         }
     }
@@ -193,7 +195,7 @@ class PredictionReadService(
         directionId: Int? = null,
         dayType: DayType? = null,
         timeBand: TimeBand? = null,
-    ): List<PredictionAccuracySummaryDto> {
+    ): List<PredictionAccuracySummary> {
         require(sinceDays > 0) { "sinceDays must be > 0" }
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         val since = clock.instant().minus(sinceDays.toLong(), ChronoUnit.DAYS)
@@ -206,8 +208,9 @@ class PredictionReadService(
             .toSortedMap()
             .map { (alg, horizons) ->
                 val summary = horizons.single { it.horizonSec == null }
-                PredictionAccuracySummaryDto(
-                    algorithm = PredictionAlgorithm.entries[alg],
+                PredictionAccuracySummary(
+                    algorithm = eu.transittrack.rest.generated.model.PredictionAlgorithm
+                        .valueOf(PredictionAlgorithm.entries[alg].name),
                     sampleCount = summary.sampleCount.toInt(),
                     meanErrorSec = summary.meanErrorSec,
                     meanAbsErrorSec = summary.meanAbsErrorSec,
@@ -220,7 +223,7 @@ class PredictionReadService(
                     confidenceSampleCount = summary.confidenceSampleCount.toInt(),
                     byHorizon =
                         horizons.filter { it.horizonSec != null }.map {
-                            PredictionAccuracyHorizonDto(
+                            PredictionAccuracyHorizon(
                                 horizonSec = checkNotNull(it.horizonSec),
                                 sampleCount = it.sampleCount.toInt(),
                                 meanErrorSec = it.meanErrorSec,

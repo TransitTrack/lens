@@ -1,11 +1,8 @@
 <script setup lang="ts">
+import { useDraftPatternsQuery } from '~/composables/useRestDraftQueries'
+import { useAddTripMutation, useDuplicateTripMutation } from '~/composables/useRestDraftMutations'
 import {computed, ref, watch} from 'vue'
-import {
-  useDraftPatternsQuery,
-  useAddTripMutation,
-  useDuplicateTripMutation,
-  type DraftGridQuery,
-} from '~~/generated/graphql'
+import type { DraftGridQuery } from '~/types/restViews'
 import type {useDraftEditor} from '~/composables/useDraftEditor'
 import {useDraftEdit} from '~/composables/useDraftEdit'
 import {parseTimeInput, parseDeltaInput, secToClock} from '~/utils/gtfsTime'

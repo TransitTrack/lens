@@ -1,13 +1,8 @@
 <script setup lang="ts">
+import { useHeadwayInfoQuery, useHeadwayRoutePatternsQuery, useStopBoardQuery } from '~/composables/useRestRealtime'
+import { useRoutesQuery } from '~/composables/useRestGtfs'
 import type {TableColumn} from '@nuxt/ui'
-import {
-  useRoutesQuery,
-  useHeadwayRoutePatternsQuery,
-  useHeadwayInfoQuery,
-  useStopBoardQuery,
-  type StopBoardQuery,
-  type PredictionAlgorithm,
-} from '~~/generated/graphql'
+import type { StopBoardQuery, PredictionAlgorithm } from '~/types/restViews'
 import {useFeeds} from '~/composables/useFeeds'
 import {usePollControl} from '~/composables/usePollControl'
 import {formatClock} from '~/utils/clock'

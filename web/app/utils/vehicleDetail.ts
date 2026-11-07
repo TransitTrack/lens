@@ -1,4 +1,4 @@
-import type { VehicleDetailQuery } from '~~/generated/graphql'
+import type { VehicleDetailQuery } from '~/types/restViews'
 import { formatClock } from './clock'
 import { geometryLine } from './gtfs'
 

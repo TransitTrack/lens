@@ -13,6 +13,7 @@ plugins {
     id("com.diffplug.spotless")
     id("com.google.protobuf")
     id("org.jetbrains.kotlinx.benchmark")
+    id("org.openapi.generator")
 }
 
 group = "eu.transittrack"
@@ -46,7 +47,6 @@ sourceSets {
     }
 }
 
-val graphqlJavaExtendedScalarsVersion = project.property("graphqlJavaExtendedScalarsVersion") as String
 val okhttpVersion = project.property("okhttpVersion") as String
 val gtfsAnalyzerVersion = project.property("gtfsAnalyzerVersion") as String
 val guavaVersion = project.property("guavaVersion") as String
@@ -65,13 +65,11 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
     implementation("io.github.transittrack:gtfs-analyzer:$gtfsAnalyzerVersion")
-    implementation("com.graphql-java:graphql-java-extended-scalars:$graphqlJavaExtendedScalarsVersion")
     implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
@@ -90,7 +88,6 @@ dependencies {
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-cache-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-graphql-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -446,5 +443,90 @@ tasks.matching { it.name == "benchmarkBaselineBenchmark" }.configureEach {
                 "-rf", "json", "-rff", dir.resolve("benchmark.json").absolutePath,
             ),
         )
+    }
+}
+
+// Generate the server contract from the versioned OpenAPI document.
+openApiGenerate {
+    generatorName.set("kotlin-spring")
+    cleanupOutput.set(true)
+    inputSpec.set(
+        rootProject.layout.projectDirectory
+            .file("api-contract/openapi.yaml")
+            .asFile.absolutePath,
+    )
+    outputDir.set(
+        layout.buildDirectory
+            .dir("generated/openapi")
+            .get()
+            .asFile.absolutePath,
+    )
+    apiPackage.set("eu.transittrack.rest.generated.api")
+    modelPackage.set("eu.transittrack.rest.generated.model")
+    configOptions.set(
+        mapOf(
+            "interfaceOnly" to "true",
+            "exceptionHandler" to "false",
+            "generateJsonIncludeAnnotations" to "false",
+            "generateJsonSetterNullsAnnotations" to "false",
+            "useSpringBoot4" to "true",
+            "useTags" to "true",
+            "skipDefaultInterface" to "true",
+            "useBeanValidation" to "false",
+            "annotationLibrary" to "none",
+            "documentationProvider" to "none",
+            "gradleBuildFile" to "false",
+        ),
+    )
+}
+
+openApiValidate {
+    inputSpec.set(
+        rootProject.layout.projectDirectory
+            .file("api-contract/openapi.yaml")
+            .asFile.absolutePath,
+    )
+}
+
+// The generated API is compiled with the application; it is not checked into source control.
+kotlin.sourceSets.named("main") {
+    kotlin.srcDir(layout.buildDirectory.dir("generated/openapi/src/main/kotlin/eu/transittrack/rest/generated"))
+}
+
+tasks.matching { it.name == "kaptGenerateStubsKotlin" }.configureEach { dependsOn(tasks.named("openApiGenerate")) }
+tasks.named("compileKotlin") { dependsOn(tasks.named("openApiGenerate")) }
+
+tasks.named("check") { dependsOn(tasks.named("openApiValidate")) }
+
+// The browser client is generated from the same contract as the server interfaces.
+tasks.register<org.openapitools.generator.gradle.plugin.tasks.GenerateTask>("generateRestClient") {
+    generatorName.set("typescript-fetch")
+    inputSpec.set(
+        rootProject.layout.projectDirectory
+            .file("api-contract/openapi.yaml")
+            .asFile.absolutePath,
+    )
+    outputDir.set(
+        rootProject.layout.projectDirectory
+            .dir("web/generated/rest")
+            .asFile.absolutePath,
+    )
+    cleanupOutput.set(true)
+    generateApiTests.set(false)
+    generateModelTests.set(false)
+    generateApiDocumentation.set(false)
+    generateModelDocumentation.set(false)
+    configOptions.set(
+        mapOf(
+            "supportsES6" to "true",
+            "modelPropertyNaming" to "original",
+            "useSingleRequestParameter" to "true",
+            "withoutRuntimeChecks" to "true",
+        ),
+    )
+    // TypeScript 6 requires an explicit override for Error.cause.
+    doLast {
+        val runtime = rootProject.file("web/generated/rest/runtime.ts")
+        runtime.writeText(runtime.readText().replace("constructor(public cause: Error,", "constructor(public override cause: Error,"))
     }
 }

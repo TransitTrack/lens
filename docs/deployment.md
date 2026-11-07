@@ -232,13 +232,13 @@ docker build --build-context transittrack-docs=docs -t lens-web:local web/
 The `transittrack-docs` build context bakes this `docs/` directory into the
 dashboard's in-app Docs pages (rendered by Nuxt Content at build time).
 
-`web/Dockerfile` is a two-stage build: `node:22-alpine` runs `pnpm run
+`web/Dockerfile` is a two-stage build: `node:24-alpine` runs `pnpm run
 generate` (the app is client-side-only — `ssr: false` — so this produces a
 fully static bundle in `.output/public/`, no Node runtime needed at
-runtime), and `nginx:alpine` serves it. The Apollo client calls a relative
-`/graphql` URL (see `app/plugins/apollo.client.ts`), which a static bundle
+runtime), and `nginx:alpine` serves it. The generated REST client calls relative
+`/api/v1` URLs, which a static bundle
 has no way to point at a backend host itself — nginx fills that gap via
-`web/nginx.conf.template`, reverse-proxying `/graphql` (and the read-only `/actuator/configprops`
+`web/nginx.conf.template`, reverse-proxying `/api` (and the read-only `/actuator/configprops`
 behind Docs → Live configuration) to `${BACKEND_URL}`.
 That template is processed by the official `nginx` image's own
 env-substitution-on-startup feature (any `*.template` under

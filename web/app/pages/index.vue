@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useFeedsQuery } from '~~/generated/graphql'
+import { useFeedsQuery } from '~/composables/useRestGtfs'
+
 
 definePageMeta({ layout: false })
 

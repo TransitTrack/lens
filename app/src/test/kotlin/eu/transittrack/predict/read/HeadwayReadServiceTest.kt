@@ -54,6 +54,7 @@ import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePrediction
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.rest.generated.model.PredictionAlgorithm as ApiPredictionAlgorithm
 
 /**
  * `schedule-sample` facts used here: trips T1 and T2 are both route RA / direction 0 / service WK,
@@ -239,7 +240,8 @@ class HeadwayReadServiceTest(
             }
             vehiclePredictions.saveAll(rows)
             val board = read.stopPredictions("a", "S3", "RA", 0)
-            assertThat(board.map { it.predictedArrival }).isEqualTo(listOf(60L, 600L).map { clock.instant().plusSeconds(it).toString() })
+            assertThat(board.map { it.predictedArrival })
+                .isEqualTo(listOf(60L, 600L).map { clock.instant().plusSeconds(it).toString() })
             assertThat(headwayReadService.headway("a", "S3", "RA", 0).waitSec).isEqualTo(60)
         } finally {
             original.forEach { (row, vehicleId, arrival) ->
@@ -322,8 +324,8 @@ class HeadwayReadServiceTest(
         try {
             val summaries =
                 read.predictionAccuracy("a", null, 7, "RA", 0, DayType.WEEKDAY, TimeBand.MORNING_PEAK).associateBy { it.algorithm }
-            val schedule = summaries.getValue(PredictionAlgorithm.SCHEDULE_ADHERENCE)
-            val kalman = summaries.getValue(PredictionAlgorithm.KALMAN)
+            val schedule = summaries.getValue(ApiPredictionAlgorithm.SCHEDULE_ADHERENCE)
+            val kalman = summaries.getValue(ApiPredictionAlgorithm.KALMAN)
             assertThat(schedule.eligibleCount).isEqualTo(3)
             assertThat(schedule.sampleCount).isEqualTo(2)
             assertThat(schedule.predictionCoverage).isEqualTo(2.0 / 3)

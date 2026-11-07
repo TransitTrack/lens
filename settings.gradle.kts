@@ -4,6 +4,7 @@ pluginManagement {
     val springDependencyManagementVersion = providers.gradleProperty("springDependencyManagementVersion").get()
     val spotlessVersion = providers.gradleProperty("spotlessVersion").get()
     val protobufPluginVersion = providers.gradleProperty("protobufPluginVersion").get()
+    val openApiGeneratorVersion = providers.gradleProperty("openApiGeneratorVersion").get()
     val kotlinxBenchmarkVersion = providers.gradleProperty("kotlinxBenchmarkVersion").get()
 
     plugins {
@@ -16,6 +17,7 @@ pluginManagement {
         id("com.diffplug.spotless") version spotlessVersion
         id("com.google.protobuf") version protobufPluginVersion
         id("org.jetbrains.kotlinx.benchmark") version kotlinxBenchmarkVersion
+        id("org.openapi.generator") version openApiGeneratorVersion
     }
 }
 

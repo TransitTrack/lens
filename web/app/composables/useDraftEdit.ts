@@ -1,4 +1,4 @@
-import type { DraftEditResultFFragment } from '~~/generated/graphql'
+import type { DraftEditResultFFragment } from '~/types/restViews'
 import type { useDraftEditor } from '~/composables/useDraftEditor'
 
 type Editor = ReturnType<typeof useDraftEditor>

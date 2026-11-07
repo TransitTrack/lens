@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useExploreStopsQuery } from '~/composables/useRestGtfs'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem, TableColumn } from '@nuxt/ui'
@@ -9,7 +10,7 @@ import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExplorePatterns } from '~/composables/useExplorePatterns'
-import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
+import type { ExploreStopsQuery } from '~/types/restViews'
 import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const { t, locale } = useI18n()

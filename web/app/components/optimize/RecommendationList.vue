@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {useOptimizationRecommendationsQuery, type OptimizationRecommendationsQuery} from '~~/generated/graphql'
+import { useOptimizationRecommendationsQuery } from '~/composables/useRestOptimization'
+import type { OptimizationRecommendationsQuery } from '~/types/restViews'
 import {secToHm} from '~/utils/gtfs'
 import {formatOptimizationKind, formatSignedDuration} from '~/utils/optimizationPresentation'
 

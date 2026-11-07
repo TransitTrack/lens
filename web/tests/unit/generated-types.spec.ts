@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import type { VehiclesQuery } from '../../generated/graphql'
+import type { Vehicle } from '../../generated/rest'
 
-describe('generated graphql types', () => {
-  it('shapes a Vehicles query result', () => {
-    const sample: VehiclesQuery = {
-      vehicles: [
+describe('generated REST types', () => {
+  it('shapes a vehicle response', () => {
+    const sample: Vehicle[] = [
         {
           vehicleId: 'v1',
           label: null,
@@ -16,8 +15,7 @@ describe('generated graphql types', () => {
           stopPathIndex: 2,
           speedMps: 8.5,
         },
-      ],
-    }
-    expect(sample.vehicles[0]?.vehicleId).toBe('v1')
+    ]
+    expect(sample[0]?.vehicleId).toBe('v1')
   })
 })

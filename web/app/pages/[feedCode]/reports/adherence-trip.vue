@@ -1,13 +1,9 @@
 <script setup lang="ts">
+import { useExploreRoutesQuery, useTripsByRouteQuery } from '~/composables/useRestGtfs'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type TripAdherenceQuery,
-  type TripsByRouteQuery,
-  useExploreRoutesQuery,
-  useTripAdherenceQuery,
-  useTripsByRouteQuery,
-} from '~~/generated/graphql'
+import type { TripAdherenceQuery, TripsByRouteQuery } from '~/types/restViews'
+import { useTripAdherenceQuery } from '~/composables/useRestAdherence'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'

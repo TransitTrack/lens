@@ -1,7 +1,7 @@
 # Vehicle dashboard
 
 A Nuxt 4 / Vue 3 / NuxtUI live dashboard for AVL-matched vehicles, reading the
-`transittrack` backend's GraphQL API.
+`transittrack` backend's OpenAPI REST API.
 
 ## Prerequisites
 
@@ -13,15 +13,13 @@ A Nuxt 4 / Vue 3 / NuxtUI live dashboard for AVL-matched vehicles, reading the
 ## Development
 
 ```bash
-npm install
-npm run codegen   # regenerate generated/graphql.ts from ../app/src/main/resources/graphql/*.graphqls
-npm run dev       # starts on :3000, proxies /graphql to :8080 (override via NUXT_BACKEND_URL)
+pnpm install
+pnpm dev       # starts on :3000, proxies /api to :8080 (override via NUXT_BACKEND_API_URL)
 ```
 
 This is a client-side-only app (`ssr: false` in `nuxt.config.ts`) — there is no
 server-rendered data-fetching path, by design (see the spec's architecture
-section). All GraphQL queries run in the browser via Apollo Client, polling on
-an interval rather than subscribing.
+section). The generated REST client runs in the browser and polls on an interval.
 
 ## Code layout
 
@@ -43,8 +41,8 @@ pure, testable functions that take `t` / the locale as arguments.
 ## Testing
 
 ```bash
-npm run test       # Vitest: unit + component tests, against MSW-mocked GraphQL
-npm run test:e2e   # Playwright: one smoke flow, against a real dev server + network-mocked GraphQL
+npm run test       # Vitest: unit + component tests, against MSW-mocked REST endpoints
+npm run test:e2e   # Playwright: one smoke flow, against a real dev server + network-mocked REST endpoints
 npm run lint
 ```
 
@@ -89,10 +87,10 @@ glossary in `i18n/glossary.json`). Conventions:
 
 ## Regenerating types
 
-Run `npm run codegen` whenever a `.graphql` operation file under
-`app/graphql/` changes, or whenever the backend's
-`app/src/main/resources/graphql/*.graphqls` schema changes. The output
-(`generated/graphql.ts`) is checked in.
+The OpenAPI contract is `../api-contract/openapi.yaml`. From the repository root,
+run `./gradlew :app:generateRestClient` after changing it. The generated TypeScript
+client in `generated/rest/` is checked in; backend interfaces and models are
+generated during the Gradle build.
 
 ## Known limitations / deferred
 

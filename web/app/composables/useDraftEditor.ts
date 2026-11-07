@@ -1,12 +1,6 @@
-import {
-  useDraftDetailQuery,
-  useDraftEditsQuery,
-  useClaimDraftEditorMutation,
-  useRenewDraftEditorMutation,
-  useReleaseDraftEditorMutation,
-  type DraftDetailQuery,
-  type DraftEditResultFFragment,
-} from '~~/generated/graphql'
+import { useDraftDetailQuery, useDraftEditsQuery } from '~/composables/useRestDraftQueries'
+import { useClaimDraftEditorMutation, useReleaseDraftEditorMutation, useRenewDraftEditorMutation } from '~/composables/useRestDraftMutations'
+import type { DraftDetailQuery, DraftEditResultFFragment } from '~/types/restViews'
 import { useEditorIdentity } from './useEditorIdentity'
 
 export type DraftDetail = NonNullable<DraftDetailQuery['draft']>
@@ -20,9 +14,9 @@ interface MutateVars {
   expectedVersion: number
 }
 
-/** Pull the GraphQL error code out of whatever an Apollo call failed with. */
+/** Read the stable application code from a REST problem response. */
 function errorCode(e: unknown): string | undefined {
-  const code = graphQlErrorsOf(e)[0]?.extensions?.code
+  const code = restProblemOf(e)?.code
   return typeof code === 'string' ? code : undefined
 }
 

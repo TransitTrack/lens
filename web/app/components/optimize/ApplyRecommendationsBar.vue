@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {useApplyOptimizationRecommendationsMutation} from '~~/generated/graphql'
+import { useApplyOptimizationRecommendationsMutation } from '~/composables/useRestOptimization'
+
 import {useEditorIdentity} from '~/composables/useEditorIdentity'
 import {useFeeds} from '~/composables/useFeeds'
 
@@ -25,10 +26,6 @@ watch(
 
 const {mutate: apply, loading: applying} = useApplyOptimizationRecommendationsMutation()
 
-interface OptimizeGraphQlError extends GraphQlErrorLike {
-  extensions?: { code?: string; conflictingRecommendationIds?: string[] } | null
-}
-const extractGraphQlErrors = (e: unknown) => graphQlErrorsOf<OptimizeGraphQlError>(e)
 
 async function submit() {
   const name = editor.value.trim()
@@ -53,9 +50,9 @@ async function submit() {
     })
     emit('applied')
   } catch (e) {
-    const first = extractGraphQlErrors(e)[0]
-    if (first?.extensions?.code === 'RECOMMENDATION_CONFLICT') {
-      const ids = (first.extensions.conflictingRecommendationIds ?? []).map(String)
+    const first = restProblemOf(e)
+    if (first?.code === 'RECOMMENDATION_CONFLICT') {
+      const ids = (first.conflictingRecommendationIds ?? []).map(String)
       emit('conflict', ids)
       toast.add({
         title: t('optimize.conflictTitle'),

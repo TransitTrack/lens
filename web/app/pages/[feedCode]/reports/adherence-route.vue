@@ -1,11 +1,9 @@
 <script setup lang="ts">
+import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type RouteAdherenceQuery,
-  useExploreRoutesQuery,
-  useRouteAdherenceQuery,
-} from '~~/generated/graphql'
+import type { RouteAdherenceQuery } from '~/types/restViews'
+import { useRouteAdherenceQuery } from '~/composables/useRestAdherence'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'

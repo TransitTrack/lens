@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useFeedReadinessQuery } from '~/composables/useRestDetails'
 import type { NavigationMenuItem } from '@nuxt/ui'
 import UserMenu from '~/components/shell/UserMenu.vue'
 import FeedSwitcher from '~/components/shell/FeedSwitcher.vue'
@@ -8,7 +9,7 @@ import { useFeeds } from '~/composables/useFeeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
 import { docSearchItems, type DocSearchSection } from '~/utils/docs'
-import { useFeedReadinessQuery } from '~~/generated/graphql'
+
 
 useFeedAlerts()
 const { t } = useI18n()

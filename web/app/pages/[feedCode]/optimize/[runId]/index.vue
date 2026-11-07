@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {useOptimizationRunQuery} from '~~/generated/graphql'
+import { useOptimizationRunQuery } from '~/composables/useRestOptimization'
+
 import AppPage from '~/components/shell/AppPage.vue'
 import RecommendationList from '~/components/optimize/RecommendationList.vue'
 import ApplyRecommendationsBar from '~/components/optimize/ApplyRecommendationsBar.vue'

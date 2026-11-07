@@ -1,7 +1,0 @@
-query Stops($feedCode: String!) {
-  stops(feedCode: $feedCode) {
-    stopId
-    stopName
-    stopCode
-  }
-}

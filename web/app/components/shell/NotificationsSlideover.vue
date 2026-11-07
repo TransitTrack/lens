@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { useAvlFeedsQuery } from '~~/generated/graphql'
+import { useAvlFeedsQuery } from '~/composables/useRestGtfs'
+
 import { useDashboard } from '~/composables/useDashboard'
 
 const { t } = useI18n()

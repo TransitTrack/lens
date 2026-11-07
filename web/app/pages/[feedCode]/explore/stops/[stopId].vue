@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useStopDetailQuery } from '~/composables/useRestDetails'
+import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
-import { gql } from '@apollo/client'
-import { useApolloClient } from '@vue/apollo-composable'
+import { GTFSApi, ScheduleApi } from '~~/generated/rest'
+import { fetchAllPages } from '~/utils/restPagination'
 import AppPage from '~/components/shell/AppPage.vue'
 import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
 import StopsMap from '~/components/explore/StopsMap.vue'
@@ -11,7 +13,7 @@ import BarChart from '~/components/charts/BarChart.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useExplorePatterns } from '~/composables/useExplorePatterns'
-import { useStopDetailQuery, useExploreCalendarQuery } from '~~/generated/graphql'
+
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 import {
   servingPatterns,
@@ -28,7 +30,8 @@ const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
-const { client } = useApolloClient()
+const scheduleApi = new ScheduleApi()
+const gtfsApi = new GTFSApi()
 const stopId = computed(() => String(route.params.stopId))
 
 const { result: stopResult, loading: stopLoading } = useStopDetailQuery(() => ({
@@ -80,38 +83,36 @@ const departuresOpen = ref(false)
 
 watch(
   [serving, selectedFeedCode],
-  async ([list, fc]) => {
+  async ([list, fc], _previous, onCleanup) => {
     patternTrips.value = []
-    if (!fc || list.length === 0) return
+    if (!fc || list.length === 0) { tripsLoading.value = false; return }
+    const controller = new AbortController()
+    onCleanup(() => controller.abort())
     const keys = list.slice(0, 30).map((s) => s.pattern.patternKey)
-    const body = keys
-      .map(
-        (k, i) =>
-          `p${i}: tripPattern(feedCode: $fc, patternKey: ${JSON.stringify(k)}) { patternKey trips { startTimeSec serviceId scheduleTimes { stopPathIndex departureSec } } }`,
-      )
-      .join('\n')
     tripsLoading.value = true
     try {
-      const { data } = await client.query<
-        Record<
-          string,
-          {
-            patternKey: string
-            trips: {
-              startTimeSec: number | null
-              serviceId: string
-              scheduleTimes: { stopPathIndex: number; departureSec: number | null }[]
-            }[]
-          } | null
-        >
-      >({
-        query: gql`query StopPatternTrips($fc: String!) { ${body} }`,
-        variables: { fc },
-        fetchPolicy: 'cache-first',
-      })
-      patternTrips.value = Object.values(data ?? {}).filter((v): v is NonNullable<typeof v> => !!v)
+      const patterns = await Promise.all(keys.map(async (patternKey) => {
+        const signal = controller.signal
+        const [trips, times] = await Promise.all([
+          fetchAllPages((offset, limit) => gtfsApi.tripsRaw({ feedCode: fc, patternKey, offset, limit }, { signal })),
+          fetchAllPages((offset, limit) => scheduleApi.scheduleTimesRaw({ feedCode: fc, patternKey, offset, limit }, { signal })),
+        ])
+        const timesByTrip = Map.groupBy(times, (time) => time.tripId)
+        return {
+          patternKey,
+          trips: trips.map((trip) => ({
+            startTimeSec: trip.startTimeSec ?? null,
+            serviceId: trip.serviceId,
+            scheduleTimes: (timesByTrip.get(trip.tripId) ?? []).map((time) => ({
+              stopPathIndex: time.stopPathIndex,
+              departureSec: time.departureSec ?? null,
+            })),
+          })),
+        }
+      }))
+      if (!controller.signal.aborted) patternTrips.value = patterns
     } finally {
-      tripsLoading.value = false
+      if (!controller.signal.aborted) tripsLoading.value = false
     }
   },
   { immediate: true },
