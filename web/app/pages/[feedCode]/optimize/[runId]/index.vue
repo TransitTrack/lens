@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {useOptimizationRunQuery} from '~~/generated/graphql'
-import AppPage from '~/components/AppPage.vue'
+import AppPage from '~/components/shell/AppPage.vue'
 import RecommendationList from '~/components/optimize/RecommendationList.vue'
 import ApplyRecommendationsBar from '~/components/optimize/ApplyRecommendationsBar.vue'
 import NewOptimizationRunDialog from '~/components/optimize/NewOptimizationRunDialog.vue'
@@ -33,10 +33,10 @@ const TERMINAL_STATES = ['SUCCEEDED', 'FAILED']
  * reaches a terminal state, so a finished run doesn't keep re-fetching every second forever. */
 const polling = ref(true)
 
-const {result, loading} = useOptimizationRunQuery(
-  () => ({id: runId.value}),
-  () => ({pollInterval: polling.value ? 1000 : 0}),
-)
+const {result, loading} = useOptimizationRunQuery(() => ({
+  variables: { id: runId.value },
+  pollInterval: polling.value ? 1000 : 0,
+}))
 
 const run = computed(() => result.value?.optimizationRun ?? null)
 const isTerminal = computed(() => !!run.value && TERMINAL_STATES.includes(run.value.state))

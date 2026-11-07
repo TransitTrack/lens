@@ -36,10 +36,3 @@ export function formatDottedTimestamp(date: Date, appLocale: string | undefined,
     parts.find((part) => part.type === type)?.value ?? ''
   return `${value('day')}.${value('month')}.${value('year')}, ${value('hour')}:${value('minute')}:${value('second')}`
 }
-
-/** `Tue, 03.11.2026`: localised short weekday plus a fixed dd.mm.yyyy date. */
-export function formatCalendarDate(date: Date, appLocale: string | undefined): string {
-  const weekday = new Intl.DateTimeFormat(intlLocale(appLocale), { weekday: 'short' }).format(date)
-  const twoDigits = (value: number) => String(value).padStart(2, '0')
-  return `${weekday}, ${twoDigits(date.getDate())}.${twoDigits(date.getMonth() + 1)}.${date.getFullYear()}`
-}

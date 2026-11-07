@@ -5,14 +5,15 @@ const config: CodegenConfig = {
   documents: ['app/graphql/**/*.graphql'],
   generates: {
     'generated/graphql.ts': {
-      plugins: ['typescript', 'typescript-operations', 'typescript-vue-apollo'],
+      plugins: ['typescript', 'typescript-operations', 'typed-document-node'],
       config: {
-        withCompositionFunctions: true,
-        vueApolloComposableImportFrom: '@vue/apollo-composable',
         // Enums as string-literal unions so they compare cleanly against string
         // values; the postinstall dedupe script drops the duplicate declaration
         // the operations plugin emits for the same types.
         enumsAsTypes: true,
+        // Apollo Client 4 re-exports TypedDocumentNode, so no extra runtime dependency.
+        documentNodeImport: '@apollo/client#TypedDocumentNode',
+        useTypeImports: true,
         scalars: {
           JSON: 'any',
           Long: 'number',

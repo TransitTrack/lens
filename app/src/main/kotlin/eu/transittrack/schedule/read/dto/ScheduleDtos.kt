@@ -1,5 +1,6 @@
 package eu.transittrack.schedule.read.dto
 
+import eu.transittrack.geo.json.toGeoJsonBase64
 import eu.transittrack.gtfs.api.dto.ExtentDto
 import eu.transittrack.schedule.model.Block
 import eu.transittrack.schedule.model.ScheduleTime
@@ -19,6 +20,8 @@ data class TripPatternDto(
     val tripCount: Int,
     val extent: ExtentDto?,
     val id: Long,
+    /** The pattern's GeoJSON `LineString`, gzip-compressed then base64-encoded; null if it has no usable geometry. */
+    val geometry: String? = null,
 ) {
     companion object {
         fun of(
@@ -38,6 +41,7 @@ data class TripPatternDto(
             e.tripCount,
             ExtentDto.of(e.extent),
             e.id!!,
+            e.geometry?.toGeoJsonBase64(),
         )
     }
 }
@@ -50,7 +54,6 @@ data class StopPathDto(
     val stopId: String,
     val stopSeq: Int,
     val lengthM: Double,
-    val pathGeometry: Any?,
     val pickupType: Int?,
     val dropOffType: Int?,
     val waitStop: Boolean,
@@ -65,7 +68,6 @@ data class StopPathDto(
             e: StopPath,
             revisionId: Long,
             feedCode: String,
-            geometry: Any?,
             typicalTravelTimeSec: Int?,
             typicalDwellTimeSec: Int?,
         ) = StopPathDto(
@@ -76,7 +78,6 @@ data class StopPathDto(
             e.stopId,
             e.stopSeq,
             e.lengthM,
-            geometry,
             e.pickupType,
             e.dropOffType,
             e.waitStop,

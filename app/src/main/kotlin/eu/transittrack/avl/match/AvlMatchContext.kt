@@ -5,7 +5,6 @@ import java.time.ZoneId
 
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Point
 import eu.transittrack.avl.match.cache.CachedAgencyReader
 import eu.transittrack.avl.match.cache.CachedBlockTripReader
 import eu.transittrack.avl.match.cache.CachedPatternGeometryReader
@@ -15,6 +14,7 @@ import eu.transittrack.avl.match.cache.CachedStopPathReader
 import eu.transittrack.avl.match.cache.CachedTripPatternReader
 import eu.transittrack.avl.match.cache.CachedTripReader
 import eu.transittrack.avl.model.AvlFeed
+import eu.transittrack.geo.Point
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.revision.RevisionService
@@ -81,7 +81,7 @@ class AvlMatchContext(
         val pattern = patternReader.byId(revisionId, tripPatternId) ?: return false
         val extent = pattern.extent
 
-        return !extent.isEmpty && extent.isWithinDistance(p, distanceM)
+        return extent != null && extent.isWithinDistance(p, distanceM)
     }
 }
 
@@ -127,7 +127,6 @@ private fun StopPath.toRef() =
         routeId = routeId,
         stopSeq = stopSeq,
         lengthM = lengthM,
-        pathGeometry = pathGeometry,
         pickupType = pickupType,
         dropOffType = dropOffType,
         waitStop = waitStop,

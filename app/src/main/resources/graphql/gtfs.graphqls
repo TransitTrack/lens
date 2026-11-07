@@ -274,7 +274,14 @@ type CalendarDate { serviceId: String!, date: String!, exceptionType: Int }
 type ShapePoint { lat: Float, lon: Float, sequence: Int!, distTraveled: Float }
 
 "GTFS shapes.txt: a trip's physical path, summarized from its points."
-type Shape { shapeId: String!, pointCount: Int!, lengthM: Float, points: [ShapePoint!]! }
+type Shape {
+    shapeId: String!
+    pointCount: Int!
+    lengthM: Float
+    points: [ShapePoint!]!
+    "The whole shape as a GeoJSON LineString (coordinates are [lng, lat]), gzip-compressed then base64-encoded; null if it has fewer than two valid points. Prefer this over `points` for drawing."
+    geometry: String
+}
 
 "GTFS frequencies.txt: a headway-based (rather than fixed-time) scheduling window for a trip. exactTimes: 0=frequency-based (approximate), 1=schedule-based (exact)."
 type Frequency { tripId: String!, startTime: String!, endTime: String, headwaySecs: Int, exactTimes: Int }

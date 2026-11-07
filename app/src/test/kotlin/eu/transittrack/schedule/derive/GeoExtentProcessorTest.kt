@@ -91,7 +91,7 @@ class GeoExtentProcessorTest(
 
         val a = agencies.findByAgencyId(rev, "A")!!
         assertThat(a.extent!!.minLat).isEqualTo(9.0)
-        assertThat(a.extent!!.maxLon).isEqualTo(30.0)
+        assertThat(a.extent!!.maxLng).isEqualTo(30.0)
     }
 
     @Test

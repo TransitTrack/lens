@@ -3,7 +3,7 @@ package eu.transittrack.avl.match
 import java.time.LocalDate
 import java.time.ZoneId
 
-import eu.transittrack.Point
+import eu.transittrack.geo.Point
 import eu.transittrack.schedule.model.BlockTripRef
 import eu.transittrack.schedule.model.StopPathRef
 import eu.transittrack.schedule.model.TripRef

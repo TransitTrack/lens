@@ -21,6 +21,9 @@ import org.springframework.context.annotation.Primary
 import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
+import eu.transittrack.avl.model.AvlReportRow
+import eu.transittrack.avl.model.MatchStatus
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -74,7 +77,7 @@ class FullInferenceMatcherTest(
         lon: Double,
         ts: Instant,
     ): AvlReportView =
-        AvlReportView(
+        AvlReportRow(
             id = 1L,
             feedCode = "f1",
             vehicleId = "v",
@@ -96,14 +99,16 @@ class FullInferenceMatcherTest(
             currentStatus = null,
             occupancyStatus = null,
             congestionLevel = null,
+            matchStatus = MatchStatus.PENDING,
+            matchedAt = null,
+            createdAt = Instant.EPOCH,
         )
 
     private fun prevOnTrip(
         tripRowId: Long,
         alongM: Double,
     ): VehicleStateView =
-        VehicleStateView(
-            id = null,
+        VehicleState(
             feedCode = "f1",
             vehicleId = "v",
             vehicleLabel = null,
@@ -125,6 +130,7 @@ class FullInferenceMatcherTest(
             scheduleAdherenceSec = null,
             snappedLat = null,
             snappedLon = null,
+            updatedAt = Instant.EPOCH,
         )
 
     private fun ts0805() =

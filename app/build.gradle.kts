@@ -311,6 +311,7 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.addAll(
             "-Xjsr305=strict",
+            "-Xreturn-value-checker=check",
             //            "-Xannotation-default-target=param-property"
         )
     }

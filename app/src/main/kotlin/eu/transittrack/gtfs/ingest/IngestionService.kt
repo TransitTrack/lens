@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service
 
 import eu.transittrack.GtfsProperties
 import eu.transittrack.ParseException
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -23,6 +24,7 @@ import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.Shape
 import eu.transittrack.gtfs.model.ShapePoint
 import eu.transittrack.gtfs.model.ShapeRepository
+import eu.transittrack.gtfs.model.compactLineGeometry
 import eu.transittrack.gtfs.parse.GtfsCsv
 import eu.transittrack.gtfs.parse.GtfsFileDef
 import eu.transittrack.gtfs.parse.GtfsFileRegistry
@@ -35,7 +37,6 @@ import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.validate.GtfsFeedLoader
 import eu.transittrack.gtfs.validate.GtfsValidationException
-import eu.transittrack.haversineMeters
 import eu.transittrack.schedule.derive.DerivationService
 import eu.transittrack.util.observability.TransitTrackMetrics
 
@@ -313,7 +314,13 @@ class IngestionService(
         val aggregates =
             perShape.map { (shapeId, pts) ->
                 val ordered = pts.sortedBy { it.shapePtSequence }
-                Shape(revisionId, shapeId, ordered.size, polylineLengthMeters(ordered))
+                Shape(
+                    revisionId,
+                    shapeId,
+                    ordered.size,
+                    polylineLengthMeters(ordered),
+                    compactLineGeometry(ordered.map { it.shapePtLat to it.shapePtLon }),
+                )
             }
         writer.write(aggregates)
 
@@ -395,7 +402,7 @@ class IngestionService(
             val aLon = a.shapePtLon ?: return null
             val bLat = b.shapePtLat ?: return null
             val bLon = b.shapePtLon ?: return null
-            meters += haversineMeters(aLat, aLon, bLat, bLon)
+            meters += haversineDistance(aLat, aLon, bLat, bLon)
         }
         return meters
     }

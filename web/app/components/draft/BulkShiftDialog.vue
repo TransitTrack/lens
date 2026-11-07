@@ -43,16 +43,10 @@ watch(open, (isOpen) => {
   }
 })
 
-const { result: patternsResult } = useDraftPatternsQuery(
-  () => ({
-    feedCode: props.feedCode,
-    routeId: props.routeId,
-    revisionId: props.editor.draft.value?.id ?? '',
-  }),
-  () => ({
-    enabled: !!props.routeId && !!props.editor.draft.value?.id && !props.derivationStale && open.value,
-  }),
-)
+const { result: patternsResult } = useDraftPatternsQuery(() => ({
+  variables: { feedCode: props.feedCode, routeId: props.routeId, revisionId: props.editor.draft.value?.id ?? '' },
+  enabled: !!props.routeId && !!props.editor.draft.value?.id && !props.derivationStale && open.value,
+}))
 const patternItems = computed(() =>
   (patternsResult.value?.tripPatterns ?? []).map((p) => ({
     label: p.headsign ?? p.patternKey,
@@ -119,7 +113,7 @@ async function submit() {
   try {
     const result = await run(
       (v) =>
-        bulkShift({
+        bulkShift({ variables: {
           input: {
             draftId: v.draftId,
             editor: v.editor,
@@ -131,7 +125,7 @@ async function submit() {
             windowToSec: windowToSec.value,
             deltaSec: deltaSec.value as number,
           },
-        }),
+        } }),
       'bulkShiftTrips',
     )
     if (result) open.value = false

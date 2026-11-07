@@ -8,9 +8,9 @@ import {
   useTripAdherenceQuery,
   useTripsByRouteQuery,
 } from '~~/generated/graphql'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { isValidAdherenceRange } from '~/utils/adherenceReport'
@@ -64,10 +64,10 @@ const {
   result: routesResult,
   loading: routesLoading,
   error: routesError,
-} = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+} = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
@@ -97,10 +97,10 @@ watch(
   },
 )
 
-const { result: tripsResult, loading: tripsLoading } = useTripsByRouteQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: filters.routeId ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value && !!filters.routeId }),
-)
+const { result: tripsResult, loading: tripsLoading } = useTripsByRouteQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', routeId: filters.routeId ?? '' },
+  enabled: !!selectedFeedCode.value && !!filters.routeId,
+}))
 
 type Trip = TripsByRouteQuery['trips'][number]
 
@@ -145,18 +145,10 @@ const {
   result: adherenceResult,
   loading: adherenceLoading,
   error: adherenceError,
-} = useTripAdherenceQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    tripId: submitted.value?.tripId ?? '',
-    startDate: submitted.value?.startDate ?? '',
-    endDate: submitted.value?.endDate ?? '',
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useTripAdherenceQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', tripId: submitted.value?.tripId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = TripAdherenceQuery['tripAdherence'][number]
 
@@ -282,7 +274,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
     :description="$t('reports.trip.description')"
   >
     <template #actions>
-      <NavbarActions />
+      <PollControl />
     </template>
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.adherence')" />

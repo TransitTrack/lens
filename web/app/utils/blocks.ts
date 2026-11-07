@@ -79,11 +79,6 @@ export interface TimelineTick {
   endpoint: boolean
 }
 
-/** Keep the trip lane legible without letting it dominate a tall timeline. */
-export function timelineBarHeight(height: number): number {
-  return Math.min(34, Math.max(18, height - 52))
-}
-
 export interface GanttRow {
   trip: TimelineSegment
   layoverAfter: TimelineSegment | null

@@ -99,13 +99,13 @@ class StopTimeAnalyzerTest(
     ) {
         stopPaths.save(
             StopPath(
-                revisionId, patternId, 0, "S1", "R1", 1, 0.0, null, null, null, waitStop = true,
+                revisionId, patternId, 0, "S1", "R1", 1, 0.0, null, null, waitStop = true,
                 scheduleAdherenceStop = true, layoverStop = true, breakTimeSec = null,
             ),
         )
         stopPaths.save(
             StopPath(
-                revisionId, patternId, 1, "S2", "R1", 2, 1000.0, null, null, null, waitStop = false,
+                revisionId, patternId, 1, "S2", "R1", 2, 1000.0, null, null, waitStop = false,
                 scheduleAdherenceStop = true, layoverStop = false, breakTimeSec = null,
             ),
         )
@@ -117,19 +117,19 @@ class StopTimeAnalyzerTest(
     ) {
         stopPaths.save(
             StopPath(
-                revisionId, patternId, 0, "S1", "R1", 1, 0.0, null, null, null, waitStop = true,
+                revisionId, patternId, 0, "S1", "R1", 1, 0.0, null, null, waitStop = true,
                 scheduleAdherenceStop = true, layoverStop = true, breakTimeSec = null,
             ),
         )
         stopPaths.save(
             StopPath(
-                revisionId, patternId, 1, "S2", "R1", 2, 1000.0, null, null, null, waitStop = false,
+                revisionId, patternId, 1, "S2", "R1", 2, 1000.0, null, null, waitStop = false,
                 scheduleAdherenceStop = true, layoverStop = false, breakTimeSec = null,
             ),
         )
         stopPaths.save(
             StopPath(
-                revisionId, patternId, 2, "S3", "R1", 3, 2000.0, null, null, null, waitStop = false,
+                revisionId, patternId, 2, "S3", "R1", 3, 2000.0, null, null, waitStop = false,
                 scheduleAdherenceStop = true, layoverStop = false, breakTimeSec = null,
             ),
         )

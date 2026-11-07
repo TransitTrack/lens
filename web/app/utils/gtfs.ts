@@ -1,4 +1,5 @@
 import { displayLocale } from './intlLocale'
+import { decodeGeoJson } from './geojson'
 
 const KNOWN_ROUTE_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7, 11, 12])
 
@@ -86,81 +87,31 @@ export type LngLat = [number, number]
 
 interface StopPathLike {
   stopPathIndex: number
-  pathGeometry?: unknown
   stop?: { stopName?: string | null, stopLat?: number | null, stopLon?: number | null } | null
   stopId?: string
 }
 
-/** Concatenate a pattern's per-segment pathGeometry ([lon,lat] arrays) into one line. */
-export function patternLine(stopPaths: StopPathLike[]): LngLat[] {
+/**
+ * A pattern's `geometry` (GeoJSON LineString, coordinates [lon,lat], gzip + base64 encoded by the
+ * backend) as a plain line; [] if absent or undecodable.
+ */
+export function geometryLine(encoded: string | null | undefined): LngLat[] {
+  if (!encoded) return []
+  let coords: unknown
+  try {
+    coords = decodeGeoJson<{ coordinates?: unknown }>(encoded).coordinates
+  } catch {
+    return []
+  }
+  if (!Array.isArray(coords)) return []
   const out: LngLat[] = []
-  for (const p of [...stopPaths].sort((a, b) => a.stopPathIndex - b.stopPathIndex)) {
-    const geom = p.pathGeometry
-    if (!Array.isArray(geom)) continue
-    for (const pt of geom) {
-      if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
-        const last = out[out.length - 1]
-        if (!last || last[0] !== pt[0] || last[1] !== pt[1]) out.push([pt[0], pt[1]])
-      }
+  for (const pt of coords) {
+    if (Array.isArray(pt) && typeof pt[0] === 'number' && typeof pt[1] === 'number') {
+      const last = out[out.length - 1]
+      if (!last || last[0] !== pt[0] || last[1] !== pt[1]) out.push([pt[0], pt[1]])
     }
   }
   return out
-}
-
-function perpendicularDistanceSq(p: LngLat, a: LngLat, b: LngLat): number {
-  const [x, y] = p
-  const [x1, y1] = a
-  const [x2, y2] = b
-  const dx = x2 - x1
-  const dy = y2 - y1
-  const lenSq = dx * dx + dy * dy
-  if (lenSq === 0) {
-    const ex = x - x1
-    const ey = y - y1
-    return ex * ex + ey * ey
-  }
-  const t = ((x - x1) * dx + (y - y1) * dy) / lenSq
-  const cx = x1 + t * dx
-  const cy = y1 + t * dy
-  const ex = x - cx
-  const ey = y - cy
-  return ex * ex + ey * ey
-}
-
-/**
- * Ramer–Douglas–Peucker line simplification. Route shapes come back from GTFS
- * shape points at raw GPS resolution — mostly near-collinear points along
- * straight road segments — so a small tolerance (in degrees; ~0.00003 is
- * roughly 3m at mid latitudes) drops the majority of points with no visible
- * difference at the zoom levels these lines are actually viewed at, while
- * cutting the JS building + GeoJSON-to-worker transfer cost proportionally.
- */
-export function simplifyLine(points: LngLat[], toleranceDeg: number): LngLat[] {
-  if (points.length <= 2) return points
-  const toleranceSq = toleranceDeg * toleranceDeg
-  const keep = new Uint8Array(points.length)
-  keep[0] = 1
-  keep[points.length - 1] = 1
-
-  const stack: [number, number][] = [[0, points.length - 1]]
-  while (stack.length) {
-    const [start, end] = stack.pop()!
-    let maxDistSq = 0
-    let maxIndex = -1
-    for (let i = start + 1; i < end; i++) {
-      const distSq = perpendicularDistanceSq(points[i]!, points[start]!, points[end]!)
-      if (distSq > maxDistSq) {
-        maxDistSq = distSq
-        maxIndex = i
-      }
-    }
-    if (maxDistSq > toleranceSq && maxIndex !== -1) {
-      keep[maxIndex] = 1
-      stack.push([start, maxIndex], [maxIndex, end])
-    }
-  }
-
-  return points.filter((_, i) => keep[i])
 }
 
 /** Pattern stops as a GeoJSON FeatureCollection (all marked "upcoming"). */

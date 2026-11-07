@@ -21,10 +21,9 @@ import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatch
-import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.bearingDegrees
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.Edge
+import eu.transittrack.geo.Point
 import eu.transittrack.util.concurrency.FeedLockCoordinator
 import eu.transittrack.util.concurrency.FeedReconciler
 import eu.transittrack.util.observability.TransitTrackMetrics
@@ -113,9 +112,8 @@ class AvlMatchProcessor(
             // Advanced after every report, so a multi-report batch matches each report against its
             // immediate predecessor's outcome (sequential constraint, block advance, failure count),
             // not against the state from before the whole batch.
-            var prevState = prev?.toView()
-            var cursorLat = prev?.lat
-            var cursorLon = prev?.lon
+            var prevState: VehicleStateView? = prev
+            var prevPoint = prev?.point
             var cursorTs = prev?.reportTs
 
             // oldest-first so the sequential constraint sees a vehicle's reports in order
@@ -126,12 +124,11 @@ class AvlMatchProcessor(
                     // known position when the feed itself doesn't report them. The cursor walks the
                     // batch's own reports (not just `prev`) so a multi-report batch derives each
                     // report's kinematics from its immediate predecessor, not a stale starting point.
-                    report.fillMissingKinematics(cursorLat, cursorLon, cursorTs)
-                    cursorLat = report.lat
-                    cursorLon = report.lon
+                    report.fillMissingKinematics(prevPoint, cursorTs)
+                    prevPoint = report.point
                     cursorTs = report.ts
 
-                    val match = matcher.match(report.toView(), prevState, ctx)
+                    val match = matcher.match(report, prevState, ctx)
 
                     prevState = stats.accumulate(report, match, prevState, ctx)
 
@@ -263,7 +260,7 @@ class AvlMatchProcessor(
                     return prev
                 }
             }
-            return stateUpserts.last().toView(prev?.id)
+            return stateUpserts.last()
         }
 
         fun flush() {
@@ -301,90 +298,14 @@ class AvlMatchProcessor(
  * alone rather than dividing by a non-positive elapsed time.
  */
 private fun AvlReportRow.fillMissingKinematics(
-    prevLat: Double?,
-    prevLon: Double?,
+    prevPoint: Point?,
     prevTs: Instant?,
 ) {
-    if (prevLat == null || prevLon == null || prevTs == null) return
+    if (prevPoint == null || prevTs == null) return
     val elapsedSec = Duration.between(prevTs, ts).seconds
     if (elapsedSec <= 0) return
-    if (bearing == null) bearing = bearingDegrees(prevLat, prevLon, lat, lon)
-    if (speedMps == null) speedMps = haversineMeters(prevLat, prevLon, lat, lon) / elapsedSec
+
+    val edge = Edge(prevPoint, point)
+    if (bearing == null) bearing = edge.heading()
+    if (speedMps == null) speedMps = edge.length / elapsedSec
 }
-
-private fun AvlReportRow.toView() =
-    AvlReportView(
-        id = id!!,
-        feedCode = feedCode,
-        vehicleId = vehicleId,
-        vehicleLabel = vehicleLabel,
-        ts = ts,
-        lat = lat,
-        lon = lon,
-        bearing = bearing,
-        speedMps = speedMps,
-        odometerM = odometerM,
-        descTripId = descTripId,
-        descRouteId = descRouteId,
-        descDirectionId = descDirectionId,
-        descStartDate = descStartDate,
-        descStartTimeSec = descStartTimeSec,
-        descScheduleRelationship = descScheduleRelationship,
-        currentStopSequence = currentStopSequence,
-        currentStopId = currentStopId,
-        currentStatus = currentStatus,
-        occupancyStatus = occupancyStatus,
-        congestionLevel = congestionLevel,
-    )
-
-private fun VehicleStateUpsert.toView(id: Long?) =
-    VehicleStateView(
-        id = id,
-        feedCode = feedCode,
-        vehicleId = vehicleId,
-        vehicleLabel = vehicleLabel,
-        reportTs = reportTs,
-        lat = lat,
-        lon = lon,
-        bearing = bearing,
-        speedMps = speedMps,
-        occupancyStatus = occupancyStatus,
-        matched = matched,
-        stale = stale,
-        consecutiveFailures = consecutiveFailures,
-        revisionId = revisionId,
-        tripRowId = tripRowId,
-        blockPk = blockPk,
-        tripPatternId = tripPatternId,
-        stopPathIndex = stopPathIndex,
-        distanceAlongTripM = distanceAlongTripM,
-        scheduleAdherenceSec = scheduleAdherenceSec,
-        snappedLat = snappedLat,
-        snappedLon = snappedLon,
-    )
-
-private fun VehicleState.toView() =
-    VehicleStateView(
-        id = id,
-        feedCode = feedCode,
-        vehicleId = vehicleId,
-        vehicleLabel = vehicleLabel,
-        reportTs = reportTs,
-        lat = lat,
-        lon = lon,
-        bearing = bearing,
-        speedMps = speedMps,
-        occupancyStatus = occupancyStatus,
-        matched = matched,
-        stale = stale,
-        consecutiveFailures = consecutiveFailures,
-        revisionId = revisionId,
-        tripRowId = tripRowId,
-        blockPk = blockPk,
-        tripPatternId = tripPatternId,
-        stopPathIndex = stopPathIndex,
-        distanceAlongTripM = distanceAlongTripM,
-        scheduleAdherenceSec = scheduleAdherenceSec,
-        snappedLat = snappedLat,
-        snappedLon = snappedLon,
-    )

@@ -1,22 +1,22 @@
 <script setup lang="ts">
 import { useRoutesQuery, useExploreCalendarQuery } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
 
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
 
 const draftId = computed(() => String(route.params.draftId))
 
-const { result: routesResult, loading: routesLoading } = useRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
-const { result: calendarResult, loading: calendarLoading } = useExploreCalendarQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: routesResult, loading: routesLoading } = useRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
+const { result: calendarResult, loading: calendarLoading } = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const routes = computed(() => routesResult.value?.routes ?? [])
 const services = computed(() => {

@@ -18,7 +18,6 @@ import eu.transittrack.gtfs.export.ValidationResult
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.schedule.model.BlockTable
-import eu.transittrack.schedule.model.StopPathTable
 
 class JsonPersistenceCompatibilityTest {
     @Test
@@ -52,7 +51,6 @@ class JsonPersistenceCompatibilityTest {
     @Test
     fun `raw jsonb payloads are not double encoded`() {
         val payload = """{"coordinates":[[17.0,51.0]],"optional":null}"""
-        assertEquals(payload, StopPathTable.pathGeometry.columnType.notNullValueToDB(payload))
         assertEquals(payload, GtfsRevisionTable.validationReport.columnType.notNullValueToDB(payload))
         assertEquals(payload, GtfsRevisionTable.lastValidation.columnType.valueFromDB(payload))
     }

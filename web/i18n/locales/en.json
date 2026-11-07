@@ -3,8 +3,6 @@
     "save": "Save",
     "cancel": "Cancel",
     "noFeedsConfigured": "No feeds configured.",
-    "unknown": "unknown",
-    "never": "never",
     "goBack": "Go back"
   },
   "timeAgo": {
@@ -99,8 +97,7 @@
   "state": {
     "loadingData": "Loading data",
     "nothingYet": "Nothing to show yet",
-    "unavailable": "This data is unavailable",
-    "loadingPage": "Loading page"
+    "unavailable": "This data is unavailable"
   },
   "poll": {
     "resume": "Resume live updates",
@@ -117,8 +114,7 @@
     "thisFeed": "This feed",
     "liveVehicleData": "live vehicle data",
     "explore": "Explore feed",
-    "liveVehicleOperations": "live vehicle operations",
-    "liveNetwork": "the live network"
+    "liveVehicleOperations": "live vehicle operations"
   },
   "filters": {
     "allAgencies": "All agencies",
@@ -148,78 +144,13 @@
     "operationsDescription": "Live vehicle positions, trip matching, and service status"
   },
   "feed": {
-    "reports": "{count} reports | {count} reports",
-    "metadataUnavailable": "Feed metadata unavailable.",
-    "health": {
-      "title": "Feed health",
-      "disabled": "Disabled"
-    },
-    "processing": {
-      "title": "Processing",
-      "pipeline": "Latest ingest pipeline",
-      "lastIngest": "Last ingest",
-      "revisions": "{count} revision | {count} revisions",
-      "failed": "{count} failed",
-      "schedule": "Schedule",
-      "disabled": "disabled",
-      "realtimeFeed": "Realtime feed · {format}",
-      "polled": "polled",
-      "every": "every {seconds}s",
-      "noRealtime": "No realtime feed linked."
-    },
-    "status": {
-      "PENDING": "Queued",
-      "DOWNLOADING": "Downloading",
-      "VALIDATING": "Validating",
-      "PARSING": "Parsing",
-      "DERIVING": "Deriving",
-      "READY": "Ready",
-      "ACTIVE": "Active",
-      "SUPERSEDED": "Superseded",
-      "UNCHANGED": "Unchanged",
-      "FAILED": "Failed",
-      "DRAFT": "Draft"
-    },
-    "step": {
-      "download": "Download",
-      "validate": "Validate",
-      "parse": "Parse",
-      "derive": "Derive",
-      "ready": "Ready",
-      "active": "Active"
-    },
-    "cron": {
-      "notScheduled": "not scheduled",
-      "everyMin": "every {n} min",
-      "everyHour": "every {n} h",
-      "daily": "daily at {time}"
-    },
     "overview": {
-      "title": "Feed",
       "activeRevision": "Active revision",
-      "activated": "activated {time}",
-      "serviceWindow": "Service window",
-      "daysLeft": "{count} days left | {count} days left",
-      "expired": "expired {count} days ago | expired {count} days ago",
-      "content": "Content",
       "routes": "{count} routes | {count} routes",
       "stops": "{count} stops | {count} stops",
       "trips": "{count} trips | {count} trips",
-      "agencies": "{count} agencies | {count} agencies",
-      "validation": "Validation",
-      "viewProblems": "View validation problems",
       "errors": "{count} errors | {count} errors",
-      "warnings": "{count} warnings | {count} warnings",
-      "noFeedInfo": "no feed_info.txt",
-      "validationProblems": "Validation problems",
-      "validationSummary": "{errors} · {warnings}",
-      "noReport": "No validation report is available for this revision.",
-      "noticeError": "{count} error | {count} errors",
-      "noticeWarning": "{count} warning | {count} warnings",
-      "row": "row {n}",
-      "noSample": "No sample details were provided by the validator.",
-      "noProblems": "This revision has no stored validation problems.",
-      "runIngest": "Run or ingest a revision to see validation results here."
+      "warnings": "{count} warnings | {count} warnings"
     },
     "dataset": {
       "title": "Datasets",
@@ -260,34 +191,7 @@
       "translations": "Translations",
       "feedinfo": "Feed info",
       "attributions": "Attributions"
-    },
-    "accuracy": {
-      "title": "Prediction accuracy · 7d",
-      "none": "No prediction samples yet.",
-      "note": "Mean absolute arrival error — lower is better.",
-      "errorSeconds": "±{value}s",
-      "hint": "{algorithm}: ±{error}s abs error, bias {bias}s ({samples})",
-      "samples": "{count} samples | {count} samples"
     }
-  },
-  "pulse": {
-    "title": "Network pulse",
-    "liveUpdated": "Live positions updated {time}",
-    "liveUnavailable": "Live positions unavailable",
-    "feedUnavailable": "Vehicle feed unavailable",
-    "operatingSignals": "Operating signals",
-    "fleetHealth": "Current fleet health from live vehicle reports",
-    "viewVehicles": "View {signal} vehicles",
-    "onTime": "On-time performance",
-    "needsAttention": "Needs attention",
-    "coverage": "Realtime coverage",
-    "noVehicles": "No vehicles available",
-    "sourceUnhealthy": "Selected realtime source is not reporting healthy",
-    "sourceUnavailable": "Selected realtime source unavailable",
-    "onTimeDetail": "{onTime} of {total} matched vehicle within 1 minute | {onTime} of {total} matched vehicles within 1 minute",
-    "noAdherence": "No matched vehicles with adherence available",
-    "attentionDetail": "stale or unmatched vehicle | {count} stale or unmatched vehicles",
-    "coverageDetail": "{reporting} of {tracked} vehicle reporting | {reporting} of {tracked} vehicles reporting"
   },
   "overviewStats": {
     "vehiclesTracked": "Vehicles tracked",
@@ -295,17 +199,7 @@
     "matchedOf": "{matched} of {tracked}",
     "stalePositions": "Stale positions",
     "activeFeeds": "Active feeds",
-    "reportingOk": "{count} reporting OK | {count} reporting OK",
-    "binHint": "{label}: {count} vehicles | {label}: {count} vehicles",
-    "bin": {
-      "early5": "≥5m early",
-      "early2to5": "2–5m early",
-      "early1to2": "1–2m early",
-      "onTime": "On time",
-      "late1to2": "1–2m late",
-      "late2to5": "2–5m late",
-      "late5": "≥5m late"
-    }
+    "reportingOk": "{count} reporting OK | {count} reporting OK"
   },
   "vehicles": {
     "title": "Vehicles",
@@ -364,7 +258,9 @@
       "fleetSummary": "Fleet summary",
       "reporting": "{count} reporting | {count} reporting",
       "matched": "{count} matched | {count} matched",
-      "needAttention": "{count} need attention | {count} need attention"
+      "needAttention": "{count} need attention | {count} need attention",
+      "collapse": "Hide vehicle list",
+      "expand": "Show vehicle list"
     },
     "list": {
       "tripProgress": "Trip progress",
@@ -455,8 +351,6 @@
     "detail": {
       "title": "Vehicle {name}",
       "goBack": "Go back",
-      "stopFollowing": "Stop following",
-      "followVehicle": "Follow vehicle",
       "unavailable": "Vehicle unavailable",
       "notTracked": "Not tracked",
       "notTrackedBody": "No live data for {id} on this feed.",
@@ -468,7 +362,6 @@
       "noNextStop": "No next stop identified",
       "distanceUnavailable": "Distance unavailable",
       "distanceToStop": "{distance} to stop",
-      "adherenceTrend": "Adherence trend",
       "alongTrip": "Along trip",
       "toNextStop": "To next stop",
       "gpsOffset": "GPS offset",
@@ -522,6 +415,22 @@
       "noComputation": "no computation yet",
       "noScheduleComparison": "No schedule comparison",
       "vsPrediction": "vs prediction {value}"
+    },
+    "strip": {
+      "aria": "Trip progress: {passed} of {total} stops passed, {adherence}",
+      "timepoint": "Timepoint",
+      "adherenceAt": "Adherence {value}",
+      "sincePrevious": "{value} since previous stop",
+      "avgSpeed": "Avg speed {speed}",
+      "legend": {
+        "delay": "Delay along the route",
+        "delayHint": "Delay at each stop reached, then the bus now. Higher means later: where the curve climbs the bus lost time, where it drops it caught up. Green within 1 min, yellow up to 5 min, red beyond.",
+        "speed": "Speed",
+        "speedHint": "Reported GPS speed over the stretch already driven; deeper means faster. Gaps mean no reports there.",
+        "standstill": "Stopped between stops",
+        "passed": "Passed stop",
+        "upcoming": "Upcoming stop"
+      }
     }
   },
   "map": {

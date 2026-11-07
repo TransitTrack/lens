@@ -4,42 +4,69 @@ import kotlin.test.Test
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
-import eu.transittrack.Point
-import eu.transittrack.ProjectJson
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Position
 import eu.transittrack.schedule.model.StopPath
+import eu.transittrack.schedule.model.TripPattern
+import eu.transittrack.schedule.model.TripPatternRepository
 
 class CachedPatternGeometryJsonTest {
+    private val stopPaths = mock<CachedStopPathReader>()
+    private val patterns = mock<TripPatternRepository>()
+    private val reader = CachedPatternGeometryReader(stopPaths, patterns)
+
     @Test
-    fun `stored geometry keeps precision coordinate order and revisited points`() {
-        val stopPaths = mock<CachedStopPathReader>()
+    fun `pattern line is used as stored and cumulative distances come from stop path lengths`() {
+        val line =
+            Line(
+                listOf(
+                    Position(17.123456789012345, 51.98765432109876),
+                    Position(18.0, 52.0),
+                    Position(17.123456789012345, 51.98765432109876),
+                ),
+            )
         whenever(stopPaths.orderedByPattern(1, 2)).thenReturn(
-            listOf(
-                path(0, 0.0, "[[17.123456789012345,51.98765432109876]]", true),
-                path(1, 125.5, "[[17.123456789012345,51.98765432109876],[18,52]]"),
-                path(2, 125.5, "[[18.0,52.0],[17.123456789012345,51.98765432109876]]", true),
-            ),
+            listOf(path(0, 0.0, true), path(1, 125.5), path(2, 125.5, true)),
         )
+        whenever(patterns.findById(2)).thenReturn(pattern(line))
 
-        val geometry = CachedPatternGeometryReader(stopPaths, ProjectJson).geometry(1, 2)!!
+        val geometry = reader.geometry(1, 2)!!
 
-        assertThat(geometry.line.points).isEqualTo(
-            listOf(
-                Point(51.98765432109876, 17.123456789012345),
-                Point(52.0, 18.0),
-                Point(51.98765432109876, 17.123456789012345),
-            ),
-        )
+        assertThat(geometry.line).isEqualTo(line)
         assertThat(geometry.stopPathCumM.toList()).isEqualTo(listOf(0.0, 0.0, 125.5))
         assertThat(geometry.layoverStop.toList()).isEqualTo(listOf(true, false, true))
     }
 
+    @Test
+    fun `a pattern without stored geometry has no pattern geometry`() {
+        whenever(stopPaths.orderedByPattern(1, 2)).thenReturn(listOf(path(0, 0.0, true)))
+        whenever(patterns.findById(2)).thenReturn(pattern(null))
+
+        assertThat(reader.geometry(1, 2)).isNull()
+    }
+
+    private fun pattern(geometry: Line?) =
+        TripPattern(
+            revisionId = 1,
+            patternKey = "k",
+            routeId = "R",
+            routeShortName = null,
+            directionId = null,
+            headsign = null,
+            shapeId = null,
+            stopCount = 3,
+            lengthM = 251.0,
+            tripCount = 1,
+            geometry = geometry,
+        )
+
     private fun path(
         index: Int,
         length: Double,
-        raw: String,
         layover: Boolean = false,
     ) = StopPath(
         revisionId = 1,
@@ -49,7 +76,6 @@ class CachedPatternGeometryJsonTest {
         routeId = "R",
         stopSeq = index,
         lengthM = length,
-        pathGeometry = raw,
         pickupType = null,
         dropOffType = null,
         waitStop = false,

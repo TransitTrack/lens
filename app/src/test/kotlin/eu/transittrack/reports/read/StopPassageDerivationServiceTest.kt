@@ -315,7 +315,7 @@ class StopPassageDerivationServiceTest(
         stopPaths.save(
             StopPath(
                 revisionId = oldRevisionId, tripPatternId = oldPatternId, stopPathIndex = 0,
-                stopId = "OLD-S0", routeId = null, stopSeq = 1, lengthM = 0.0, pathGeometry = null,
+                stopId = "OLD-S0", routeId = null, stopSeq = 1, lengthM = 0.0,
                 pickupType = null, dropOffType = null, waitStop = false, scheduleAdherenceStop = true,
                 layoverStop = false, breakTimeSec = null,
             ),
@@ -329,7 +329,7 @@ class StopPassageDerivationServiceTest(
         stopPaths.save(
             StopPath(
                 revisionId = oldRevisionId, tripPatternId = oldPatternId, stopPathIndex = 1,
-                stopId = "OLD-S1", routeId = null, stopSeq = 2, lengthM = oldStop1LengthM, pathGeometry = null,
+                stopId = "OLD-S1", routeId = null, stopSeq = 2, lengthM = oldStop1LengthM,
                 pickupType = null, dropOffType = null, waitStop = false, scheduleAdherenceStop = true,
                 layoverStop = false, breakTimeSec = null,
             ),

@@ -5,12 +5,12 @@ import kotlin.test.Test
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 
-import eu.transittrack.Point
-import eu.transittrack.ProjectJson
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Position
 
 class PatternBuildJsonTest {
     @Test
-    fun `geometry is stored as ordered longitude latitude numeric arrays`() {
+    fun `pattern geometry concatenates the stop segments in order with full precision`() {
         val first = Point(51.98765432109876, 17.123456789012345)
         val second = Point(52.0, 18.0)
         val result =
@@ -28,12 +28,10 @@ class PatternBuildJsonTest {
                 stopCoord = mapOf("A" to first, "B" to second),
                 line = null,
                 maxDeviationM = 100.0,
-                json = ProjectJson,
             )
 
-        assertThat(ProjectJson.decodeFromString<List<List<Double>>>(result.paths[0].pathGeometry!!))
-            .isEqualTo(listOf(listOf(first.lon, first.lat)))
-        assertThat(ProjectJson.decodeFromString<List<List<Double>>>(result.paths[1].pathGeometry!!))
-            .isEqualTo(listOf(listOf(first.lon, first.lat), listOf(second.lon, second.lat)))
+        // The shared boundary point of the two segments appears once.
+        assertThat(result.pattern.geometry!!.coordinates)
+            .isEqualTo(listOf(Position(first.lon, first.lat), Position(second.lon, second.lat)))
     }
 }

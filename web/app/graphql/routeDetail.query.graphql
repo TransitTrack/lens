@@ -17,11 +17,11 @@ query RouteDetail($feedCode: String!, $routeId: String!) {
     stopCount
     tripCount
     lengthM
+    geometry
     stopPaths {
       stopPathIndex
       stopId
       lengthM
-      pathGeometry
       pickupType
       dropOffType
       waitStop

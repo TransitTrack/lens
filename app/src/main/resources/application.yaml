@@ -64,7 +64,7 @@ transittrack:
     connect-timeout-ms: 10000
     read-timeout-ms: 60000
     max-size-bytes: 524288000
-    user-agent: "transittrack/0.0.1"
+    user-agent: "ontrack-lens/0.1.0"
   feed:
     prune-config-feeds: false
     feeds:
@@ -74,6 +74,7 @@ transittrack:
         url: https://smtt.ro/transit/gtfs/maps/smtt-timisoara-ro.zip
         avl:
           format: STPT
+          poll-interval-sec: 15
           url: https://live.stpt.ro/gtfs-vehicles.php
           prediction-algorithms: [ kalman, schedule_adherence ]
           assignment-mode: descriptor_then_infer

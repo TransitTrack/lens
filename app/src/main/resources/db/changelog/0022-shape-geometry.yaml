@@ -1,0 +1,13 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0022-shape-geometry
+      author: transittrack
+      comment: >
+        Precomputed display geometry for a shape: GeoJSON LineString, gzip-compressed then base64
+        encoded (served to clients as-is). Filled at ingestion; revisions ingested before this
+        column existed have NULL and are computed on read from shape_points.
+      changes:
+        - addColumn:
+            tableName: shapes
+            columns:
+              - column: { name: geometry, type: TEXT }

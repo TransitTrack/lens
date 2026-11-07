@@ -138,6 +138,7 @@ class IngestionServiceTest(
         assertThat(stopTimes.findByTripId(rev.id!!, "T1")).hasSize(2)
         assertThat(shapePoints.findByShapeId(rev.id!!, "SH1")).hasSize(2)
         assertThat(shapes.findByShapeId(rev.id!!, "SH1")!!.pointCount).isEqualTo(2)
+        assertThat(shapes.findByShapeId(rev.id!!, "SH1")!!.geometry).isNotNull()
         assertThat(loaded.feedStartDate).isEqualTo(LocalDate.of(2026, 1, 1))
         assertThat(feeds.findByCode("f")!!.lastIngestAt).isNotNull()
     }

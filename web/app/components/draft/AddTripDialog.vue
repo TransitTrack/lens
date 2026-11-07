@@ -65,20 +65,15 @@ const tripItems = computed(() =>
   })),
 )
 
-const {result: patternsResult} = useDraftPatternsQuery(
-  () => ({
-    feedCode: props.feedCode,
-    routeId: props.routeId,
-    revisionId: props.editor.draft.value?.id ?? '',
-  }),
-  () => ({
-    enabled:
+const {result: patternsResult} = useDraftPatternsQuery(() => ({
+  variables: { feedCode: props.feedCode, routeId: props.routeId, revisionId: props.editor.draft.value?.id ?? '' },
+  enabled:
       !!props.routeId &&
       !!props.editor.draft.value?.id &&
       !props.derivationStale &&
       open.value &&
       mode.value === 'new',
-  }),
+})
 )
 const patterns = computed(() => patternsResult.value?.tripPatterns ?? [])
 const patternItems = computed(() =>
@@ -129,7 +124,7 @@ async function submit() {
     if (mode.value === 'duplicate') {
       const result = await run(
         (v) =>
-          duplicateTrip({
+          duplicateTrip({ variables: {
             input: {
               draftId: v.draftId,
               editor: v.editor,
@@ -138,7 +133,7 @@ async function submit() {
               newTripId: newTripId.value || null,
               offsetSec: offsetSec.value as number,
             },
-          }),
+          } }),
         'duplicateTrip',
       )
       if (result) open.value = false
@@ -146,7 +141,7 @@ async function submit() {
       const stops = buildStops(baseSec.value as number)
       const result = await run(
         (v) =>
-          addTrip({
+          addTrip({ variables: {
             input: {
               draftId: v.draftId,
               editor: v.editor,
@@ -163,7 +158,7 @@ async function submit() {
               blockId: blockId.value || null,
               stops,
             },
-          }),
+          } }),
         'addTrip',
       )
       if (result) open.value = false

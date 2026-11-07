@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import {useOptimizationRunsQuery, type OptimizationRunsQuery} from '~~/generated/graphql'
 import {useFeeds} from '~/composables/useFeeds'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
-import PageSection from '~/components/PageSection.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
+import PageSection from '~/components/shell/PageSection.vue'
 import NewOptimizationRunDialog from '~/components/optimize/NewOptimizationRunDialog.vue'
 import {gtfsDate} from '~/utils/gtfs'
 
@@ -11,10 +11,10 @@ const {selectedFeedCode, feedPath} = useFeeds()
 const { t, te, locale } = useI18n()
 const newOpen = ref(false)
 
-const {result, loading, error} = useOptimizationRunsQuery(
-  () => ({feedCode: selectedFeedCode.value ?? '', limit: 50, offset: 0}),
-  () => ({enabled: !!selectedFeedCode.value, pollInterval: 5000}),
-)
+const {result, loading, error} = useOptimizationRunsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', limit: 50, offset: 0 },
+  enabled: !!selectedFeedCode.value, pollInterval: 5000,
+}))
 
 type Run = OptimizationRunsQuery['optimizationRuns'][number]
 const runs = computed<Run[]>(() => result.value?.optimizationRuns ?? [])

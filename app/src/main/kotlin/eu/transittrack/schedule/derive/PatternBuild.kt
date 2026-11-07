@@ -1,13 +1,12 @@
 package eu.transittrack.schedule.derive
 
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.slf4j.Logger
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
-import eu.transittrack.Polyline
-import eu.transittrack.haversineMeters
+import eu.transittrack.geo.BBox
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Point
+import eu.transittrack.geo.Position
+import eu.transittrack.geo.algorithm.haversineDistance
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.TripPattern
 
@@ -54,9 +53,8 @@ fun buildPattern(
     rows: List<CleanStopTime>,
     stopIds: List<String>,
     stopCoord: Map<String, Point>,
-    line: Polyline?,
+    line: Line?,
     maxDeviationM: Double,
-    json: Json,
 ): PatternBuild {
     // Callers filter out trips with unresolvable stop coordinates, so this never misses.
     val coords = stopIds.map { stopCoord.getValue(it) }
@@ -76,32 +74,31 @@ fun buildPattern(
         }
     }
     val paths = ArrayList<StopPath>(stopIds.size)
+    // Pattern polyline = every segment concatenated; adjacent segments share their boundary point.
+    val patternPoints = ArrayList<Position>()
     val hasTimepointColumn = rows.any { it.timepoint != null }
     for (i in stopIds.indices) {
         val r = rows[i]
-        val geom: List<Point>
+        val segment: List<Position>
         val segLen: Double
         when {
             i == 0 -> {
-                geom = listOf(coords[0])
+                segment = listOf(coords[0].coordinates)
                 segLen = 0.0
             }
 
             line != null && !projected[i - 1].isNaN() && !projected[i].isNaN() && projected[i] > projected[i - 1] -> {
-                geom = ShapeProjection.slice(line, projected[i - 1], projected[i])
+                segment = line.slice(projected[i - 1], projected[i]).coordinates
                 segLen = projected[i] - projected[i - 1]
             }
 
             else -> {
-                geom = ShapeProjection.straightLine(coords[i - 1], coords[i])
-                segLen =
-                    haversineMeters(
-                        coords[i - 1].lat,
-                        coords[i - 1].lon,
-                        coords[i].lat,
-                        coords[i].lon,
-                    )
+                segment = listOf(coords[i - 1].coordinates, coords[i].coordinates)
+                segLen = haversineDistance(coords[i - 1].coordinates, coords[i].coordinates)
             }
+        }
+        for (p in segment) {
+            if (patternPoints.isEmpty() || patternPoints.last() != p) patternPoints.add(p)
         }
         val timed =
             if (hasTimepointColumn) {
@@ -118,7 +115,6 @@ fun buildPattern(
                 routeId = routeId,
                 stopSeq = r.stopSequence,
                 lengthM = segLen,
-                pathGeometry = json.encodeToString(geom.map { listOf(it.lon, it.lat) }),
                 pickupType = r.pickupType,
                 dropOffType = r.dropOffType,
                 waitStop = timed,
@@ -139,8 +135,9 @@ fun buildPattern(
             shapeId = shapeId,
             stopCount = stopIds.size,
             lengthM = paths.sumOf { it.lengthM },
-            extent = Extent.of(coords),
+            extent = BBox.of(coords),
             tripCount = 0,
+            geometry = if (patternPoints.size >= 2) Line(patternPoints) else null,
         )
     return PatternBuild(pattern, paths)
 }

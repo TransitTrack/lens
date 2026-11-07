@@ -6,9 +6,9 @@ import {
   useExploreStopsQuery,
   useStopAdherenceQuery,
 } from '~~/generated/graphql'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { adherenceBadge } from '~/utils/adherence'
 import { isValidAdherenceRange } from '~/utils/adherenceReport'
@@ -51,10 +51,10 @@ const {
   result: stopsResult,
   loading: stopsLoading,
   error: stopsError,
-} = useExploreStopsQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+} = useExploreStopsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const stopItems = computed(() =>
   [...(stopsResult.value?.stops ?? [])]
@@ -84,18 +84,10 @@ const {
   result: adherenceResult,
   loading: adherenceLoading,
   error: adherenceError,
-} = useStopAdherenceQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    stopId: submitted.value?.stopId ?? '',
-    startDate: submitted.value?.startDate ?? '',
-    endDate: submitted.value?.endDate ?? '',
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useStopAdherenceQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: submitted.value?.stopId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = StopAdherenceQuery['stopAdherence'][number]
 
@@ -145,7 +137,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
     :description="$t('reports.stop.description')"
   >
     <template #actions>
-      <NavbarActions />
+      <PollControl />
     </template>
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.adherence')" />

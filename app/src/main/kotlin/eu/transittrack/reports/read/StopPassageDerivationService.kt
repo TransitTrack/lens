@@ -10,7 +10,6 @@ import eu.transittrack.ConditionalOnRole
 import eu.transittrack.Role
 import eu.transittrack.avl.ingest.AvlOccupancyStatus
 import eu.transittrack.avl.match.AvlMatchContextFactory
-import eu.transittrack.avl.match.AvlReportView
 import eu.transittrack.avl.match.TemporalMatcher
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeedRepository
@@ -153,7 +152,7 @@ class StopPassageDerivationService(
             matches.mapNotNull { match ->
                 val report = reportsById[match.avlReportId] ?: return@mapNotNull null
                 val trip = tripFor(match.tripRowId) ?: return@mapNotNull null
-                val serviceDate = inferServiceDate(report.toView(), trip.toRef(), zone)
+                val serviceDate = inferServiceDate(report, trip.toRef(), zone)
                 ResolvedMatch(match, trip, serviceDate)
             }
 
@@ -252,7 +251,7 @@ class StopPassageDerivationService(
                         stopName = stopNameByStopId[stopId],
                         stopPathIndex = scheduleTime.stopPathIndex,
                         scheduledSec = scheduleTime.arrivalSec ?: scheduleTime.departureSec,
-                        observedSec = observedMatch?.let { TemporalMatcher().toServiceSeconds(it.ts, zone, serviceDate) },
+                        observedSec = observedMatch?.let { TemporalMatcher.toServiceSeconds(it.ts, zone, serviceDate) },
                         adherenceSec = observedMatch?.scheduleAdherenceSec,
                         vehicleId = vehicleId,
                         direction = trip.directionId,
@@ -270,31 +269,6 @@ class StopPassageDerivationService(
             .filter { it.serviceDate >= startDate && it.serviceDate <= endDate }
     }
 }
-
-private fun AvlReportRow.toView() =
-    AvlReportView(
-        id = id!!,
-        feedCode = feedCode,
-        vehicleId = vehicleId,
-        vehicleLabel = vehicleLabel,
-        ts = ts,
-        lat = lat,
-        lon = lon,
-        bearing = bearing,
-        speedMps = speedMps,
-        odometerM = odometerM,
-        descTripId = descTripId,
-        descRouteId = descRouteId,
-        descDirectionId = descDirectionId,
-        descStartDate = descStartDate,
-        descStartTimeSec = descStartTimeSec,
-        descScheduleRelationship = descScheduleRelationship,
-        currentStopSequence = currentStopSequence,
-        currentStopId = currentStopId,
-        currentStatus = currentStatus,
-        occupancyStatus = occupancyStatus,
-        congestionLevel = congestionLevel,
-    )
 
 private fun Trip.toRef() =
     TripRef(

@@ -6,15 +6,16 @@ import {
   useHeadwayInfoQuery,
   useStopBoardQuery,
   type StopBoardQuery,
+  type PredictionAlgorithm,
 } from '~~/generated/graphql'
 import {useFeeds} from '~/composables/useFeeds'
 import {usePollControl} from '~/composables/usePollControl'
 import {formatClock} from '~/utils/clock'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
-import BarChart from '~/components/BarChart.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
+import BarChart from '~/components/charts/BarChart.vue'
 import type {Bar} from '~/utils/chart'
 
 const {t, locale} = useI18n()
@@ -44,10 +45,10 @@ watch(algorithmOptions, (opts) => {
   }
 })
 
-const {result: routesResult} = useRoutesQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
-)
+const {result: routesResult} = useRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 const routeOptions = computed(() =>
   (routesResult.value?.routes ?? []).map((r) => ({
     label: r.routeShortName ?? r.routeLongName ?? r.routeId,
@@ -57,10 +58,10 @@ const routeOptions = computed(() =>
 
 // Stops and directions cascade from the selected route: fetch that route's
 // patterns and derive the direction + stop options from them.
-const {result: patternsResult, loading: patternsLoading} = useHeadwayRoutePatternsQuery(
-  () => ({feedCode: selectedFeedCode.value ?? '', routeId: selectedRouteId.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value && !!selectedRouteId.value}),
-)
+const {result: patternsResult, loading: patternsLoading} = useHeadwayRoutePatternsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', routeId: selectedRouteId.value ?? '' },
+  enabled: !!selectedFeedCode.value && !!selectedRouteId.value,
+}))
 const routePatterns = computed(() => patternsResult.value?.tripPatterns ?? [])
 
 const directionOptions = computed(() => {
@@ -115,28 +116,16 @@ const {
   result: headwayResult,
   loading: headwayLoading,
   error: headwayError,
-} = useHeadwayInfoQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    stopId: selectedStopId.value ?? '',
-    routeId: selectedRouteId.value ?? '',
-    directionId: selectedDirectionId.value,
-    algorithm: selectedAlgorithm.value,
-  }),
-  () => ({enabled: querySelected.value, pollInterval: intervalMs.value}),
-)
+} = useHeadwayInfoQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: selectedStopId.value ?? '', routeId: selectedRouteId.value ?? '', directionId: selectedDirectionId.value, algorithm: selectedAlgorithm.value as PredictionAlgorithm | null },
+  enabled: querySelected.value, pollInterval: intervalMs.value,
+}))
 const headway = computed(() => headwayResult.value?.headway ?? null)
 
-const {result: boardResult} = useStopBoardQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    stopId: selectedStopId.value ?? '',
-    routeId: selectedRouteId.value,
-    directionId: selectedDirectionId.value,
-    algorithm: selectedAlgorithm.value,
-  }),
-  () => ({enabled: querySelected.value, pollInterval: intervalMs.value}),
-)
+const {result: boardResult} = useStopBoardQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: selectedStopId.value ?? '', routeId: selectedRouteId.value, directionId: selectedDirectionId.value, algorithm: selectedAlgorithm.value as PredictionAlgorithm | null },
+  enabled: querySelected.value, pollInterval: intervalMs.value,
+}))
 type BoardRow = StopBoardQuery['stopPredictions'][number]
 const board = computed<BoardRow[]>(() => boardResult.value?.stopPredictions ?? [])
 
@@ -208,7 +197,7 @@ const nextArrival = computed(() => board.value[0]?.predictedArrival ?? board.val
 <template>
   <AppPage :title="$t('nav.headway')" :description="$t('reports.headway.description')">
     <template #actions>
-      <NavbarActions/>
+      <PollControl/>
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>

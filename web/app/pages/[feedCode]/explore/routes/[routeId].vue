@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
-import ValidationFindingsPanel from '~/components/ValidationFindingsPanel.vue'
-import VehicleRouteMap from '~/components/VehicleRouteMap.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
+import VehicleRouteMap from '~/components/map/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useRouteDetailQuery } from '~~/generated/graphql'
-import { routeTypeLabel, patternLine, patternStopFeatures } from '~/utils/gtfs'
+import { routeTypeLabel, geometryLine, patternStopFeatures } from '~/utils/gtfs'
+import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -15,10 +17,10 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
 
-const { result, loading, error } = useRouteDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '', routeId: routeId.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading, error } = useRouteDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', routeId: routeId.value },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const gtfsRoute = computed(() => result.value?.route ?? null)
 const patterns = computed(() => result.value?.tripPatterns ?? [])
@@ -49,7 +51,7 @@ const patternItems = computed(() =>
   })),
 )
 
-const line = computed(() => (pattern.value ? patternLine(pattern.value.stopPaths) : []))
+const line = computed(() => (pattern.value ? geometryLine(pattern.value.geometry) : []))
 const stops = computed(
   () =>
     (pattern.value
@@ -87,8 +89,7 @@ const patternSummary = computed(() => {
   }
 })
 
-const isDesktop = useMediaQuery('(min-width: 1024px)')
-const splitterOrientation = computed(() => (isDesktop.value ? 'horizontal' : 'vertical'))
+const { isDesktop, splitterOrientation } = useSplitLayout()
 const splitterItems = computed<SplitterItem[]>(() =>
   isDesktop.value
     ? [

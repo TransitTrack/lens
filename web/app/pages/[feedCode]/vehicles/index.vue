@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { formatNumber } from '~/utils/intlLocale'
-import AppPage from '~/components/AppPage.vue'
-import VehicleList from '~/components/VehicleList.vue'
-import VehicleFacets from '~/components/VehicleFacets.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import VehicleList from '~/components/vehicles/VehicleList.vue'
+import VehicleFacets from '~/components/vehicles/VehicleFacets.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useVehiclePolling } from '~/composables/useVehiclePolling'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
@@ -78,7 +78,7 @@ function openVehicle(vehicleId: string) {
     :description="t('vehicles.description')"
   >
     <template #actions>
-      <NavbarActions :updated-at="newestReport" />
+      <PollControl :updated-at="newestReport" />
     </template>
 
     <template v-if="selectedAvlFeedCode" #toolbar>

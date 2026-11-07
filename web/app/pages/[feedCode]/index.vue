@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
-import VehicleOperationsBoard from '~/components/VehicleOperationsBoard.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
+import VehicleOperationsBoard from '~/components/vehicles/VehicleOperationsBoard.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useVehiclePolling } from '~/composables/useVehiclePolling'
@@ -32,11 +32,10 @@ const newestReport = computed(() =>
       :error="error"
       :feed-code="selectedFeedCode"
       :extent="extent"
-      :directory-default-size="24"
       @select-vehicle="(id) => navigateTo(feedPath('/vehicles/' + id))"
     >
       <template #actions>
-        <NavbarActions :updated-at="newestReport" />
+        <PollControl :updated-at="newestReport" />
       </template>
     </VehicleOperationsBoard>
   </AppPage>

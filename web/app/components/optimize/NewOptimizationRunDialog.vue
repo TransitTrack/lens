@@ -21,14 +21,14 @@ const directionId = ref<string | null>(null)
 const windowFrom = ref('')
 const windowTo = ref('')
 
-const {result: routesResult} = useRoutesQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value && open.value}),
-)
-const {result: calendarResult} = useExploreCalendarQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value && open.value}),
-)
+const {result: routesResult} = useRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value && open.value,
+}))
+const {result: calendarResult} = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value && open.value,
+}))
 
 const routeOptions = computed(() =>
   (routesResult.value?.routes ?? []).map((r) => ({
@@ -90,7 +90,7 @@ async function submit() {
     return
   }
   try {
-    const res = await start({
+    const res = await start({ variables: {
       input: {
         feedCode: selectedFeedCode.value ?? '',
         serviceId: serviceId.value,
@@ -102,7 +102,7 @@ async function submit() {
         observedTo: new Date(observedTo.value).toISOString(),
         minimumSamples: minimumSamples.value,
       },
-    })
+    } })
     const id = res?.data?.startOptimizationRun.id
     open.value = false
     if (id) await navigateTo(feedPath('/optimize/' + id))

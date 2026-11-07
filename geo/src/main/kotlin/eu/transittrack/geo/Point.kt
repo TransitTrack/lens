@@ -1,0 +1,43 @@
+package eu.transittrack.geo
+
+import eu.transittrack.geo.algorithm.distance
+import eu.transittrack.geo.algorithm.matchDistanceAlongVector
+
+typealias PointCoordinates = Position
+
+data class Point(
+    override val coordinates: PointCoordinates,
+    override val bbox: BBox? = null,
+) : Geometry<PointCoordinates>("Point"){
+
+    constructor(lat: Double, lon: Double) : this(PointCoordinates(lon, lat))
+
+    val lat: Double get() = coordinates.lat
+    val lon: Double get() = coordinates.lng
+
+    /**
+     * Straight-line ground distance from this point to [other], in metres.
+     *
+     * Uses the fast equirectangular approximation (see the internal `distance` helper (see `Distance.kt`)), so it is only
+     * accurate over short, city-scale spans.
+     */
+    fun distance(other: Point): Double = distance(this.coordinates, other.coordinates)
+
+    /**
+     * Shortest ground distance, in metres, from this point to the segment [v] — i.e. the length of
+     * the perpendicular dropped onto the segment, or the distance to the nearer endpoint when the
+     * foot of that perpendicular falls outside the segment.
+     */
+    fun distance(v: Edge): Double = distance(this, v)
+
+    /**
+     * Distance, in metres, measured **along** [v] from its start ([Edge.startPosition]) to the point on [v]
+     * that lies closest to this point. Clamped to `[0, v.length()]`. Useful for turning a raw GPS
+     * fix into a "how far along this shape am I" scalar.
+     */
+    fun distanceAlongVector(v: Edge): Double = matchDistanceAlongVector(this, v)
+
+    override fun calculateBBox(): BBox {
+        return BBox.of(listOf(coordinates))
+    }
+}

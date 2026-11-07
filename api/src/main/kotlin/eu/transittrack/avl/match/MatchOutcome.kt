@@ -1,6 +1,6 @@
 package eu.transittrack.avl.match
 
-import eu.transittrack.Point
+import eu.transittrack.geo.Point
 
 /** Result of matching one AVL report against the derived schedule. */
 sealed interface MatchOutcome {

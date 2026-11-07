@@ -8,15 +8,15 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 
-import eu.transittrack.Point
-import eu.transittrack.Polyline
 import eu.transittrack.avl.AvlProperties
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Point
 
 class SpatialMatcherTest {
     private val matcher = SpatialMatcher(AvlProperties())
 
     // N-S line so the maths is simple: ~1113 m per 0.01 deg latitude.
-    private val line = Polyline(listOf(Point(0.0, 0.0), Point(0.01, 0.0), Point(0.02, 0.0)))
+    private val line = Line.of(Point(0.0, 0.0), Point(0.01, 0.0), Point(0.02, 0.0))
     private val geom = PatternGeometry(line, doubleArrayOf(0.0, line.cumulative[1]), booleanArrayOf(false, false))
 
     @Test

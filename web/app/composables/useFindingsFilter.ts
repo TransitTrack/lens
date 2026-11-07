@@ -11,10 +11,10 @@ export function useFindingsFilter(
 ) {
   const onlyWithFindings = ref(false)
 
-  const { result } = useValidationFindingCountsQuery(
-    () => ({ feedCode: feedCode.value ?? '', entityType }),
-    () => ({ enabled: !!feedCode.value }),
-  )
+  const { result } = useValidationFindingCountsQuery(() => ({
+    variables: { feedCode: feedCode.value ?? '', entityType },
+    enabled: !!feedCode.value,
+  }))
 
   const ids = computed(
     () => new Set((result.value?.validationFindingCounts ?? []).map((entry) => entry.entityId)),

@@ -1,4 +1,4 @@
-import { useExploreRoutesQuery } from '../../generated/graphql'
+import { useExploreRoutesQuery } from '~~/generated/graphql'
 import { useFeeds } from './useFeeds'
 import { useExploreQuery } from './useExploreQuery'
 import { routeTypeBreakdown } from '~/utils/feedFeatures'
@@ -12,10 +12,10 @@ export function useRouteTypeFilter() {
   const { selectedFeedCode } = useFeeds()
   const { get, set } = useExploreQuery()
 
-  const { result } = useExploreRoutesQuery(
-    () => ({ feedCode: selectedFeedCode.value ?? '' }),
-    () => ({ enabled: !!selectedFeedCode.value }),
-  )
+  const { result } = useExploreRoutesQuery(() => ({
+    variables: { feedCode: selectedFeedCode.value ?? '' },
+    enabled: !!selectedFeedCode.value,
+  }))
 
   const types = computed(() => routeTypeBreakdown(result.value?.routes ?? [], t))
   const hasMultiple = computed(() => types.value.length > 1)

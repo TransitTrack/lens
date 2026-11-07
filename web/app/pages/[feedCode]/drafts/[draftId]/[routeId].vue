@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type {SplitterItem} from '@nuxt/ui'
 import {
   useRoutesQuery,
@@ -16,7 +17,7 @@ import {useFeeds} from '~/composables/useFeeds'
 import {useDraftEditor} from '~/composables/useDraftEditor'
 import {useDraftEdit} from '~/composables/useDraftEdit'
 import {formatClock} from '~/utils/clock'
-import AppPage from '~/components/AppPage.vue'
+import AppPage from '~/components/shell/AppPage.vue'
 import EditorIdentityDialog from '~/components/draft/EditorIdentityDialog.vue'
 import DraftGrid from '~/components/draft/DraftGrid.vue'
 import DraftRail from '~/components/draft/DraftRail.vue'
@@ -85,10 +86,10 @@ function formatTime(iso: string): string {
 }
 
 // --- route / service pickers -------------------------------------------
-const {result: routesResult} = useRoutesQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
-)
+const {result: routesResult} = useRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
     .sort((a, b) =>
@@ -102,10 +103,10 @@ const routeItems = computed(() =>
     })),
 )
 
-const {result: calendarResult} = useExploreCalendarQuery(
-  () => ({feedCode: selectedFeedCode.value ?? ''}),
-  () => ({enabled: !!selectedFeedCode.value}),
-)
+const {result: calendarResult} = useExploreCalendarQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 const serviceItems = computed(() => {
   const ids = new Set<string>()
   for (const c of calendarResult.value?.calendars ?? []) ids.add(c.serviceId)
@@ -153,10 +154,10 @@ const rebuilding = ref(false)
 const rebuildPhase = ref<string | null>(null)
 const jobId = ref<string | null>(null)
 
-const {result: jobResult} = useDraftJobQuery(
-  () => ({jobId: jobId.value ?? ''}),
-  () => ({enabled: !!jobId.value && rebuilding.value, pollInterval: 1000}),
-)
+const {result: jobResult} = useDraftJobQuery(() => ({
+  variables: { jobId: jobId.value ?? '' },
+  enabled: !!jobId.value && rebuilding.value, pollInterval: 1000,
+}))
 
 async function finishRebuild() {
   rebuilding.value = false
@@ -195,7 +196,7 @@ async function onRebuild() {
   if (rebuilding.value) return
   rebuilding.value = true
   try {
-    const res = await rebuildDraft({id: draftId.value})
+    const res = await rebuildDraft({ variables: {id: draftId.value} })
     const job = res?.data?.rebuildDraft
     if (!job) {
       rebuilding.value = false
@@ -249,7 +250,7 @@ const canActivate = computed(
 
 async function confirmActivate() {
   try {
-    await activateDraft({id: draftId.value, editor: editor.me.value ?? '', force: force.value})
+    await activateDraft({ variables: {id: draftId.value, editor: editor.me.value ?? '', force: force.value} })
     toast.add({title: t('drafts.activated'), color: 'success', icon: 'i-lucide-check'})
     activateOpen.value = false
     navigateTo(feedPath('/explore/feed'))
@@ -272,7 +273,7 @@ const discardOpen = ref(false)
 
 async function confirmDiscard() {
   try {
-    await discardDraft({id: draftId.value, editor: editor.me.value ?? ''})
+    await discardDraft({ variables: {id: draftId.value, editor: editor.me.value ?? ''} })
     toast.add({title: t('drafts.discarded'), color: 'success', icon: 'i-lucide-trash-2'})
     discardOpen.value = false
     navigateTo(feedPath('/drafts'))
@@ -299,14 +300,14 @@ const {run: runEdit} = useDraftEdit(editor, {
 
 async function onUndo() {
   await runEdit(
-    (v) => undoDraftEdit({id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion}),
+    (v) => undoDraftEdit({ variables: {id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion} }),
     'undoDraftEdit',
   )
 }
 
 async function onRedo() {
   await runEdit(
-    (v) => redoDraftEdit({id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion}),
+    (v) => redoDraftEdit({ variables: {id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion} }),
     'redoDraftEdit',
   )
 }
@@ -352,10 +353,10 @@ const activeStopName = computed<string | null>(() => {
 })
 
 // --- rail: undone (redo tail) + error counts --------------------
-const {result: editsResult} = useDraftEditsQuery(
-  () => ({id: draftId.value, limit: 200}),
-  () => ({enabled: !!draftId.value}),
-)
+const {result: editsResult} = useDraftEditsQuery(() => ({
+  variables: { id: draftId.value, limit: 200 },
+  enabled: !!draftId.value,
+}))
 const undoneCount = computed(
   () => (editsResult.value?.draftEdits ?? []).filter((e) => e.undone).length,
 )
@@ -385,7 +386,7 @@ async function onCommitCell(payload: {
 }) {
   await runEdit(
     (v) =>
-      updateStopTime({
+      updateStopTime({ variables: {
         input: {
           draftId: v.draftId,
           editor: v.editor,
@@ -395,7 +396,7 @@ async function onCommitCell(payload: {
           arrivalSec: payload.arrivalSec,
           departureSec: payload.departureSec,
         },
-      }),
+      } }),
     'updateStopTime',
   )
 }

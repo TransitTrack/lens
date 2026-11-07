@@ -6,9 +6,9 @@ import {
   useExploreRoutesQuery,
   useRouteAdherenceQuery,
 } from '~~/generated/graphql'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { adherenceBadge } from '~/utils/adherence'
 import { isValidAdherenceRange } from '~/utils/adherenceReport'
@@ -51,10 +51,10 @@ const {
   result: routesResult,
   loading: routesLoading,
   error: routesError,
-} = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+} = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const routeItems = computed(() =>
   [...(routesResult.value?.routes ?? [])]
@@ -86,18 +86,10 @@ const {
   result: adherenceResult,
   loading: adherenceLoading,
   error: adherenceError,
-} = useRouteAdherenceQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    routeId: submitted.value?.routeId ?? '',
-    startDate: submitted.value?.startDate ?? '',
-    endDate: submitted.value?.endDate ?? '',
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useRouteAdherenceQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', routeId: submitted.value?.routeId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = RouteAdherenceQuery['routeAdherence'][number]
 
@@ -163,7 +155,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
     :description="$t('reports.route.description')"
   >
     <template #actions>
-      <NavbarActions />
+      <PollControl />
     </template>
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.adherence')" />

@@ -3,8 +3,6 @@
     "save": "Enregistrer",
     "cancel": "Annuler",
     "noFeedsConfigured": "Aucun flux configuré.",
-    "unknown": "inconnu",
-    "never": "jamais",
     "goBack": "Retour"
   },
   "timeAgo": {
@@ -99,8 +97,7 @@
   "state": {
     "loadingData": "Chargement des données",
     "nothingYet": "Rien à afficher pour l'instant",
-    "unavailable": "Ces données sont indisponibles",
-    "loadingPage": "Chargement de la page"
+    "unavailable": "Ces données sont indisponibles"
   },
   "poll": {
     "resume": "Reprendre les mises à jour en direct",
@@ -117,8 +114,7 @@
     "thisFeed": "Ce flux",
     "liveVehicleData": "les données des véhicules en direct",
     "explore": "Explorer le flux",
-    "liveVehicleOperations": "les opérations des véhicules en direct",
-    "liveNetwork": "le réseau en direct"
+    "liveVehicleOperations": "les opérations des véhicules en direct"
   },
   "filters": {
     "allAgencies": "Toutes les agences",
@@ -148,78 +144,13 @@
     "operationsDescription": "Positions des véhicules en direct, appariement des voyages et état du service"
   },
   "feed": {
-    "reports": "{count} rapport | {count} rapports",
-    "metadataUnavailable": "Métadonnées du flux indisponibles.",
-    "health": {
-      "title": "État du flux",
-      "disabled": "Désactivé"
-    },
-    "processing": {
-      "title": "Traitement",
-      "pipeline": "Dernier pipeline d'import",
-      "lastIngest": "Dernier import",
-      "revisions": "{count} révision | {count} révisions",
-      "failed": "{count} en échec",
-      "schedule": "Planification",
-      "disabled": "désactivé",
-      "realtimeFeed": "Flux temps réel · {format}",
-      "polled": "interrogé",
-      "every": "toutes les {seconds} s",
-      "noRealtime": "Aucun flux temps réel associé."
-    },
-    "status": {
-      "PENDING": "En file",
-      "DOWNLOADING": "Téléchargement",
-      "VALIDATING": "Validation",
-      "PARSING": "Analyse",
-      "DERIVING": "Dérivation",
-      "READY": "Prêt",
-      "ACTIVE": "Actif",
-      "SUPERSEDED": "Remplacé",
-      "UNCHANGED": "Inchangé",
-      "FAILED": "Échec",
-      "DRAFT": "Brouillon"
-    },
-    "step": {
-      "download": "Téléchargement",
-      "validate": "Validation",
-      "parse": "Analyse",
-      "derive": "Dérivation",
-      "ready": "Prêt",
-      "active": "Actif"
-    },
-    "cron": {
-      "notScheduled": "non planifié",
-      "everyMin": "toutes les {n} min",
-      "everyHour": "toutes les {n} h",
-      "daily": "tous les jours à {time}"
-    },
     "overview": {
-      "title": "Flux",
       "activeRevision": "Révision active",
-      "activated": "activée {time}",
-      "serviceWindow": "Période de service",
-      "daysLeft": "{count} jour restant | {count} jours restants",
-      "expired": "expiré il y a {count} jour | expiré il y a {count} jours",
-      "content": "Contenu",
       "routes": "{count} ligne | {count} lignes",
       "stops": "{count} arrêt | {count} arrêts",
       "trips": "{count} voyage | {count} voyages",
-      "agencies": "{count} agence | {count} agences",
-      "validation": "Validation",
-      "viewProblems": "Voir les problèmes de validation",
       "errors": "{count} erreur | {count} erreurs",
-      "warnings": "{count} avertissement | {count} avertissements",
-      "noFeedInfo": "pas de feed_info.txt",
-      "validationProblems": "Problèmes de validation",
-      "validationSummary": "{errors} · {warnings}",
-      "noReport": "Aucun rapport de validation n'est disponible pour cette révision.",
-      "noticeError": "{count} erreur | {count} erreurs",
-      "noticeWarning": "{count} avertissement | {count} avertissements",
-      "row": "ligne {n}",
-      "noSample": "Le validateur n'a fourni aucun détail d'échantillon.",
-      "noProblems": "Cette révision n'a aucun problème de validation enregistré.",
-      "runIngest": "Lancez ou importez une révision pour voir ici les résultats de validation."
+      "warnings": "{count} avertissement | {count} avertissements"
     },
     "dataset": {
       "title": "Jeux de données",
@@ -260,34 +191,7 @@
       "translations": "Traductions",
       "feedinfo": "Infos du flux",
       "attributions": "Attributions"
-    },
-    "accuracy": {
-      "title": "Précision des prévisions · 7 j",
-      "none": "Aucun échantillon de prévision pour le moment.",
-      "note": "Erreur absolue moyenne d'arrivée — plus c'est bas, mieux c'est.",
-      "errorSeconds": "±{value} s",
-      "hint": "{algorithm} : ±{error} s d'erreur absolue, biais {bias} s ({samples})",
-      "samples": "{count} échantillon | {count} échantillons"
     }
-  },
-  "pulse": {
-    "title": "Pouls du réseau",
-    "liveUpdated": "Positions en direct mises à jour {time}",
-    "liveUnavailable": "Positions en direct indisponibles",
-    "feedUnavailable": "Flux des véhicules indisponible",
-    "operatingSignals": "Indicateurs d'exploitation",
-    "fleetHealth": "État actuel de la flotte d'après les rapports des véhicules en direct",
-    "viewVehicles": "Voir les véhicules : {signal}",
-    "onTime": "Ponctualité",
-    "needsAttention": "Nécessite une attention",
-    "coverage": "Couverture temps réel",
-    "noVehicles": "Aucun véhicule disponible",
-    "sourceUnhealthy": "La source temps réel sélectionnée ne signale pas un état sain",
-    "sourceUnavailable": "Source temps réel sélectionnée indisponible",
-    "onTimeDetail": "{onTime} sur {total} véhicule apparié à moins de 1 minute | {onTime} sur {total} véhicules appariés à moins de 1 minute",
-    "noAdherence": "Aucun véhicule apparié avec respect de l'horaire disponible",
-    "attentionDetail": "véhicule obsolète ou non apparié | {count} véhicules obsolètes ou non appariés",
-    "coverageDetail": "{reporting} véhicule sur {tracked} transmet sa position | {reporting} véhicules sur {tracked} transmettent leur position"
   },
   "overviewStats": {
     "vehiclesTracked": "Véhicules suivis",
@@ -295,17 +199,7 @@
     "matchedOf": "{matched} sur {tracked}",
     "stalePositions": "Positions obsolètes",
     "activeFeeds": "Flux actifs",
-    "reportingOk": "{count} signale un état OK | {count} signalent un état OK",
-    "binHint": "{label} : {count} véhicule | {label} : {count} véhicules",
-    "bin": {
-      "early5": "≥5 min d'avance",
-      "early2to5": "2–5 min d'avance",
-      "early1to2": "1–2 min d'avance",
-      "onTime": "À l'heure",
-      "late1to2": "1–2 min de retard",
-      "late2to5": "2–5 min de retard",
-      "late5": "≥5 min de retard"
-    }
+    "reportingOk": "{count} signale un état OK | {count} signalent un état OK"
   },
   "vehicles": {
     "title": "Véhicules",
@@ -364,7 +258,9 @@
       "fleetSummary": "Résumé de la flotte",
       "reporting": "{count} signale sa position | {count} signalent leur position",
       "matched": "{count} apparié | {count} appariés",
-      "needAttention": "{count} nécessite de l'attention | {count} nécessitent de l'attention"
+      "needAttention": "{count} nécessite de l'attention | {count} nécessitent de l'attention",
+      "collapse": "Masquer la liste des véhicules",
+      "expand": "Afficher la liste des véhicules"
     },
     "list": {
       "tripProgress": "Progression du voyage",
@@ -455,8 +351,6 @@
     "detail": {
       "title": "Véhicule {name}",
       "goBack": "Retour",
-      "stopFollowing": "Ne plus suivre",
-      "followVehicle": "Suivre le véhicule",
       "unavailable": "Véhicule indisponible",
       "notTracked": "Non suivi",
       "notTrackedBody": "Aucune donnée en direct pour {id} sur ce flux.",
@@ -468,7 +362,6 @@
       "noNextStop": "Aucun prochain arrêt identifié",
       "distanceUnavailable": "Distance indisponible",
       "distanceToStop": "{distance} jusqu'à l'arrêt",
-      "adherenceTrend": "Tendance du respect de l'horaire",
       "alongTrip": "Le long du voyage",
       "toNextStop": "Jusqu'au prochain arrêt",
       "gpsOffset": "Écart GPS",
@@ -522,6 +415,22 @@
       "noComputation": "pas encore de calcul",
       "noScheduleComparison": "Aucune comparaison avec l'horaire",
       "vsPrediction": "vs prévision {value}"
+    },
+    "strip": {
+      "aria": "Progression de la course : {passed} arrêts passés sur {total}, {adherence}",
+      "timepoint": "Point de contrôle",
+      "adherenceAt": "Ponctualité {value}",
+      "sincePrevious": "{value} depuis l’arrêt précédent",
+      "avgSpeed": "Vitesse moy. {speed}",
+      "legend": {
+        "delay": "Retard le long du trajet",
+        "delayHint": "Retard à chaque arrêt atteint, puis le véhicule maintenant. Plus haut signifie plus en retard : là où la courbe monte, le véhicule a perdu du temps, là où elle descend, il l’a rattrapé. Vert sous 1 min, jaune jusqu’à 5 min, rouge au-delà.",
+        "speed": "Vitesse",
+        "speedHint": "Vitesse GPS déclarée sur le tronçon déjà parcouru ; plus profond signifie plus rapide. Les trous indiquent l’absence de positions.",
+        "standstill": "Arrêt entre deux arrêts",
+        "passed": "Arrêt passé",
+        "upcoming": "Arrêt à venir"
+      }
     }
   },
   "map": {

@@ -6,9 +6,9 @@ import {
   useAvlReportCatalogQuery,
   useAvlReportPageQuery,
 } from '~~/generated/graphql'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import NoRealtimeState from '~/components/NoRealtimeState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useUnits } from '~/composables/useUnits'
 import {
@@ -51,10 +51,10 @@ const {
   result: catalogResult,
   loading: catalogLoading,
   error: catalogError,
-} = useAvlReportCatalogQuery(
-  () => ({ feedCode: selectedAvlFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedAvlFeedCode.value }),
-)
+} = useAvlReportCatalogQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '' },
+  enabled: !!selectedAvlFeedCode.value,
+}))
 
 const timeZone = computed(() => catalogResult.value?.avlReportCatalog.timeZone ?? null)
 const vehicleItems = computed(() =>
@@ -117,21 +117,10 @@ const {
   loading: pageLoading,
   error: pageError,
   refetch: refetchPage,
-} = useAvlReportPageQuery(
-  () => ({
-    feedCode: selectedAvlFeedCode.value ?? '',
-    vehicleId: submitted.value?.vehicleId ?? '',
-    date: submitted.value?.date ?? '',
-    startTime: submitted.value?.startTime ?? '',
-    endTime: submitted.value?.endTime ?? '',
-    page: submitted.value?.page ?? 1,
-    pageSize: PAGE_SIZE,
-  }),
-  () => ({
-    enabled: !!selectedAvlFeedCode.value && !!submitted.value,
-    fetchPolicy: 'network-only',
-  }),
-)
+} = useAvlReportPageQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: submitted.value?.vehicleId ?? '', date: submitted.value?.date ?? '', startTime: submitted.value?.startTime ?? '', endTime: submitted.value?.endTime ?? '', page: submitted.value?.page ?? 1, pageSize: PAGE_SIZE },
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+}))
 
 type ReportRow = AvlReportPageQuery['avlReportPage']['items'][number]
 
@@ -195,7 +184,7 @@ const columns = computed<TableColumn<ReportRow>[]>(() => [
     :description="$t('reports.avl.description')"
   >
     <template #actions>
-      <NavbarActions />
+      <PollControl />
     </template>
 
     <NoRealtimeState v-if="!selectedAvlFeedCode" :what="$t('reports.noRealtime.avl')" />

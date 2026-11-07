@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.Extent
+import eu.transittrack.geo.BBox
 import eu.transittrack.gtfs.model.AgencyTable
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScopedTable
@@ -52,13 +52,13 @@ class DerivedGtfsWriter {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyRouteExtents(
         revisionId: Long,
-        byRouteId: Map<String, Extent>,
+        byRouteId: Map<String, BBox>,
     ) = applyExtents(RouteTable, RouteTable.extent, { RouteTable.routeId eq it }, revisionId, byRouteId)
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun applyAgencyExtents(
         revisionId: Long,
-        byAgencyId: Map<String, Extent>,
+        byAgencyId: Map<String, BBox>,
     ) = applyExtents(AgencyTable, AgencyTable.extent, { AgencyTable.agencyId eq it }, revisionId, byAgencyId)
 
     private fun applyExtents(
@@ -66,11 +66,9 @@ class DerivedGtfsWriter {
         extent: ExtentColumns,
         keyIs: (String) -> Op<Boolean>,
         revisionId: Long,
-        byKey: Map<String, Extent>,
+        byKey: Map<String, BBox>,
     ) {
-        val entries = byKey.filterValues { !it.isEmpty }
-        if (entries.isEmpty()) return
-        for ((key, e) in entries) {
+        for ((key, e) in byKey) {
             table.update({ (table.revisionId eq revisionId) and keyIs(key) }) { extent.bind(it, e) }
         }
     }

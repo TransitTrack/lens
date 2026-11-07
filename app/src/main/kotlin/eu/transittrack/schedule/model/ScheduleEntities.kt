@@ -5,8 +5,11 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.json.jsonb
 
-import eu.transittrack.Extent
 import eu.transittrack.ProjectJson
+import eu.transittrack.geo.BBox
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.json.GeoJson
+import eu.transittrack.geo.json.toGeoJson
 import eu.transittrack.gtfs.model.ExtentColumns
 import eu.transittrack.gtfs.model.RevisionScoped
 import eu.transittrack.gtfs.model.RevisionScopedTable
@@ -27,8 +30,10 @@ class TripPattern(
     var shapeId: String?,
     var stopCount: Int,
     var lengthM: Double?,
-    var extent: Extent = Extent(),
+    var extent: BBox? = null,
     var tripCount: Int,
+    /** The pattern's polyline: its stop-path segments concatenated in order. Null if it has < 2 points. */
+    var geometry: Line? = null,
 ) : RevisionScoped(revisionId)
 
 class StopPath(
@@ -39,7 +44,6 @@ class StopPath(
     var routeId: String? = null,
     var stopSeq: Int,
     var lengthM: Double,
-    var pathGeometry: String?,
     var pickupType: Int?,
     var dropOffType: Int?,
     var waitStop: Boolean,
@@ -95,6 +99,8 @@ object TripPatternTable : RevisionScopedTable<TripPattern>("trip_patterns", Trip
     val stopCount = integer("stop_count")
     val lengthM = double("length_m").nullable()
     val tripCount = integer("trip_count")
+    val geometry =
+        jsonb<Line>("geometry", { it.toGeoJson() }, { GeoJson.fromJson(it) as Line }).nullable()
 
     init {
         uniqueIndex("uq_trip_pattern_rev_key", revisionId, patternKey)
@@ -112,9 +118,9 @@ object TripPatternTable : RevisionScopedTable<TripPattern>("trip_patterns", Trip
             shapeId = row[shapeId],
             stopCount = row[stopCount],
             lengthM = row[lengthM],
-            // Derivation always stores an extent (an unset one as four NaNs); the row class never holds null.
-            extent = extent.read(row) ?: Extent(),
+            extent = extent.read(row),
             tripCount = row[tripCount],
+            geometry = row[geometry],
         ).withId(row)
 
     override fun bind(
@@ -132,6 +138,7 @@ object TripPatternTable : RevisionScopedTable<TripPattern>("trip_patterns", Trip
         s[stopCount] = row.stopCount
         s[lengthM] = row.lengthM
         s[tripCount] = row.tripCount
+        s[geometry] = row.geometry
     }
 }
 
@@ -148,7 +155,6 @@ object StopPathTable : RevisionScopedTable<StopPath>("stop_path", StopPath::clas
     val routeId = varchar("route_id", 255).nullable()
     val stopSeq = integer("gtfs_stop_seq")
     val lengthM = double("length_m")
-    val pathGeometry = jsonb<String>("path_geometry", { it }, { it }).nullable()
     val pickupType = short("pickup_type").nullable()
     val dropOffType = short("drop_off_type").nullable()
     val waitStop = bool("wait_stop")
@@ -171,7 +177,6 @@ object StopPathTable : RevisionScopedTable<StopPath>("stop_path", StopPath::clas
             routeId = row[routeId],
             stopSeq = row[stopSeq],
             lengthM = row[lengthM],
-            pathGeometry = row[pathGeometry],
             pickupType = row[pickupType]?.toInt(),
             dropOffType = row[dropOffType]?.toInt(),
             waitStop = row[waitStop],
@@ -191,7 +196,6 @@ object StopPathTable : RevisionScopedTable<StopPath>("stop_path", StopPath::clas
         s[routeId] = row.routeId
         s[stopSeq] = row.stopSeq
         s[lengthM] = row.lengthM
-        s[pathGeometry] = row.pathGeometry
         s[pickupType] = row.pickupType?.toShort()
         s[dropOffType] = row.dropOffType?.toShort()
         s[waitStop] = row.waitStop

@@ -2,8 +2,8 @@
 import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
 import { useDraftsQuery, useDiscardDraftMutation, type DraftsQuery } from '~~/generated/graphql'
 import { useFeeds } from '~/composables/useFeeds'
-import AppPage from '~/components/AppPage.vue'
-import PageState from '~/components/PageState.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PageState from '~/components/shell/PageState.vue'
 import NewDraftDialog from '~/components/draft/NewDraftDialog.vue'
 import { gtfsDate } from '~/utils/gtfs'
 import { useEditorIdentity } from '~/composables/useEditorIdentity'
@@ -15,10 +15,10 @@ const { t, locale } = useI18n()
 
 const newOpen = ref(false)
 
-const { result, loading, error, refetch } = useDraftsQuery(
-  () => ({ feedCode: selectedFeedCode.value }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading, error, refetch } = useDraftsQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value },
+  enabled: !!selectedFeedCode.value,
+}))
 
 type Draft = DraftsQuery['drafts'][number]
 const drafts = computed<Draft[]>(() => result.value?.drafts ?? [])
@@ -92,7 +92,7 @@ async function confirmDiscard() {
   const target = discardTarget.value
   if (!target) return
   try {
-    await discard({ id: target.id, editor: editorName.value ?? '' })
+    await discard({ variables: { id: target.id, editor: editorName.value ?? '' } })
     toast.add({
       title: t('drafts.discardedNamed', { name: target.label ?? target.id }),
       color: 'success',
@@ -101,11 +101,7 @@ async function confirmDiscard() {
     discardTarget.value = null
     await refetch()
   } catch (e) {
-    const err = e as {
-      graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }>
-      cause?: { graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }> }
-    }
-    const code = (err?.graphQLErrors ?? err?.cause?.graphQLErrors)?.[0]?.extensions?.code
+    const code = graphQlErrorsOf(e)[0]?.extensions?.code
     if (code === 'LOCK_LOST') {
       toast.add({
         title: t('drafts.lockLost'),

@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { formatNumber } from '~/utils/intlLocale'
-import AppPage from '~/components/AppPage.vue'
-import NavbarActions from '~/components/NavbarActions.vue'
-import ExploreToolbar from '~/components/ExploreToolbar.vue'
-import FeedFeatures from '~/components/FeedFeatures.vue'
-import FeedDatasetHistory from '~/components/FeedDatasetHistory.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import PollControl from '~/components/shell/PollControl.vue'
+import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
+import FeedFeatures from '~/components/explore/FeedFeatures.vue'
+import FeedDatasetHistory from '~/components/explore/FeedDatasetHistory.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import {
   useFeedDetailQuery,
@@ -22,14 +22,14 @@ const { t, te, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
-const { result: agenciesResult } = useAgenciesDetailQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
-const { result: routesResult } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
+const { result: routesResult } = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 const routes = computed(() => routesResult.value?.routes ?? [])
 
 const agencies = computed(() => {
@@ -43,10 +43,10 @@ const agencies = computed(() => {
   }))
 })
 
-const { result, loading, refetch } = useFeedDetailQuery(
-  () => ({ code: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading, refetch } = useFeedDetailQuery(() => ({
+  variables: { code: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 const feed = computed(() => result.value?.feed ?? null)
 const info = computed(() => result.value?.feedInfo ?? null)
@@ -107,7 +107,7 @@ function statusLabel(status: string): string {
 
 async function reingest() {
   try {
-    const res = await ingest({ feedCode: selectedFeedCode.value ?? '' })
+    const res = await ingest({ variables: { feedCode: selectedFeedCode.value ?? '' } })
     toast.add({
       title: t('explore.feed.ingestTriggered'),
       description: t('explore.feed.ingestRevision', {
@@ -125,7 +125,7 @@ async function reingest() {
 
 async function activateRevision(id: string) {
   try {
-    await activate({ revisionId: id })
+    await activate({ variables: { revisionId: id } })
     toast.add({ title: t('explore.feed.activated', { id }), color: 'success', icon: 'i-lucide-check' })
     await refetch()
   } catch (e) {
@@ -135,7 +135,7 @@ async function activateRevision(id: string) {
 
 async function deleteRevision(id: string) {
   try {
-    await remove({ revisionId: id })
+    await remove({ variables: { revisionId: id } })
     toast.add({ title: t('explore.feed.deleted', { id }), color: 'success', icon: 'i-lucide-trash-2' })
     await refetch()
   } catch (e) {
@@ -159,7 +159,7 @@ watch(editOpen, (open) => {
 
 async function saveFeed() {
   try {
-    await update({
+    await update({ variables: {
       code: selectedFeedCode.value ?? '',
       input: {
         name: form.name,
@@ -168,7 +168,7 @@ async function saveFeed() {
         pollingCron: form.pollingCron || null,
         enabled: form.enabled,
       },
-    })
+    } })
     toast.add({ title: t('explore.feed.updated'), color: 'success', icon: 'i-lucide-check' })
     editOpen.value = false
     await refetch()
@@ -189,7 +189,7 @@ async function saveFeed() {
         :label="t('explore.feed.reingest')"
         @click="reingest"
       />
-      <NavbarActions />
+      <PollControl />
     </template>
     <template #toolbar>
       <ExploreToolbar :show-agency="false" />

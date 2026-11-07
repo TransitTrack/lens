@@ -1,4 +1,4 @@
-import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client/core'
+import { ApolloClient, InMemoryCache, HttpLink } from '@apollo/client'
 import { provideApolloClient } from '@vue/apollo-composable'
 
 export default defineNuxtPlugin(() => {

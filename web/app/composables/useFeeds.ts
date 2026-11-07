@@ -1,4 +1,4 @@
-import { useFeedsQuery, useAvlFeedsQuery } from '../../generated/graphql'
+import { useFeedsQuery, useAvlFeedsQuery } from '~~/generated/graphql'
 
 export interface AnnotatedFeed {
   code: string

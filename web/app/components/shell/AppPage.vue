@@ -1,0 +1,89 @@
+<script setup lang="ts">
+import NotificationsButton from '~/components/shell/NotificationsButton.vue'
+
+withDefaults(
+  defineProps<{
+    title?: string
+    description?: string
+    /**
+     * true (default) → the page fills the dashboard panel below the navbar (never the
+     * whole viewport: that overflows the panel by the navbar height and lets it scroll).
+     * Combine with constrainContent for map and split-pane pages. false →
+     * normal-flow page: body scrolls with the document instead.
+     */
+    fullBleed?: boolean
+    /**
+     * Keep the content within the viewport for map and split-pane pages.
+     * Normal index pages retain natural document flow.
+     */
+    constrainContent?: boolean
+    /**
+     * true (default) → the page uses the full application canvas instead of
+     * the reading-width content container.
+     */
+    fullWidth?: boolean
+  }>(),
+  {
+    title: undefined,
+    description: undefined,
+    fullBleed: true,
+    fullWidth: false,
+    constrainContent: false,
+  },
+)
+
+const slots = useSlots()
+const hasHeader = computed(() => !!slots.actions || !!slots.leading)
+const containerClass = 'max-w-(--app-content-max-w)'
+</script>
+
+<template>
+  <div
+    class="app-page relative"
+    :class="fullBleed ? 'flex min-h-0 flex-1 flex-col' : 'flex flex-1 flex-col'"
+  >
+    <div v-if="title || hasHeader" class="app-page__header shrink-0">
+      <UContainer
+        :class="[
+          fullWidth ? 'max-w-none!' : containerClass,
+          'flex min-h-16 items-center justify-between gap-4 px-(--app-page-gutter) py-3',
+        ]"
+      >
+        <div class="flex min-w-0 items-center gap-3">
+          <slot name="leading" />
+          <div class="min-w-0">
+            <h1 v-if="title" class="truncate text-xl font-semibold tracking-tight text-highlighted">
+              {{ title }}
+            </h1>
+            <p v-if="description" class="truncate text-sm text-muted leading-snug">
+              {{ description }}
+            </p>
+          </div>
+        </div>
+        <div class="flex shrink-0 items-center gap-2">
+          <slot name="actions" />
+          <div class="hidden shrink-0 lg:block">
+            <NotificationsButton />
+          </div>
+        </div>
+      </UContainer>
+    </div>
+
+    <div v-if="slots.toolbar" data-testid="app-page-toolbar" class="app-page__toolbar shrink-0">
+      <UContainer :class="[fullWidth ? 'max-w-none!' : containerClass, 'px-(--app-page-gutter)']">
+        <slot name="toolbar" />
+      </UContainer>
+    </div>
+
+    <UContainer
+      data-testid="app-page-container"
+      :class="[
+        'app-page__content flex flex-1 flex-col gap-4',
+        constrainContent && 'min-h-0',
+        fullWidth ? 'app-page__content--canvas max-w-none! h-full' : 'app-page__content--rail',
+      ]"
+    >
+      <slot />
+    </UContainer>
+  </div>
+</template>

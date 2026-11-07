@@ -6,10 +6,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Extent
-import eu.transittrack.Point
-import eu.transittrack.Polyline
 import eu.transittrack.ScheduleProperties
+import eu.transittrack.geo.BBox
+import eu.transittrack.geo.Line
+import eu.transittrack.geo.Point
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
 import eu.transittrack.gtfs.model.ShapePointRepository
@@ -58,9 +58,9 @@ class TripPatternProcessor(
                     if (la != null && lo != null) it.stopId to Point(la, lo) else null
                 }.toMap()
 
-        val polylineCache = HashMap<String, Polyline?>()
+        val polylineCache = HashMap<String, Line?>()
 
-        fun polyline(shapeId: String?): Polyline? {
+        fun polyline(shapeId: String?): Line? {
             if (shapeId == null) return null
             return polylineCache.getOrPut(shapeId) {
                 val pts =
@@ -69,7 +69,7 @@ class TripPatternProcessor(
                         val lo = p.shapePtLon
                         if (la != null && lo != null) Point(la, lo) else null
                     }
-                if (pts.size >= 2) Polyline(pts) else null
+                if (pts.size >= 2) Line.of(pts) else null
             }
         }
 
@@ -113,7 +113,7 @@ class TripPatternProcessor(
                     buildPattern(
                         revisionId, p.trip.routeId, p.trip.shapeId, p.trip.directionId, headsign,
                         p.rows, p.stopIds, stopCoord, polyline(p.trip.shapeId),
-                        props.stopProjectionMaxDeviationM, json,
+                        props.stopProjectionMaxDeviationM,
                     )
                 newPatterns.add(build.pattern)
                 newPaths[key] = build.paths
@@ -121,7 +121,7 @@ class TripPatternProcessor(
             writer.write(newPatterns)
             patternCount += newPatterns.size
             if (newPatterns.isNotEmpty()) {
-                state.patternExtents[route.routeId] = Extent.ofExtents(newPatterns.map { it.extent })
+                BBox.union(newPatterns.map { it.extent })?.let { state.patternExtents[route.routeId] = it }
             }
             val allPaths = ArrayList<StopPath>()
             for (pat in newPatterns) {

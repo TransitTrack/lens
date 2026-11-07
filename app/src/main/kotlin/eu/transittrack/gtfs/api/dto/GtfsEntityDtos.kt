@@ -14,6 +14,7 @@ import eu.transittrack.gtfs.model.Stop
 import eu.transittrack.gtfs.model.StopTime
 import eu.transittrack.gtfs.model.Transfer
 import eu.transittrack.gtfs.model.Trip
+import eu.transittrack.gtfs.model.compactLineGeometry
 
 /**
  * GraphQL projections of the core / shape / accessibility / misc GTFS entities.
@@ -319,7 +320,17 @@ data class ShapeDto(
     val pointCount: Int,
     val lengthM: Double?,
     val points: List<ShapePointDto>,
+    private val storedGeometry: String? = null,
 ) {
+    /**
+     * The shape as a GeoJSON `LineString` (`[lng, lat]`), gzip-compressed then base64-encoded: the value
+     * precomputed at ingestion, or, for revisions ingested before it was stored, computed from [points].
+     * Null if the shape has fewer than two valid points.
+     */
+    fun geometry(): String? =
+        storedGeometry
+            ?: compactLineGeometry(points.sortedBy { it.sequence }.map { it.lat to it.lon })
+
     companion object {
         fun of(
             shape: Shape,
@@ -333,6 +344,7 @@ data class ShapeDto(
             shape.pointCount,
             shape.lengthM,
             points.map { ShapePointDto.of(it, revisionId, feedCode) },
+            shape.geometry,
         )
     }
 }

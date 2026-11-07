@@ -13,8 +13,8 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import org.springframework.transaction.annotation.Transactional
 
-import eu.transittrack.Extent
 import eu.transittrack.db.RowTable
+import eu.transittrack.geo.BBox
 import eu.transittrack.gtfs.revision.GtfsRevisionTable
 
 /**
@@ -58,7 +58,7 @@ abstract class RevisionScopedTable<R : RevisionScoped>(
 }
 
 /**
- * The four nullable bounding-box columns an [Extent] is flattened into: no extent is stored as four
+ * The four nullable bounding-box columns an [BBox] is flattened into: no extent is stored as four
  * NULLs and read back as `null`.
  */
 class ExtentColumns(
@@ -69,21 +69,22 @@ class ExtentColumns(
     val maxLat = with(table) { double("max_lat").nullable() }
     val maxLon = with(table) { double("max_lon").nullable() }
 
-    fun read(row: ResultRow): Extent? {
-        val bounds = listOf(row[minLat], row[maxLat], row[minLon], row[maxLon])
-        if (bounds.all { it == null }) return null
-        val (mnLat, mxLat, mnLon, mxLon) = bounds.map { it ?: Double.NaN }
-        return Extent.of(minLat = mnLat, maxLat = mxLat, minLon = mnLon, maxLon = mxLon)
+    fun read(row: ResultRow): BBox? {
+        val south = row[minLat] ?: return null
+        val north = row[maxLat] ?: return null
+        val west = row[minLon] ?: return null
+        val east = row[maxLon] ?: return null
+        return BBox(west, south, east, north)
     }
 
     fun bind(
         s: UpdateBuilder<*>,
-        e: Extent?,
+        e: BBox?,
     ) {
         s[minLat] = e?.minLat
-        s[minLon] = e?.minLon
+        s[minLon] = e?.minLng
         s[maxLat] = e?.maxLat
-        s[maxLon] = e?.maxLon
+        s[maxLon] = e?.maxLng
     }
 }
 

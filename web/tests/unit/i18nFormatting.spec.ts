@@ -7,7 +7,7 @@ import pl from '../../i18n/locales/pl.json'
 import fr from '../../i18n/locales/fr.json'
 import ro from '../../i18n/locales/ro.json'
 import { displayLocale, formatNumber, intlLocale } from '../../app/utils/intlLocale'
-import { formatCalendarDate, formatClock, formatDottedTimestamp } from '../../app/utils/clock'
+import { formatClock, formatDottedTimestamp } from '../../app/utils/clock'
 import { formatReportTimestamp } from '../../app/utils/avlReport'
 import { gtfsDate } from '../../app/utils/gtfs'
 import { timeAgoMessages } from '../../app/utils/timeAgo'
@@ -76,19 +76,6 @@ describe('formatDottedTimestamp', () => {
     }
     expect(formatDottedTimestamp(new Date(instant), 'en', 'UTC')).toBe(old('de-DE'))
     expect(formatDottedTimestamp(new Date(instant), 'en', 'UTC')).toBe(old('en-GB'))
-  })
-})
-
-describe('formatCalendarDate', () => {
-  it('keeps English weekday and dd.mm.yyyy', () => {
-    const date = new Date(2026, 10, 3, 12, 0, 0)
-    expect(formatCalendarDate(date, 'en')).toBe('Tue, 03.11.2026')
-  })
-  it('translates the weekday', () => {
-    const date = new Date(2026, 10, 3, 12, 0, 0)
-    expect(formatCalendarDate(date, 'pl')).toBe('wt., 03.11.2026')
-    expect(formatCalendarDate(date, 'fr')).toBe('mar., 03.11.2026')
-    expect(formatCalendarDate(date, 'ro')).toBe('mar., 03.11.2026')
   })
 })
 

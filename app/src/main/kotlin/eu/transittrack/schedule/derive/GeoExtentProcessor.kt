@@ -4,7 +4,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 
-import eu.transittrack.Extent
+import eu.transittrack.geo.BBox
 import eu.transittrack.gtfs.ingest.IngestionPostProcessor
 import eu.transittrack.gtfs.model.RouteRepository
 
@@ -28,11 +28,11 @@ class GeoExtentProcessor(
     override fun postProcess(revisionId: Long): Map<String, Long> {
         val state = context.get(revisionId)
         derivedGtfsWriter.applyRouteExtents(revisionId, state.patternExtents)
-        val agencyExtents = HashMap<String, Extent>()
+        val agencyExtents = HashMap<String, BBox>()
         for (route in routes.findByRevisionId(revisionId)) {
             val re = state.patternExtents[route.routeId] ?: continue
             val aid = route.agencyId ?: continue
-            agencyExtents.getOrPut(aid) { Extent() }.add(re)
+            agencyExtents.merge(aid, re, BBox::union)
         }
         derivedGtfsWriter.applyAgencyExtents(revisionId, agencyExtents)
         return emptyMap()

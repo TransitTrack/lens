@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { h } from 'vue'
-import AppPage from '../../app/components/AppPage.vue'
+import AppPage from '../../app/components/shell/AppPage.vue'
 
 describe('AppPage', () => {
   it('renders the title and #actions slot in the header row', async () => {

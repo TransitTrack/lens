@@ -10,7 +10,6 @@ data class StopPathRef(
     val routeId: String?,
     val stopSeq: Int,
     val lengthM: Double,
-    val pathGeometry: String?,
     val pickupType: Int?,
     val dropOffType: Int?,
     val waitStop: Boolean,

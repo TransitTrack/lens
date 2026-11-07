@@ -11,5 +11,12 @@ query AvlTrail($feedCode: String!, $vehicleId: String!, $limit: Int) {
     currentStatus
     occupancyStatus
     descTripId
+    match {
+      distanceAlongTripM
+      scheduleAdherenceSec
+      trip {
+        tripId
+      }
+    }
   }
 }

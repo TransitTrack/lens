@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import AppPage from '~/components/AppPage.vue'
-import ExploreToolbar from '~/components/ExploreToolbar.vue'
+import AppPage from '~/components/shell/AppPage.vue'
+import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
@@ -13,10 +13,10 @@ const { selectedFeedCode, feedPath } = useFeeds()
 const { agencyId } = useAgencyFilter()
 const { typeId } = useRouteTypeFilter()
 
-const { result, loading } = useExploreRoutesQuery(
-  () => ({ feedCode: selectedFeedCode.value ?? '' }),
-  () => ({ enabled: !!selectedFeedCode.value }),
-)
+const { result, loading } = useExploreRoutesQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '' },
+  enabled: !!selectedFeedCode.value,
+}))
 
 type Row = ExploreRoutesQuery['routes'][number]
 const agencyName = computed(() => {
