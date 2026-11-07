@@ -75,7 +75,9 @@ const y = (sec: number) =>
   CURVE_TOP + (CURVE_H * (range.value.hi - sec)) / (range.value.hi - range.value.lo)
 
 const curvePath = computed(() =>
-  profile.value.map((p, i) => `${i ? 'L' : 'M'}${x(p.offset).toFixed(1)},${y(p.sec).toFixed(1)}`).join(''),
+  profile.value
+    .map((p, i) => `${i ? 'L' : 'M'}${x(p.offset).toFixed(1)},${y(p.sec).toFixed(1)}`)
+    .join(''),
 )
 const areaPath = computed(() => {
   const points = profile.value
@@ -98,7 +100,12 @@ const curveStops = computed(() => {
   return bands.flatMap(([top, bottom, color]) => {
     const from = Math.min(hi, top)
     const to = Math.max(lo, bottom)
-    return from > to ? [{ at: at(from), color }, { at: at(to), color }] : []
+    return from > to
+      ? [
+          { at: at(from), color },
+          { at: at(to), color },
+        ]
+      : []
   })
 })
 
@@ -154,7 +161,9 @@ const speedPaths = computed(() => {
   return runs
     .filter((run) => run.length >= 2)
     .map((run) => {
-      const line = run.map((p, i) => `${i ? 'L' : 'M'}${x(p.offset).toFixed(1)},${depth(p.speedMps).toFixed(1)}`).join('')
+      const line = run
+        .map((p, i) => `${i ? 'L' : 'M'}${x(p.offset).toFixed(1)},${depth(p.speedMps).toFixed(1)}`)
+        .join('')
       return {
         line,
         area: `${line}L${x(run.at(-1)!.offset).toFixed(1)},${SPEED_TOP}L${x(run[0]!.offset).toFixed(1)},${SPEED_TOP}Z`,
@@ -208,241 +217,264 @@ function labelAlign(index: number): string {
 
 <template>
   <div class="flex flex-col gap-2">
-  <div
-    ref="track"
-    role="img"
-    class="relative mx-4"
-    :style="{ height: `${HEIGHT}px` }"
-    :aria-label="
-      t('vehicles.strip.aria', { passed: passedCount, total: strip.stops.length, adherence: badge.label })
-    "
-  >
-    <svg
-      v-if="width > 0"
-      class="pointer-events-none absolute inset-0 overflow-visible"
-      :width="width"
-      :height="HEIGHT"
-      :viewBox="`0 0 ${width} ${HEIGHT}`"
-      aria-hidden="true"
+    <div
+      ref="track"
+      role="img"
+      class="relative mx-4"
+      :style="{ height: `${HEIGHT}px` }"
+      :aria-label="
+        t('vehicles.strip.aria', {
+          passed: passedCount,
+          total: strip.stops.length,
+          adherence: badge.label,
+        })
+      "
     >
-      <defs>
-        <linearGradient
-          :id="gradientId"
-          gradientUnits="userSpaceOnUse"
-          x1="0"
-          x2="0"
-          :y1="CURVE_TOP"
-          :y2="CURVE_TOP + CURVE_H"
-        >
-          <stop
-            v-for="(stop, i) in curveStops"
-            :key="i"
-            :offset="stop.at"
-            :style="{ stopColor: stop.color }"
-          />
-        </linearGradient>
-      </defs>
+      <svg
+        v-if="width > 0"
+        class="pointer-events-none absolute inset-0 overflow-visible"
+        :width="width"
+        :height="HEIGHT"
+        :viewBox="`0 0 ${width} ${HEIGHT}`"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            :id="gradientId"
+            gradientUnits="userSpaceOnUse"
+            x1="0"
+            x2="0"
+            :y1="CURVE_TOP"
+            :y2="CURVE_TOP + CURVE_H"
+          >
+            <stop
+              v-for="(stop, i) in curveStops"
+              :key="i"
+              :offset="stop.at"
+              :style="{ stopColor: stop.color }"
+            />
+          </linearGradient>
+        </defs>
 
-      <!-- delay curve -->
-      <g v-for="line in gridLines" :key="line.sec">
+        <!-- delay curve -->
+        <g v-for="line in gridLines" :key="line.sec">
+          <line
+            x1="0"
+            :x2="width"
+            :y1="line.y"
+            :y2="line.y"
+            stroke-dasharray="2 4"
+            :style="{ stroke: 'var(--ui-border-accented)' }"
+          />
+          <text
+            x="0"
+            :y="line.y - 3"
+            font-size="9"
+            class="tabular-nums"
+            :style="{ fill: 'var(--ui-text-dimmed)' }"
+          >
+            {{ line.label }}
+          </text>
+        </g>
+        <path v-if="areaPath" :d="areaPath" :fill="`url(#${gradientId})`" opacity="0.16" />
+        <path
+          v-if="profile.length >= 2"
+          :d="curvePath"
+          fill="none"
+          :stroke="`url(#${gradientId})`"
+          stroke-width="2"
+          stroke-linejoin="round"
+        />
+        <text
+          v-if="worst"
+          :x="(x(worst.from.offset) + x(worst.to.offset)) / 2"
+          :y="Math.min(y(worst.from.sec), y(worst.to.sec)) - 5"
+          text-anchor="middle"
+          font-size="11"
+          font-weight="700"
+          class="tabular-nums"
+          :style="{ fill: worst.lossSec >= ON_TIME_SEC ? 'var(--ui-error)' : 'var(--ui-warning)' }"
+        >
+          {{ signedAdherence(worst.lossSec) }}
+        </text>
+
+        <!-- route line -->
         <line
           x1="0"
           :x2="width"
-          :y1="line.y"
-          :y2="line.y"
-          stroke-dasharray="2 4"
-          :style="{ stroke: 'var(--ui-border-accented)' }"
+          :y1="LINE_Y"
+          :y2="LINE_Y"
+          stroke-width="4"
+          stroke-linecap="round"
+          :style="{ stroke: 'var(--ui-bg-accented)' }"
         />
-        <text
-          x="0"
-          :y="line.y - 3"
-          font-size="9"
-          class="tabular-nums"
-          :style="{ fill: 'var(--ui-text-dimmed)' }"
-        >
-          {{ line.label }}
-        </text>
-      </g>
-      <path v-if="areaPath" :d="areaPath" :fill="`url(#${gradientId})`" opacity="0.16" />
-      <path
-        v-if="profile.length >= 2"
-        :d="curvePath"
-        fill="none"
-        :stroke="`url(#${gradientId})`"
-        stroke-width="2"
-        stroke-linejoin="round"
-      />
-      <text
-        v-if="worst"
-        :x="(x(worst.from.offset) + x(worst.to.offset)) / 2"
-        :y="Math.min(y(worst.from.sec), y(worst.to.sec)) - 5"
-        text-anchor="middle"
-        font-size="11"
-        font-weight="700"
-        class="tabular-nums"
-        :style="{ fill: worst.lossSec >= ON_TIME_SEC ? 'var(--ui-error)' : 'var(--ui-warning)' }"
-      >
-        {{ signedAdherence(worst.lossSec) }}
-      </text>
 
-      <!-- route line -->
-      <line
-        x1="0"
-        :x2="width"
-        :y1="LINE_Y"
-        :y2="LINE_Y"
-        stroke-width="4"
-        stroke-linecap="round"
-        :style="{ stroke: 'var(--ui-bg-accented)' }"
-      />
-
-      <!-- speed below the line -->
-      <g v-for="(piece, i) in speedPaths" :key="i">
-        <path :d="piece.area" opacity="0.22" :style="{ fill: 'var(--ui-primary)' }" />
-        <path
-          :d="piece.line"
-          fill="none"
-          stroke-width="1.25"
-          opacity="0.7"
-          :style="{ stroke: 'var(--ui-primary)' }"
-        />
-      </g>
-      <circle
-        v-for="(point, i) in stillPoints"
-        :key="`still-${i}`"
-        :cx="x(point.offset)"
-        :cy="SPEED_TOP + 3"
-        r="2.5"
-        :style="{ fill: 'var(--ui-warning)' }"
-      />
-    </svg>
-
-    <!-- hover zones explaining the two graphs; the stop dots sit above them -->
-    <UTooltip
-      v-if="profile.length >= 2"
-      :delay-duration="150"
-      :content="{ side: 'top', sideOffset: 4 }"
-      :ui="{ content: 'h-auto max-w-80 py-1.5' }"
-    >
-      <div class="absolute inset-x-0 top-0" :style="{ height: `${LINE_Y - 14}px` }" />
-      <template #content>
-        <div class="flex flex-col gap-0.5 whitespace-normal py-0.5">
-          <span class="font-medium text-highlighted">{{ t('vehicles.strip.legend.delay') }}</span>
-          <span class="text-muted">{{ t('vehicles.strip.legend.delayHint') }}</span>
-        </div>
-      </template>
-    </UTooltip>
-    <UTooltip
-      v-if="speedPaths.length"
-      :delay-duration="150"
-      :content="{ side: 'bottom', sideOffset: 4 }"
-      :ui="{ content: 'h-auto max-w-80 py-1.5' }"
-    >
-      <div class="absolute inset-x-0" :style="{ top: `${LINE_Y + 13}px`, height: `${SPEED_TOP + SPEED_H - LINE_Y - 13}px` }" />
-      <template #content>
-        <div class="flex flex-col gap-0.5 whitespace-normal py-0.5">
-          <span class="font-medium text-highlighted">{{ t('vehicles.strip.legend.speed') }}</span>
-          <span class="text-muted">{{ t('vehicles.strip.legend.speedHint') }}</span>
-        </div>
-      </template>
-    </UTooltip>
-
-    <template v-for="(stop, index) in strip.stops" :key="stop.stopPathIndex">
-      <UTooltip
-        :delay-duration="0"
-        :content="{ side: 'bottom', sideOffset: 6 }"
-        :ui="{ content: 'h-auto py-1.5' }"
-      >
-        <!-- 24px hover target centred on the line; the visible dot sits inside it -->
-        <span
-          class="absolute flex size-6 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center"
-          :style="{ left: pct(stop.offset), top: `${LINE_Y}px` }"
-        >
-          <span
-            class="border-2 bg-default"
-            :class="[
-              stop.timepoint ? 'size-3 rotate-45 rounded-[2px]' : 'size-3.5 rounded-full',
-              stop.passed ? 'border-muted bg-muted' : 'border-primary',
-              stop.next && 'ring-2 ring-primary/30',
-            ]"
+        <!-- speed below the line -->
+        <g v-for="(piece, i) in speedPaths" :key="i">
+          <path :d="piece.area" opacity="0.22" :style="{ fill: 'var(--ui-primary)' }" />
+          <path
+            :d="piece.line"
+            fill="none"
+            stroke-width="1.25"
+            opacity="0.7"
+            :style="{ stroke: 'var(--ui-primary)' }"
           />
-        </span>
+        </g>
+        <circle
+          v-for="(point, i) in stillPoints"
+          :key="`still-${i}`"
+          :cx="x(point.offset)"
+          :cy="SPEED_TOP + 3"
+          r="2.5"
+          :style="{ fill: 'var(--ui-warning)' }"
+        />
+      </svg>
+
+      <!-- hover zones explaining the two graphs; the stop dots sit above them -->
+      <UTooltip
+        v-if="profile.length >= 2"
+        :delay-duration="150"
+        :content="{ side: 'top', sideOffset: 4 }"
+        :ui="{ content: 'h-auto max-w-80 py-1.5' }"
+      >
+        <div class="absolute inset-x-0 top-0" :style="{ height: `${LINE_Y - 14}px` }" />
         <template #content>
-          <div class="flex flex-col gap-0.5 py-0.5">
-            <span class="font-medium text-highlighted">{{ stop.name }}</span>
-            <span v-if="stopTiming(stop, index)" class="tabular-nums text-muted">
-              {{ stopTiming(stop, index) }}
-            </span>
-            <span v-if="stopDelay(stop)" class="tabular-nums text-muted">{{ stopDelay(stop) }}</span>
-            <span v-if="stopSpeed(stop)" class="tabular-nums text-muted">{{ stopSpeed(stop) }}</span>
-            <span v-if="stop.timepoint" class="text-dimmed">{{ t('vehicles.strip.timepoint') }}</span>
+          <div class="flex flex-col gap-0.5 whitespace-normal py-0.5">
+            <span class="font-medium text-highlighted">{{ t('vehicles.strip.legend.delay') }}</span>
+            <span class="text-muted">{{ t('vehicles.strip.legend.delayHint') }}</span>
           </div>
         </template>
       </UTooltip>
-      <span
-        v-if="labelled.has(stop.stopPathIndex)"
-        class="pointer-events-none absolute max-w-24 truncate text-[11px] leading-4"
-        :class="[
-          labelAlign(index),
-          stop.next ? 'font-semibold text-highlighted' : stop.passed ? 'text-dimmed' : 'text-muted',
-        ]"
-        :style="{ left: pct(stop.offset), top: `${SPEED_TOP + SPEED_H + 4}px` }"
+      <UTooltip
+        v-if="speedPaths.length"
+        :delay-duration="150"
+        :content="{ side: 'bottom', sideOffset: 4 }"
+        :ui="{ content: 'h-auto max-w-80 py-1.5' }"
       >
-        {{ stop.name }}
-      </span>
-    </template>
-
-    <template v-if="strip.vehicleOffset !== null">
-      <span
-        v-if="vehicleTag"
-        class="pointer-events-none absolute rounded bg-elevated px-1.5 text-[11px] font-semibold leading-4 tabular-nums"
-        :class="[tone.text, vehicleTag.flip && '-translate-x-full']"
-        :style="{ left: vehicleTag.left, top: vehicleTag.top }"
-      >
-        {{ signedAdherence(adherenceSec!) }}
-      </span>
-      <UTooltip :text="badge.label">
-        <span
-          class="absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-md ring-4 ring-(--ui-bg)"
-          :class="[tone.dot, stale && 'opacity-60']"
-          :style="{ left: pct(strip.vehicleOffset), top: `${LINE_Y}px` }"
-        >
-          <UIcon name="i-lucide-bus" class="size-3.5 text-white" />
-        </span>
+        <div
+          class="absolute inset-x-0"
+          :style="{ top: `${LINE_Y + 13}px`, height: `${SPEED_TOP + SPEED_H - LINE_Y - 13}px` }"
+        />
+        <template #content>
+          <div class="flex flex-col gap-0.5 whitespace-normal py-0.5">
+            <span class="font-medium text-highlighted">{{ t('vehicles.strip.legend.speed') }}</span>
+            <span class="text-muted">{{ t('vehicles.strip.legend.speedHint') }}</span>
+          </div>
+        </template>
       </UTooltip>
-    </template>
-  </div>
 
-  <!-- legend -->
-  <ul class="mx-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
-    <UTooltip :text="t('vehicles.strip.legend.delayHint')" :ui="{ content: 'h-auto max-w-80 whitespace-normal py-1.5' }">
-      <li class="flex cursor-help items-center gap-1.5">
-        <span class="h-0.5 w-5 rounded-full bg-linear-to-r from-success via-warning to-error" />
-        {{ t('vehicles.strip.legend.delay') }}
+      <template v-for="(stop, index) in strip.stops" :key="stop.stopPathIndex">
+        <UTooltip
+          :delay-duration="0"
+          :content="{ side: 'bottom', sideOffset: 6 }"
+          :ui="{ content: 'h-auto py-1.5' }"
+        >
+          <!-- 24px hover target centred on the line; the visible dot sits inside it -->
+          <span
+            class="absolute flex size-6 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center"
+            :style="{ left: pct(stop.offset), top: `${LINE_Y}px` }"
+          >
+            <span
+              class="border-2 bg-default"
+              :class="[
+                stop.timepoint ? 'size-3 rotate-45 rounded-[2px]' : 'size-3.5 rounded-full',
+                stop.passed ? 'border-muted bg-muted' : 'border-primary',
+                stop.next && 'ring-2 ring-primary/30',
+              ]"
+            />
+          </span>
+          <template #content>
+            <div class="flex flex-col gap-0.5 py-0.5">
+              <span class="font-medium text-highlighted">{{ stop.name }}</span>
+              <span v-if="stopTiming(stop, index)" class="tabular-nums text-muted">
+                {{ stopTiming(stop, index) }}
+              </span>
+              <span v-if="stopDelay(stop)" class="tabular-nums text-muted">{{
+                stopDelay(stop)
+              }}</span>
+              <span v-if="stopSpeed(stop)" class="tabular-nums text-muted">{{
+                stopSpeed(stop)
+              }}</span>
+              <span v-if="stop.timepoint" class="text-dimmed">{{
+                t('vehicles.strip.timepoint')
+              }}</span>
+            </div>
+          </template>
+        </UTooltip>
+        <span
+          v-if="labelled.has(stop.stopPathIndex)"
+          class="pointer-events-none absolute max-w-24 truncate text-[11px] leading-4"
+          :class="[
+            labelAlign(index),
+            stop.next
+              ? 'font-semibold text-highlighted'
+              : stop.passed
+                ? 'text-dimmed'
+                : 'text-muted',
+          ]"
+          :style="{ left: pct(stop.offset), top: `${SPEED_TOP + SPEED_H + 4}px` }"
+        >
+          {{ stop.name }}
+        </span>
+      </template>
+
+      <template v-if="strip.vehicleOffset !== null">
+        <span
+          v-if="vehicleTag"
+          class="pointer-events-none absolute rounded bg-elevated px-1.5 text-[11px] font-semibold leading-4 tabular-nums"
+          :class="[tone.text, vehicleTag.flip && '-translate-x-full']"
+          :style="{ left: vehicleTag.left, top: vehicleTag.top }"
+        >
+          {{ signedAdherence(adherenceSec!) }}
+        </span>
+        <UTooltip :text="badge.label">
+          <span
+            class="absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full shadow-md ring-4 ring-bg"
+            :class="[tone.dot, stale && 'opacity-60']"
+            :style="{ left: pct(strip.vehicleOffset), top: `${LINE_Y}px` }"
+          >
+            <UIcon name="i-lucide-bus" class="size-3.5 text-white" />
+          </span>
+        </UTooltip>
+      </template>
+    </div>
+
+    <!-- legend -->
+    <ul class="mx-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted">
+      <UTooltip
+        :text="t('vehicles.strip.legend.delayHint')"
+        :ui="{ content: 'h-auto max-w-80 whitespace-normal py-1.5' }"
+      >
+        <li class="flex cursor-help items-center gap-1.5">
+          <span class="h-0.5 w-5 rounded-full bg-linear-to-r from-success via-warning to-error" />
+          {{ t('vehicles.strip.legend.delay') }}
+        </li>
+      </UTooltip>
+      <UTooltip
+        :text="t('vehicles.strip.legend.speedHint')"
+        :ui="{ content: 'h-auto max-w-80 whitespace-normal py-1.5' }"
+      >
+        <li class="flex cursor-help items-center gap-1.5">
+          <span class="h-2 w-5 rounded-b-sm border-t border-primary bg-primary/25" />
+          {{ t('vehicles.strip.legend.speed') }}
+        </li>
+      </UTooltip>
+      <li class="flex items-center gap-1.5">
+        <span class="size-1.5 rounded-full bg-warning" />
+        {{ t('vehicles.strip.legend.standstill') }}
       </li>
-    </UTooltip>
-    <UTooltip :text="t('vehicles.strip.legend.speedHint')" :ui="{ content: 'h-auto max-w-80 whitespace-normal py-1.5' }">
-      <li class="flex cursor-help items-center gap-1.5">
-        <span class="h-2 w-5 rounded-b-sm border-t border-primary bg-primary/25" />
-        {{ t('vehicles.strip.legend.speed') }}
+      <li class="flex items-center gap-1.5">
+        <span class="size-2.5 rounded-full border-2 border-muted bg-muted" />
+        {{ t('vehicles.strip.legend.passed') }}
       </li>
-    </UTooltip>
-    <li class="flex items-center gap-1.5">
-      <span class="size-1.5 rounded-full bg-warning" />
-      {{ t('vehicles.strip.legend.standstill') }}
-    </li>
-    <li class="flex items-center gap-1.5">
-      <span class="size-2.5 rounded-full border-2 border-muted bg-muted" />
-      {{ t('vehicles.strip.legend.passed') }}
-    </li>
-    <li class="flex items-center gap-1.5">
-      <span class="size-2.5 rounded-full border-2 border-primary" />
-      {{ t('vehicles.strip.legend.upcoming') }}
-    </li>
-    <li class="flex items-center gap-1.5">
-      <span class="size-2 rotate-45 rounded-[1px] border-2 border-primary" />
-      {{ t('vehicles.strip.timepoint') }}
-    </li>
-  </ul>
+      <li class="flex items-center gap-1.5">
+        <span class="size-2.5 rounded-full border-2 border-primary" />
+        {{ t('vehicles.strip.legend.upcoming') }}
+      </li>
+      <li class="flex items-center gap-1.5">
+        <span class="size-2 rotate-45 rounded-[1px] border-2 border-primary" />
+        {{ t('vehicles.strip.timepoint') }}
+      </li>
+    </ul>
   </div>
 </template>

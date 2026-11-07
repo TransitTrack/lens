@@ -17,7 +17,8 @@ const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFe
 
 const { result, loading, error } = useFeedReadinessQuery(() => ({
   variables: { code: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value, pollInterval: 10_000,
+  enabled: !!selectedFeedCode.value,
+  pollInterval: 10_000,
 }))
 const readinessFeed = computed(() => {
   const feed = result.value?.feed ?? null
@@ -350,8 +351,9 @@ const groups = computed(() => [
       <template #header>
         <UDashboardNavbar
           toggle
-          class="h-12 px-3 sm:px-5"
+          class="h-14 px-3 sm:px-5"
           :ui="{
+            root: 'shadow bg-surface/5 backdrop-blur-sm',
             center: 'hidden min-w-0 flex-1 items-center justify-center px-6 lg:flex',
             title: 'min-w-0',
           }"
@@ -361,8 +363,9 @@ const groups = computed(() => [
           </template>
 
           <UButton
-            color="neutral"
-            variant="soft"
+            color="primary"
+            variant="subtle"
+            size="lg"
             class="w-full max-w-lg mx-auto justify-start gap-2.5 text-left font-normal text-muted"
             :aria-label="$t('nav.searchAria')"
             @click="searchOpen = true"
