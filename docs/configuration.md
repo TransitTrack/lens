@@ -145,6 +145,7 @@ explicitly if you don't want any AVL beans created at all.
 | `match.match-interval-ms` | `5000` | `AvlMatchProcessor` per-feed fixed delay |
 | `match.claim-batch-size` | `500` | Max `PENDING` `avl_report` rows claimed per feed per cycle |
 | `match.reassign-hysteresis` | `0.15` | Score margin protecting the incumbent trip from churn (`FULL_INFERENCE`) |
+| `match.release-descriptor-route-after-failures` | unset | Full inference only considers the trips of the route a report's descriptor names (`descRouteId`); set this to consider every route once a vehicle has failed this many consecutive times. Unset never releases the descriptor route |
 | `match.score-weights.*` | `deviation 0.4, heading 0.2, schedule 0.2, continuity 0.2` | `FULL_INFERENCE` scorer weights (should sum to ~1.0) |
 | `match.silent-stale-cycles` | `3` | Poll-interval multiples of silence before flagging a vehicle `stale` |
 | `match.silent-unmatch-cycles` | `5` | Poll-interval multiples of silence before clearing the assignment |

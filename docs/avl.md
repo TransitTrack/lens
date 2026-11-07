@@ -86,6 +86,7 @@ transittrack:
       match-interval-ms: 5000           # AvlMatchProcessor fixed delay
       claim-batch-size: 500
       reassign-hysteresis: 0.15         # score margin protecting the incumbent trip
+      # release-descriptor-route-after-failures: 5  # let inference leave descRouteId after N misses (unset = never)
       score-weights:                    # FULL_INFERENCE MatchScorer weights (sum ~1.0)
         deviation: 0.4
         heading: 0.2
@@ -161,8 +162,16 @@ public so tests drive it directly. Per batch:
    - **`TemporalMatcher`** computes schedule adherence from the stop-path
      cumulative distances and the report's service-seconds.
    - **`MatchScorer`** (FULL_INFERENCE) combines deviation, heading, schedule and
-     continuity into a single score; `reassign-hysteresis` protects the
-     incumbent trip against churn.
+     continuity (1.0 same trip, 0.5 next block trip, 0.3 another trip on the
+     same route and direction) into a single score; `reassign-hysteresis`
+     protects the incumbent trip against churn. A report naming its route
+     (`descRouteId`) only competes among that route's trips, and fails rather
+     than land on another route, unless
+     `release-descriptor-route-after-failures` is set and reached.
+   - **Route-only descriptors** (no trip id, no start time) leave every trip of
+     the route and direction in play; `TRUST_DESCRIPTOR` then prefers the
+     vehicle's previous trip, its block's next trip, then the trip nearest its
+     schedule.
 4. **Persist** — success writes an appended `vehicle_match` row and upserts
    `vehicle_state` (`matched = true`, trip / pattern / block / distance-along /
    adherence, `consecutive_failures = 0`); the `avl_report` becomes `MATCHED`.

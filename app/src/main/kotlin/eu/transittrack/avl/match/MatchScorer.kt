@@ -16,7 +16,10 @@ class MatchScorer(
     private val w = props.match.scoreWeights
     private val maxDev = props.match.maxDeviationM
 
-    /** continuity: 1.0 same trip as prev, 0.5 prev's block's next trip, else 0.0 — caller computes it. */
+    /**
+     * continuity: 1.0 same trip as prev, 0.5 prev's block's next trip, 0.3 another trip on prev's
+     * route and direction, else 0.0 — caller computes it.
+     */
     fun score(
         deviationM: Double,
         reportBearing: Double?,

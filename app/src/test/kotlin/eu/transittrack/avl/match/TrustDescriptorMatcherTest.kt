@@ -22,6 +22,7 @@ import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
 import eu.transittrack.avl.model.AvlReportRow
 import eu.transittrack.avl.model.MatchStatus
+import eu.transittrack.avl.model.VehicleState
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
@@ -106,6 +107,44 @@ class TrustDescriptorMatcherTest(
             matchStatus = MatchStatus.PENDING,
             matchedAt = null,
             createdAt = Instant.EPOCH,
+        )
+
+    private fun at(
+        hour: Int,
+        minute: Int,
+    ) = LocalDate
+        .of(2026, 9, 7)
+        .atTime(hour, minute)
+        .atZone(factory.open(avlFeed)!!.zone)
+        .toInstant()
+
+    private fun prevOnTrip(
+        tripRowId: Long,
+        alongM: Double,
+    ): VehicleStateView =
+        VehicleState(
+            feedCode = "f1",
+            vehicleId = "v",
+            vehicleLabel = null,
+            reportTs = Instant.EPOCH,
+            lat = 0.0,
+            lon = 0.0,
+            bearing = null,
+            speedMps = null,
+            occupancyStatus = null,
+            matched = true,
+            stale = false,
+            consecutiveFailures = 0,
+            revisionId = null,
+            tripRowId = tripRowId,
+            blockPk = null,
+            tripPatternId = null,
+            stopPathIndex = null,
+            distanceAlongTripM = alongM,
+            scheduleAdherenceSec = null,
+            snappedLat = null,
+            snappedLon = null,
+            updatedAt = Instant.EPOCH,
         )
 
     @Test
@@ -197,24 +236,62 @@ class TrustDescriptorMatcherTest(
     }
 
     @Test
-    fun `route without startTimeSec is ambiguous and fails`() {
+    fun `route without startTimeSec resolves to the trip closest to its schedule`() {
         val ctx = factory.open(avlFeed)!!
         val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
         val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
         val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
-        val ts = LocalDate
-            .of(2026, 9, 7)
-            .atTime(8, 5)
-            .atZone(ctx.zone)
-            .toInstant()
 
-        assertThat(
+        // T1, T2 and T3 all run route RA direction 0 over the same shape; at 08:05 halfway along,
+        // T1 (08:00-08:30) is the one nearest its schedule.
+        val outcome =
             matcher.match(
-                report(mid.lat, mid.lon, descTripId = null, ts = ts, descRouteId = "RA", descDirectionId = 0),
+                report(mid.lat, mid.lon, descTripId = null, ts = at(8, 5), descRouteId = "RA", descDirectionId = 0),
                 null,
                 ctx,
-            ),
-        ).isEqualTo(MatchOutcome.Failed)
+            )
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)
+    }
+
+    @Test
+    fun `route without startTimeSec keeps the vehicle on its previous trip`() {
+        val ctx = factory.open(avlFeed)!!
+        val t2 = trips.findByTripId(ctx.revisionId, "T2")!!
+        val geom = ctx.patternGeometry(t2.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+
+        // Running T2 well ahead of its 09:00 schedule: T1 is closer in time, but the vehicle was on T2.
+        val outcome =
+            matcher.match(
+                report(mid.lat, mid.lon, descTripId = null, ts = at(8, 5), descRouteId = "RA", descDirectionId = 0),
+                prevOnTrip(t2.id!!, 0.4 * geom.line.lengthM),
+                ctx,
+            )
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t2.id)
+    }
+
+    @Test
+    fun `route without startTimeSec leaves a previous trip the vehicle can't be on any more`() {
+        val ctx = factory.open(avlFeed)!!
+        val t1 = trips.findByTripId(ctx.revisionId, "T1")!!
+        val t2 = trips.findByTripId(ctx.revisionId, "T2")!!
+        val geom = ctx.patternGeometry(t2.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+
+        // prev was already past this point on T2, so T2 would be a backward jump: fall back to the schedule.
+        val outcome =
+            matcher.match(
+                report(mid.lat, mid.lon, descTripId = null, ts = at(8, 5), descRouteId = "RA", descDirectionId = 0),
+                prevOnTrip(t2.id!!, 0.9 * geom.line.lengthM),
+                ctx,
+            )
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)
     }
 
     @Test

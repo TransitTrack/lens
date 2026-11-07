@@ -10,6 +10,11 @@ import eu.transittrack.schedule.model.TripRef
  * Matcher for feeds without trusted descriptors: every derived trip active on the inferred service
  * date whose window and pattern extent bracket the report is projected, scored by [MatchScorer], and
  * the best-scoring candidate wins — with a hysteresis margin protecting the incumbent trip.
+ *
+ * A report that names its route (`descRouteId`) only competes among that route's trips, unless
+ * `match.releaseDescriptorRouteAfterFailures` is set and the vehicle has failed that many times in
+ * a row. Without that, a vehicle briefly off its own route's shape (a terminal loop, a depot) would
+ * be put on whichever other route runs nearby, and continuity would then keep it there.
  */
 @Component
 class FullInferenceMatcher(
@@ -20,6 +25,15 @@ class FullInferenceMatcher(
     private companion object {
         /** GPS noise can project a vehicle standing at the first stop a few metres past it. */
         const val AT_FIRST_STOP_RADIUS_M = 30.0
+
+        /** Continuity of the vehicle's previous trip itself. */
+        const val SAME_TRIP_CONTINUITY = 1.0
+
+        /** Continuity of the trip that follows the previous one in its block. */
+        const val NEXT_BLOCK_TRIP_CONTINUITY = 0.5
+
+        /** Continuity of another trip on the previous trip's route, in the same direction. */
+        const val SAME_ROUTE_CONTINUITY = 0.3
     }
 
     private val cfg = props.match
@@ -38,10 +52,13 @@ class FullInferenceMatcher(
         if (serviceIds.isEmpty()) return MatchOutcome.Failed
         val actualServiceSec = TemporalMatcher.toServiceSeconds(report.ts, ctx.zone, serviceDate)
 
-        // 2. candidate trips: derived, active service, ts within [start-lead, end+slack], extent near the point.
-        val descTrip = report.descTripId?.let { ctx.tripByGtfsId(it) }
+        // 2. candidate trips: derived, active service (on the descriptor's route, when it names one),
+        //    ts within [start-lead, end+slack], extent near the point.
+        val routeId = descriptorRoute(report, prev)
+        val descTrip = report.descTripId?.let { ctx.tripByGtfsId(it) }?.takeIf { routeId == null || it.routeId == routeId }
+        val pool = if (routeId != null) ctx.candidateTripsForRoute(routeId, serviceIds) else ctx.candidateTrips(serviceIds)
         val candidates =
-            (ctx.candidateTrips(serviceIds) + listOfNotNull(descTrip))
+            (pool + listOfNotNull(descTrip))
                 .distinctBy { it.id }
                 .filter { t ->
                     val pid = t.tripPatternId ?: return@filter false
@@ -61,6 +78,7 @@ class FullInferenceMatcher(
             val score: Double,
         )
 
+        val continuityOf = continuityFrom(prev, ctx)
         val scored =
             candidates.mapNotNull { t ->
                 val geom = ctx.patternGeometry(t.tripPatternId!!) ?: return@mapNotNull null
@@ -83,7 +101,7 @@ class FullInferenceMatcher(
                         t.noSchedule == true,
                         geom.line.lengthM,
                     )
-                val continuity = continuityOf(t, prev, ctx)
+                val continuity = continuityOf(t)
 
                 Scored(t, geom, sm, adherence, scorer.score(sm.deviationM, report.bearing, sm.heading, adherence, continuity))
             }
@@ -148,16 +166,52 @@ class FullInferenceMatcher(
         return !arrivingNow
     }
 
-    private fun continuityOf(
-        t: TripRef,
+    /**
+     * The route the report's descriptor names, which candidates are restricted to; `null` when it
+     * names none, or when `match.releaseDescriptorRouteAfterFailures` is set and the vehicle has
+     * failed at least that many consecutive times.
+     */
+    private fun descriptorRoute(
+        report: AvlReportView,
+        prev: VehicleStateView?,
+    ): String? {
+        val routeId = report.descRouteId?.takeIf { it.isNotBlank() } ?: return null
+        val releaseAfter = cfg.releaseDescriptorRouteAfterFailures ?: return routeId
+        return if ((prev?.consecutiveFailures ?: 0) >= releaseAfter) null else routeId
+    }
+
+    /**
+     * How strongly each candidate continues the vehicle's previous trip: the trip itself, then the
+     * next trip of its block, then another trip on its route in the same direction, else nothing.
+     * The previous trip is looked up once per report rather than once per candidate.
+     */
+    private fun continuityFrom(
         prev: VehicleStateView?,
         ctx: MatchContext,
-    ): Double {
-        if (prev?.tripRowId == null) return 0.0
-        if (t.id == prev.tripRowId) return 1.0
-        val prevBt = ctx.blockTripOf(prev.tripRowId!!) ?: return 0.0
-        val next = ctx.nextBlockTrip(prevBt.blockId, prevBt.listIndex) ?: return 0.0
-        return if (next.tripId == t.id) 0.5 else 0.0
+    ): (TripRef) -> Double {
+        val prevTripId = prev?.tripRowId ?: return { 0.0 }
+        val prevTrip = ctx.trip(prevTripId)
+        val nextBlockTripId =
+            ctx.blockTripOf(prevTripId)?.let { bt -> ctx.nextBlockTrip(bt.blockId, bt.listIndex)?.tripId }
+        return { t ->
+            when {
+                t.id == prevTripId -> {
+                    SAME_TRIP_CONTINUITY
+                }
+
+                t.id == nextBlockTripId -> {
+                    NEXT_BLOCK_TRIP_CONTINUITY
+                }
+
+                prevTrip != null && t.routeId == prevTrip.routeId && t.directionId == prevTrip.directionId -> {
+                    SAME_ROUTE_CONTINUITY
+                }
+
+                else -> {
+                    0.0
+                }
+            }
+        }
     }
 
     private fun toMatched(

@@ -18,6 +18,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 
+import eu.transittrack.avl.AvlProperties
 import eu.transittrack.avl.ingest.AvlFormat
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlFeedSourceKind
@@ -30,6 +31,7 @@ import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
+import eu.transittrack.schedule.model.TripRef
 import eu.transittrack.support.PostgresPerClassTest
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
@@ -41,6 +43,9 @@ class FullInferenceMatcherTest(
     @Autowired val ingestion: IngestionService,
     @Autowired val trips: TripRepository,
     @Autowired val matcher: FullInferenceMatcher,
+    @Autowired val spatial: SpatialMatcher,
+    @Autowired val scorer: MatchScorer,
+    @Autowired val props: AvlProperties,
 ) : PostgresPerClassTest() {
     @TestConfiguration(proxyBeanMethods = false)
     class Stub {
@@ -76,6 +81,7 @@ class FullInferenceMatcherTest(
         lat: Double,
         lon: Double,
         ts: Instant,
+        descRouteId: String? = null,
     ): AvlReportView =
         AvlReportRow(
             id = 1L,
@@ -89,7 +95,7 @@ class FullInferenceMatcherTest(
             speedMps = null,
             odometerM = null,
             descTripId = null,
-            descRouteId = null,
+            descRouteId = descRouteId,
             descDirectionId = null,
             descStartDate = LocalDate.of(2026, 9, 7),
             descStartTimeSec = null,
@@ -107,6 +113,7 @@ class FullInferenceMatcherTest(
     private fun prevOnTrip(
         tripRowId: Long,
         alongM: Double,
+        consecutiveFailures: Int = 0,
     ): VehicleStateView =
         VehicleState(
             feedCode = "f1",
@@ -120,7 +127,7 @@ class FullInferenceMatcherTest(
             occupancyStatus = null,
             matched = true,
             stale = false,
-            consecutiveFailures = 0,
+            consecutiveFailures = consecutiveFailures,
             revisionId = null,
             tripRowId = tripRowId,
             blockPk = null,
@@ -287,5 +294,101 @@ class FullInferenceMatcherTest(
 
         assertThat(matcher.match(report(mid.lat + 0.05, mid.lon + 0.05, ts0805()), prev = null, ctx))
             .isEqualTo(MatchOutcome.Failed)
+    }
+
+    /**
+     * [ctx] plus a copy of T1 on another route ("RB"), running the same pattern and schedule — two
+     * routes sharing a corridor. Listed first among the candidates, so it wins a tied score.
+     */
+    private fun withSharedCorridor(
+        ctx: MatchContext,
+        t1: TripRef,
+    ): Pair<MatchContext, TripRef> {
+        val other = t1.copy(id = 999_001L, tripId = "X1", routeId = "RB", blockId = null)
+        val shared =
+            object : MatchContext by ctx {
+                override fun trip(tripRowId: Long) = if (tripRowId == other.id) other else ctx.trip(tripRowId)
+
+                override fun scheduleOf(tripRowId: Long) = ctx.scheduleOf(if (tripRowId == other.id) t1.id else tripRowId)
+
+                override fun blockTripOf(tripRowId: Long) = if (tripRowId == other.id) null else ctx.blockTripOf(tripRowId)
+
+                override fun candidateTrips(serviceIds: Set<String>) = listOf(other) + ctx.candidateTrips(serviceIds)
+
+                override fun candidateTripsForRoute(
+                    routeId: String,
+                    serviceIds: Set<String>,
+                ) = if (routeId == other.routeId) listOf(other) else ctx.candidateTripsForRoute(routeId, serviceIds)
+            }
+        return shared to other
+    }
+
+    private fun matcherReleasingRouteAfter(failures: Int) =
+        FullInferenceMatcher(
+            spatial,
+            scorer,
+            props.copy(match = props.match.copy(releaseDescriptorRouteAfterFailures = failures)),
+        )
+
+    @Test
+    fun `descriptor route keeps a vehicle off another route's trip on a shared corridor`() {
+        val base = factory.open(avlFeed)!!
+        val t1 = base.trip(trips.findByTripId(base.revisionId, "T1")!!.id!!)!!
+        val (ctx, other) = withSharedCorridor(base, t1)
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val p = geom.line.pointAt(0.5 * geom.line.lengthM)
+
+        // Continuity and hysteresis would keep the vehicle on route RB; its descriptor says RA.
+        val outcome = matcher.match(report(p.lat, p.lon, ts0805(), descRouteId = "RA"), prevOnTrip(other.id, 0.4 * geom.line.lengthM), ctx)
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)
+    }
+
+    @Test
+    fun `report matching no trip of its descriptor route fails instead of taking another route`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+
+        assertThat(
+            matcher
+                .match(report(mid.lat, mid.lon, ts0805(), descRouteId = "NOPE"), prevOnTrip(trip.id!!, 0.4 * geom.line.lengthM, 4), ctx),
+        ).isEqualTo(MatchOutcome.Failed)
+    }
+
+    @Test
+    fun `descriptor route is released only after the configured number of failures`() {
+        val ctx = factory.open(avlFeed)!!
+        val trip = trips.findByTripId(ctx.revisionId, "T1")!!
+        val geom = ctx.patternGeometry(trip.tripPatternId!!)!!
+        val mid = geom.line.pointAt(geom.line.lengthM / 2.0)
+        val releasing = matcherReleasingRouteAfter(5)
+        val bogusRoute = report(mid.lat, mid.lon, ts0805(), descRouteId = "NOPE")
+
+        assertThat(releasing.match(bogusRoute, prevOnTrip(trip.id!!, 0.4 * geom.line.lengthM, 4), ctx))
+            .isEqualTo(MatchOutcome.Failed)
+
+        val released = releasing.match(bogusRoute, prevOnTrip(trip.id!!, 0.4 * geom.line.lengthM, 5), ctx)
+        assertThat(released).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((released as MatchOutcome.Matched).tripRowId).isEqualTo(trip.id)
+    }
+
+    @Test
+    fun `another trip on the previous trip's route and direction beats a tied trip on another route`() {
+        val base = factory.open(avlFeed)!!
+        val t1 = base.trip(trips.findByTripId(base.revisionId, "T1")!!.id!!)!!
+        val t2 = trips.findByTripId(base.revisionId, "T2")!!
+        val (ctx, _) = withSharedCorridor(base, t1)
+        val geom = ctx.patternGeometry(t1.tripPatternId!!)!!
+        val p = geom.line.pointAt(0.5 * geom.line.lengthM)
+
+        // prev ran T2 (route RA, direction 0, its own block) - no longer a candidate at 08:05. T1 and
+        // its RB copy tie on everything else; route continuity has to break the tie towards RA.
+        val outcome = matcher.match(report(p.lat, p.lon, ts0805()), prevOnTrip(t2.id!!, 0.0), ctx)
+
+        assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
+        assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)
     }
 }

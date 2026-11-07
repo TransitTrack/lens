@@ -81,6 +81,15 @@ data class AvlProperties(
         val matchIntervalMs: Long = 5_000,
         val claimBatchSize: Int = 500,
         val reassignHysteresis: Double = 0.15,
+        /**
+         * A report's descriptor route (`descRouteId`) is always honoured: full inference only
+         * considers that route's trips, and a report matching none of them fails (the vehicle keeps
+         * its last assignment, flagged `stale`) rather than landing on another route that shares the
+         * street. Set this to let full inference consider every route once a vehicle has failed this
+         * many consecutive times, for feeds whose route ids are known to be unreliable. `null` (the
+         * default) never releases the descriptor route.
+         */
+        val releaseDescriptorRouteAfterFailures: Int? = null,
         @NestedConfigurationProperty val scoreWeights: ScoreWeights = ScoreWeights(),
     )
 

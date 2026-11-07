@@ -1,5 +1,7 @@
 package eu.transittrack.avl.match
 
+import kotlin.math.abs
+
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
@@ -11,7 +13,9 @@ import eu.transittrack.util.observability.TransitTrackMetrics
 /**
  * Matcher for feeds whose vehicle descriptors are trusted. The trip is resolved from `descTripId`
  * when present, otherwise from `descRouteId` (+ `descDirectionId`, `descStartDate`, `descStartTimeSec`)
- * with a spatial disambiguation when the descriptor still leaves several trips in play. Matching is
+ * with a spatial disambiguation when the descriptor still leaves several trips in play, and then a
+ * preference for the vehicle's previous trip, its block's next trip, or the trip nearest its
+ * schedule, in that order. Matching is
  * then reduced to a spatial projection plus schedule adherence, with a sequential (no-backward-jump)
  * constraint against the vehicle's previous state and the descriptor's `currentStopId` /
  * `currentStopSequence`, and a single block-advance hop when a vehicle has run off the end of its
@@ -33,7 +37,7 @@ class TrustDescriptorMatcher(
         ctx: MatchContext,
     ): MatchOutcome {
         // 1. Resolve the trip: descTripId first, else route + descriptor fields.
-        val (trip, geom) = resolveTrip(report, ctx, report.point) ?: return MatchOutcome.Failed
+        val (trip, geom) = resolveTrip(report, prev, ctx, report.point) ?: return MatchOutcome.Failed
 
         // 2. service date + actual service seconds
         val serviceDate = inferServiceDate(report, trip, ctx.zone)
@@ -107,6 +111,7 @@ class TrustDescriptorMatcher(
 
     private fun resolveTrip(
         report: AvlReportView,
+        prev: VehicleStateView?,
         ctx: MatchContext,
         point: Point,
     ): Pair<TripRef, PatternGeometry>? {
@@ -136,20 +141,30 @@ class TrustDescriptorMatcher(
             return when {
                 exact.size == 1 -> geometryOf(exact.single(), ctx)
                 exact.isEmpty() -> null
-                else -> disambiguateSpatially(exact, report, ctx, point)
+                else -> disambiguate(exact, report, prev, ctx, point)
             }
         }
 
-        return disambiguateSpatially(candidates, report, ctx, point)
+        return disambiguate(candidates, report, prev, ctx, point)
     }
+
+    private data class Survivor(
+        val trip: TripRef,
+        val geom: PatternGeometry,
+        val match: SpatialMatch,
+    )
 
     /**
      * Keep only trips whose pattern carries the reported current stop and onto which the report
-     * actually projects; resolve to a single trip or `null` when still ambiguous.
+     * actually projects (no further back than the vehicle's previous position on that same trip).
+     * When several remain (a route's trips in one direction all share its shape), prefer the
+     * vehicle's previous trip, then the next trip of its block, then the trip nearest its schedule;
+     * `null` only when no trip survives, or none of the survivors has a usable schedule.
      */
-    private fun disambiguateSpatially(
+    private fun disambiguate(
         candidates: List<TripRef>,
         report: AvlReportView,
+        prev: VehicleStateView?,
         ctx: MatchContext,
         point: Point,
     ): Pair<TripRef, PatternGeometry>? {
@@ -162,11 +177,50 @@ class TrustDescriptorMatcher(
                     return@mapNotNull null
                 }
                 val geom = ctx.patternGeometry(patternId) ?: return@mapNotNull null
-                val minAlong = stopHintAlongM(report, geom, patternId, ctx)
-                if (spatial.match(geom, point, minAlong) == null) null else t to geom
+                val prevAlong = prev?.takeIf { it.tripRowId == t.id }?.distanceAlongTripM
+                val minAlong = maxOfNullable(prevAlong, stopHintAlongM(report, geom, patternId, ctx))
+                spatial.match(geom, point, minAlong)?.let { Survivor(t, geom, it) }
             }
-        return survivors.singleOrNull()
+        val chosen =
+            survivors.singleOrNull()
+                ?: preferPrevious(survivors, prev, ctx)
+                ?: nearestToSchedule(survivors, report, ctx)
+        return chosen?.let { it.trip to it.geom }
     }
+
+    /** The vehicle's previous trip among [survivors], else the next trip of its block. */
+    private fun preferPrevious(
+        survivors: List<Survivor>,
+        prev: VehicleStateView?,
+        ctx: MatchContext,
+    ): Survivor? {
+        val prevTripId = prev?.tripRowId ?: return null
+        survivors.firstOrNull { it.trip.id == prevTripId }?.let { return it }
+        val bt = ctx.blockTripOf(prevTripId) ?: return null
+        val next = ctx.nextBlockTrip(bt.blockId, bt.listIndex) ?: return null
+        return survivors.firstOrNull { it.trip.id == next.tripId }
+    }
+
+    /** The survivor whose schedule the report is closest to; trips without a usable schedule are skipped. */
+    private fun nearestToSchedule(
+        survivors: List<Survivor>,
+        report: AvlReportView,
+        ctx: MatchContext,
+    ): Survivor? =
+        survivors
+            .mapNotNull { s ->
+                val serviceSec = TemporalMatcher.toServiceSeconds(report.ts, ctx.zone, inferServiceDate(report, s.trip, ctx.zone))
+                TemporalMatcher
+                    .adherenceSec(
+                        ctx.scheduleOf(s.trip.id),
+                        s.geom.stopPathCumM,
+                        s.match.distanceAlongTripM,
+                        serviceSec,
+                        s.trip.noSchedule == true,
+                        s.geom.line.lengthM,
+                    )?.let { s to abs(it) }
+            }.minByOrNull { it.second }
+            ?.first
 
     private fun geometryOf(
         trip: TripRef,
