@@ -258,7 +258,9 @@
       "fleetSummary": "Podsumowanie floty",
       "reporting": "{count} zgłasza pozycję | {count} zgłaszają pozycję | {count} zgłasza pozycję",
       "matched": "{count} dopasowany | {count} dopasowane | {count} dopasowanych",
-      "needAttention": "{count} wymaga uwagi | {count} wymagają uwagi | {count} wymaga uwagi"
+      "needAttention": "{count} wymaga uwagi | {count} wymagają uwagi | {count} wymaga uwagi",
+      "collapse": "Ukryj listę pojazdów",
+      "expand": "Pokaż listę pojazdów"
     },
     "list": {
       "tripProgress": "Postęp kursu",

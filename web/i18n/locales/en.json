@@ -258,7 +258,9 @@
       "fleetSummary": "Fleet summary",
       "reporting": "{count} reporting | {count} reporting",
       "matched": "{count} matched | {count} matched",
-      "needAttention": "{count} need attention | {count} need attention"
+      "needAttention": "{count} need attention | {count} need attention",
+      "collapse": "Hide vehicle list",
+      "expand": "Show vehicle list"
     },
     "list": {
       "tripProgress": "Trip progress",

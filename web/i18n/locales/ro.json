@@ -258,7 +258,9 @@
       "fleetSummary": "Rezumatul flotei",
       "reporting": "{count} raportează | {count} raportează | {count} raportează",
       "matched": "{count} asociat | {count} asociate | {count} de asociate",
-      "needAttention": "{count} necesită atenție | {count} necesită atenție | {count} necesită atenție"
+      "needAttention": "{count} necesită atenție | {count} necesită atenție | {count} necesită atenție",
+      "collapse": "Ascunde lista de vehicule",
+      "expand": "Arată lista de vehicule"
     },
     "list": {
       "tripProgress": "Progresul cursei",

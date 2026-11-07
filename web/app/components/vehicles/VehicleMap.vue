@@ -27,14 +27,22 @@ const props = withDefaults(
     selectedRoute?: SelectedRouteOverlay | null
     /** Vehicle currently being inspected; the map enters focused mode when set. */
     selectedVehicleId?: string | null
+    /** Width (px) of a panel floating over the map's right edge; fits and the legend avoid it. */
+    insetRight?: number
   }>(),
   {
     extent: null,
     feedCode: null,
     selectedRoute: null,
     selectedVehicleId: null,
+    insetRight: 0,
   },
 )
+
+/** Fit padding that also keeps clear of a panel floating over the right edge. */
+function fitPadding(base: number) {
+  return { top: base, bottom: base, left: base, right: base + props.insetRight }
+}
 const emit = defineEmits<{
   select: [vehicleId: string]
   viewTrip: [tripId: string]
@@ -174,7 +182,7 @@ function fit() {
   // The panel layout can still be settling when the style first loads, leaving
   // the canvas at a stale size; resize before fitting so the zoom is right.
   map.map.resize()
-  map.map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: firstFit ? 0 : 800 })
+  map.map.fitBounds(bounds, { padding: fitPadding(40), maxZoom: 15, duration: firstFit ? 0 : 800 })
   firstFit = false
 }
 
@@ -269,7 +277,7 @@ function fitSelectedRoute() {
       [Math.min(...lngs), Math.min(...lats)],
       [Math.max(...lngs), Math.max(...lats)],
     ],
-    { padding: 56, maxZoom: 16, duration: 700 },
+    { padding: fitPadding(56), maxZoom: 16, duration: 700 },
   )
 }
 
@@ -513,7 +521,7 @@ watch(
       :map-style="mapStyle"
       :bounds="initialBounds"
       :attribution-control="false"
-      :fit-bounds-options="{ padding: 40, animate: true }"
+      :fit-bounds-options="{ padding: fitPadding(40), animate: true }"
       @map:click="onMapClick"
     >
       <!-- <MglNavigationControl /> -->
@@ -699,7 +707,10 @@ watch(
       <MapToolLayers :map-id="MAP_ID" :tools="tools" />
     </MglMap>
 
-    <VehicleMapLegend class="absolute bottom-10 right-2" />
+    <VehicleMapLegend
+      class="absolute bottom-10 transition-[right] duration-200"
+      :style="{ right: `${insetRight + 8}px` }"
+    />
 
     <MapToolbox
       :tools="tools"

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import SplitterGrip from '~/components/shell/SplitterGrip.vue'
-import type { SplitterItem } from '@nuxt/ui'
 import type { VehicleRow } from '~/composables/useVehiclePolling'
 import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
 import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
@@ -13,7 +11,6 @@ import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgenciesDetailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
-import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const props = defineProps<{
   title?: string
@@ -23,7 +20,6 @@ const props = defineProps<{
   error?: { message: string } | null
   feedCode: string | null
   extent?: LngLatBoundsExtent | null
-  directoryDefaultSize?: number
 }>()
 
 const { locale } = useI18n()
@@ -44,7 +40,7 @@ const attentionVehicles = computed(
 )
 
 const { intervalMs } = usePollControl()
-const { showTripDetails } = useVehicleListPrefs()
+const { showTripDetails, boardListCollapsed } = useVehicleListPrefs()
 const { feedPath, selectedFeed } = useFeeds()
 
 const { result: selectedVehicleResult } = useVehicleDetailQuery(() => ({
@@ -108,40 +104,49 @@ function viewRouteDetails(routeId: string) {
   navigateTo(feedPath(`/explore/routes/${encodeURIComponent(routeId)}`))
 }
 
-// Side-by-side on desktop; stacked (directory above map) on narrow viewports.
-const { isDesktop, splitterOrientation } = useSplitLayout()
-const desktopDirectorySize = computed(() =>
-  Math.min(Math.max(props.directoryDefaultSize ?? 27, 20), 40),
+// The vehicle list floats over the map's right edge and can be folded away to a button.
+const panel = ref<HTMLElement | null>(null)
+const { width: panelWidth } = useElementSize(panel)
+/** Map space covered by the open panel (its width plus the right margin), so fits avoid it. */
+const PANEL_MARGIN_PX = 12
+const mapInsetRight = computed(() =>
+  boardListCollapsed.value || !panelWidth.value ? 0 : panelWidth.value + PANEL_MARGIN_PX,
 )
-
-const splitterItems = computed<SplitterItem[]>(() => [
-  {
-    id: 'directory',
-    slot: 'directory',
-    defaultSize: isDesktop.value ? desktopDirectorySize.value : 50,
-    minSize: 20,
-    maxSize: isDesktop.value ? 40 : 80,
-    class: 'flex min-h-0 flex-col overflow-hidden',
-  },
-  {
-    id: 'map',
-    slot: 'map',
-    defaultSize: isDesktop.value ? 100 - desktopDirectorySize.value : 50,
-    class: 'flex min-h-0 flex-col overflow-hidden',
-  },
-])
 </script>
 
 <template>
-  <USplitter
+  <div
     id="operations-board"
     data-testid="vehicle-operations-board"
-    :orientation="splitterOrientation"
-    :items="splitterItems"
-    class="h-full min-h-0 w-full"
+    class="relative h-full min-h-0 w-full overflow-hidden"
     :aria-label="$t('vehicles.board.ariaLabel')"
   >
-    <template #directory>
+    <VehicleMap
+      :vehicles="filteredVehicles"
+      :extent="extent"
+      :feed-code="feedCode"
+      :selected-vehicle-id="selectedVehicleId"
+      :selected-route="selectedRoute"
+      :inset-right="mapInsetRight"
+      @select="selectVehicle"
+      @view-trip="viewTripDetails"
+      @view-block="viewBlockDetails"
+      @view-route="viewRouteDetails"
+      @view-vehicle="viewVehicleDetails"
+    />
+
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="translate-x-6 opacity-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-to-class="translate-x-6 opacity-0"
+    >
+    <section
+      v-if="!boardListCollapsed"
+      ref="panel"
+      class="absolute inset-y-3 right-3 z-10 flex w-[min(26rem,calc(100%-1.5rem))] flex-col overflow-hidden rounded-lg border border-default bg-default/95 shadow-xl backdrop-blur"
+      aria-labelledby="vehicle-directory-heading"
+    >
       <header class="shrink-0 border-b border-default bg-elevated/20 px-2 py-2 sm:px-3">
         <div v-if="title || description" class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -156,8 +161,18 @@ const splitterItems = computed<SplitterItem[]>(() => [
               {{ description }}
             </p>
           </div>
-          <div class="flex shrink-0 items-center gap-2">
+          <div class="flex shrink-0 items-center gap-1">
             <slot name="actions" />
+            <UTooltip :text="$t('vehicles.board.collapse')">
+              <UButton
+                icon="i-lucide-panel-right-close"
+                color="neutral"
+                variant="ghost"
+                square
+                :aria-label="$t('vehicles.board.collapse')"
+                @click="boardListCollapsed = true"
+              />
+            </UTooltip>
           </div>
         </div>
 
@@ -220,25 +235,20 @@ const splitterItems = computed<SplitterItem[]>(() => [
           @open-details="emit('selectVehicle', $event)"
         />
       </div>
-    </template>
+    </section>
+    </Transition>
 
-    <template #map>
-      <VehicleMap
-        :vehicles="filteredVehicles"
-        :extent="extent"
-        :feed-code="feedCode"
-        :selected-vehicle-id="selectedVehicleId"
-        :selected-route="selectedRoute"
-        @select="selectVehicle"
-        @view-trip="viewTripDetails"
-        @view-block="viewBlockDetails"
-        @view-route="viewRouteDetails"
-        @view-vehicle="viewVehicleDetails"
-      />
-    </template>
-
-    <template #resize-handle>
-      <SplitterGrip :orientation="splitterOrientation" />
-    </template>
-  </USplitter>
+    <UButton
+      v-if="boardListCollapsed"
+      class="absolute right-3 top-3 z-10 shadow-lg"
+      color="neutral"
+      variant="outline"
+      icon="i-lucide-panel-right-open"
+      :aria-label="$t('vehicles.board.expand')"
+      @click="boardListCollapsed = false"
+    >
+      {{ title ?? $t('vehicles.board.expand') }}
+      <UBadge color="neutral" variant="subtle" size="sm">{{ vehicles.length }}</UBadge>
+    </UButton>
+  </div>
 </template>

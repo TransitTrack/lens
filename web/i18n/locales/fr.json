@@ -258,7 +258,9 @@
       "fleetSummary": "Résumé de la flotte",
       "reporting": "{count} signale sa position | {count} signalent leur position",
       "matched": "{count} apparié | {count} appariés",
-      "needAttention": "{count} nécessite de l'attention | {count} nécessitent de l'attention"
+      "needAttention": "{count} nécessite de l'attention | {count} nécessitent de l'attention",
+      "collapse": "Masquer la liste des véhicules",
+      "expand": "Afficher la liste des véhicules"
     },
     "list": {
       "tripProgress": "Progression du voyage",
