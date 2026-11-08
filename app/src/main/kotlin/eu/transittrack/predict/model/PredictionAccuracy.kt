@@ -199,27 +199,29 @@ class PredictionAccuracyRepository {
                 repeat(6) { add(int to algorithmCount) }
             }
         val sql = AGGREGATE_ACCURACY_SQL.replace(ALGORITHMS, algorithms.joinToString { "?" })
-        return TransactionManager.current().exec(sql, args, StatementType.SELECT) { rs ->
-            buildList {
-                while (rs.next()) {
-                    add(
-                        PredictionAccuracyAggregate(
-                            algorithmOrdinal = rs.getInt("algorithmOrdinal"),
-                            horizonSec = rs.getObject("horizonSec")?.let { (it as Number).toInt() },
-                            eligibleCount = rs.getLong("eligibleCount"),
-                            sampleCount = rs.getLong("sampleCount"),
-                            pairedSampleCount = rs.getLong("pairedSampleCount"),
-                            meanErrorSec = rs.getObject("meanErrorSec")?.let { (it as Number).toDouble() },
-                            meanAbsErrorSec = rs.getObject("meanAbsErrorSec")?.let { (it as Number).toDouble() },
-                            p90AbsErrorSec = rs.getObject("p90AbsErrorSec")?.let { (it as Number).toDouble() },
-                            p95AbsErrorSec = rs.getObject("p95AbsErrorSec")?.let { (it as Number).toDouble() },
-                            confidenceCoverage = rs.getObject("confidenceCoverage")?.let { (it as Number).toDouble() },
-                            confidenceSampleCount = rs.getLong("confidenceSampleCount"),
-                        ),
-                    )
+        return TransactionManager
+            .current()
+            .exec(sql, args, StatementType.SELECT) { rs ->
+                buildList {
+                    while (rs.next()) {
+                        add(
+                            PredictionAccuracyAggregate(
+                                algorithmOrdinal = rs.getInt("algorithmOrdinal"),
+                                horizonSec = rs.getObject("horizonSec")?.let { (it as Number).toInt() },
+                                eligibleCount = rs.getLong("eligibleCount"),
+                                sampleCount = rs.getLong("sampleCount"),
+                                pairedSampleCount = rs.getLong("pairedSampleCount"),
+                                meanErrorSec = rs.getObject("meanErrorSec")?.let { (it as Number).toDouble() },
+                                meanAbsErrorSec = rs.getObject("meanAbsErrorSec")?.let { (it as Number).toDouble() },
+                                p90AbsErrorSec = rs.getObject("p90AbsErrorSec")?.let { (it as Number).toDouble() },
+                                p95AbsErrorSec = rs.getObject("p95AbsErrorSec")?.let { (it as Number).toDouble() },
+                                confidenceCoverage = rs.getObject("confidenceCoverage")?.let { (it as Number).toDouble() },
+                                confidenceSampleCount = rs.getLong("confidenceSampleCount"),
+                            ),
+                        )
+                    }
                 }
-            }
-        } ?: emptyList()
+            } ?: emptyList()
     }
 
     fun findRecentByFeedAndAlgorithm(

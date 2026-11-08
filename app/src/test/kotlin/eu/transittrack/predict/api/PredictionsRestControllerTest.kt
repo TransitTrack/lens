@@ -27,7 +27,7 @@ class PredictionsRestControllerTest {
                 PredictionsRestController(read, mock<HeadwayReadService>()),
             ).build()
         mvc
-            .perform(get("/api/v1/avl-feeds/avl/vehicles/bus/predictions").param("offset", "1").param("limit", "1"))
+            .perform(get("/api/v1/feeds/avl/avl/vehicles/bus/predictions").param("offset", "1").param("limit", "1"))
             .andExpect(status().isOk)
             .andExpect(header().string("X-Total-Count", "2"))
             .andExpect(jsonPath("$[0].stopPathIndex").value(2))
@@ -43,7 +43,7 @@ class PredictionsRestControllerTest {
                 PredictionsRestController(mock<PredictionReadService>(), headways),
             ).build()
         mvc
-            .perform(get("/api/v1/avl-feeds/avl/stops/s/headway").param("routeId", "r").param("directionId", "1"))
+            .perform(get("/api/v1/feeds/avl/avl/stops/s/headway").param("routeId", "r").param("directionId", "1"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.waitSec").value(60))
             .andExpect(jsonPath("$.gapsSec[0]").value(120))
@@ -56,7 +56,7 @@ class PredictionsRestControllerTest {
                 PredictionsRestController(mock<PredictionReadService>(), mock<HeadwayReadService>()),
             ).build()
         mvc
-            .perform(get("/api/v1/avl-feeds/avl/prediction-accuracy").param("sinceDays", "0"))
+            .perform(get("/api/v1/feeds/avl/avl/prediction-accuracy").param("sinceDays", "0"))
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.status").value(400))
     }

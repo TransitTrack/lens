@@ -39,6 +39,7 @@ import eu.transittrack.rest.generated.model.ScheduleComparison
 import eu.transittrack.rest.generated.model.ScheduleTime
 import eu.transittrack.rest.generated.model.StopChangeKind
 import eu.transittrack.rest.generated.model.StopPath
+import eu.transittrack.rest.generated.model.StopSchedule
 import eu.transittrack.rest.generated.model.StopTimeChange
 import eu.transittrack.rest.generated.model.Trip
 import eu.transittrack.rest.generated.model.TripChange
@@ -48,6 +49,7 @@ import eu.transittrack.rest.pageOf
 import eu.transittrack.schedule.compare.ScheduleComparisonService
 import eu.transittrack.schedule.read.FeedGeometryService
 import eu.transittrack.schedule.read.ScheduleReadService
+import eu.transittrack.schedule.read.StopScheduleReadService
 import eu.transittrack.toScalarValue
 
 @RestController
@@ -59,6 +61,7 @@ class ScheduleRestController(
     private val comparison: ScheduleComparisonService,
     private val json: Json,
     private val entities: RestEntityMapper,
+    private val stopSchedules: StopScheduleReadService,
 ) : ScheduleApi {
     @ExceptionHandler(ResponseStatusException::class)
     fun error(ex: ResponseStatusException): ResponseEntity<Problem> =
@@ -77,6 +80,12 @@ class ScheduleRestController(
                     status = ex.statusCode.value(), detail = ex.reason,
                 ),
             )
+
+    override fun stopSchedule(
+        feedCode: String,
+        stopId: String,
+        revisionId: String?,
+    ): ResponseEntity<StopSchedule> = found(stopSchedules.stopSchedule(feedCode, stopId, revisionId)) { it }
 
     override fun feedGeometry(
         feedCode: String,

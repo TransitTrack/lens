@@ -48,7 +48,6 @@ resources:
   limits:
     memory: 1Gi
 
-# Escape hatch for mounting extension jars onto every role's classpath (see LOADER_PATH in the
-# backend Dockerfile) — e.g. a ConfigMap or a shared PVC populated by a sidecar/initContainer.
+# Extra volumes / mounts added to every role's Deployment (e.g. a ConfigMap or a shared PVC).
 extraVolumes: []
 extraVolumeMounts: []

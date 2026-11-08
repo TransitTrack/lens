@@ -5,7 +5,7 @@ import type { VehicleRow } from '~/composables/useVehiclePolling'
  * with just the trip / route / block / pattern fields the map and board draw.
  */
 export async function fetchAllVehicles(feedCode: string, signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<VehicleRow[]> {
-  const response = await fetcher(`/api/feeds/${encodeURIComponent(feedCode)}/vehicles`, { signal })
+  const response = await fetcher(`/api/v1/feeds/${encodeURIComponent(feedCode)}/vehicles`, { signal })
   if (!response.ok) throw new Error(`Vehicle request failed: ${response.status}`)
   const rows: unknown = await response.json()
   if (!Array.isArray(rows)) throw new Error('Invalid vehicle response')

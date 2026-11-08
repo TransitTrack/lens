@@ -121,6 +121,15 @@ export type AvlReportPageQueryVariables = Exact<{
 
 export type AvlTrailQuery = { avlReports: Array<{ vehicleId: string, ts: string, speedMps: number | null, bearing: number | null, currentStatus: VehicleStopStatus | null, occupancyStatus: AvlOccupancyStatus | null, descTripId: string | null, position: { lat: number, lon: number }, match: { distanceAlongTripM: number, scheduleAdherenceSec: number | null, trip: { tripId: string } | null } | null }> };
 
+/** A vehicle's recent movement, summarised server-side (`/avl/vehicles/{id}/trail`). */
+export type VehicleTrailQuery = { vehicleTrail: Rest.VehicleTrail };
+
+export type VehicleTrailQueryVariables = Exact<{
+  feedCode: string;
+  vehicleId: string;
+  limit?: number | null | undefined;
+}>;
+
 export type AvlTrailQueryVariables = Exact<{
   feedCode: string;
   vehicleId: string;
@@ -429,6 +438,14 @@ export type StopBoardQueryVariables = Exact<{
 
 export type StopDetailQuery = { stop: { stopId: string, stopName: string | null, stopCode: string | null, stopDesc: string | null, stopLat: number | null, stopLon: number | null, zoneId: string | null, locationType: number | null, parentStation: string | null, wheelchairBoarding: number | null, platformCode: string | null } | null };
 
+/** The schedule at one stop, computed server-side (`/stops/{stopId}/schedule`). */
+export type StopScheduleQuery = { stopSchedule: Rest.StopSchedule };
+
+export type StopScheduleQueryVariables = Exact<{
+  feedCode: string;
+  stopId: string;
+}>;
+
 export type StopDetailQueryVariables = Exact<{
   feedCode: string;
   stopId: string;
@@ -501,8 +518,13 @@ export type ValidationFindingsQueryVariables = Exact<{
 
 export type VehicleDetailQuery = { vehicle: { vehicleId: string, label: string | null, reportTs: string, bearing: number | null, speedMps: number | null, occupancyStatus: AvlOccupancyStatus | null, matched: boolean, stale: boolean, scheduleAdherenceSec: number | null, stopPathIndex: number | null, distanceAlongTripM: number | null, position: { lat: number, lon: number }, snappedPosition: { lat: number, lon: number } | null, currentStop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null, block: { blockId: string, serviceId: string, startTimeSec: number, endTimeSec: number, blockTrips: Array<{ listIndex: number, trip: { tripId: string, tripHeadsign: string | null } }> } | null, trip: { tripId: string, tripHeadsign: string | null, directionId: number | null, routeId: string, startTimeSec: number | null, endTimeSec: number | null, route: { routeShortName: string | null, routeLongName: string | null, routeColor: string | null, routeTextColor: string | null } | null, shape: { geometry: string | null } | null } | null, pattern: { patternKey: string, lengthM: number | null, geometry: string | null, stopPaths: Array<{ stopPathIndex: number, stopId: string, waitStop: boolean, lengthM: number, scheduleAdherenceStop: boolean, stop: { stopId: string, stopName: string | null, stopLat: number | null, stopLon: number | null } | null }> } | null } | null, vehiclePredictions: Array<{ stopPathIndex: number, scheduledArrival: string | null, scheduledDeparture: string | null, predictedArrival: string | null, predictedDeparture: string | null, actualArrival: string | null, actualDeparture: string | null, actualReportGapSec: number | null, actualReliable: boolean | null, sourceReportTs: string | null, algorithm: PredictionAlgorithm | null, confidenceSec: number | null, stop: { stopId: string, stopName: string | null } | null }>, predictionAccuracy: Array<{ algorithm: PredictionAlgorithm, sampleCount: number, meanErrorSec: number | null, meanAbsErrorSec: number | null, eligibleCount: number, predictionCoverage: number, pairedSampleCount: number, p90AbsErrorSec: number | null, p95AbsErrorSec: number | null, confidenceCoverage: number | null, confidenceSampleCount: number }> };
 
+/** The feed-wide accuracy rows the vehicle page shows next to a vehicle's predictions. */
+export type PredictionAccuracy = VehicleDetailQuery['predictionAccuracy'];
+
 export type VehicleDetailQueryVariables = Exact<{
   feedCode: string;
   vehicleId: string;
+  /** Only this algorithm's predictions; omitted = every algorithm. */
+  algorithm?: string | null;
 }>;
 

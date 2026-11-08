@@ -213,7 +213,7 @@ class AvlEndToEndTest(
         // The schedule fixture uses a fixed date; expose a current vehicle state for this read.
         s3.reportTs = Instant.now()
         vehicleStates.save(s3)
-        val v = RestGet(port)("/api/v1/avl-feeds/mbta-vp/vehicles/bus-1").jsonObject
+        val v = RestGet(port)("/api/v1/feeds/mbta-vp/avl/vehicles/bus-1").jsonObject
         assertThat(v.getValue("matched").jsonPrimitive.boolean).isEqualTo(false)
         assertThat(v.getValue("stale").jsonPrimitive.boolean).isEqualTo(true)
         assertThat(

@@ -86,25 +86,6 @@ class Route(
     var extent: BBox? = null,
 ) : RevisionScoped(revisionId)
 
-class Trip(
-    revisionId: Long,
-    var routeId: String,
-    var serviceId: String,
-    var tripId: String,
-    var tripHeadsign: String?,
-    var tripShortName: String?,
-    var directionId: Int?,
-    var blockId: String?,
-    var shapeId: String?,
-    var wheelchairAccessible: Int?,
-    var bikesAllowed: Int?,
-    var tripPatternId: Long? = null,
-    var startTimeSec: Int? = null,
-    var endTimeSec: Int? = null,
-    var frequencyBased: Boolean? = null,
-    var noSchedule: Boolean? = null,
-) : RevisionScoped(revisionId)
-
 class StopTime(
     revisionId: Long,
     var tripId: String,
@@ -740,6 +721,15 @@ class RouteRepository : RevisionScopedRepository<Route>(RouteTable) {
             .where { (RouteTable.revisionId eq revisionId) and (RouteTable.routeId eq routeId) }
             .singleOrNull()
             ?.let(RouteTable::read)
+
+    fun findByRouteIds(
+        revisionId: Long,
+        routeIds: Collection<String>,
+    ): List<Route> =
+        RouteTable
+            .selectAll()
+            .where { (RouteTable.revisionId eq revisionId) and (RouteTable.routeId inList routeIds) }
+            .map(RouteTable::read)
 }
 
 @Repository
@@ -882,6 +872,15 @@ class CalendarRepository : RevisionScopedRepository<Calendar>(CalendarTable) {
             .where { (CalendarTable.revisionId eq revisionId) and (CalendarTable.serviceId eq serviceId) }
             .singleOrNull()
             ?.let(CalendarTable::read)
+
+    fun findByServiceIds(
+        revisionId: Long,
+        serviceIds: Collection<String>,
+    ): List<Calendar> =
+        CalendarTable
+            .selectAll()
+            .where { (CalendarTable.revisionId eq revisionId) and (CalendarTable.serviceId inList serviceIds) }
+            .map(CalendarTable::read)
 }
 
 @Repository

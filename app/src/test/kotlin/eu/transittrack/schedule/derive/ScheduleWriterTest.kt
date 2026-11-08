@@ -172,7 +172,7 @@ class ScheduleWriterTest(
         assertThat(idByKey.size).isEqualTo(300)
         tps.forEach { assertThat(it.id, name = it.patternKey).isEqualTo(idByKey.getValue(it.patternKey)) }
 
-        val paths = (0 until 300).map { i -> stopPath(tps[0].id!!).also { it.stopPathIndex = i } }
+        val paths = (0 until 300).map { i -> stopPath(tps[0].id!!, i) }
         writer.write(paths)
         val idByIndex = stopPaths.findByTripPatternOrdered(rev, tps[0].id!!).associate { it.stopPathIndex to it.id }
         paths.forEach { assertThat(it.id, name = "stop path ${it.stopPathIndex}").isEqualTo(idByIndex.getValue(it.stopPathIndex)) }
@@ -183,7 +183,7 @@ class ScheduleWriterTest(
         seed()
         writer.write(listOf(pattern("K")))
         val tpId = patterns.findByPatternKey(rev, "K")!!.id!!
-        writer.write(listOf(stopPath(tpId), stopPath(tpId).also { it.stopPathIndex = 1 }))
+        writer.write(listOf(stopPath(tpId), stopPath(tpId, 1)))
         val ids = stopPaths.findByTripPatternOrdered(rev, tpId).map { it.id!! }
         writer.applyStopPathLayover(ids.map { StopPathLayoverUpdate(it, true, 300) })
         writer.resetStopPathLayover(rev)
@@ -210,7 +210,10 @@ class ScheduleWriterTest(
 
     private fun pattern(key: String) = TripPattern(rev, key, "RA", null, 0, "H", "SHP", 1, null, tripCount = 0)
 
-    private fun stopPath(patternId: Long) = StopPath(rev, patternId, 0, "S1", null, 1, 0.0, null, null, false, false, false, null)
+    private fun stopPath(
+        patternId: Long,
+        index: Int = 0,
+    ) = StopPath(rev, patternId, index, "S1", null, 1, 0.0, null, null, false, false, false, null)
 
     @Test
     fun `writesSurviveCallerFailure - write`() {

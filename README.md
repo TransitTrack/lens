@@ -50,11 +50,10 @@ flowchart TD
 The root Gradle project aggregates the backend modules:
 
 - `app/`: Spring Boot application, tests, benchmarks, and migration tooling (`app/src/`).
-- `api/`: standalone extension interfaces consumed by the application and example extension.
-- `examples/example-extension/`: sample extension depending on `api`.
+- `geo/`: geometry primitives and GeoJSON codecs shared by the application.
 
 Run Gradle commands from the repository root. Unqualified commands such as `test`
-and `bootRun` still work; use `:app:bootRun` or `:api:test` to target a module.
+and `bootRun` still work; use `:app:bootRun` or `:geo:test` to target a module.
 Application jars and reports are written under `app/build/`.
 
 ```bash
@@ -94,17 +93,6 @@ Every `transittrack.*` setting, its default, and what it controls:
 
 → **[docs/configuration.md](docs/configuration.md)**
 
-## Extensions
-
-Custom AVL feed decoders, GTFS validators, vehicle matchers, and
-prediction strategies load from extra jars on the classpath — no fork, no
-rebuild.
-
-→ **[api/README.md](api/README.md)** — the four
-extension points and their stability guarantees.
-→ **[docs/deployment.md §8](docs/deployment.md#8-extensions)** —
-`loader.path`/Helm `extraVolumes` runtime wiring.
-
 ## Monitoring
 
 Prometheus (bundled by `docker compose`, UI at
@@ -130,5 +118,4 @@ metrics up in a cluster instead.
 | [docs/configuration.md](docs/configuration.md) | Full `transittrack.*` property reference |
 | [docs/benchmarks.md](docs/benchmarks.md) | Ingest/match/predict load benchmarks (kotlinx-benchmark) |
 | [docs/ci.md](docs/ci.md) | GitHub Actions: lint, tests, vulnerability scans, benchmarks, image/chart publishing |
-| [api/README.md](api/README.md) | Extension points: AVL decoders, GTFS validators, vehicle matchers, prediction strategies |
 | [web/README.md](web/README.md) | The Nuxt/Vue vehicle dashboard |

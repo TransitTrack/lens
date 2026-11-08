@@ -228,7 +228,7 @@ watch(() => tools.activeTool.value, (active) => {
           :layout="{
             'text-field': ['coalesce', ['get', 'label'], ['get', 'name']],
             'text-size': 11,
-            'text-font': ['Open Sans SemiBold'],
+            'text-font': ['noto_sans_bold'],
             'text-anchor': 'top',
             'text-offset': [0, 0.9],
             'text-max-width': 14,

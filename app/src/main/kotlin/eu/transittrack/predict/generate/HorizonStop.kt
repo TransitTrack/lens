@@ -13,4 +13,3 @@ data class HorizonStop(
     val remainingFraction: Double = 1.0,
     val tripHop: Int = 0,
 )
-

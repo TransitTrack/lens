@@ -3,7 +3,6 @@ import { createI18n } from 'vue-i18n'
 import en from '../../i18n/locales/en.json'
 import {
   haversineM,
-  avgIntervalSec,
   blockTripProgress,
   currentStatusLabel,
 } from '../../app/utils/vehicleTelemetry'
@@ -24,23 +23,6 @@ describe('haversineM', () => {
   it('null when a coordinate is missing', () => {
     expect(haversineM({ lat: 1, lon: null }, { lat: 2, lon: 3 })).toBeNull()
     expect(haversineM(null, { lat: 2, lon: 3 })).toBeNull()
-  })
-})
-
-describe('avgIntervalSec', () => {
-  it('mean gap across reports, order-independent', () => {
-    const reports = [
-      { ts: '2026-09-10T10:00:00Z' },
-      { ts: '2026-09-10T10:00:30Z' },
-      { ts: '2026-09-10T10:01:30Z' },
-    ]
-    expect(avgIntervalSec(reports)).toBe(45)
-    expect(avgIntervalSec([...reports].reverse())).toBe(45)
-  })
-
-  it('null with fewer than two valid timestamps', () => {
-    expect(avgIntervalSec([{ ts: '2026-09-10T10:00:00Z' }])).toBeNull()
-    expect(avgIntervalSec([])).toBeNull()
   })
 })
 

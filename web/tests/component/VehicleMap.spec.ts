@@ -40,7 +40,7 @@ describe('VehicleMap', () => {
   it('keeps polling the active vehicle while its popup stays open', async () => {
     let vehicleDetailRequests = 0
     server.use(
-      http.get('*/api/v1/avl-feeds/:feedCode/vehicles/:vehicleId', () => {
+      http.get('*/api/v1/feeds/:feedCode/avl/vehicles/:vehicleId', () => {
         vehicleDetailRequests += 1
         return new HttpResponse(null, { status: 404 })
       }),

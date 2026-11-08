@@ -1,41 +1,26 @@
 import { createSharedComposable } from '@vueuse/core'
-import { AvlFeedCatalog, Gtfs } from '~/api'
+import { Gtfs } from '~/api'
 import type { AvlFeed, Feed } from '~/api'
 import { fetchAllPages } from '~/utils/restPagination'
+import { useAvlFeedsQuery } from './useRestGtfs'
+import { useRestQuery } from './useRestQuery'
 
-/** Shared polling for feed selection; callers reuse one pair of requests and timers. */
+/**
+ * Feed lists for feed selection. Both reads go through the shared query cache, so the AVL list is
+ * the same request (and the same 60 s timer) as every other `useAvlFeedsQuery` caller rather than a
+ * second poll of `/avl-feeds`. A failed poll keeps the last successful list.
+ */
 export const useRestFeedCatalog = createSharedComposable(() => {
-  const gtfsFeeds = shallowRef<Feed[]>([])
-  const avlFeeds = shallowRef<AvlFeed[]>([])
-  const abort = new AbortController()
-  let gtfsTimer: ReturnType<typeof setTimeout> | undefined
-  let avlTimer: ReturnType<typeof setTimeout> | undefined
+  const gtfs = useRestQuery(
+    'useGtfsFeedCatalog',
+    () => ({ variables: {}, pollInterval: 120_000 }),
+    (_variables, signal) =>
+      fetchAllPages((offset, limit) => Gtfs.feeds({ query: { offset, limit }, signal })),
+  )
+  const avl = useAvlFeedsQuery(() => ({ pollInterval: 120_000 }))
 
-  const pollGtfs = async () => {
-    try {
-      const data = await fetchAllPages((offset, limit) => Gtfs.feeds({ query: { offset, limit }, signal: abort.signal }))
-      if (!abort.signal.aborted) gtfsFeeds.value = data
-    } catch {
-      // Keep the last successful catalog until the next poll.
-    } finally {
-      if (!abort.signal.aborted) gtfsTimer = setTimeout(pollGtfs, 120_000)
-    }
+  return {
+    gtfsFeeds: computed<Feed[]>(() => gtfs.result.value ?? []),
+    avlFeeds: computed<AvlFeed[]>(() => (avl.result.value?.avlFeeds ?? []) as unknown as AvlFeed[]),
   }
-  const pollAvl = async () => {
-    try {
-      const data = await fetchAllPages((offset, limit) => AvlFeedCatalog.avlFeeds({ query: { offset, limit }, signal: abort.signal }))
-      if (!abort.signal.aborted) avlFeeds.value = data
-    } catch {
-      // Keep the last successful catalog until the next poll.
-    } finally {
-      if (!abort.signal.aborted) avlTimer = setTimeout(pollAvl, 60_000)
-    }
-  }
-  onMounted(() => { void pollGtfs(); void pollAvl() })
-  onScopeDispose(() => {
-    abort.abort()
-    if (gtfsTimer) clearTimeout(gtfsTimer)
-    if (avlTimer) clearTimeout(avlTimer)
-  })
-  return { gtfsFeeds, avlFeeds }
 })

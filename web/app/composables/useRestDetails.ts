@@ -3,14 +3,14 @@ import type {
   BlockDetailQuery, BlockDetailQueryVariables, BlocksListQuery, BlocksListQueryVariables,
   FeedDetailQuery, FeedDetailQueryVariables, FeedReadinessQuery, FeedReadinessQueryVariables,
   RevisionsQuery, RevisionsQueryVariables, RouteDetailQuery, RouteDetailQueryVariables,
-  StopDetailQuery, StopDetailQueryVariables, TripDetailQuery, TripDetailQueryVariables,
+  StopDetailQuery, StopDetailQueryVariables, StopScheduleQuery, StopScheduleQueryVariables, TripDetailQuery, TripDetailQueryVariables,
   ValidationFindingsQuery, ValidationFindingsQueryVariables,
   ValidationFindingCountsQuery, ValidationFindingCountsQueryVariables,
 } from '~/types/restViews'
 import { useRestQuery, type RestQueryOptions } from './useRestQuery'
 import { fetchAllPages } from '~/utils/restPagination'
 import {
-  blockWithTrips, shapeOf, stopPathsByPattern, stopsById,
+  blockWithTrips, shapeOf, stopPathsByPattern, stopsByIds,
 } from '~/utils/restRelations'
 
 /** A feed with its revisions (newest first) and the active one picked out. */
@@ -53,15 +53,15 @@ export function useTripDetailQuery(options: () => RestQueryOptions<TripDetailQue
   return useRestQuery('useTripDetailQuery', options, async (v, signal): Promise<TripDetailQuery> => {
     const trip = await optional(Gtfs.trip({ path: { feedCode: v.feedCode, tripId: v.tripId }, signal }))
     if (!trip) return { trip: null }
-    const [route, pattern, block, scheduleTimes, stopTimes, stops, shape] = await Promise.all([
+    const [route, pattern, block, scheduleTimes, stopTimes, shape] = await Promise.all([
       optional(Gtfs.route({ path: { feedCode: v.feedCode, routeId: trip.routeId }, signal })),
       trip.patternKey ? optional(Schedule.tripPattern({ path: { feedCode: v.feedCode, patternKey: trip.patternKey }, signal })) : null,
       trip.blockId ? optional(Schedule.block({ path: { feedCode: v.feedCode, blockId: trip.blockId }, query: { serviceId: trip.serviceId }, signal })) : null,
       fetchAllPages((offset, limit) => Schedule.scheduleTimes({ path: { feedCode: v.feedCode }, query: { tripId: trip.tripId, offset, limit }, signal })),
       fetchAllPages((offset, limit) => Gtfs.stopTimes({ path: { feedCode: v.feedCode, tripId: trip.tripId }, query: { offset, limit }, signal })),
-      stopsById({ feedCode: v.feedCode }, signal),
       shapeOf({ feedCode: v.feedCode }, trip.shapeId, signal),
     ])
+    const stops = await stopsByIds({ feedCode: v.feedCode }, stopTimes.map((st) => st.stopId), signal)
     return {
       trip: {
         ...trip,
@@ -79,6 +79,13 @@ export function useTripDetailQuery(options: () => RestQueryOptions<TripDetailQue
 export function useStopDetailQuery(options: () => RestQueryOptions<StopDetailQueryVariables>) {
   return useRestQuery('useStopDetailQuery', options, async (v, signal): Promise<StopDetailQuery> => ({
     stop: await optional(Gtfs.stop({ path: { feedCode: v.feedCode, stopId: v.stopId }, signal })) as StopDetailQuery['stop'],
+  }))
+}
+
+/** Which patterns call at a stop, their scheduled departures there, and what days each service runs. */
+export function useStopScheduleQuery(options: () => RestQueryOptions<StopScheduleQueryVariables>) {
+  return useRestQuery('useStopScheduleQuery', options, async (v, signal): Promise<StopScheduleQuery> => ({
+    stopSchedule: (await Schedule.stopSchedule({ path: { feedCode: v.feedCode, stopId: v.stopId }, signal })).data,
   }))
 }
 

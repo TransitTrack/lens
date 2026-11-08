@@ -4,7 +4,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.geo.Point
-import eu.transittrack.schedule.model.TripRef
+import eu.transittrack.gtfs.model.Trip
 
 /**
  * Matcher for feeds without trusted descriptors: every derived trip active on the inferred service
@@ -71,7 +71,7 @@ class FullInferenceMatcher(
 
         // 3. spatial + temporal + score each candidate
         data class Scored(
-            val trip: TripRef,
+            val trip: Trip,
             val geom: PatternGeometry,
             val sm: SpatialMatch,
             val adherence: Int?,
@@ -87,7 +87,7 @@ class FullInferenceMatcher(
                 // spatial matching
                 val sm = spatial.match(geom, point, minAlong) ?: return@mapNotNull null
 
-                val schedule = ctx.scheduleOf(t.id)
+                val schedule = ctx.scheduleOf(t.id!!)
                 if (missedDeparture(t, geom, sm, schedule, actualServiceSec)) return@mapNotNull null
                 if (finishedTrip(t, geom, sm, prev, actualServiceSec)) return@mapNotNull null
 
@@ -129,7 +129,7 @@ class FullInferenceMatcher(
      * trips have no clock-time departure to compare against.
      */
     private fun missedDeparture(
-        t: TripRef,
+        t: Trip,
         geom: PatternGeometry,
         sm: SpatialMatch,
         schedule: List<SchedulePoint>,
@@ -152,7 +152,7 @@ class FullInferenceMatcher(
      * (`match.candidateTimeSlackSec`).
      */
     private fun finishedTrip(
-        t: TripRef,
+        t: Trip,
         geom: PatternGeometry,
         sm: SpatialMatch,
         prev: VehicleStateView?,
@@ -162,7 +162,7 @@ class FullInferenceMatcher(
         val endSec = t.endTimeSec ?: return false
         val terminusM = geom.line.lengthM - cfg.backtrackToleranceM
         if (sm.distanceAlongTripM < terminusM || actualServiceSec <= endSec + cfg.tripEndAdvanceGraceSec) return false
-        val arrivingNow = prev?.tripRowId == t.id && (prev.distanceAlongTripM ?: 0.0) < terminusM
+        val arrivingNow = prev?.tripRowId == t.id!! && (prev.distanceAlongTripM ?: 0.0) < terminusM
         return !arrivingNow
     }
 
@@ -188,7 +188,7 @@ class FullInferenceMatcher(
     private fun continuityFrom(
         prev: VehicleStateView?,
         ctx: MatchContext,
-    ): (TripRef) -> Double {
+    ): (Trip) -> Double {
         val prevTripId = prev?.tripRowId ?: return { 0.0 }
         val prevTrip = ctx.trip(prevTripId)
         val nextBlockTripId =
@@ -215,15 +215,15 @@ class FullInferenceMatcher(
     }
 
     private fun toMatched(
-        trip: TripRef,
+        trip: Trip,
         geom: PatternGeometry,
         sm: SpatialMatch,
         adherence: Int?,
         score: Double,
         ctx: MatchContext,
     ) = MatchOutcome.Matched(
-        tripRowId = trip.id,
-        blockPk = ctx.blockTripOf(trip.id)?.blockId,
+        tripRowId = trip.id!!,
+        blockPk = ctx.blockTripOf(trip.id!!)?.blockId,
         tripPatternId = trip.tripPatternId!!,
         stopPathIndex = sm.stopPathIndex,
         distanceAlongTripM = sm.distanceAlongTripM,

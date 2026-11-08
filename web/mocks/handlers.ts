@@ -103,12 +103,14 @@ const optimizationRecommendations = [
 export const handlers = [
   http.get('*/api/v1/optimization-runs/:runId/recommendations', () => HttpResponse.json(optimizationRecommendations)),
   http.get('*/api/v1/avl-feeds', () => HttpResponse.json(feeds, { headers: { 'X-Total-Count': String(feeds.length) } })),
-  http.get('*/api/v1/avl-feeds/:feedCode/vehicles', () => HttpResponse.json(vehicles, { headers: { 'X-Total-Count': String(vehicles.length) } })),
-  http.get('*/api/v1/avl-feeds/:feedCode/vehicles/:vehicleId/predictions', () => HttpResponse.json(predictions, { headers: { 'X-Total-Count': String(predictions.length) } })),
+  http.get('*/api/v1/feeds/:feedCode/avl/vehicles', () => HttpResponse.json(vehicles, { headers: { 'X-Total-Count': String(vehicles.length) } })),
+  http.get('*/api/v1/feeds/:feedCode/stops/:stopId/schedule', () => HttpResponse.json({ calls: [], services: [] })),
+  http.get('*/api/v1/feeds/:feedCode/avl/vehicles/:vehicleId/trail', () => HttpResponse.json({ reportCount: 0, track: [], speeds: [] })),
+  http.get('*/api/v1/feeds/:feedCode/avl/vehicles/:vehicleId/predictions', () => HttpResponse.json(predictions, { headers: { 'X-Total-Count': String(predictions.length) } })),
 
   http.get('*/api/v1/feeds', () => HttpResponse.json([], { headers: { 'X-Total-Count': '0' } })),
-  http.get('*/api/v1/avl-feeds/:feedCode/vehicles/:vehicleId', ({ params }) => HttpResponse.json(vehicles.find(v => v.vehicleId === params.vehicleId) ?? null)),
-  http.get('*/api/v1/avl-feeds/:feedCode/prediction-accuracy', () => HttpResponse.json([])),
+  http.get('*/api/v1/feeds/:feedCode/avl/vehicles/:vehicleId', ({ params }) => HttpResponse.json(vehicles.find(v => v.vehicleId === params.vehicleId) ?? null)),
+  http.get('*/api/v1/feeds/:feedCode/avl/prediction-accuracy', () => HttpResponse.json([])),
 ]
 
 export const fixtures = {feeds, vehicles, predictions, optimizationRecommendations}

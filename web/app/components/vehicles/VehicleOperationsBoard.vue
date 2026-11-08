@@ -7,7 +7,7 @@ import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'
 import VehicleMap, { type SelectedRouteOverlay } from '~/components/vehicles/VehicleMap.vue'
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
-import { algorithmsIn, preferredAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
+import { chosenAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
 import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
@@ -45,8 +45,14 @@ const { intervalMs } = usePollControl()
 const { showTripDetails, boardListCollapsed } = useVehicleListPrefs()
 const { feedPath, selectedFeed } = useFeeds()
 
+const selectedPredictionAlgorithm = computed(() =>
+  chosenAlgorithm(selectedFeed.value?.predictionAlgorithms ?? []),
+)
+
 const { result: selectedVehicleResult } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' },
+  variables: {
+    feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '', algorithm: selectedPredictionAlgorithm.value,
+  },
   enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value,
 }))
 
@@ -56,13 +62,6 @@ const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
 }))
 const agencyTimezone = computed(
   () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
-)
-
-const selectedPredictionAlgorithm = computed(() =>
-  preferredAlgorithm(
-    algorithmsIn(selectedVehicleResult.value?.vehiclePredictions ?? []),
-    selectedFeed.value?.predictionAlgorithms ?? [],
-  ),
 )
 
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
@@ -76,7 +75,7 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
       vehicle,
       selectedVehicleResult.value?.vehiclePredictions ?? [],
       selectedPredictionAlgorithm.value,
-      agencyTimezone.value,
+      agencyTimezone.value ?? undefined,
       locale.value,
     ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),

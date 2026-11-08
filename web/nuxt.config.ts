@@ -9,7 +9,33 @@ export default defineNuxtConfig({
   // Nuxt 4.6 resolves an omitted dev-server host to an internal resolver object;
   // pin it to a loopback hostname so the CLI receives the string it expects.
   devServer: { host: 'localhost' },
-  modules: ['@nuxt/ui', '@nuxt/eslint', '@vueuse/nuxt', '@nuxt/content', '@nuxtjs/i18n'],
+  modules: [
+    '@nuxt/ui',
+    '@nuxt/eslint',
+    '@vueuse/nuxt',
+    '@nuxt/content',
+    '@nuxtjs/i18n',
+    '@scalar/nuxt',
+  ],
+  // REST API reference at /openapi (not under /api: the dev proxy below matches that prefix). The
+  // backend serves its own contract at /api/v1/openapi.yaml (through the same /api proxy as every
+  // other call, in dev and behind nginx), so the page always documents the running API. "Test
+  // request" goes to this deployment's /api/v1, not the contract's localhost `servers` entry.
+  // Rendered client-side like the rest of the app (ssr: false).
+  scalar: {
+    url: '/api/v1/openapi.yaml',
+    pathRouting: { basePath: '/openapi' },
+    servers: [{ url: '/api/v1', description: 'This deployment' }],
+    metaData: { title: 'LENS API reference' },
+    // Keep the (internal) spec on this page: no "Ask AI" agent, no Share / Generate SDK / Deploy
+    // toolbar (shown on localhost by default), no MCP integration, no telemetry to Scalar.
+    agent: { disabled: true },
+    showDeveloperTools: 'never',
+    mcp: { disabled: true },
+    telemetry: false,
+    layout: 'classic',
+    hideTestRequestButton: true,
+  },
   i18n: {
     strategy: 'no_prefix',
     defaultLocale: 'en',
@@ -72,18 +98,11 @@ export default defineNuxtConfig({
     },
   },
   css: ['~/assets/css/main.css'],
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   vite: {
     optimizeDeps: {
       exclude: ['maplibre-gl'],
-      include: [
-        '@indoorequal/vue-maplibre-gl',
-        'fflate',
-        'nuxt > @nuxt/devtools > @vitejs/devtools-kit/client',
-        'nuxt > @nuxt/devtools > error-stack-parser-es',
-        'nuxt > @nuxt/devtools > vite-plugin-vue-devtools/client',
-        'nuxt > @nuxt/devtools > vite-plugin-vue-tracer/client/overlay',
-      ],
+      include: ['@indoorequal/vue-maplibre-gl', 'fflate'],
     },
   },
   nitro: {

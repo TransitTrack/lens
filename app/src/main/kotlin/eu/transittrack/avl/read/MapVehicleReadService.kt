@@ -17,16 +17,31 @@ class MapVehicleReadService(
     private val blocks: BlockRepository,
     private val patterns: TripPatternRepository,
 ) {
+    /**
+     * One batched read per entity kind (trips, routes, blocks, patterns) over every vehicle, not four
+     * lookups per vehicle: this endpoint runs on each map poll, for the whole fleet.
+     */
     fun vehicles(
         feedCode: String,
         matchedOnly: Boolean,
-    ): List<MapVehicle> =
-        read.vehicleStates(feedCode, matchedOnly).map { state ->
-            val revision = state.revisionId
-            val trip = if (revision != null) state.tripRowId?.let { trips.findById(it) } else null
-            val route = if (revision != null) trip?.let { routes.findByRouteId(revision, it.routeId) } else null
-            val block = if (revision != null) state.blockPk?.let { blocks.findById(it) } else null
-            val pattern = if (revision != null) state.tripPatternId?.let { patterns.findById(it) } else null
+    ): List<MapVehicle> {
+        val states = read.vehicleStates(feedCode, matchedOnly)
+        val located = states.filter { it.revisionId != null }
+        val tripsById = trips.findAllById(located.mapNotNull { it.tripRowId }.distinct()).associateBy { it.id }
+        val blocksById = blocks.findAllById(located.mapNotNull { it.blockPk }.distinct()).associateBy { it.id }
+        val patternsById = patterns.findAllById(located.mapNotNull { it.tripPatternId }.distinct()).associateBy { it.id }
+        val routesByKey =
+            tripsById.values
+                .groupBy({ it.revisionId }, { it.routeId })
+                .flatMap { (revision, routeIds) -> routes.findByRouteIds(revision, routeIds.distinct()) }
+                .associateBy { it.revisionId to it.routeId }
+
+        return states.map { state ->
+            val hasRevision = state.revisionId != null
+            val trip = if (hasRevision) state.tripRowId?.let(tripsById::get) else null
+            val route = trip?.let { routesByKey[it.revisionId to it.routeId] }
+            val block = if (hasRevision) state.blockPk?.let(blocksById::get) else null
+            val pattern = if (hasRevision) state.tripPatternId?.let(patternsById::get) else null
             MapVehicle(
                 state.vehicleId, state.vehicleLabel, state.reportTs.toString(), LatLon(state.lat, state.lon), state.bearing,
                 state.matched, state.stale, state.scheduleAdherenceSec, state.stopPathIndex,
@@ -41,6 +56,7 @@ class MapVehicleReadService(
                 block?.let { MapBlock(it.blockId, it.serviceId) },
             )
         }
+    }
 }
 
 data class MapVehicle(

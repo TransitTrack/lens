@@ -18,6 +18,7 @@ import eu.transittrack.rest.generated.model.AvlReportCatalog
 import eu.transittrack.rest.generated.model.AvlReportPage
 import eu.transittrack.rest.generated.model.Problem
 import eu.transittrack.rest.generated.model.Vehicle
+import eu.transittrack.rest.generated.model.VehicleTrail
 import eu.transittrack.rest.pageOf
 
 @RestController
@@ -44,6 +45,15 @@ class AvlRestController(
         feedCode: String,
         vehicleId: String,
     ): ResponseEntity<Vehicle> = found(read.vehicle(feedCode, vehicleId)) { it }
+
+    override fun vehicleTrail(
+        feedCode: String,
+        vehicleId: String,
+        limit: Int,
+    ): ResponseEntity<VehicleTrail> {
+        if (limit !in 1..1000) throw ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid limit")
+        return ResponseEntity.ok(read.vehicleTrail(feedCode, vehicleId, limit))
+    }
 
     override fun avlReportCatalog(feedCode: String): ResponseEntity<AvlReportCatalog> = ResponseEntity.ok(read.avlReportCatalog(feedCode))
 

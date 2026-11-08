@@ -28,6 +28,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionRepository
 import eu.transittrack.gtfs.store.RevisionWriter
 import eu.transittrack.gtfs.support.IngestionTestFactory
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.copy
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
 @Import(IngestionTestFactory::class)
@@ -118,11 +119,10 @@ class TripLifecycleOpsTest(
     @Test
     fun `deleteTrip removes trip and stop_times then undo restores every column`() {
         val draftId = forkDraft()
-        val trip = pickTripWithStops(draftId)
+        val trip = pickTripWithStops(draftId).copy(wheelchairAccessible = 1)
         val tripId = trip.tripId
 
         // seed non-trivial columns that a lossy snapshot would drop
-        trip.wheelchairAccessible = 1
         trips.save(trip)
         val rows = stopTimes.findByTripId(draftId, tripId)
         val markedSeq = rows[1].stopSequence

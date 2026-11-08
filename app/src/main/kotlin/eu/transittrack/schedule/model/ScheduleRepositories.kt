@@ -59,6 +59,22 @@ class StopPathRepository : RevisionScopedRepository<StopPath>(StopPathTable) {
             .selectAll()
             .where { (StopPathTable.revisionId eq revisionId) and (StopPathTable.stopId eq stopId) }
             .map(StopPathTable::read)
+
+    /** The stop ids along [tripPatternIds], pattern by pattern in the given order then by path index, each id once. */
+    fun findStopIdsAlongPatterns(
+        revisionId: Long,
+        tripPatternIds: List<Long>,
+    ): List<String> {
+        if (tripPatternIds.isEmpty()) return emptyList()
+        val rank = tripPatternIds.withIndex().associate { (i, id) -> id to i }
+        return StopPathTable
+            .select(StopPathTable.tripPatternId, StopPathTable.stopPathIndex, StopPathTable.stopId)
+            .where { (StopPathTable.revisionId eq revisionId) and (StopPathTable.tripPatternId inList tripPatternIds) }
+            .map { Triple(rank.getValue(it[StopPathTable.tripPatternId]), it[StopPathTable.stopPathIndex], it[StopPathTable.stopId]) }
+            .sortedWith(compareBy({ it.first }, { it.second }))
+            .map { it.third }
+            .distinct()
+    }
 }
 
 @Repository

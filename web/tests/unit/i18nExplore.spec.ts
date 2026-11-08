@@ -55,15 +55,20 @@ describe('block layover label', () => {
 })
 
 describe('departure histogram hints', () => {
-  const serving = [{ pattern: { patternKey: 'a' }, stopPathIndex: 0, offsetSec: 0 }] as never
   const kinds = new Map([['svc', new Set(['weekday' as const])]])
-  const trips = (n: number) => [
-    { patternKey: 'a', trips: Array.from({ length: n }, () => ({ startTimeSec: 3600 * 8, serviceId: 'svc' })) },
-  ]
+  const schedule = (n: number) => ({
+    calls: [
+      {
+        patternKey: 'a', routeId: 'r', tripCount: n, stopPathIndex: 0,
+        departures: Array.from({ length: n }, () => ({ serviceId: 'svc', departureSec: 3600 * 8 })),
+      },
+    ],
+    services: [],
+  })
 
   it('uses Polish plural forms for departure counts', () => {
     const t = make('pl').t
-    const hint = (n: number) => departureHistogram(serving, trips(n), kinds, 'weekday', t).bars[8]!.hint
+    const hint = (n: number) => departureHistogram(schedule(n), kinds, 'weekday', t).bars[8]!.hint
     expect(hint(1)).toBe('8:00–9:00 · 1 odjazd')
     expect(hint(3)).toBe('8:00–9:00 · 3 odjazdy')
     expect(hint(5)).toBe('8:00–9:00 · 5 odjazdów')
@@ -71,6 +76,6 @@ describe('departure histogram hints', () => {
 
   it('keeps English output', () => {
     const t = make('en').t
-    expect(departureHistogram(serving, trips(2), kinds, 'weekday', t).bars[8]!.hint).toBe('8:00–9:00 · 2 departures')
+    expect(departureHistogram(schedule(2), kinds, 'weekday', t).bars[8]!.hint).toBe('8:00–9:00 · 2 departures')
   })
 })

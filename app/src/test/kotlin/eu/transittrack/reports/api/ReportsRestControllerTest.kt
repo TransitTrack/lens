@@ -24,7 +24,7 @@ class ReportsRestControllerTest {
         val mvc = MockMvcBuilders.standaloneSetup(ReportsRestController(read)).build()
         mvc
             .perform(
-                get("/api/v1/avl-feeds/avl/reports/route-adherence")
+                get("/api/v1/feeds/avl/avl/reports/route-adherence")
                     .param("startDate", "2026-01-01")
                     .param("endDate", "2026-01-02")
                     .param("offset", "1")
@@ -40,7 +40,7 @@ class ReportsRestControllerTest {
         val mvc = MockMvcBuilders.standaloneSetup(ReportsRestController(mock<AdherenceReadService>())).build()
         mvc
             .perform(
-                get("/api/v1/avl-feeds/avl/reports/route-adherence")
+                get("/api/v1/feeds/avl/avl/reports/route-adherence")
                     .param("startDate", "2026-01-03")
                     .param("endDate", "2026-01-02"),
             ).andExpect(status().isBadRequest)
@@ -55,7 +55,7 @@ class ReportsRestControllerTest {
         val mvc = MockMvcBuilders.standaloneSetup(ReportsRestController(read)).build()
         mvc
             .perform(
-                get("/api/v1/avl-feeds/avl/stops/stop/adherence")
+                get("/api/v1/feeds/avl/avl/stops/stop/adherence")
                     .param("startDate", "2026-01-01")
                     .param("endDate", "2026-01-02"),
             ).andExpect(status().isOk)
@@ -69,7 +69,7 @@ class ReportsRestControllerTest {
         val mvc = MockMvcBuilders.standaloneSetup(ReportsRestController(mock<AdherenceReadService>())).build()
         mvc
             .perform(
-                get("/api/v1/avl-feeds/avl/reports/route-adherence")
+                get("/api/v1/feeds/avl/avl/reports/route-adherence")
                     .param("startDate", "2026-01-01")
                     .param("endDate", "2026-01-02")
                     .param("limit", "501"),

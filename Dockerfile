@@ -6,10 +6,9 @@ COPY gradlew build.gradle.kts gradle.properties settings.gradle.kts ./
 COPY gradle gradle
 RUN ./gradlew --version
 
+COPY api-contract api-contract
 COPY app app
 COPY geo geo
-COPY api api
-COPY examples examples
 
 RUN ./gradlew :app:bootJar --no-daemon -x test
 
@@ -18,8 +17,7 @@ WORKDIR /app
 
 RUN useradd --system --create-home --shell /usr/sbin/nologin transittrack
 COPY --from=build /workspace/app/build/libs/*.jar app.jar
-RUN mkdir -p /extensions && chown transittrack:transittrack app.jar /extensions
-ENV LOADER_PATH=/extensions
+RUN chown transittrack:transittrack app.jar
 USER transittrack
 
 EXPOSE 8080

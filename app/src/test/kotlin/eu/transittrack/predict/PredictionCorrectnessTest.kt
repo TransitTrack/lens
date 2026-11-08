@@ -154,13 +154,13 @@ class PredictionCorrectnessTest(
             occupancyStatus = null, congestionLevel = null, matchStatus = MatchStatus.PENDING, matchedAt = null, createdAt = at,
         ).apply { id = 1L }
         val outcome = MatchOutcome.Matched(
-            tripRowId = trip.id, blockPk = ctx.blockTripOf(trip.id)?.blockId, tripPatternId = patternId,
+            tripRowId = trip.id!!, blockPk = ctx.blockTripOf(trip.id!!)?.blockId, tripPatternId = patternId,
             stopPathIndex = index, distanceAlongTripM = alongM, deviationM = 0.0, scheduleAdherenceSec = 0,
             snapped = point, heading = null, score = null, revisionId = ctx.revisionId,
         )
         whenever(clock.instant()).thenReturn(receivedAt, receivedAt, issuedAt)
         service.onMatched(feed, report, previous, outcome, ctx)
-        previous = PrevVehicleMatch(trip.id, index, alongM, at)
+        previous = PrevVehicleMatch(trip.id!!, index, alongM, at)
     }
 
     @Test
@@ -278,7 +278,7 @@ class PredictionCorrectnessTest(
         crossings.saveAll(
             listOf(0 to oldRun, 1 to at.minusSeconds(2700)).map { (index, time) ->
                 AvlStopCrossing(
-                    feedCode = feed.code, vehicleId = "bus", tripRowId = trip.id, tripPatternId = patternId,
+                    feedCode = feed.code, vehicleId = "bus", tripRowId = trip.id!!, tripPatternId = patternId,
                     stopPathIndex = index, observedAt = time, observedTravelTimeSec = null, serviceId = trip.serviceId,
                     tripStartSec = trip.startTimeSec, routeId = trip.routeId, directionId = trip.directionId,
                     revisionId = ctx.revisionId, runStartedAt = oldRun, reportGapSec = 30,
@@ -287,7 +287,7 @@ class PredictionCorrectnessTest(
         )
         predictions.save(
             VehiclePrediction(
-                feedCode = feed.code, vehicleId = "bus", tripRowId = trip.id, blockPk = null, tripPatternId = patternId,
+                feedCode = feed.code, vehicleId = "bus", tripRowId = trip.id!!, blockPk = null, tripPatternId = patternId,
                 stopPathIndex = 0, algorithm = PredictionAlgorithm.HISTORICAL_AVERAGE,
                 predictedArrivalTs = oldRun, predictedDepartureTs = oldRun, actualArrivalTs = null,
                 actualDepartureTs = oldRun, confidenceSec = null, computedAt = at.minusSeconds(2700),
@@ -307,7 +307,7 @@ class PredictionCorrectnessTest(
         assertThat(current.last().observedTravelTimeSec != null).isEqualTo(true)
         assertThat(accuracy.findAll().filter { it.stopPathIndex == 0 && it.predictedTs != null }).isNotEmpty()
         writer.inTransaction {
-            assertThat(writer.frequencyRun(feed.code, "bus", trip.id)?.startedAt).isEqualTo(at)
+            assertThat(writer.frequencyRun(feed.code, "bus", trip.id!!)?.startedAt).isEqualTo(at)
         }
     }
 
@@ -328,7 +328,7 @@ class PredictionCorrectnessTest(
         assertThat(firstStop.actualDepartureTs).isNull()
         assertThat(firstStop.sourceReportTs).isEqualTo(nextRun)
         writer.inTransaction {
-            val run = writer.frequencyRun(feed.code, "bus", trip.id)!!
+            val run = writer.frequencyRun(feed.code, "bus", trip.id!!)!!
             assertThat(run.startedAt).isEqualTo(nextRun)
             assertThat(run.startTimeSec).isNull()
             assertThat(run.lastDistanceAlongTripM).isEqualTo(0.0)
@@ -338,7 +338,7 @@ class PredictionCorrectnessTest(
         assertThat(departed.stopPathIndex).isEqualTo(0)
         assertThat(crossings.count()).isEqualTo(3L)
         writer.inTransaction {
-            assertThat(writer.frequencyRun(feed.code, "bus", trip.id)?.startedAt).isEqualTo(nextRun)
+            assertThat(writer.frequencyRun(feed.code, "bus", trip.id!!)?.startedAt).isEqualTo(nextRun)
         }
     }
 }

@@ -18,6 +18,7 @@ import eu.transittrack.gtfs.draft.edit.DraftEditService
 import eu.transittrack.gtfs.feed.FeedSource
 import eu.transittrack.gtfs.feed.GtfsFeed
 import eu.transittrack.gtfs.feed.GtfsFeedService
+import eu.transittrack.gtfs.model.Route
 import eu.transittrack.gtfs.model.Stop
 import eu.transittrack.gtfs.read.GtfsReadService
 import eu.transittrack.gtfs.read.RevisionResolver
@@ -105,4 +106,44 @@ class GtfsRestControllerTest {
             .andExpect(jsonPath("$[0].code").value("f"))
             .andExpect(jsonPath("$[0].feedId").doesNotExist())
     }
+
+    @Test
+    fun `stopId and routeId filters bind every repeated value`() {
+        val feeds = mock<GtfsFeedService>()
+        val read = mock<GtfsReadService>()
+        whenever(read.stops("f", null, null, listOf("a", "b"))).thenReturn(listOf(stop("a"), stop("b")))
+        whenever(read.routes("f", null, listOf("r1"))).thenReturn(listOf(route("r1")))
+        val mvc = MockMvcBuilders
+            .standaloneSetup(
+                GtfsRestController(
+                    read, mock(), mock(), feeds, mock(), RestRevisionMapper(), mock(), mock(),
+                    mock(), mock(), mock(), RestDraftMapper(mock(), feeds, Json), mock(), testEntityMapper(),
+                ),
+            ).build()
+
+        mvc
+            .perform(get("/api/v1/feeds/f/stops").param("stopId", "a", "b"))
+            .andExpect(status().isOk)
+            .andExpect(header().string("X-Total-Count", "2"))
+            .andExpect(jsonPath("$[1].stopId").value("b"))
+        mvc
+            .perform(get("/api/v1/feeds/f/routes").param("routeId", "r1"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].routeId").value("r1"))
+    }
+
+    private fun stop(id: String) =
+        Stop(
+            revisionId = 42, stopId = id, stopCode = null, stopName = id, ttsStopName = null,
+            stopDesc = null, stopLat = null, stopLon = null, zoneId = null, stopUrl = null,
+            locationType = null, parentStation = null, stopTimezone = null, wheelchairBoarding = null,
+            levelId = null, platformCode = null,
+        )
+
+    private fun route(id: String) =
+        Route(
+            revisionId = 42, routeId = id, agencyId = null, routeShortName = id, routeLongName = null,
+            routeDesc = null, routeType = 3, routeUrl = null, routeColor = null, routeTextColor = null,
+            routeSortOrder = null, continuousPickup = null, continuousDropOff = null, networkId = null,
+        )
 }

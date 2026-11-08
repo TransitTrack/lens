@@ -17,7 +17,7 @@ import eu.transittrack.avl.read.MapVehicleReadService
 import eu.transittrack.schedule.read.FeedGeometryService
 
 @RestController
-@RequestMapping("/api/feeds")
+@RequestMapping("/api/v1/feeds")
 @ConditionalOnRole(Role.API)
 class MapRestController(
     private val vehicles: MapVehicleReadService,

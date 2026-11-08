@@ -6,7 +6,7 @@ import java.time.LocalDate
 import eu.transittrack.geo.Point
 
 /**
- * Read-only, persistence-free view of one AVL report, as handed to matchers and extensions.
+ * Read-only, persistence-free view of one AVL report, as handed to matchers.
  *
  * Implemented directly by `eu.transittrack.avl.model.AvlReportRow`, so a report is a single object
  * rather than a row plus a field-by-field copy.

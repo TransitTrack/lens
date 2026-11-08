@@ -1,26 +1,22 @@
 <script setup lang="ts">
-import { useStopDetailQuery } from '~/composables/useRestDetails'
-import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
+import { useStopDetailQuery, useStopScheduleQuery } from '~/composables/useRestDetails'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
-import { Gtfs, Schedule } from '~/api'
-import { fetchAllPages } from '~/utils/restPagination'
 import AppPage from '~/components/shell/AppPage.vue'
 import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
 import StopsMap from '~/components/explore/StopsMap.vue'
 import BarChart from '~/components/charts/BarChart.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useExplorePatterns } from '~/composables/useExplorePatterns'
 
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 import {
-  servingPatterns,
+  routesOfCalls,
   serviceKinds,
+  tripTotalsOf,
   departureHistogram,
   scheduledDepartureGroups,
-  type ScheduledDepartureInput,
   type ServiceKind,
 } from '~/utils/stopSchedule'
 import { useSplitLayout } from '~/composables/useSplitLayout'
@@ -38,91 +34,25 @@ const { result: stopResult, loading: stopLoading } = useStopDetailQuery(() => ({
 }))
 const stop = computed(() => stopResult.value?.stop ?? null)
 
-const { patterns } = useExplorePatterns(ref(true))
-const { result: calResult } = useExploreCalendarQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+// What the schedule does at this stop — the patterns calling here, their departures, and the days each
+// service runs — computed by the backend in one request.
+const { result: scheduleResult, loading: scheduleLoading } = useStopScheduleQuery(() => ({
+  variables: { feedCode: selectedFeedCode.value ?? '', stopId: stopId.value },
   enabled: !!selectedFeedCode.value,
 }))
+const schedule = computed(() => scheduleResult.value?.stopSchedule ?? { calls: [], services: [] })
+// Loading only while there is nothing to show yet (a refetch keeps the previous schedule on screen).
+const tripsLoading = computed(() => scheduleLoading.value && !scheduleResult.value)
 
-const serving = computed(() => servingPatterns(patterns.value, stopId.value))
+const routes = computed(() => routesOfCalls(schedule.value.calls))
+const tripTotals = computed(() => tripTotalsOf(schedule.value.calls))
 
-const routes = computed(() => {
-  const map = new Map<string, { name: string; color: string | null; id: string }>()
-  for (const s of serving.value) {
-    const r = s.pattern.route
-    if (r && !map.has(s.pattern.routeId)) {
-      map.set(s.pattern.routeId, {
-        id: s.pattern.routeId,
-        name: r.routeShortName ?? s.pattern.routeId,
-        color: r.routeColor ?? null,
-      })
-    }
-  }
-  return [...map.values()]
-})
-
-const tripTotals = computed(() => {
-  let total = 0,
-    dir0 = 0,
-    dir1 = 0
-  for (const s of serving.value) {
-    total += s.pattern.tripCount
-    if (s.pattern.directionId === 0) dir0 += s.pattern.tripCount
-    else if (s.pattern.directionId === 1) dir1 += s.pattern.tripCount
-  }
-  return { total, dir0, dir1 }
-})
-
-// --- departures histogram (fetched per serving pattern in one aliased query) --
 const kind = ref<ServiceKind>('weekday')
-const patternTrips = ref<ScheduledDepartureInput[]>([])
-const tripsLoading = ref(false)
 const departuresOpen = ref(false)
 
-watch(
-  [serving, selectedFeedCode],
-  async ([list, fc], _previous, onCleanup) => {
-    patternTrips.value = []
-    if (!fc || list.length === 0) { tripsLoading.value = false; return }
-    const controller = new AbortController()
-    onCleanup(() => controller.abort())
-    const keys = list.slice(0, 30).map((s) => s.pattern.patternKey)
-    tripsLoading.value = true
-    try {
-      const patterns = await Promise.all(keys.map(async (patternKey) => {
-        const signal = controller.signal
-        const [trips, times] = await Promise.all([
-          fetchAllPages((offset, limit) => Gtfs.trips({ path: { feedCode: fc }, query: { patternKey, offset, limit }, signal })),
-          fetchAllPages((offset, limit) => Schedule.scheduleTimes({ path: { feedCode: fc }, query: { patternKey, offset, limit }, signal })),
-        ])
-        const timesByTrip = Map.groupBy(times, (time) => time.tripId)
-        return {
-          patternKey,
-          trips: trips.map((trip) => ({
-            startTimeSec: trip.startTimeSec ?? null,
-            serviceId: trip.serviceId,
-            scheduleTimes: (timesByTrip.get(trip.tripId) ?? []).map((time) => ({
-              stopPathIndex: time.stopPathIndex,
-              departureSec: time.departureSec ?? null,
-            })),
-          })),
-        }
-      }))
-      if (!controller.signal.aborted) patternTrips.value = patterns
-    } finally {
-      if (!controller.signal.aborted) tripsLoading.value = false
-    }
-  },
-  { immediate: true },
-)
-
-const kinds = computed(() => serviceKinds(calResult.value?.calendars ?? []))
-const histogram = computed(() =>
-  departureHistogram(serving.value, patternTrips.value, kinds.value, kind.value, t),
-)
-const departureGroups = computed(() =>
-  scheduledDepartureGroups(serving.value, patternTrips.value, kinds.value, kind.value),
-)
+const kinds = computed(() => serviceKinds(schedule.value.services))
+const histogram = computed(() => departureHistogram(schedule.value, kinds.value, kind.value, t))
+const departureGroups = computed(() => scheduledDepartureGroups(schedule.value, kinds.value, kind.value))
 
 // i18n-keys: explore.serviceKind.*, explore.serviceKindLower.*
 const kindItems = computed(() =>
@@ -279,7 +209,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                   <div class="text-xs text-dimmed">{{ t('explore.stop.routesLabel') }}</div>
                 </div>
                 <div class="border-b border-default px-3 py-2">
-                  <div class="text-lg font-semibold text-highlighted">{{ serving.length }}</div>
+                  <div class="text-lg font-semibold text-highlighted">{{ schedule.calls.length }}</div>
                   <div class="text-xs text-dimmed">{{ t('explore.stop.patternsLabel') }}</div>
                 </div>
                 <div class="col-span-2 px-3 py-2">
@@ -321,7 +251,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
                 />
               </UFieldGroup>
             </div>
-            <USkeleton v-if="tripsLoading && !patternTrips.length" class="h-32.5 w-full" />
+            <USkeleton v-if="tripsLoading" class="h-32.5 w-full" />
             <template v-else>
               <BarChart :bars="histogram.bars" :height="130" :format="(n) => `${n}`" />
               <p class="text-xs text-dimmed">
@@ -370,7 +300,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       scrollable
     >
       <template #body>
-        <div v-if="tripsLoading && !patternTrips.length" class="space-y-3">
+        <div v-if="tripsLoading" class="space-y-3">
           <USkeleton v-for="i in 6" :key="i" class="h-12 w-full" />
         </div>
         <div v-else-if="departureGroups.length" class="space-y-4">

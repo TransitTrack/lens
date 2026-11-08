@@ -60,7 +60,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/vehicles:
+  /feeds/{feedCode}/avl/vehicles:
     get:
       operationId: vehicles
       tags:
@@ -71,6 +71,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: matchedOnly
@@ -116,7 +117,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/vehicles/{vehicleId}:
+  /feeds/{feedCode}/avl/vehicles/{vehicleId}:
     get:
       operationId: vehicle
       tags:
@@ -126,6 +127,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: vehicleId
@@ -148,7 +150,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/vehicles/{vehicleId}/reports:
+  /feeds/{feedCode}/avl/vehicles/{vehicleId}/reports:
     get:
       operationId: avlReports
       tags:
@@ -159,6 +161,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: vehicleId
@@ -195,7 +198,48 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/report-catalog:
+  /feeds/{feedCode}/avl/vehicles/{vehicleId}/trail:
+    get:
+      operationId: vehicleTrail
+      tags:
+      - AVL
+      summary: A vehicle's recent movement, summarised from its last reports - the track it followed, how often it reports,
+        and its speeds along the trip it is currently matched to. limit is how many of the newest reports to look at.
+      parameters:
+      - name: feedCode
+        in: path
+        required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
+        schema:
+          type: string
+      - name: vehicleId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 200
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VehicleTrail'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '500':
+          $ref: '#/components/responses/Error500'
+  /feeds/{feedCode}/avl/report-catalog:
     get:
       operationId: avlReportCatalog
       tags:
@@ -206,6 +250,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       responses:
@@ -223,7 +268,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/vehicles/{vehicleId}/report-page:
+  /feeds/{feedCode}/avl/vehicles/{vehicleId}/report-page:
     get:
       operationId: avlReportPage
       tags:
@@ -234,6 +279,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: vehicleId
@@ -1764,6 +1810,16 @@ paths:
         required: false
         schema:
           type: string
+      - name: routeId
+        in: query
+        required: false
+        description: Only these routes (repeat the parameter for several ids; at most 500).
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
       - name: offset
         in: query
         schema:
@@ -1838,6 +1894,65 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
+  /feeds/{feedCode}/routes/{routeId}/stops:
+    get:
+      operationId: routeStops
+      tags:
+      - GTFS
+      summary: The stops a route serves - every stop on its trip patterns, each once, in pattern order (patterns by key).
+      parameters:
+      - name: feedCode
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: routeId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: revisionId
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: offset
+        in: query
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 500
+          default: 100
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stop'
+          headers:
+            X-Total-Count:
+              description: Total matching rows before pagination.
+              required: true
+              schema:
+                type: integer
+                minimum: 0
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '500':
+          $ref: '#/components/responses/Error500'
   /feeds/{feedCode}/stops:
     get:
       operationId: stops
@@ -1861,6 +1976,16 @@ paths:
         description: Only the stops whose parent_station is this stop_id (a station's child stops).
         schema: &id004
           type: string
+      - name: stopId
+        in: query
+        required: false
+        description: Only these stops (repeat the parameter for several ids; at most 500).
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
       - name: offset
         in: query
         schema:
@@ -2775,7 +2900,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/vehicles/{vehicleId}/predictions:
+  /feeds/{feedCode}/avl/vehicles/{vehicleId}/predictions:
     get:
       operationId: vehiclePredictions
       tags:
@@ -2786,6 +2911,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: vehicleId
@@ -2835,7 +2961,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/prediction-accuracy:
+  /feeds/{feedCode}/avl/prediction-accuracy:
     get:
       operationId: predictionAccuracy
       tags:
@@ -2847,6 +2973,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: algorithm
@@ -2919,7 +3046,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/stops/{stopId}/predictions:
+  /feeds/{feedCode}/avl/stops/{stopId}/predictions:
     get:
       operationId: stopPredictions
       tags:
@@ -2931,6 +3058,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: stopId
@@ -2991,7 +3119,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/stops/{stopId}/headway:
+  /feeds/{feedCode}/avl/stops/{stopId}/headway:
     get:
       operationId: headway
       tags:
@@ -3001,6 +3129,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: stopId
@@ -3039,7 +3168,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/routes/{routeId}/adherence:
+  /feeds/{feedCode}/avl/routes/{routeId}/adherence:
     get:
       operationId: routeAdherence
       tags:
@@ -3049,6 +3178,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: routeId
@@ -3103,7 +3233,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/reports/route-adherence:
+  /feeds/{feedCode}/avl/reports/route-adherence:
     get:
       operationId: allRoutesAdherence
       tags:
@@ -3113,6 +3243,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: startDate
@@ -3162,7 +3293,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/trips/{tripId}/adherence:
+  /feeds/{feedCode}/avl/trips/{tripId}/adherence:
     get:
       operationId: tripAdherence
       tags:
@@ -3172,6 +3303,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: tripId
@@ -3226,7 +3358,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/reports/trip-adherence:
+  /feeds/{feedCode}/avl/reports/trip-adherence:
     get:
       operationId: allTripsAdherence
       tags:
@@ -3236,6 +3368,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: routeId
@@ -3290,7 +3423,7 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
-  /avl-feeds/{feedCode}/stops/{stopId}/adherence:
+  /feeds/{feedCode}/avl/stops/{stopId}/adherence:
     get:
       operationId: stopAdherence
       tags:
@@ -3300,6 +3433,7 @@ paths:
       - name: feedCode
         in: path
         required: true
+        description: Feed code; a feed's real-time (AVL) side shares its code.
         schema:
           type: string
       - name: stopId
@@ -3832,6 +3966,46 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
+  /feeds/{feedCode}/stops/{stopId}/schedule:
+    get:
+      operationId: stopSchedule
+      tags:
+      - Schedule
+      summary: What the schedule does at one stop - each trip pattern that calls there (with its route) and the scheduled
+        departure time of every clock-time trip at the stop, plus the kinds of day each service runs on. One request instead
+        of reading every pattern, trip and schedule time of the feed. Frequency-based trips have no clock times and are left
+        out.
+      parameters:
+      - name: feedCode
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: stopId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: revisionId
+        in: query
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StopSchedule'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '500':
+          $ref: '#/components/responses/Error500'
   /feeds/{feedCode}/block-trips:
     get:
       operationId: blockTrips
@@ -4196,6 +4370,157 @@ components:
       - source
       - position
       - matchStatus
+    StopDeparture:
+      type: object
+      properties:
+        serviceId:
+          type: string
+        departureSec:
+          type: integer
+          format: int32
+          description: Scheduled departure at the stop, in seconds into the service day (may pass 86400).
+      required:
+      - serviceId
+      - departureSec
+    StopScheduleCall:
+      type: object
+      properties:
+        patternKey:
+          type: string
+        routeId:
+          type: string
+        routeShortName:
+          anyOf:
+          - type: string
+          - type: 'null'
+        routeColor:
+          anyOf:
+          - type: string
+          - type: 'null'
+        routeTextColor:
+          anyOf:
+          - type: string
+          - type: 'null'
+        directionId:
+          anyOf:
+          - type: integer
+            format: int32
+          - type: 'null'
+        headsign:
+          anyOf:
+          - type: string
+          - type: 'null'
+        tripCount:
+          type: integer
+          format: int32
+          description: Trips on the whole pattern.
+        stopPathIndex:
+          type: integer
+          format: int32
+          description: Where the stop sits in the pattern.
+        departures:
+          type: array
+          items:
+            $ref: '#/components/schemas/StopDeparture'
+          description: Scheduled departures of the pattern's clock-time trips at the stop, earliest first.
+      description: One call of a trip pattern at a stop.
+      required:
+      - patternKey
+      - routeId
+      - tripCount
+      - stopPathIndex
+      - departures
+    StopServiceDays:
+      type: object
+      properties:
+        serviceId:
+          type: string
+        weekday:
+          type: boolean
+          description: Runs on at least one of Monday to Friday.
+        saturday:
+          type: boolean
+        sunday:
+          type: boolean
+      description: The kinds of day a service runs on, from its weekly calendar (calendar_dates exceptions are not applied).
+      required:
+      - serviceId
+      - weekday
+      - saturday
+      - sunday
+    StopSchedule:
+      type: object
+      properties:
+        calls:
+          type: array
+          items:
+            $ref: '#/components/schemas/StopScheduleCall'
+          description: The trip patterns calling at the stop, by pattern key.
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/StopServiceDays'
+          description: The services of the departures above.
+      description: The schedule at one stop.
+      required:
+      - calls
+      - services
+    TripSpeedSample:
+      type: object
+      properties:
+        distanceAlongTripM:
+          type: number
+          format: double
+          description: Metres along the trip where the speed was reported.
+        speedMps:
+          type: number
+          format: double
+      required:
+      - distanceAlongTripM
+      - speedMps
+    VehicleTrail:
+      type: object
+      properties:
+        reportCount:
+          type: integer
+          format: int32
+          description: How many reports the summary covers (at most limit).
+        latestReportTs:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: ISO-8601 instant of the newest report; null if the vehicle has none.
+        currentStatus:
+          anyOf:
+          - $ref: '#/components/schemas/VehicleStopStatus'
+          - type: 'null'
+          description: The newest report's stop status.
+        descTripId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: The trip ID the feed itself declared in the newest report, before any matching.
+        avgReportIntervalSec:
+          anyOf:
+          - type: number
+            format: double
+          - type: 'null'
+          description: Mean seconds between consecutive reports; null with fewer than two.
+        track:
+          type: array
+          items:
+            $ref: '#/components/schemas/LatLon'
+          description: The reported positions, oldest first.
+        speeds:
+          type: array
+          items:
+            $ref: '#/components/schemas/TripSpeedSample'
+          description: Speeds reported while matched to the vehicle's current trip, ordered by distance along it.
+      description: A vehicle's recent movement, summarised from its last reports.
+      required:
+      - reportCount
+      - track
+      - speeds
     AvlReportCatalog:
       type: object
       properties:

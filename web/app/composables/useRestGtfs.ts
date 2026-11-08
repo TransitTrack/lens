@@ -95,8 +95,7 @@ export function useStopsQuery(options: () => RestQueryOptions<StopsQueryVariable
   }))
 }
 
-export function useAgenciesQuery(options: () => RestQueryOptions<AgenciesQueryVariables>) {
-  return useRestQuery('useAgenciesQuery', options, async (variables, signal): Promise<AgenciesQuery> => ({
-    agencies: await fetchAllPages((offset, limit) => Gtfs.agencies({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })) as AgenciesQuery['agencies'],
-  }))
+/** Same read (and cache entry) as [useAgenciesDetailQuery] — `/agencies` returns full rows either way — so a page using both issues one request. */
+export function useAgenciesQuery(options: () => RestQueryOptions<AgenciesQueryVariables>): ReturnType<typeof useRestQuery<AgenciesQuery, AgenciesQueryVariables>> {
+  return useAgenciesDetailQuery(options)
 }

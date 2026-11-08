@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useAvlTrailQuery, useVehicleDetailQuery } from '~/composables/useRestRealtime'
+import { useRecentAvlReportsQuery, useVehicleDetailQuery } from '~/composables/useRestRealtime'
 import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
 import { formatClock, formatDottedTimestamp } from '~/utils/clock'
 import type { VehicleRow } from '~/composables/useVehiclePolling'
 import { adherenceBadge } from '~/utils/adherence'
 import { coarseAgeLabel, haversineM } from '~/utils/vehicleTelemetry'
-import { algorithmsIn, preferredAlgorithm, stopRows } from '~/utils/vehicleDetail'
+import { chosenAlgorithm, stopRows } from '~/utils/vehicleDetail'
 import { usePollControl } from '~/composables/usePollControl'
 import { useFeeds } from '~/composables/useFeeds'
 import { useUnits } from '~/composables/useUnits'
@@ -36,8 +36,10 @@ const units = useUnits()
 const vehicleId = computed(() => props.vehicle.vehicleId)
 const collapsed = ref(false)
 
+const algorithm = computed(() => chosenAlgorithm(selectedFeed.value?.predictionAlgorithms ?? []))
+
 const { result: detailResult, loading: detailLoading } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value },
+  variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value, algorithm: algorithm.value },
   enabled: !!props.feedCode, pollInterval: intervalMs.value,
 }))
 const detail = computed(() => {
@@ -53,7 +55,7 @@ const agencyTimezone = computed(
   () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )
 
-const { result: trailResult } = useAvlTrailQuery(() => ({
+const { result: trailResult } = useRecentAvlReportsQuery(() => ({
   variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value, limit: 2 },
   enabled: !!props.feedCode, pollInterval: intervalMs.value,
 }))
@@ -115,12 +117,6 @@ const tripProgress = computed(() => {
   }
 })
 
-const algorithm = computed(() =>
-  preferredAlgorithm(
-    algorithmsIn(detailResult.value?.vehiclePredictions ?? []),
-    selectedFeed.value?.predictionAlgorithms ?? [],
-  ),
-)
 const stops = computed(() =>
   detail.value
     ? stopRows(detail.value, detailResult.value?.vehiclePredictions ?? [], algorithm.value)

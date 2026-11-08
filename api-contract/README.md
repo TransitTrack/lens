@@ -35,7 +35,7 @@ Embedded value objects (a report's `match`, positions, extents) stay inline.
   `409`. Draft version and editor-lock conflicts are `409` problems carrying `code`
   (`STALE_DRAFT`, `LOCK_LOST`). Errors are `application/problem+json`.
 - `Long` is `int64`; JavaScript clients must take care beyond the safe integer range.
-- `/api/feeds/{feedCode}/vehicles` and `/api/feeds/{feedCode}/geometry` are the map's own bounded
+- `/api/v1/feeds/{feedCode}/vehicles` and `/api/v1/feeds/{feedCode}/geometry` are the map's own bounded
   endpoints (all vehicles in one response with just the fields the map draws); they are not part of
   this contract.
 

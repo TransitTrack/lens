@@ -35,6 +35,7 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.support.copy
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
 @Import(ScheduleAdherenceAlgorithmTest.Stub::class)

@@ -24,6 +24,7 @@
     "@nuxt/content": "^3.16.2",
     "@nuxt/ui": "^4.12.0",
     "@nuxtjs/i18n": "^10.6.0",
+    "@scalar/nuxt": "^0.6.88",
     "@tanstack/vue-query": "^5.107.1",
     "@vueuse/core": "^15.0.0",
     "@vueuse/nuxt": "^15.0.0",

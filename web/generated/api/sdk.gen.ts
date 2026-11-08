@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateDraftData, ActivateDraftErrors, ActivateDraftResponses, ActivateRevisionData, ActivateRevisionErrors, ActivateRevisionResponses, AddTripData, AddTripErrors, AddTripResponses, AgenciesData, AgenciesErrors, AgenciesResponses, AllRoutesAdherenceData, AllRoutesAdherenceErrors, AllRoutesAdherenceResponses, AllTripsAdherenceData, AllTripsAdherenceErrors, AllTripsAdherenceResponses, ApplyOptimizationRecommendationsData, ApplyOptimizationRecommendationsErrors, ApplyOptimizationRecommendationsResponses, AvlFeedsData, AvlFeedsErrors, AvlFeedsResponses, AvlReportCatalogData, AvlReportCatalogErrors, AvlReportCatalogResponses, AvlReportPageData, AvlReportPageErrors, AvlReportPageResponses, AvlReportsData, AvlReportsErrors, AvlReportsResponses, BlockData, BlockErrors, BlockResponses, BlocksData, BlocksErrors, BlocksOnDateData, BlocksOnDateErrors, BlocksOnDateResponses, BlocksResponses, BlockTripsData, BlockTripsErrors, BlockTripsResponses, BulkShiftTripsData, BulkShiftTripsErrors, BulkShiftTripsResponses, CalendarDatesData, CalendarDatesErrors, CalendarDatesResponses, CalendarsData, CalendarsErrors, CalendarsResponses, ClaimDraftEditorData, ClaimDraftEditorErrors, ClaimDraftEditorResponses, CompareRevisionsData, CompareRevisionsErrors, CompareRevisionsResponses, DeleteFeedData, DeleteFeedErrors, DeleteFeedResponses, DeleteRevisionData, DeleteRevisionErrors, DeleteRevisionResponses, DeleteTripData, DeleteTripErrors, DeleteTripResponses, DiscardDraftData, DiscardDraftErrors, DiscardDraftResponses, DraftData, DraftEditsData, DraftEditsErrors, DraftEditsResponses, DraftErrors, DraftGridData, DraftGridErrors, DraftGridResponses, DraftJobData, DraftJobErrors, DraftJobResponses, DraftResponses, DraftsData, DraftsErrors, DraftsResponses, DuplicateTripData, DuplicateTripErrors, DuplicateTripResponses, FeedData, FeedErrors, FeedGeometryData, FeedGeometryErrors, FeedGeometryResponses, FeedInfoData, FeedInfoErrors, FeedInfoResponses, FeedResponses, FeedsData, FeedsErrors, FeedsResponses, ForkDraftData, ForkDraftErrors, ForkDraftResponses, FrequenciesData, FrequenciesErrors, FrequenciesResponses, HeadwayData, HeadwayErrors, HeadwayResponses, IngestFeedData, IngestFeedErrors, IngestFeedResponses, InsertTripStopData, InsertTripStopErrors, InsertTripStopResponses, LevelsData, LevelsErrors, LevelsResponses, OptimizationRecommendationsData, OptimizationRecommendationsErrors, OptimizationRecommendationsResponses, OptimizationRunData, OptimizationRunErrors, OptimizationRunResponses, OptimizationRunsData, OptimizationRunsErrors, OptimizationRunsResponses, PathwaysData, PathwaysErrors, PathwaysResponses, PredictionAccuracyData, PredictionAccuracyErrors, PredictionAccuracyResponses, RebuildDraftData, RebuildDraftErrors, RebuildDraftResponses, RecordsData, RecordsErrors, RecordsResponses, RedoDraftEditData, RedoDraftEditErrors, RedoDraftEditResponses, RegisterFeedData, RegisterFeedErrors, RegisterFeedResponses, ReleaseDraftEditorData, ReleaseDraftEditorErrors, ReleaseDraftEditorResponses, RemoveTripStopData, RemoveTripStopErrors, RemoveTripStopResponses, RenewDraftEditorData, RenewDraftEditorErrors, RenewDraftEditorResponses, ReorderTripStopsData, ReorderTripStopsErrors, ReorderTripStopsResponses, RevertDraftToForkData, RevertDraftToForkErrors, RevertDraftToForkResponses, RevisionData, RevisionErrors, RevisionResponses, RevisionsData, RevisionsErrors, RevisionsResponses, RouteAdherenceData, RouteAdherenceErrors, RouteAdherenceResponses, RouteData, RouteErrors, RouteResponses, RoutesData, RoutesErrors, RoutesResponses, ScheduleTimesData, ScheduleTimesErrors, ScheduleTimesResponses, SetCalendarData, SetCalendarErrors, SetCalendarExceptionData, SetCalendarExceptionErrors, SetCalendarExceptionResponses, SetCalendarResponses, SetStopDwellData, SetStopDwellErrors, SetStopDwellResponses, ShapeData, ShapeErrors, ShapeResponses, ShiftTripData, ShiftTripErrors, ShiftTripResponses, StartOptimizationRunData, StartOptimizationRunErrors, StartOptimizationRunResponses, StopAdherenceData, StopAdherenceErrors, StopAdherenceResponses, StopData, StopErrors, StopPathsData, StopPathsErrors, StopPathsResponses, StopPredictionsData, StopPredictionsErrors, StopPredictionsResponses, StopResponses, StopsData, StopsErrors, StopsResponses, StopTimesData, StopTimesErrors, StopTimesResponses, TransfersData, TransfersErrors, TransfersResponses, TripAdherenceData, TripAdherenceErrors, TripAdherenceResponses, TripData, TripErrors, TripPatternData, TripPatternErrors, TripPatternResponses, TripPatternsData, TripPatternsErrors, TripPatternsResponses, TripResponses, TripsData, TripsErrors, TripsOnDateData, TripsOnDateErrors, TripsOnDateResponses, TripsResponses, UndoDraftEditData, UndoDraftEditErrors, UndoDraftEditResponses, UpdateFeedData, UpdateFeedErrors, UpdateFeedResponses, UpdateStopTimeData, UpdateStopTimeErrors, UpdateStopTimeResponses, ValidationFindingCountsData, ValidationFindingCountsErrors, ValidationFindingCountsResponses, ValidationFindingsData, ValidationFindingsErrors, ValidationFindingsResponses, VehicleData, VehicleErrors, VehiclePredictionsData, VehiclePredictionsErrors, VehiclePredictionsResponses, VehicleResponses, VehiclesData, VehiclesErrors, VehiclesResponses } from './types.gen';
+import type { ActivateDraftData, ActivateDraftErrors, ActivateDraftResponses, ActivateRevisionData, ActivateRevisionErrors, ActivateRevisionResponses, AddTripData, AddTripErrors, AddTripResponses, AgenciesData, AgenciesErrors, AgenciesResponses, AllRoutesAdherenceData, AllRoutesAdherenceErrors, AllRoutesAdherenceResponses, AllTripsAdherenceData, AllTripsAdherenceErrors, AllTripsAdherenceResponses, ApplyOptimizationRecommendationsData, ApplyOptimizationRecommendationsErrors, ApplyOptimizationRecommendationsResponses, AvlFeedsData, AvlFeedsErrors, AvlFeedsResponses, AvlReportCatalogData, AvlReportCatalogErrors, AvlReportCatalogResponses, AvlReportPageData, AvlReportPageErrors, AvlReportPageResponses, AvlReportsData, AvlReportsErrors, AvlReportsResponses, BlockData, BlockErrors, BlockResponses, BlocksData, BlocksErrors, BlocksOnDateData, BlocksOnDateErrors, BlocksOnDateResponses, BlocksResponses, BlockTripsData, BlockTripsErrors, BlockTripsResponses, BulkShiftTripsData, BulkShiftTripsErrors, BulkShiftTripsResponses, CalendarDatesData, CalendarDatesErrors, CalendarDatesResponses, CalendarsData, CalendarsErrors, CalendarsResponses, ClaimDraftEditorData, ClaimDraftEditorErrors, ClaimDraftEditorResponses, CompareRevisionsData, CompareRevisionsErrors, CompareRevisionsResponses, DeleteFeedData, DeleteFeedErrors, DeleteFeedResponses, DeleteRevisionData, DeleteRevisionErrors, DeleteRevisionResponses, DeleteTripData, DeleteTripErrors, DeleteTripResponses, DiscardDraftData, DiscardDraftErrors, DiscardDraftResponses, DraftData, DraftEditsData, DraftEditsErrors, DraftEditsResponses, DraftErrors, DraftGridData, DraftGridErrors, DraftGridResponses, DraftJobData, DraftJobErrors, DraftJobResponses, DraftResponses, DraftsData, DraftsErrors, DraftsResponses, DuplicateTripData, DuplicateTripErrors, DuplicateTripResponses, FeedData, FeedErrors, FeedGeometryData, FeedGeometryErrors, FeedGeometryResponses, FeedInfoData, FeedInfoErrors, FeedInfoResponses, FeedResponses, FeedsData, FeedsErrors, FeedsResponses, ForkDraftData, ForkDraftErrors, ForkDraftResponses, FrequenciesData, FrequenciesErrors, FrequenciesResponses, HeadwayData, HeadwayErrors, HeadwayResponses, IngestFeedData, IngestFeedErrors, IngestFeedResponses, InsertTripStopData, InsertTripStopErrors, InsertTripStopResponses, LevelsData, LevelsErrors, LevelsResponses, OptimizationRecommendationsData, OptimizationRecommendationsErrors, OptimizationRecommendationsResponses, OptimizationRunData, OptimizationRunErrors, OptimizationRunResponses, OptimizationRunsData, OptimizationRunsErrors, OptimizationRunsResponses, PathwaysData, PathwaysErrors, PathwaysResponses, PredictionAccuracyData, PredictionAccuracyErrors, PredictionAccuracyResponses, RebuildDraftData, RebuildDraftErrors, RebuildDraftResponses, RecordsData, RecordsErrors, RecordsResponses, RedoDraftEditData, RedoDraftEditErrors, RedoDraftEditResponses, RegisterFeedData, RegisterFeedErrors, RegisterFeedResponses, ReleaseDraftEditorData, ReleaseDraftEditorErrors, ReleaseDraftEditorResponses, RemoveTripStopData, RemoveTripStopErrors, RemoveTripStopResponses, RenewDraftEditorData, RenewDraftEditorErrors, RenewDraftEditorResponses, ReorderTripStopsData, ReorderTripStopsErrors, ReorderTripStopsResponses, RevertDraftToForkData, RevertDraftToForkErrors, RevertDraftToForkResponses, RevisionData, RevisionErrors, RevisionResponses, RevisionsData, RevisionsErrors, RevisionsResponses, RouteAdherenceData, RouteAdherenceErrors, RouteAdherenceResponses, RouteData, RouteErrors, RouteResponses, RoutesData, RoutesErrors, RoutesResponses, RouteStopsData, RouteStopsErrors, RouteStopsResponses, ScheduleTimesData, ScheduleTimesErrors, ScheduleTimesResponses, SetCalendarData, SetCalendarErrors, SetCalendarExceptionData, SetCalendarExceptionErrors, SetCalendarExceptionResponses, SetCalendarResponses, SetStopDwellData, SetStopDwellErrors, SetStopDwellResponses, ShapeData, ShapeErrors, ShapeResponses, ShiftTripData, ShiftTripErrors, ShiftTripResponses, StartOptimizationRunData, StartOptimizationRunErrors, StartOptimizationRunResponses, StopAdherenceData, StopAdherenceErrors, StopAdherenceResponses, StopData, StopErrors, StopPathsData, StopPathsErrors, StopPathsResponses, StopPredictionsData, StopPredictionsErrors, StopPredictionsResponses, StopResponses, StopScheduleData, StopScheduleErrors, StopScheduleResponses, StopsData, StopsErrors, StopsResponses, StopTimesData, StopTimesErrors, StopTimesResponses, TransfersData, TransfersErrors, TransfersResponses, TripAdherenceData, TripAdherenceErrors, TripAdherenceResponses, TripData, TripErrors, TripPatternData, TripPatternErrors, TripPatternResponses, TripPatternsData, TripPatternsErrors, TripPatternsResponses, TripResponses, TripsData, TripsErrors, TripsOnDateData, TripsOnDateErrors, TripsOnDateResponses, TripsResponses, UndoDraftEditData, UndoDraftEditErrors, UndoDraftEditResponses, UpdateFeedData, UpdateFeedErrors, UpdateFeedResponses, UpdateStopTimeData, UpdateStopTimeErrors, UpdateStopTimeResponses, ValidationFindingCountsData, ValidationFindingCountsErrors, ValidationFindingCountsResponses, ValidationFindingsData, ValidationFindingsErrors, ValidationFindingsResponses, VehicleData, VehicleErrors, VehiclePredictionsData, VehiclePredictionsErrors, VehiclePredictionsResponses, VehicleResponses, VehiclesData, VehiclesErrors, VehiclesResponses, VehicleTrailData, VehicleTrailErrors, VehicleTrailResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -32,35 +32,42 @@ export class Avl {
      * Vehicles currently reporting on this feed, from each vehicle's latest known state rather than raw history. Set matchedOnly to only return vehicles currently matched to a trip.
      */
     public static vehicles<ThrowOnError extends boolean = true>(options: Options<VehiclesData, ThrowOnError>): RequestResult<VehiclesResponses, VehiclesErrors, ThrowOnError> {
-        return (options.client ?? client).get<VehiclesResponses, VehiclesErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/vehicles', ...options });
+        return (options.client ?? client).get<VehiclesResponses, VehiclesErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/vehicles', ...options });
     }
     
     /**
      * A single vehicle's latest known state, or null if the feed or vehicle is unknown.
      */
     public static vehicle<ThrowOnError extends boolean = true>(options: Options<VehicleData, ThrowOnError>): RequestResult<VehicleResponses, VehicleErrors, ThrowOnError> {
-        return (options.client ?? client).get<VehicleResponses, VehicleErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/vehicles/{vehicleId}', ...options });
+        return (options.client ?? client).get<VehicleResponses, VehicleErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/vehicles/{vehicleId}', ...options });
     }
     
     /**
      * Raw AVL report history for one vehicle, newest first. since is an ISO-8601 instant; omit it to return the most recent reports up to limit.
      */
     public static avlReports<ThrowOnError extends boolean = true>(options: Options<AvlReportsData, ThrowOnError>): RequestResult<AvlReportsResponses, AvlReportsErrors, ThrowOnError> {
-        return (options.client ?? client).get<AvlReportsResponses, AvlReportsErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/vehicles/{vehicleId}/reports', ...options });
+        return (options.client ?? client).get<AvlReportsResponses, AvlReportsErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/vehicles/{vehicleId}/reports', ...options });
+    }
+    
+    /**
+     * A vehicle's recent movement, summarised from its last reports - the track it followed, how often it reports, and its speeds along the trip it is currently matched to. limit is how many of the newest reports to look at.
+     */
+    public static vehicleTrail<ThrowOnError extends boolean = true>(options: Options<VehicleTrailData, ThrowOnError>): RequestResult<VehicleTrailResponses, VehicleTrailErrors, ThrowOnError> {
+        return (options.client ?? client).get<VehicleTrailResponses, VehicleTrailErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/vehicles/{vehicleId}/trail', ...options });
     }
     
     /**
      * The feed's configured time zone and every distinct vehicle ID it has ever reported, for populating report-browsing filters.
      */
     public static avlReportCatalog<ThrowOnError extends boolean = true>(options: Options<AvlReportCatalogData, ThrowOnError>): RequestResult<AvlReportCatalogResponses, AvlReportCatalogErrors, ThrowOnError> {
-        return (options.client ?? client).get<AvlReportCatalogResponses, AvlReportCatalogErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/report-catalog', ...options });
+        return (options.client ?? client).get<AvlReportCatalogResponses, AvlReportCatalogErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/report-catalog', ...options });
     }
     
     /**
      * A page of raw AVL reports for one vehicle within a local time-of-day window (startTime/endTime) on a given date.
      */
     public static avlReportPage<ThrowOnError extends boolean = true>(options: Options<AvlReportPageData, ThrowOnError>): RequestResult<AvlReportPageResponses, AvlReportPageErrors, ThrowOnError> {
-        return (options.client ?? client).get<AvlReportPageResponses, AvlReportPageErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/vehicles/{vehicleId}/report-page', ...options });
+        return (options.client ?? client).get<AvlReportPageResponses, AvlReportPageErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/vehicles/{vehicleId}/report-page', ...options });
     }
 }
 
@@ -126,6 +133,13 @@ export class Schedule {
      */
     public static stopPaths<ThrowOnError extends boolean = true>(options: Options<StopPathsData, ThrowOnError>): RequestResult<StopPathsResponses, StopPathsErrors, ThrowOnError> {
         return (options.client ?? client).get<StopPathsResponses, StopPathsErrors, ThrowOnError>({ url: '/feeds/{feedCode}/stop-paths', ...options });
+    }
+    
+    /**
+     * What the schedule does at one stop - each trip pattern that calls there (with its route) and the scheduled departure time of every clock-time trip at the stop, plus the kinds of day each service runs on. One request instead of reading every pattern, trip and schedule time of the feed. Frequency-based trips have no clock times and are left out.
+     */
+    public static stopSchedule<ThrowOnError extends boolean = true>(options: Options<StopScheduleData, ThrowOnError>): RequestResult<StopScheduleResponses, StopScheduleErrors, ThrowOnError> {
+        return (options.client ?? client).get<StopScheduleResponses, StopScheduleErrors, ThrowOnError>({ url: '/feeds/{feedCode}/stops/{stopId}/schedule', ...options });
     }
     
     /**
@@ -296,6 +310,13 @@ export class Gtfs {
      */
     public static route<ThrowOnError extends boolean = true>(options: Options<RouteData, ThrowOnError>): RequestResult<RouteResponses, RouteErrors, ThrowOnError> {
         return (options.client ?? client).get<RouteResponses, RouteErrors, ThrowOnError>({ url: '/feeds/{feedCode}/routes/{routeId}', ...options });
+    }
+    
+    /**
+     * The stops a route serves - every stop on its trip patterns, each once, in pattern order (patterns by key).
+     */
+    public static routeStops<ThrowOnError extends boolean = true>(options: Options<RouteStopsData, ThrowOnError>): RequestResult<RouteStopsResponses, RouteStopsErrors, ThrowOnError> {
+        return (options.client ?? client).get<RouteStopsResponses, RouteStopsErrors, ThrowOnError>({ url: '/feeds/{feedCode}/routes/{routeId}/stops', ...options });
     }
     
     /**
@@ -756,28 +777,28 @@ export class Predictions {
      * Predicted and reached stops of one vehicle's current trip. Pass algorithm to restrict to a single prediction algorithm.
      */
     public static vehiclePredictions<ThrowOnError extends boolean = true>(options: Options<VehiclePredictionsData, ThrowOnError>): RequestResult<VehiclePredictionsResponses, VehiclePredictionsErrors, ThrowOnError> {
-        return (options.client ?? client).get<VehiclePredictionsResponses, VehiclePredictionsErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/vehicles/{vehicleId}/predictions', ...options });
+        return (options.client ?? client).get<VehiclePredictionsResponses, VehiclePredictionsErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/vehicles/{vehicleId}/predictions', ...options });
     }
     
     /**
      * Recent, paired prediction-error statistics, overall and by actual lead time. Compares currently configured algorithms unless algorithm restricts to one. Optional route, direction and observation-time context filters apply before pairing.
      */
     public static predictionAccuracy<ThrowOnError extends boolean = true>(options: Options<PredictionAccuracyData, ThrowOnError>): RequestResult<PredictionAccuracyResponses, PredictionAccuracyErrors, ThrowOnError> {
-        return (options.client ?? client).get<PredictionAccuracyResponses, PredictionAccuracyErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/prediction-accuracy', ...options });
+        return (options.client ?? client).get<PredictionAccuracyResponses, PredictionAccuracyErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/prediction-accuracy', ...options });
     }
     
     /**
      * Open predictions for every vehicle currently approaching a given stop, for a stop-board display. routeId/directionId scope which trip patterns at the stop are considered; omitting routeId returns no predictions. algorithm defaults to the feed's first configured algorithm.
      */
     public static stopPredictions<ThrowOnError extends boolean = true>(options: Options<StopPredictionsData, ThrowOnError>): RequestResult<StopPredictionsResponses, StopPredictionsErrors, ThrowOnError> {
-        return (options.client ?? client).get<StopPredictionsResponses, StopPredictionsErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/stops/{stopId}/predictions', ...options });
+        return (options.client ?? client).get<StopPredictionsResponses, StopPredictionsErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/stops/{stopId}/predictions', ...options });
     }
     
     /**
      * Current headway (gap between consecutive vehicles) at a stop for one route/direction.
      */
     public static headway<ThrowOnError extends boolean = true>(options: Options<HeadwayData, ThrowOnError>): RequestResult<HeadwayResponses, HeadwayErrors, ThrowOnError> {
-        return (options.client ?? client).get<HeadwayResponses, HeadwayErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/stops/{stopId}/headway', ...options });
+        return (options.client ?? client).get<HeadwayResponses, HeadwayErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/stops/{stopId}/headway', ...options });
     }
 }
 
@@ -786,34 +807,34 @@ export class Reports {
      * Per-stop adherence detail for one route over a date range.
      */
     public static routeAdherence<ThrowOnError extends boolean = true>(options: Options<RouteAdherenceData, ThrowOnError>): RequestResult<RouteAdherenceResponses, RouteAdherenceErrors, ThrowOnError> {
-        return (options.client ?? client).get<RouteAdherenceResponses, RouteAdherenceErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/routes/{routeId}/adherence', ...options });
+        return (options.client ?? client).get<RouteAdherenceResponses, RouteAdherenceErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/routes/{routeId}/adherence', ...options });
     }
     
     /**
      * Per-route adherence aggregates over a date range.
      */
     public static allRoutesAdherence<ThrowOnError extends boolean = true>(options: Options<AllRoutesAdherenceData, ThrowOnError>): RequestResult<AllRoutesAdherenceResponses, AllRoutesAdherenceErrors, ThrowOnError> {
-        return (options.client ?? client).get<AllRoutesAdherenceResponses, AllRoutesAdherenceErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/reports/route-adherence', ...options });
+        return (options.client ?? client).get<AllRoutesAdherenceResponses, AllRoutesAdherenceErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/reports/route-adherence', ...options });
     }
     
     /**
      * Per-stop adherence detail for one trip over a date range (one trip execution per service date it ran).
      */
     public static tripAdherence<ThrowOnError extends boolean = true>(options: Options<TripAdherenceData, ThrowOnError>): RequestResult<TripAdherenceResponses, TripAdherenceErrors, ThrowOnError> {
-        return (options.client ?? client).get<TripAdherenceResponses, TripAdherenceErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/trips/{tripId}/adherence', ...options });
+        return (options.client ?? client).get<TripAdherenceResponses, TripAdherenceErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/trips/{tripId}/adherence', ...options });
     }
     
     /**
      * Per-trip-execution adherence aggregates over a date range. Pass routeId to scope to one route.
      */
     public static allTripsAdherence<ThrowOnError extends boolean = true>(options: Options<AllTripsAdherenceData, ThrowOnError>): RequestResult<AllTripsAdherenceResponses, AllTripsAdherenceErrors, ThrowOnError> {
-        return (options.client ?? client).get<AllTripsAdherenceResponses, AllTripsAdherenceErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/reports/trip-adherence', ...options });
+        return (options.client ?? client).get<AllTripsAdherenceResponses, AllTripsAdherenceErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/reports/trip-adherence', ...options });
     }
     
     /**
      * Per-stop adherence detail for one stop over a date range, across every trip serving it.
      */
     public static stopAdherence<ThrowOnError extends boolean = true>(options: Options<StopAdherenceData, ThrowOnError>): RequestResult<StopAdherenceResponses, StopAdherenceErrors, ThrowOnError> {
-        return (options.client ?? client).get<StopAdherenceResponses, StopAdherenceErrors, ThrowOnError>({ url: '/avl-feeds/{feedCode}/stops/{stopId}/adherence', ...options });
+        return (options.client ?? client).get<StopAdherenceResponses, StopAdherenceErrors, ThrowOnError>({ url: '/feeds/{feedCode}/avl/stops/{stopId}/adherence', ...options });
     }
 }

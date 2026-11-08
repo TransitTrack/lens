@@ -4,7 +4,7 @@ import { type InfiniteData, infiniteQueryOptions, queryOptions, type UseMutation
 
 import { client } from '../client.gen';
 import { Avl, AvlFeedCatalog, Drafts, Gtfs, Optimization, type Options, Predictions, Reports, Schedule } from '../sdk.gen';
-import type { ActivateDraftData, ActivateDraftError, ActivateDraftResponse, ActivateRevisionData, ActivateRevisionError, ActivateRevisionResponse, AddTripData, AddTripError, AddTripResponse, AgenciesData, AgenciesError, AgenciesResponse, AllRoutesAdherenceData, AllRoutesAdherenceError, AllRoutesAdherenceResponse, AllTripsAdherenceData, AllTripsAdherenceError, AllTripsAdherenceResponse, ApplyOptimizationRecommendationsData, ApplyOptimizationRecommendationsError, ApplyOptimizationRecommendationsResponse, AvlFeedsData, AvlFeedsError, AvlFeedsResponse, AvlReportCatalogData, AvlReportCatalogError, AvlReportCatalogResponse, AvlReportPageData, AvlReportPageError, AvlReportPageResponse, AvlReportsData, AvlReportsError, AvlReportsResponse, BlockData, BlockError, BlockResponse, BlocksData, BlocksError, BlocksOnDateData, BlocksOnDateError, BlocksOnDateResponse, BlocksResponse, BlockTripsData, BlockTripsError, BlockTripsResponse, BulkShiftTripsData, BulkShiftTripsError, BulkShiftTripsResponse, CalendarDatesData, CalendarDatesError, CalendarDatesResponse, CalendarsData, CalendarsError, CalendarsResponse, ClaimDraftEditorData, ClaimDraftEditorError, ClaimDraftEditorResponse, CompareRevisionsData, CompareRevisionsError, CompareRevisionsResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteRevisionData, DeleteRevisionError, DeleteRevisionResponse, DeleteTripData, DeleteTripError, DeleteTripResponse, DiscardDraftData, DiscardDraftError, DiscardDraftResponse, DraftData, DraftEditsData, DraftEditsError, DraftEditsResponse, DraftError, DraftGridData, DraftGridError, DraftGridResponse, DraftJobData, DraftJobError, DraftJobResponse, DraftResponse, DraftsData, DraftsError, DraftsResponse, DuplicateTripData, DuplicateTripError, DuplicateTripResponse, FeedData, FeedError, FeedGeometryData, FeedGeometryError, FeedGeometryResponse, FeedInfoData, FeedInfoError, FeedInfoResponse, FeedResponse, FeedsData, FeedsError, FeedsResponse, ForkDraftData, ForkDraftError, ForkDraftResponse, FrequenciesData, FrequenciesError, FrequenciesResponse, HeadwayData, HeadwayError, HeadwayResponse, IngestFeedData, IngestFeedError, IngestFeedResponse, InsertTripStopData, InsertTripStopError, InsertTripStopResponse, LevelsData, LevelsError, LevelsResponse, OptimizationRecommendationsData, OptimizationRecommendationsError, OptimizationRecommendationsResponse, OptimizationRunData, OptimizationRunError, OptimizationRunResponse, OptimizationRunsData, OptimizationRunsError, OptimizationRunsResponse, PathwaysData, PathwaysError, PathwaysResponse, PredictionAccuracyData, PredictionAccuracyError, PredictionAccuracyResponse, RebuildDraftData, RebuildDraftError, RebuildDraftResponse, RecordsData, RecordsError, RecordsResponse, RedoDraftEditData, RedoDraftEditError, RedoDraftEditResponse, RegisterFeedData, RegisterFeedError, RegisterFeedResponse, ReleaseDraftEditorData, ReleaseDraftEditorError, ReleaseDraftEditorResponse, RemoveTripStopData, RemoveTripStopError, RemoveTripStopResponse, RenewDraftEditorData, RenewDraftEditorError, RenewDraftEditorResponse, ReorderTripStopsData, ReorderTripStopsError, ReorderTripStopsResponse, RevertDraftToForkData, RevertDraftToForkError, RevertDraftToForkResponse, RevisionData, RevisionError, RevisionResponse, RevisionsData, RevisionsError, RevisionsResponse, RouteAdherenceData, RouteAdherenceError, RouteAdherenceResponse, RouteData, RouteError, RouteResponse, RoutesData, RoutesError, RoutesResponse, ScheduleTimesData, ScheduleTimesError, ScheduleTimesResponse, SetCalendarData, SetCalendarError, SetCalendarExceptionData, SetCalendarExceptionError, SetCalendarExceptionResponse, SetCalendarResponse, SetStopDwellData, SetStopDwellError, SetStopDwellResponse, ShapeData, ShapeError, ShapeResponse, ShiftTripData, ShiftTripError, ShiftTripResponse, StartOptimizationRunData, StartOptimizationRunError, StartOptimizationRunResponse, StopAdherenceData, StopAdherenceError, StopAdherenceResponse, StopData, StopError, StopPathsData, StopPathsError, StopPathsResponse, StopPredictionsData, StopPredictionsError, StopPredictionsResponse, StopResponse, StopsData, StopsError, StopsResponse, StopTimesData, StopTimesError, StopTimesResponse, TransfersData, TransfersError, TransfersResponse, TripAdherenceData, TripAdherenceError, TripAdherenceResponse, TripData, TripError, TripPatternData, TripPatternError, TripPatternResponse, TripPatternsData, TripPatternsError, TripPatternsResponse, TripResponse, TripsData, TripsError, TripsOnDateData, TripsOnDateError, TripsOnDateResponse, TripsResponse, UndoDraftEditData, UndoDraftEditError, UndoDraftEditResponse, UpdateFeedData, UpdateFeedError, UpdateFeedResponse, UpdateStopTimeData, UpdateStopTimeError, UpdateStopTimeResponse, ValidationFindingCountsData, ValidationFindingCountsError, ValidationFindingCountsResponse, ValidationFindingsData, ValidationFindingsError, ValidationFindingsResponse, VehicleData, VehicleError, VehiclePredictionsData, VehiclePredictionsError, VehiclePredictionsResponse, VehicleResponse, VehiclesData, VehiclesError, VehiclesResponse } from '../types.gen';
+import type { ActivateDraftData, ActivateDraftError, ActivateDraftResponse, ActivateRevisionData, ActivateRevisionError, ActivateRevisionResponse, AddTripData, AddTripError, AddTripResponse, AgenciesData, AgenciesError, AgenciesResponse, AllRoutesAdherenceData, AllRoutesAdherenceError, AllRoutesAdherenceResponse, AllTripsAdherenceData, AllTripsAdherenceError, AllTripsAdherenceResponse, ApplyOptimizationRecommendationsData, ApplyOptimizationRecommendationsError, ApplyOptimizationRecommendationsResponse, AvlFeedsData, AvlFeedsError, AvlFeedsResponse, AvlReportCatalogData, AvlReportCatalogError, AvlReportCatalogResponse, AvlReportPageData, AvlReportPageError, AvlReportPageResponse, AvlReportsData, AvlReportsError, AvlReportsResponse, BlockData, BlockError, BlockResponse, BlocksData, BlocksError, BlocksOnDateData, BlocksOnDateError, BlocksOnDateResponse, BlocksResponse, BlockTripsData, BlockTripsError, BlockTripsResponse, BulkShiftTripsData, BulkShiftTripsError, BulkShiftTripsResponse, CalendarDatesData, CalendarDatesError, CalendarDatesResponse, CalendarsData, CalendarsError, CalendarsResponse, ClaimDraftEditorData, ClaimDraftEditorError, ClaimDraftEditorResponse, CompareRevisionsData, CompareRevisionsError, CompareRevisionsResponse, DeleteFeedData, DeleteFeedError, DeleteFeedResponse, DeleteRevisionData, DeleteRevisionError, DeleteRevisionResponse, DeleteTripData, DeleteTripError, DeleteTripResponse, DiscardDraftData, DiscardDraftError, DiscardDraftResponse, DraftData, DraftEditsData, DraftEditsError, DraftEditsResponse, DraftError, DraftGridData, DraftGridError, DraftGridResponse, DraftJobData, DraftJobError, DraftJobResponse, DraftResponse, DraftsData, DraftsError, DraftsResponse, DuplicateTripData, DuplicateTripError, DuplicateTripResponse, FeedData, FeedError, FeedGeometryData, FeedGeometryError, FeedGeometryResponse, FeedInfoData, FeedInfoError, FeedInfoResponse, FeedResponse, FeedsData, FeedsError, FeedsResponse, ForkDraftData, ForkDraftError, ForkDraftResponse, FrequenciesData, FrequenciesError, FrequenciesResponse, HeadwayData, HeadwayError, HeadwayResponse, IngestFeedData, IngestFeedError, IngestFeedResponse, InsertTripStopData, InsertTripStopError, InsertTripStopResponse, LevelsData, LevelsError, LevelsResponse, OptimizationRecommendationsData, OptimizationRecommendationsError, OptimizationRecommendationsResponse, OptimizationRunData, OptimizationRunError, OptimizationRunResponse, OptimizationRunsData, OptimizationRunsError, OptimizationRunsResponse, PathwaysData, PathwaysError, PathwaysResponse, PredictionAccuracyData, PredictionAccuracyError, PredictionAccuracyResponse, RebuildDraftData, RebuildDraftError, RebuildDraftResponse, RecordsData, RecordsError, RecordsResponse, RedoDraftEditData, RedoDraftEditError, RedoDraftEditResponse, RegisterFeedData, RegisterFeedError, RegisterFeedResponse, ReleaseDraftEditorData, ReleaseDraftEditorError, ReleaseDraftEditorResponse, RemoveTripStopData, RemoveTripStopError, RemoveTripStopResponse, RenewDraftEditorData, RenewDraftEditorError, RenewDraftEditorResponse, ReorderTripStopsData, ReorderTripStopsError, ReorderTripStopsResponse, RevertDraftToForkData, RevertDraftToForkError, RevertDraftToForkResponse, RevisionData, RevisionError, RevisionResponse, RevisionsData, RevisionsError, RevisionsResponse, RouteAdherenceData, RouteAdherenceError, RouteAdherenceResponse, RouteData, RouteError, RouteResponse, RoutesData, RoutesError, RoutesResponse, RouteStopsData, RouteStopsError, RouteStopsResponse, ScheduleTimesData, ScheduleTimesError, ScheduleTimesResponse, SetCalendarData, SetCalendarError, SetCalendarExceptionData, SetCalendarExceptionError, SetCalendarExceptionResponse, SetCalendarResponse, SetStopDwellData, SetStopDwellError, SetStopDwellResponse, ShapeData, ShapeError, ShapeResponse, ShiftTripData, ShiftTripError, ShiftTripResponse, StartOptimizationRunData, StartOptimizationRunError, StartOptimizationRunResponse, StopAdherenceData, StopAdherenceError, StopAdherenceResponse, StopData, StopError, StopPathsData, StopPathsError, StopPathsResponse, StopPredictionsData, StopPredictionsError, StopPredictionsResponse, StopResponse, StopScheduleData, StopScheduleError, StopScheduleResponse, StopsData, StopsError, StopsResponse, StopTimesData, StopTimesError, StopTimesResponse, TransfersData, TransfersError, TransfersResponse, TripAdherenceData, TripAdherenceError, TripAdherenceResponse, TripData, TripError, TripPatternData, TripPatternError, TripPatternResponse, TripPatternsData, TripPatternsError, TripPatternsResponse, TripResponse, TripsData, TripsError, TripsOnDateData, TripsOnDateError, TripsOnDateResponse, TripsResponse, UndoDraftEditData, UndoDraftEditError, UndoDraftEditResponse, UpdateFeedData, UpdateFeedError, UpdateFeedResponse, UpdateStopTimeData, UpdateStopTimeError, UpdateStopTimeResponse, ValidationFindingCountsData, ValidationFindingCountsError, ValidationFindingCountsResponse, ValidationFindingsData, ValidationFindingsError, ValidationFindingsResponse, VehicleData, VehicleError, VehiclePredictionsData, VehiclePredictionsError, VehiclePredictionsResponse, VehicleResponse, VehiclesData, VehiclesError, VehiclesResponse, VehicleTrailData, VehicleTrailError, VehicleTrailResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -198,6 +198,24 @@ export const avlReportsOptions = (options: Options<AvlReportsData>) => queryOpti
         return data;
     },
     queryKey: avlReportsQueryKey(options)
+});
+
+export const vehicleTrailQueryKey = (options: Options<VehicleTrailData>) => createQueryKey('vehicleTrail', options);
+
+/**
+ * A vehicle's recent movement, summarised from its last reports - the track it followed, how often it reports, and its speeds along the trip it is currently matched to. limit is how many of the newest reports to look at.
+ */
+export const vehicleTrailOptions = (options: Options<VehicleTrailData>) => queryOptions<VehicleTrailResponse, VehicleTrailError, VehicleTrailResponse, ReturnType<typeof vehicleTrailQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await Avl.vehicleTrail({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: vehicleTrailQueryKey(options)
 });
 
 export const avlReportCatalogQueryKey = (options: Options<AvlReportCatalogData>) => createQueryKey('avlReportCatalog', options);
@@ -1251,6 +1269,54 @@ export const routeOptions = (options: Options<RouteData>) => queryOptions<RouteR
     },
     queryKey: routeQueryKey(options)
 });
+
+export const routeStopsQueryKey = (options: Options<RouteStopsData>) => createQueryKey('routeStops', options);
+
+/**
+ * The stops a route serves - every stop on its trip patterns, each once, in pattern order (patterns by key).
+ */
+export const routeStopsOptions = (options: Options<RouteStopsData>) => queryOptions<RouteStopsResponse, RouteStopsError, RouteStopsResponse, ReturnType<typeof routeStopsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await Gtfs.routeStops({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: routeStopsQueryKey(options)
+});
+
+export const routeStopsInfiniteQueryKey = (options: Options<RouteStopsData>): QueryKey<Options<RouteStopsData>> => createQueryKey('routeStops', options, true);
+
+/**
+ * The stops a route serves - every stop on its trip patterns, each once, in pattern order (patterns by key).
+ */
+export const routeStopsInfiniteOptions = (options: Options<RouteStopsData>) => {
+    const opts = infiniteQueryOptions<RouteStopsResponse, RouteStopsError, InfiniteData<RouteStopsResponse>, QueryKey<Options<RouteStopsData>>, number | Pick<QueryKey<Options<RouteStopsData>>[0], 'body' | 'headers' | 'path' | 'query'>>(
+    // @ts-ignore
+    {
+        queryFn: async ({ pageParam, queryKey, signal }) => {
+            // @ts-ignore
+            const page: Pick<QueryKey<Options<RouteStopsData>>[0], 'body' | 'headers' | 'path' | 'query'> = typeof pageParam === 'object' ? pageParam : {
+                query: {
+                    offset: pageParam
+                }
+            };
+            const params = createInfiniteParams(queryKey, page);
+            const { data } = await Gtfs.routeStops({
+                ...options,
+                ...params,
+                signal,
+                throwOnError: true
+            });
+            return data;
+        },
+        queryKey: routeStopsInfiniteQueryKey(options)
+    });
+    return opts as Omit<typeof opts, 'initialData'>;
+};
 
 export const stopsQueryKey = (options: Options<StopsData>) => createQueryKey('stops', options);
 
@@ -2647,6 +2713,24 @@ export const stopPathsInfiniteOptions = (options: Options<StopPathsData>) => {
     });
     return opts as Omit<typeof opts, 'initialData'>;
 };
+
+export const stopScheduleQueryKey = (options: Options<StopScheduleData>) => createQueryKey('stopSchedule', options);
+
+/**
+ * What the schedule does at one stop - each trip pattern that calls there (with its route) and the scheduled departure time of every clock-time trip at the stop, plus the kinds of day each service runs on. One request instead of reading every pattern, trip and schedule time of the feed. Frequency-based trips have no clock times and are left out.
+ */
+export const stopScheduleOptions = (options: Options<StopScheduleData>) => queryOptions<StopScheduleResponse, StopScheduleError, StopScheduleResponse, ReturnType<typeof stopScheduleQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await Schedule.stopSchedule({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: stopScheduleQueryKey(options)
+});
 
 export const blockTripsQueryKey = (options: Options<BlockTripsData>) => createQueryKey('blockTrips', options);
 

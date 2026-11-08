@@ -30,6 +30,8 @@ import eu.transittrack.gtfs.model.Transfer
 import eu.transittrack.gtfs.model.TransferRepository
 import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
+import eu.transittrack.schedule.model.StopPathRepository
+import eu.transittrack.schedule.model.TripPatternRepository
 
 /**
  * Read-side facade for a revision's core GTFS entities: one method per read endpoint. Each resolves
@@ -53,6 +55,8 @@ class GtfsReadService(
     private val feedInfos: FeedInfoRepository,
     private val pathways: PathwayRepository,
     private val levels: LevelRepository,
+    private val tripPatterns: TripPatternRepository,
+    private val stopPaths: StopPathRepository,
 ) {
     fun agencies(
         feedCode: String,
@@ -63,13 +67,16 @@ class GtfsReadService(
             .findByRevisionId(rev)
     }
 
+    /** Every route of the revision, or only [routeIds] when given. */
     fun routes(
         feedCode: String,
         revisionId: String?,
+        routeIds: List<String>? = null,
     ): List<Route> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return routes
-            .findByRevisionId(rev)
+        if (routeIds.isNullOrEmpty()) return routes.findByRevisionId(rev)
+        require(routeIds.size <= MAX_ID_FILTER) { "At most $MAX_ID_FILTER routeId values" }
+        return routes.findByRouteIds(rev, routeIds.distinct())
     }
 
     fun route(
@@ -82,13 +89,38 @@ class GtfsReadService(
             .findByRouteId(rev, routeId)
     }
 
+    /**
+     * The stops [routeId] serves: every stop on its trip patterns (patterns by key, then path order),
+     * each once. `null` when the route doesn't exist in the revision.
+     */
+    fun routeStops(
+        feedCode: String,
+        routeId: String,
+        revisionId: String?,
+    ): List<Stop>? {
+        val rev = resolver.resolve(feedCode, revisionId)
+        routes.findByRouteId(rev, routeId) ?: return null
+        val patternIds = tripPatterns.findByRouteId(rev, routeId).sortedBy { it.patternKey }.map { it.id!! }
+        val stopIds = stopPaths.findStopIdsAlongPatterns(rev, patternIds)
+        if (stopIds.isEmpty()) return emptyList()
+        val byId = stops.findByStopIds(rev, stopIds).associateBy { it.stopId }
+        return stopIds.mapNotNull(byId::get)
+    }
+
+    /** Every stop of the revision, narrowed to a station's children and/or to [stopIds] when given. */
     fun stops(
         feedCode: String,
         revisionId: String?,
         parentStation: String? = null,
+        stopIds: List<String>? = null,
     ): List<Stop> {
         val rev = resolver.resolve(feedCode, revisionId)
-        return if (parentStation != null) stops.findByParentStation(rev, parentStation) else stops.findByRevisionId(rev)
+        if (stopIds.isNullOrEmpty()) {
+            return if (parentStation != null) stops.findByParentStation(rev, parentStation) else stops.findByRevisionId(rev)
+        }
+        require(stopIds.size <= MAX_ID_FILTER) { "At most $MAX_ID_FILTER stopId values" }
+        val found = stops.findByStopIds(rev, stopIds.distinct())
+        return if (parentStation != null) found.filter { it.parentStation == parentStation } else found
     }
 
     fun stop(
@@ -223,3 +255,6 @@ data class ShapeWithPoints(
     val shape: Shape,
     val points: List<ShapePoint>,
 )
+
+/** Upper bound on a `stopId` / `routeId` list filter, matching the page-size cap. */
+private const val MAX_ID_FILTER = 500

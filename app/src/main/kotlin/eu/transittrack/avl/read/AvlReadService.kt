@@ -29,7 +29,7 @@ import eu.transittrack.rest.generated.model.LatLon
 import eu.transittrack.rest.generated.model.MatchStatus
 import eu.transittrack.rest.generated.model.PredictionAlgorithm
 import eu.transittrack.rest.generated.model.Vehicle
-import eu.transittrack.rest.generated.model.VehicleStopStatus
+import eu.transittrack.rest.generated.model.VehicleTrail
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.util.paging.PageRequest
 
@@ -117,6 +117,19 @@ class AvlReadService(
         return toApi(rows, matchesByReportId, feed.format)
     }
 
+    /** See [buildVehicleTrail]: the newest [limit] reports, summarised for the vehicle page. */
+    fun vehicleTrail(
+        feedCode: String,
+        vehicleId: String,
+        limit: Int,
+    ): VehicleTrail {
+        val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
+        val rows = reports.findByVehicle(feed.code, vehicleId, PageRequest(0, limit.coerceIn(1, 1000)))
+        val matchesByReportId = vehicleMatches.findByAvlReportIdIn(rows.mapNotNull { it.id }).associateBy { it.avlReportId }
+        val currentTripRowId = vehicleStates.findByFeedCodeAndVehicleId(feed.code, vehicleId)?.tripRowId
+        return buildVehicleTrail(rows, matchesByReportId, currentTripRowId)
+    }
+
     fun avlReportCatalog(feedCode: String): AvlReportCatalog {
         val feed = avlFeeds.findByCode(feedCode) ?: throw IllegalArgumentException("no avl feed '$feedCode'")
         return AvlReportCatalog(
@@ -201,8 +214,11 @@ class AvlReadService(
 
     /** Maps [states], resolving each one's trip and current stop ids in batched lookups. */
     private fun toApi(states: List<VehicleState>): List<Vehicle> {
-        val tripIds = trips.findAllById(states.mapNotNull { it.tripRowId }.distinct()).associate { it.id to it.tripId }
-        val stopIdsByPattern = HashMap<Pair<Long, Long>, List<String>>()
+        val tripIds = trips
+            .findAllById(states.mapNotNull { it.tripRowId }.distinct())
+            .associate { it.id to it.tripId }
+        val stopIdsByPattern = mutableMapOf<Pair<Long, Long>, List<String>>()
+
         return states.map { s ->
             val revision = s.revisionId
             val pattern = s.tripPatternId
@@ -212,8 +228,9 @@ class AvlReadService(
                     null
                 } else {
                     stopIdsByPattern
-                        .getOrPut(revision to pattern) { stopPaths.findByTripPatternOrdered(revision, pattern).map { it.stopId } }
-                        .getOrNull(index)
+                        .getOrPut(revision to pattern) {
+                            stopPaths.findByTripPatternOrdered(revision, pattern).map { it.stopId }
+                        }.getOrNull(index)
                 }
             Vehicle(
                 vehicleId = s.vehicleId,
@@ -252,10 +269,7 @@ class AvlReadService(
                 matchStatus = MatchStatus.valueOf(r.matchStatus.name),
                 bearing = r.bearing,
                 speedMps = r.speedMps,
-                currentStatus =
-                    r.currentStatus
-                        ?.let { runCatching { eu.transittrack.avl.ingest.VehicleStopStatus.entries[it] }.getOrNull() }
-                        ?.let { VehicleStopStatus.valueOf(it.name) },
+                currentStatus = stopStatusOf(r.currentStatus),
                 occupancyStatus = r.occupancyStatus?.let { occupancy(it) },
                 descTripId = r.descTripId,
                 match = matchesByReportId[r.id]?.let { m ->

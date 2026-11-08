@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import {
   adherenceProfile,
   preferredAlgorithm,
+  chosenAlgorithm,
   segmentSpeeds,
   speedProfile,
+  trackCoords,
   standstills,
   stopRows,
   stripLabelIndexes,
@@ -254,38 +256,54 @@ describe('speed profile', () => {
     startM: 0,
     spanM: 2000,
   }
-  const report = (ts: string, distanceAlongTripM: number, speedMps: number | null, tripId = 'T1') => ({
-    ts,
-    speedMps,
-    match: { distanceAlongTripM, trip: { tripId } },
-  })
-  const reports = [
-    report('2026-11-06T21:03:00Z', 1500, 0),
-    report('2026-11-06T21:01:00Z', 400, 10),
-    report('2026-11-06T21:02:00Z', 990, 0),
-    report('2026-11-06T21:00:00Z', 300, 12, 'OTHER'),
-    report('2026-11-06T21:04:00Z', 1800, null),
+  // As the backend returns them: only the current trip's samples, ordered by distance along it.
+  const samples = [
+    { distanceAlongTripM: 400, speedMps: 10 },
+    { distanceAlongTripM: 990, speedMps: 0 },
+    { distanceAlongTripM: 1500, speedMps: 0 },
   ]
 
-  it('keeps only the current trip and orders reports by distance', () => {
-    const points = speedProfile(strip, reports, 'T1')
+  it('places the backend speed samples on the strip', () => {
+    const points = speedProfile(strip, samples)
     expect(points.map((p) => [p.distanceM, p.speedMps])).toEqual([
       [400, 10],
       [990, 0],
       [1500, 0],
     ])
-    expect(speedProfile(strip, reports, null)).toEqual([])
+    expect(points.map((p) => p.offset)).toEqual([0.2, 0.495, 0.75])
+    expect(speedProfile(strip, [])).toEqual([])
   })
 
   it('averages speed on the stretch leading to each stop', () => {
-    const speeds = segmentSpeeds(strip, speedProfile(strip, reports, 'T1'))
+    const speeds = segmentSpeeds(strip, speedProfile(strip, samples))
     expect(speeds.get(1)).toBe(5)
     expect(speeds.get(2)).toBe(0)
     expect(speeds.has(0)).toBe(false)
   })
 
   it('flags standing still away from stops, not dwelling at one', () => {
-    const still = standstills(strip, speedProfile(strip, reports, 'T1'))
+    const still = standstills(strip, speedProfile(strip, samples))
     expect(still.map((p) => p.distanceM)).toEqual([1500])
+  })
+})
+
+describe('chosenAlgorithm', () => {
+  it('keeps the selection if the feed runs it, else the first configured algorithm', () => {
+    expect(chosenAlgorithm(['KALMAN', 'SCHEDULE_ADHERENCE'], 'SCHEDULE_ADHERENCE')).toBe('SCHEDULE_ADHERENCE')
+    expect(chosenAlgorithm(['KALMAN', 'SCHEDULE_ADHERENCE'], 'HISTORICAL_AVERAGE')).toBe('KALMAN')
+    expect(chosenAlgorithm(['KALMAN', 'SCHEDULE_ADHERENCE'])).toBe('KALMAN')
+  })
+  it('is undefined when the feed has no algorithms, so nothing is filtered', () => {
+    expect(chosenAlgorithm([], 'KALMAN')).toBeUndefined()
+  })
+})
+
+describe('trackCoords', () => {
+  it('turns the reported positions into [lon, lat] pairs, keeping the order and skipping incomplete ones', () => {
+    expect(trackCoords([{ lat: 44, lon: 26 }, { lat: null, lon: 27 }, { lat: 45, lon: 28 }])).toEqual([
+      [26, 44],
+      [28, 45],
+    ])
+    expect(trackCoords([])).toEqual([])
   })
 })

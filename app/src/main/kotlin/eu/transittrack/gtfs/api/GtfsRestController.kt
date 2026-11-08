@@ -257,12 +257,24 @@ class GtfsRestController(
         revisionId: String?,
     ): ResponseEntity<Route> = found(query.route(feedCode, routeId, revisionId), entities::route)
 
-    override fun routes(
+    override fun routeStops(
         feedCode: String,
+        routeId: String,
         revisionId: String?,
         offset: Int,
         limit: Int,
-    ): ResponseEntity<List<Route>> = pageOf(offset, limit, { query.routes(feedCode, revisionId) }) { it.map(entities::route) }
+    ): ResponseEntity<List<Stop>> =
+        pageOf(offset, limit, {
+            query.routeStops(feedCode, routeId, revisionId) ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found")
+        }) { it.map(entities::stop) }
+
+    override fun routes(
+        feedCode: String,
+        revisionId: String?,
+        routeId: List<String>?,
+        offset: Int,
+        limit: Int,
+    ): ResponseEntity<List<Route>> = pageOf(offset, limit, { query.routes(feedCode, revisionId, routeId) }) { it.map(entities::route) }
 
     override fun shape(
         feedCode: String,
@@ -289,9 +301,14 @@ class GtfsRestController(
         feedCode: String,
         revisionId: String?,
         parentStation: String?,
+        stopId: List<String>?,
         offset: Int,
         limit: Int,
-    ): ResponseEntity<List<Stop>> = pageOf(offset, limit, { query.stops(feedCode, revisionId, parentStation) }) { it.map(entities::stop) }
+    ): ResponseEntity<List<Stop>> =
+        pageOf(offset, limit, { query.stops(feedCode, revisionId, parentStation, stopId) }) {
+            it
+                .map(entities::stop)
+        }
 
     override fun transfers(
         feedCode: String,

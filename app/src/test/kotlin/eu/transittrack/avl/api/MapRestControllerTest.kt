@@ -26,7 +26,7 @@ class MapRestControllerTest {
             .standaloneSetup(MapRestController(mock<MapVehicleReadService>(), geometry))
             .build()
         mvc
-            .perform(get("/api/feeds/test/geometry"))
+            .perform(get("/api/v1/feeds/test/geometry"))
             .andExpect(status().isOk)
             .andExpect(content().contentType("application/geo+json"))
             .andExpect(header().string("Content-Encoding", "gzip"))
@@ -52,7 +52,7 @@ class MapRestControllerTest {
         )
         val mvc = MockMvcBuilders.standaloneSetup(MapRestController(vehicles, mock<FeedGeometryService>())).build()
         mvc
-            .perform(get("/api/feeds/test/vehicles"))
+            .perform(get("/api/v1/feeds/test/vehicles"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$[0].vehicleId").value("v1"))
             .andExpect(jsonPath("$[0].position.lat").value(44.0))

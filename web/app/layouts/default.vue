@@ -16,14 +16,20 @@ const { t } = useI18n()
 
 const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
 
+// Readiness only gates the UI until the selected feed has an active revision, so poll (feed + every
+// revision) only until then; switching feeds starts a fresh read for the new feed either way.
+const readinessSettled = ref(false)
 const { result, loading, error } = useFeedReadinessQuery(() => ({
   variables: { code: selectedFeedCode.value ?? '' },
   enabled: !!selectedFeedCode.value,
-  pollInterval: 10_000,
+  pollInterval: readinessSettled.value ? 0 : 10_000,
 }))
 const readinessFeed = computed(() => {
   const feed = result.value?.feed ?? null
   return feed?.code === selectedFeedCode.value ? feed : null
+})
+watchEffect(() => {
+  readinessSettled.value = error.value == null && !!readinessFeed.value?.activeRevision
 })
 
 const feedIsPreparing = computed(
@@ -213,8 +219,15 @@ const primaryNav = computed<NavigationMenuItem[]>(() => [
 const navigationItems = computed(() => (feedIsBlocked.value ? [] : primaryNav.value))
 
 // Docs sit apart from the feed's pages, pinned to the bottom of the sidebar.
+// The REST API reference (Scalar, /openapi) is feed-independent and has no app shell, so it
+// opens in its own tab.
 const docsNav = computed<NavigationMenuItem[]>(() =>
-  feedIsBlocked.value ? [] : toItems(DOCS).map((item) => ({ ...item, slot: undefined })),
+  feedIsBlocked.value
+    ? []
+    : [
+        ...toItems(DOCS).map((item) => ({ ...item, slot: undefined })),
+        { label: t('nav.apiReference'), icon: 'i-lucide-braces', to: '/openapi', target: '_blank' },
+      ],
 )
 
 // Docs sections join ⌘K search. The index lives in the content collection's

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useAvlTrailQuery, useVehicleDetailQuery } from '~/composables/useRestRealtime'
+import { useFeedPredictionAccuracyQuery, useVehicleDetailQuery, useVehicleTrailQuery } from '~/composables/useRestRealtime'
 import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
@@ -18,18 +18,16 @@ import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { formatClock } from '~/utils/clock'
 import {
   haversineM,
-  avgIntervalSec,
   blockTripProgress,
   currentStatusLabel,
   occupancyLabel,
   ageLabel,
 } from '~/utils/vehicleTelemetry'
 import {
-  algorithmsIn,
-  preferredAlgorithm,
+  chosenAlgorithm,
   accuracyFor,
   stopRows,
-  trailCoords,
+  trackCoords,
   tripStrip,
   speedProfile,
 } from '~/utils/vehicleDetail'
@@ -44,13 +42,24 @@ const units = useUnits()
 const toast = useToast()
 const vehicleId = computed(() => String(route.params.vehicleId))
 
+// Which algorithm's predictions to load: the selector's options are the feed's configured algorithms,
+// and the pick is sent with the request (the server returns only that algorithm's rows).
+const algorithms = computed(() => selectedFeed.value?.predictionAlgorithms ?? [])
+const selectedAlgorithm = ref<string | undefined>()
+const algorithm = computed({
+  get: () => chosenAlgorithm(algorithms.value, selectedAlgorithm.value),
+  set: (value: string | undefined) => {
+    selectedAlgorithm.value = value
+  },
+})
+
 const { result, loading, error } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value },
+  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, algorithm: algorithm.value },
   enabled: !!selectedAvlFeedCode.value,
   pollInterval: intervalMs.value,
 }))
 
-const { result: trailResult } = useAvlTrailQuery(() => ({
+const { result: trailResult } = useVehicleTrailQuery(() => ({
   variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 },
   enabled: !!selectedAvlFeedCode.value,
   pollInterval: intervalMs.value,
@@ -65,12 +74,17 @@ const agencyTimezone = computed(
 
 const vehicle = computed(() => result.value?.vehicle ?? null)
 const predictions = computed(() => result.value?.vehiclePredictions ?? [])
-const accuracy = computed(() => result.value?.predictionAccuracy ?? [])
+// Feed-wide aggregate (last 7 days) — slow to compute and the same for every vehicle, so poll it rarely.
+const { result: accuracyResult } = useFeedPredictionAccuracyQuery(() => ({
+  variables: { feedCode: selectedAvlFeedCode.value ?? '' },
+  enabled: !!selectedAvlFeedCode.value,
+  pollInterval: 5 * 60_000,
+}))
+const accuracy = computed(() => accuracyResult.value?.predictionAccuracy ?? [])
 
 // avlReports come back newest-first (backend `OrderByTsDesc`).
-const reports = computed(() => trailResult.value?.avlReports ?? [])
-const latestReport = computed(() => reports.value[0] ?? null)
-const trail = computed(() => trailCoords(reports.value))
+const vehicleTrail = computed(() => trailResult.value?.vehicleTrail ?? null)
+const trail = computed(() => trackCoords(vehicleTrail.value?.track ?? []))
 
 const avlLogOpen = ref(false)
 
@@ -89,19 +103,6 @@ const pageSplitterItems: SplitterItem[] = [
   { id: 'workspace', slot: 'workspace', class: 'flex min-h-0 flex-col overflow-hidden' },
 ]
 
-const algorithms = computed(() => algorithmsIn(predictions.value))
-const selectedAlgorithm = ref<string | undefined>()
-const algorithm = computed({
-  get: () =>
-    preferredAlgorithm(
-      algorithms.value,
-      selectedFeed.value?.predictionAlgorithms ?? [],
-      selectedAlgorithm.value,
-    ),
-  set: (value: string | undefined) => {
-    selectedAlgorithm.value = value
-  },
-})
 watch(selectedAvlFeedCode, () => {
   selectedAlgorithm.value = undefined
 })
@@ -128,7 +129,7 @@ const rows = computed(() =>
 )
 const strip = computed(() => (vehicle.value ? tripStrip(vehicle.value, rows.value) : null))
 const stripSpeeds = computed(() =>
-  strip.value ? speedProfile(strip.value, reports.value, vehicle.value?.trip?.tripId) : [],
+  strip.value ? speedProfile(strip.value, vehicleTrail.value?.speeds ?? []) : [],
 )
 const currentStopRow = ref<HTMLElement | null>(null)
 // const currentStopKey = computed(() => {
@@ -165,10 +166,10 @@ const blockProgress = computed(() =>
   blockTripProgress(vehicle.value?.block?.blockTrips, vehicle.value?.trip?.tripId),
 )
 
-const currentStatus = computed(() => currentStatusLabel(latestReport.value?.currentStatus, t))
+const currentStatus = computed(() => currentStatusLabel(vehicleTrail.value?.currentStatus, t))
 
 const descMismatch = computed(() => {
-  const declared = latestReport.value?.descTripId
+  const declared = vehicleTrail.value?.descTripId
   const matched = vehicle.value?.trip?.tripId
   return declared && matched && declared !== matched ? { declared, matched } : null
 })
@@ -182,7 +183,7 @@ const distToNextStopM = computed(() => {
   return cs ? haversineM(vehicle.value?.position, { lat: cs.stopLat, lon: cs.stopLon }) : null
 })
 
-const avgInterval = computed(() => avgIntervalSec(reports.value))
+const avgInterval = computed(() => vehicleTrail.value?.avgReportIntervalSec ?? null)
 
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | undefined

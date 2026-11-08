@@ -211,7 +211,7 @@ class PredictionEndToEndTest(
         predictionProcessor.processBatch()
 
         val get = RestGet(port)
-        val predictionsAfterPoll1 = get("/api/v1/avl-feeds/mbta-vp/vehicles/bus-1/predictions").jsonArray.map { it.jsonObject }
+        val predictionsAfterPoll1 = get("/api/v1/feeds/mbta-vp/avl/vehicles/bus-1/predictions").jsonArray.map { it.jsonObject }
 
         assertThat(predictionsAfterPoll1).isNotEmpty()
         assertThat(predictionsAfterPoll1.map { it.getValue("algorithm").jsonPrimitive.content }.toSet())
@@ -224,11 +224,11 @@ class PredictionEndToEndTest(
         processor.processBatch()
         predictionProcessor.processBatch()
 
-        val predictionsAfterPoll2 = get("/api/v1/avl-feeds/mbta-vp/vehicles/bus-1/predictions").jsonArray.map { it.jsonObject }
+        val predictionsAfterPoll2 = get("/api/v1/feeds/mbta-vp/avl/vehicles/bus-1/predictions").jsonArray.map { it.jsonObject }
 
         assertThat(predictionsAfterPoll2.any { it["actualArrival"].let { v -> v != null && v !is JsonNull } }).isTrue()
 
-        val accuracy = get("/api/v1/avl-feeds/mbta-vp/prediction-accuracy?algorithm=SCHEDULE_ADHERENCE").jsonArray.map { it.jsonObject }
+        val accuracy = get("/api/v1/feeds/mbta-vp/avl/prediction-accuracy?algorithm=SCHEDULE_ADHERENCE").jsonArray.map { it.jsonObject }
 
         assertThat(accuracy).isNotEmpty()
         val sampleCount = accuracy
@@ -243,7 +243,7 @@ class PredictionEndToEndTest(
         // actual_arrival_ts (crossing detection fills the same row) and is excluded from
         // stopPredictions' forward-looking filter - see HeadwayReadService/PredictionReadService.
         // S4 is still purely in the future and stays eligible.
-        val headway = get("/api/v1/avl-feeds/mbta-vp/stops/S4/headway?routeId=RA&directionId=0").jsonObject
+        val headway = get("/api/v1/feeds/mbta-vp/avl/stops/S4/headway?routeId=RA&directionId=0").jsonObject
 
         assertThat(headway["waitSec"]).isNotNull()
         assertThat(headway.getValue("gapsSec").jsonArray).isEmpty()
