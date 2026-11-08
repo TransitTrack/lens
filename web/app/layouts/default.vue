@@ -1,44 +1,111 @@
 <script setup lang="ts">
-import { useFeedReadinessQuery } from '~/composables/useRestDetails'
+import { useQuery } from '@pinia/colada'
 import type { NavigationMenuItem } from '@nuxt/ui'
 import UserMenu from '~/components/shell/UserMenu.vue'
 import FeedSwitcher from '~/components/shell/FeedSwitcher.vue'
 import NotificationsSlideover from '~/components/shell/NotificationsSlideover.vue'
 import NotificationsButton from '~/components/shell/NotificationsButton.vue'
-import { useFeeds } from '~/composables/useFeeds'
+import { provideFeedContext, type FeedContext } from '~/composables/feedContext'
+import { feedsQuery } from '~/composables/api/queries/gtfs/feedsQuery'
+import { feedQuery } from '~/composables/api/queries/gtfs/feedQuery'
+import { revisionsQuery } from '~/composables/api/queries/gtfs/revisionsQuery'
+import { avlFeedsQuery } from '~/composables/api/queries/avl/avlFeedsQuery'
+import { activeRevision, annotateFeeds } from '~/utils/joins/feeds'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
 import { docSearchItems, type DocSearchSection } from '~/utils/docs'
 
 
-useFeedAlerts()
 const { t } = useI18n()
+const route = useRoute()
 
-const { feeds, selectedFeed, selectedFeedCode, feedIsUnknown, feedPath } = useFeeds()
+const { data: gtfsFeeds } = useQuery(() => ({ ...feedsQuery, autoRefetch: 120_000 }))
+const { data: avlFeedList, error: avlFeedsError } = useQuery(() => ({
+  ...avlFeedsQuery,
+  autoRefetch: 60_000,
+}))
+
+const feeds = computed(() => annotateFeeds(gtfsFeeds.value ?? [], avlFeedList.value ?? []))
+const avlFeeds = computed(() => avlFeedList.value ?? [])
+const selectedFeedCode = computed(() => {
+  const p = route.params.feedCode
+  return typeof p === 'string' && p ? p : null
+})
+const selectedFeed = computed(
+  () => feeds.value.find((f) => f.code === selectedFeedCode.value) ?? null,
+)
+const selectedAvlFeedCode = computed(() => selectedFeed.value?.avlFeedCode ?? null)
+/** true once feeds have loaded and the URL feed is not among them */
+const feedIsUnknown = computed(
+  () =>
+    !!selectedFeedCode.value &&
+    feeds.value.length > 0 &&
+    !feeds.value.some((f) => f.code === selectedFeedCode.value),
+)
+function feedPath(sub = ''): string {
+  return `/${selectedFeedCode.value ?? ''}${sub}`
+}
+
+const ctx: FeedContext = {
+  feeds,
+  selectedFeedCode,
+  selectedFeed,
+  selectedAvlFeedCode,
+  feedIsUnknown,
+  feedPath,
+  avlFeeds,
+  avlFeedsError,
+}
+provideFeedContext(ctx)
+useFeedAlerts(avlFeeds, avlFeedsError)
 
 // Readiness only gates the UI until the selected feed has an active revision, so poll (feed + every
 // revision) only until then; switching feeds starts a fresh read for the new feed either way.
 const readinessSettled = ref(false)
-const { result, loading, error } = useFeedReadinessQuery(() => ({
-  variables: { code: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
-  pollInterval: readinessSettled.value ? 0 : 10_000,
+const readinessEnabled = computed(() => !!selectedFeedCode.value)
+const {
+  data: readinessFeedData,
+  error: feedError,
+  isLoading: feedLoading,
+  isPlaceholderData: feedIsPlaceholder,
+} = useQuery(() => ({
+  ...feedQuery({ code: selectedFeedCode.value ?? '' }),
+  enabled: readinessEnabled.value && !readinessSettled.value,
+  autoRefetch: readinessSettled.value ? false : 10_000,
 }))
+const {
+  data: revisions,
+  error: revisionsError,
+  isLoading: revisionsLoading,
+  isPlaceholderData: revisionsIsPlaceholder,
+} = useQuery(() => ({
+  ...revisionsQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: readinessEnabled.value && !readinessSettled.value,
+  autoRefetch: readinessSettled.value ? false : 10_000,
+}))
+const error = computed(() => feedError.value ?? revisionsError.value)
+const loading = computed(() => feedLoading.value || revisionsLoading.value)
+// Placeholder data (the previous feed's) must never count as the selected feed's readiness.
 const readinessFeed = computed(() => {
-  const feed = result.value?.feed ?? null
-  return feed?.code === selectedFeedCode.value ? feed : null
+  const feed = readinessFeedData.value
+  if (!feed || feedIsPlaceholder.value || !revisions.value || revisionsIsPlaceholder.value) {
+    return null
+  }
+  return feed.code === selectedFeedCode.value ? feed : null
 })
+const readinessActive = computed(() =>
+  readinessFeed.value ? activeRevision(revisions.value ?? []) : null,
+)
 watchEffect(() => {
-  readinessSettled.value = error.value == null && !!readinessFeed.value?.activeRevision
+  readinessSettled.value = error.value == null && !!readinessActive.value
 })
 
 const feedIsPreparing = computed(
   () =>
     error.value != null ||
-    (!readinessFeed?.value?.activeRevision &&
-      readinessFeed?.value?.revisions.some((revision) =>
-        isInProgressRevisionStatus(revision.status),
-      )),
+    (!readinessActive.value &&
+      !!readinessFeed.value &&
+      (revisions.value ?? []).some((revision) => isInProgressRevisionStatus(revision.status))),
 )
 const feedIsLoading = computed(
   () => !!selectedFeedCode.value && loading.value && !readinessFeed.value,
@@ -58,7 +125,6 @@ watch(feedIsUnknown, (unknown) => {
 })
 
 const searchOpen = ref(false)
-const route = useRoute()
 
 /** current route is `to` or a page nested under it (e.g. a detail page) */
 function underPath(to: string): boolean {

@@ -1,5 +1,5 @@
-import { useAvlFeedsQuery } from '~/composables/useRestGtfs'
-
+import type { Ref } from 'vue'
+import type { AvlFeed } from '~/api'
 
 function isHealthy(status: string | null | undefined): boolean {
   return /ok|success|healthy/i.test(status ?? '')
@@ -10,16 +10,15 @@ function isHealthy(status: string | null | undefined): boolean {
  * A feed only toasts on the transition into an unhealthy state, and a recovery
  * toast fires when it goes healthy again.
  */
-export function useFeedAlerts() {
+export function useFeedAlerts(avlFeeds: Ref<AvlFeed[]>, error: Ref<Error | null>) {
   const toast = useToast()
   const { t } = useI18n()
-  const { result, error } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
 
   const unhealthy = new Set<string>()
   let queryErrored = false
 
   watch(
-    () => result.value?.avlFeeds,
+    avlFeeds,
     (feeds) => {
       for (const feed of feeds ?? []) {
         if (!feed.enabled) continue

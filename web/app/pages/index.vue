@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { useFeedsQuery } from '~/composables/useRestGtfs'
-
+import { useQuery } from '@pinia/colada'
+import { feedsQuery } from '~/composables/api/queries/gtfs/feedsQuery'
 
 definePageMeta({ layout: false })
 
 // The app is feed-scoped: every real page lives under /:feedCode. This entry
 // point resolves a feed (last-used cookie, else the first one) and redirects.
 const lastFeed = useCookie<string | null>('tt-feed', { default: () => null })
-const { result } = useFeedsQuery()
+const { data } = useQuery(feedsQuery)
 
 const target = computed(() => {
-  const feeds = result.value?.feeds ?? []
+  const feeds = data.value ?? []
   if (feeds.length === 0) return null
   const preferred = feeds.find((f) => f.code === lastFeed.value)
   return (preferred ?? feeds[0])!.code

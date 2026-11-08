@@ -36,25 +36,17 @@ describe('app shell', () => {
               },
             ], { headers: { 'X-Total-Count': '1' } }),
       ),
-      http.get('*/api/v1/feeds/:code', () => {
+      http.get('*/api/v1/feeds/:code', () =>
+        HttpResponse.json({ code: 'feed-a', name: 'Feed A', description: null, enabled: true, source: 'REMOTE' }),
+      ),
+      http.get('*/api/v1/feeds/:code/revisions', () => {
         readinessRequests += 1
         const preparing = readinessRequests === 1
 
-        return HttpResponse.json({
-              code: 'feed-a',
-              name: 'Feed A',
-              activeRevision: preparing
-                ? null
-                : {
-                    id: 'revision-1',
-                  },
-              revisions: [
-                {
-                  id: 'revision-1',
-                  status: preparing ? 'VALIDATING' : 'ACTIVE',
-                },
-              ],
-        })
+        return HttpResponse.json(
+          [{ id: 1, feedCode: 'feed-a', status: preparing ? 'VALIDATING' : 'ACTIVE' }],
+          { headers: { 'X-Total-Count': '1' } },
+        )
       }),
     )
 

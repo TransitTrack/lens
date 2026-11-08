@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { useAvlFeedsQuery } from '~/composables/useRestGtfs'
-
+import { useFeeds } from '~/composables/useFeeds'
 import { useDashboard } from '~/composables/useDashboard'
 
 const { t } = useI18n()
 const timeAgo = useRelativeTime()
 const { isNotificationsSlideoverOpen } = useDashboard()
 
-const { result } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
+const { avlFeeds } = useFeeds()
 
 interface FeedNotification {
   code: string
@@ -18,7 +17,7 @@ interface FeedNotification {
 }
 
 const notifications = computed<FeedNotification[]>(() =>
-  (result.value?.avlFeeds ?? []).map((f) => {
+  avlFeeds.value.map((f) => {
     const status = f.lastPollStatus ?? t('notifications.neverPolled')
     return {
       code: f.code,
