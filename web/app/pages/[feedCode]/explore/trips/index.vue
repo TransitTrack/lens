@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { useExploreRoutesQuery, useTripsByRouteQuery } from '~/composables/useRestGtfs'
+import { useQuery } from '@pinia/colada'
+import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { tripsQuery } from '~/composables/api/queries/gtfs/tripsQuery'
+import { validationFindingCountsQuery } from '~/composables/api/queries/gtfs/validationFindingCountsQuery'
+import type { Trip } from '~/api'
+import { useFindingsFilter } from '~/composables/useFindingsFilter'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
@@ -7,12 +13,10 @@ import TripTimeFilter from '~/components/explore/TripTimeFilter.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExploreQuery } from '~/composables/useExploreQuery'
-import type { TripsByRouteQuery } from '~/types/restViews'
 import { formatHm, parseHm, inWindow } from '~/utils/tripFilters'
 
 const { t } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { agencyId } = useAgencyFilter()
 const { param } = useExploreQuery()
 
 const routeId = param('route')
@@ -20,12 +24,18 @@ const dir = param('dir')
 const from = param('from')
 const to = param('to')
 
-const { result: routesResult } = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: routes } = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { agencyId } = useAgencyFilter(agencies)
 const routeItems = computed(() =>
-  [...(routesResult.value?.routes ?? [])]
+  [...(routes.value ?? [])]
     .filter((r) => !agencyId.value || r.agencyId === agencyId.value)
     .sort((a, b) =>
       (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
@@ -45,32 +55,31 @@ watch(agencyId, () => {
   }
 })
 
-const { result, loading } = useTripsByRouteQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', routeId: routeId.value ?? '' },
-  enabled: !!selectedFeedCode.value && !!routeId.value,
+const { data: tripRows, isLoading: loading } = useQuery(() => ({
+  ...tripsQuery({ feedCode: selectedFeedCode.value!, routeId: routeId.value ?? undefined }),
+  enabled: enabled.value && !!routeId.value,
 }))
-
-type Trip = TripsByRouteQuery['trips'][number]
+const { data: findingCounts } = useQuery(() => ({
+  ...validationFindingCountsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Trip' }),
+  enabled: enabled.value,
+}))
 
 const directionItems = computed(() => {
   const set = new Set<number>()
-  for (const t of result.value?.trips ?? []) if (t.directionId != null) set.add(t.directionId)
+  for (const t of tripRows.value ?? []) if (t.directionId != null) set.add(t.directionId)
   return [
     { label: t('explore.trips.bothDirections'), value: null },
     ...[...set].sort((a, b) => a - b).map((d) => ({ label: t('explore.trips.direction', { dir: d }), value: String(d) })),
   ]
 })
 
-const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(
-  selectedFeedCode,
-  'Trip',
-)
+const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(findingCounts)
 const search = ref('')
 const rows = computed(() => {
   const q = search.value.trim().toLowerCase()
   const fromSec = parseHm(from.value)
   const toSec = parseHm(to.value)
-  return [...(result.value?.trips ?? [])]
+  return [...(tripRows.value ?? [])]
     .filter((t) => {
       if (dir.value != null && String(t.directionId) !== dir.value) return false
       if (!inWindow(t.startTimeSec, fromSec, toSec)) return false
@@ -89,7 +98,7 @@ const rows = computed(() => {
 })
 
 const selectedRoute = computed(
-  () => (routesResult.value?.routes ?? []).find((route) => route.routeId === routeId.value) ?? null,
+  () => (routes.value ?? []).find((route) => route.routeId === routeId.value) ?? null,
 )
 
 const tripStats = computed(() => {
@@ -130,7 +139,7 @@ function onSelect(_e: Event, row: { original: Trip }) {
     :description="t('explore.trips.description')"
   >
     <template #toolbar>
-      <ExploreToolbar />
+      <ExploreToolbar :agencies="agencies" />
     </template>
 
     <section class="app-frame">

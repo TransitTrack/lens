@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { useBlocksListQuery } from '~/composables/useRestDetails'
-import { useExploreCalendarQuery, useExploreRoutesQuery } from '~/composables/useRestGtfs'
+import { useQuery } from '@pinia/colada'
+import { blocksQuery } from '~/composables/api/queries/schedule/blocksQuery'
+import { tripsQuery } from '~/composables/api/queries/gtfs/tripsQuery'
+import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
+import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
+import { blocksWithTrips } from '~/utils/joins/blocks'
 import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
@@ -8,37 +14,51 @@ import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useExploreQuery } from '~/composables/useExploreQuery'
-import type { BlocksListQuery } from '~/types/restViews'
 import { hexColor, routeTextColor, serviceDaysLabel } from '~/utils/gtfs'
 import { blockDurationSec, peakConcurrency } from '~/utils/blocks'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { agencyId } = useAgencyFilter()
 const { get, set, param } = useExploreQuery()
 
-const { result, loading } = useBlocksListQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: blockRows, isLoading: blocksLoading } = useQuery(() => ({
+  ...blocksQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-
-const { result: routesResult } = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const { data: tripRows, isLoading: tripsLoading } = useQuery(() => ({
+  ...tripsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-
-const { result: calResult } = useExploreCalendarQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const loading = computed(() => blocksLoading.value || tripsLoading.value)
+const { data: routes } = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: calendars } = useQuery(() => ({
+  ...calendarsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+// the old combined calendar read also fetched the exception dates; keep that request
+useQuery(() => ({
+  ...calendarDatesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { agencyId } = useAgencyFilter(agencies)
 
-type Block = BlocksListQuery['blocks'][number]
-const allBlocks = computed(() => result.value?.blocks ?? [])
+const allBlocks = computed(() =>
+  blocksWithTrips(blockRows.value ?? [], tripRows.value ?? []),
+)
+type Block = (typeof allBlocks.value)[number]
 
 const routeAgency = computed(() => {
   const m = new Map<string, string>()
-  for (const r of routesResult.value?.routes ?? []) {
+  for (const r of routes.value ?? []) {
     if (r.agencyId) m.set(r.routeId, r.agencyId)
   }
   return m
@@ -46,7 +66,7 @@ const routeAgency = computed(() => {
 
 const calLabel = computed(() => {
   const m = new Map<string, string>()
-  for (const c of calResult.value?.calendars ?? []) m.set(c.serviceId, serviceDaysLabel(c, t))
+  for (const c of calendars.value ?? []) m.set(c.serviceId, serviceDaysLabel(c, t))
   return m
 })
 
@@ -124,7 +144,7 @@ const columns = computed<TableColumn<Block>[]>(() => [
 
 const routeName = computed(() => {
   const m = new Map<string, { name: string; color: string | null }>()
-  for (const r of routesResult.value?.routes ?? []) {
+  for (const r of routes.value ?? []) {
     m.set(r.routeId, { name: r.routeShortName ?? r.routeId, color: r.routeColor ?? null })
   }
   return m
@@ -168,7 +188,7 @@ function routeTripCount(b: Block, routeId: string): number {
 <template>
   <AppPage :title="t('nav.blocks')" :description="t('explore.blocks.description')">
     <template #toolbar>
-      <ExploreToolbar />
+      <ExploreToolbar :agencies="agencies" />
     </template>
 
     <section class="overflow-hidden border border-default bg-elevated/20">

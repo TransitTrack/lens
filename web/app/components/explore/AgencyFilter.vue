@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import type { Agency } from '~/api'
 import {useAgencyFilter} from '~/composables/useAgencyFilter'
 
+const props = defineProps<{ agencies: Agency[] | undefined }>()
+
 const { t } = useI18n()
-const {agencies, hasMultiple, agencyId, setAgency} = useAgencyFilter()
+const {agencies, hasMultiple, agencyId, setAgency} = useAgencyFilter(toRef(props, 'agencies'))
 
 const items = computed(() => [
   {label: t('filters.allAgencies'), value: null},

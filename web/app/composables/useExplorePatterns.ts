@@ -1,24 +1,13 @@
-import { useExplorePatternsQuery } from '~/composables/useRestGtfs'
-import type { ExplorePatternsQuery } from '~/types/restViews'
-import { useFeeds } from './useFeeds'
+import type { Route, TripPattern } from '~/api'
+import type { StopPathWithStop } from '~/utils/joins/stopPaths'
 
-export type Pattern = ExplorePatternsQuery['tripPatterns'][number]
+export type Pattern = TripPattern & { route: Route | null, stopPaths: StopPathWithStop[] }
 
 /**
- * The feed's trip patterns (route → ordered stops with typical segment timing).
- * Heavy-ish, so pass a reactive `enabled` guard; Apollo caches it across the
- * Explore section.
+ * Agency lookups over the feed's trip patterns (route → ordered stops with typical segment timing).
+ * The patterns are built by the page (`patternsWithStopPaths` + `withRoute`) and passed in.
  */
-export function useExplorePatterns(enabled: Ref<boolean>) {
-  const { selectedFeedCode } = useFeeds()
-
-  const { result, loading } = useExplorePatternsQuery(() => ({
-    variables: { feedCode: selectedFeedCode.value ?? '' },
-    enabled: enabled.value && !!selectedFeedCode.value,
-  }))
-
-  const patterns = computed<Pattern[]>(() => result.value?.tripPatterns ?? [])
-
+export function useExplorePatterns(patterns: Ref<Pattern[]>) {
   /** stop ids served by the given agency (null → every stop) */
   function stopIdsForAgency(agencyId: string | null): Set<string> | null {
     if (!agencyId) return null
@@ -36,5 +25,5 @@ export function useExplorePatterns(enabled: Ref<boolean>) {
     return patterns.value.filter((p) => p.route?.agencyId === agencyId)
   }
 
-  return { patterns, loading, stopIdsForAgency, patternsForAgency }
+  return { patterns, stopIdsForAgency, patternsForAgency }
 }

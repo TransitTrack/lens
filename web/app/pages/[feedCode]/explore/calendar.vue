@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
+import { useQuery } from '@pinia/colada'
+import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
+import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
+import type { CalendarDate } from '~/api'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import type { ExploreCalendarQuery } from '~/types/restViews'
 import { activeDays, serviceDaysLabel, gtfsDate } from '~/utils/gtfs'
 
 const { t, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 
-const { result, loading } = useExploreCalendarQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: calendarRows, isLoading: loading } = useQuery(() => ({
+  ...calendarsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: calendarDateRows } = useQuery(() => ({
+  ...calendarDatesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
 
 // i18n-keys: explore.dayInitial.*
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
 const calendars = computed(() =>
-  [...(result.value?.calendars ?? [])].sort((a, b) => a.serviceId.localeCompare(b.serviceId)),
+  [...(calendarRows.value ?? [])].sort((a, b) => a.serviceId.localeCompare(b.serviceId)),
 )
 
-type Exception = ExploreCalendarQuery['calendarDates'][number]
+type Exception = CalendarDate
 const exceptions = computed(() =>
-  [...(result.value?.calendarDates ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
+  [...(calendarDateRows.value ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
 )
 
 const exColumns = computed<TableColumn<Exception>[]>(() => [

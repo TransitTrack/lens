@@ -1,25 +1,18 @@
-import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
-import type { AgenciesDetailQuery } from '~/types/restViews'
-import { useFeeds } from './useFeeds'
+import type { Agency } from '~/api'
 import { useExploreQuery } from './useExploreQuery'
 
-export type Agency = AgenciesDetailQuery['agencies'][number]
+export type { Agency }
 
 /**
  * Agency selection for the Explore section, persisted in the `?agency=` query
  * param so it survives navigation between explore pages and is shareable.
+ * The agencies are fetched by the page and passed in.
  */
-export function useAgencyFilter() {
+export function useAgencyFilter(agenciesData: Ref<Agency[] | undefined>) {
   const { get, set } = useExploreQuery()
-  const { selectedFeedCode } = useFeeds()
-
-  const { result } = useAgenciesDetailQuery(() => ({
-    variables: { feedCode: selectedFeedCode.value ?? '' },
-    enabled: !!selectedFeedCode.value,
-  }))
 
   const agencies = computed<Agency[]>(() =>
-    [...(result.value?.agencies ?? [])].sort((a, b) =>
+    [...(agenciesData.value ?? [])].sort((a, b) =>
       (a.agencyName ?? a.agencyId ?? '').localeCompare(b.agencyName ?? b.agencyId ?? ''),
     ),
   )

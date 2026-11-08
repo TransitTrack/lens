@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { validationFindingsQuery } from '~/composables/api/queries/gtfs/validationFindingsQuery'
 import { useTripDetailQuery } from '~/composables/useRestDetails'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
@@ -17,6 +19,11 @@ const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const tripId = computed(() => String(route.params.tripId))
+
+const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
+  ...validationFindingsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Trip', entityId: tripId.value }),
+  enabled: !!selectedFeedCode.value && !!tripId.value,
+}))
 
 const { result, loading, error } = useTripDetailQuery(() => ({
   variables: { feedCode: selectedFeedCode.value ?? '', tripId: tripId.value },
@@ -142,11 +149,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       />
     </template>
     <template #actions>
-      <ValidationFindingsPanel
-        :feed-code="selectedFeedCode"
-        entity-type="Trip"
-        :entity-id="tripId"
-      />
+      <ValidationFindingsPanel :findings="findings" :loading="findingsLoading" />
       <UBadge v-if="trip?.route?.routeShortName" :style="{ backgroundColor: '#ff0000' }">
         {{ trip.route.routeShortName }}
       </UBadge>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { validationFindingsQuery } from '~/composables/api/queries/gtfs/validationFindingsQuery'
 import { useStopDetailQuery, useStopScheduleQuery } from '~/composables/useRestDetails'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
@@ -27,6 +29,11 @@ const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const stopId = computed(() => String(route.params.stopId))
+
+const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
+  ...validationFindingsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Stop', entityId: stopId.value }),
+  enabled: !!selectedFeedCode.value && !!stopId.value,
+}))
 
 const { result: stopResult, loading: stopLoading } = useStopDetailQuery(() => ({
   variables: { feedCode: selectedFeedCode.value ?? '', stopId: stopId.value },
@@ -124,11 +131,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       />
     </template>
     <template #actions>
-      <ValidationFindingsPanel
-        :feed-code="selectedFeedCode"
-        entity-type="Stop"
-        :entity-id="stopId"
-      />
+      <ValidationFindingsPanel :findings="findings" :loading="findingsLoading" />
       <UBadge v-if="stop?.stopCode || stop?.platformCode" color="neutral" variant="subtle" icon="i-lucide-map-pin">
         {{ stop.platformCode ? t('explore.stop.platform', { code: stop.platformCode }) : stop.stopCode }}
       </UBadge>

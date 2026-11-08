@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { validationFindingsQuery } from '~/composables/api/queries/gtfs/validationFindingsQuery'
 import { useRouteDetailQuery } from '~/composables/useRestDetails'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
@@ -17,6 +19,11 @@ const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
+
+const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
+  ...validationFindingsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Route', entityId: routeId.value }),
+  enabled: !!selectedFeedCode.value && !!routeId.value,
+}))
 
 const { result, loading, error } = useRouteDetailQuery(() => ({
   variables: { feedCode: selectedFeedCode.value ?? '', routeId: routeId.value },
@@ -131,11 +138,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       />
     </template>
     <template #actions>
-      <ValidationFindingsPanel
-        :feed-code="selectedFeedCode"
-        entity-type="Route"
-        :entity-id="routeId"
-      />
+      <ValidationFindingsPanel :findings="findings" :loading="findingsLoading" />
     </template>
 
     <UAlert

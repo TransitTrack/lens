@@ -1,24 +1,17 @@
-import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
-
-import { useFeeds } from './useFeeds'
+import type { Route } from '~/api'
 import { useExploreQuery } from './useExploreQuery'
 import { routeTypeBreakdown } from '~/utils/feedFeatures'
 
 /**
  * Route-type selection for the Routes list, in `?type=<gtfs route_type>`.
- * Only types actually present in the feed are offered.
+ * Only types actually present in the feed are offered. The routes are fetched
+ * by the page and passed in.
  */
-export function useRouteTypeFilter() {
+export function useRouteTypeFilter(routes: Ref<Route[] | undefined>) {
   const { t } = useI18n()
-  const { selectedFeedCode } = useFeeds()
   const { get, set } = useExploreQuery()
 
-  const { result } = useExploreRoutesQuery(() => ({
-    variables: { feedCode: selectedFeedCode.value ?? '' },
-    enabled: !!selectedFeedCode.value,
-  }))
-
-  const types = computed(() => routeTypeBreakdown(result.value?.routes ?? [], t))
+  const types = computed(() => routeTypeBreakdown(routes.value ?? [], t))
   const hasMultiple = computed(() => types.value.length > 1)
 
   const typeId = computed<string | null>(() => get('type'))

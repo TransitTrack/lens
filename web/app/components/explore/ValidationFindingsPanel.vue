@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useValidationFindingsQuery } from '~/composables/useRestDetails'
+import type { ValidationFinding } from '~/api'
 
 
 /**
@@ -8,21 +8,15 @@ import { useValidationFindingsQuery } from '~/composables/useRestDetails'
  * popover. Renders nothing while loading, on error, or when the entity has no findings.
  */
 const props = defineProps<{
-  feedCode: string | null | undefined
-  entityType: 'Trip' | 'Stop' | 'Route' | 'Shape' | 'Service' | 'Agency'
-  entityId: string
+  findings: ValidationFinding[] | undefined
+  loading?: boolean
 }>()
 
 const { t } = useI18n()
 const PREVIEW = 5
 // i18n-keys: findings.severity.*
 
-const { result } = useValidationFindingsQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '', entityType: props.entityType, entityId: props.entityId },
-  enabled: !!props.feedCode && !!props.entityId,
-}))
-
-const findings = computed(() => result.value?.validationFindings ?? [])
+const findings = computed(() => props.findings ?? [])
 type Finding = (typeof findings.value)[number]
 
 // Analytics rules (e.g. excessive speed) are heuristics rather than data defects, so they get their
