@@ -5,7 +5,6 @@ import { tripsQuery } from '~/composables/api/queries/gtfs/tripsQuery'
 import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
 import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
 import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
-import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
 import { blocksWithTrips } from '~/utils/joins/blocks'
 import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'
@@ -42,11 +41,6 @@ const { data: agencies } = useQuery(() => ({
 }))
 const { data: calendars } = useQuery(() => ({
   ...calendarsQuery({ feedCode: selectedFeedCode.value! }),
-  enabled: enabled.value,
-}))
-// the old combined calendar read also fetched the exception dates; keep that request
-useQuery(() => ({
-  ...calendarDatesQuery({ feedCode: selectedFeedCode.value! }),
   enabled: enabled.value,
 }))
 const { agencyId } = useAgencyFilter(agencies)

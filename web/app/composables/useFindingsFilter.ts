@@ -1,4 +1,4 @@
-import type { ValidationFindingCount } from '~/api'
+import type { EntityFindingCount } from '~/api'
 
 /**
  * "Only show entities with analyzer findings" for an explore list. `keep` is the row predicate to
@@ -6,7 +6,7 @@ import type { ValidationFindingCount } from '~/api'
  * switch can say what it would reveal. The switch is hidden when the feed has none. The finding
  * counts are fetched by the page and passed in.
  */
-export function useFindingsFilter(counts: Ref<ValidationFindingCount[] | undefined>) {
+export function useFindingsFilter(counts: Ref<EntityFindingCount[] | undefined>) {
   const onlyWithFindings = ref(false)
 
   const ids = computed(() => new Set((counts.value ?? []).map((entry) => entry.entityId)))

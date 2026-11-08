@@ -25,8 +25,8 @@ export function useAgencyFilter(agenciesData: Ref<Agency[] | undefined>) {
     () => agencies.value.find((a) => a.agencyId === agencyId.value) ?? null,
   )
 
-  function setAgency(id: string | null) {
-    set('agency', id)
+  function setAgency(id: string | null | undefined) {
+    set('agency', id ?? null)
   }
 
   return { agencies, hasMultiple, agencyId, selectedAgency, setAgency }
