@@ -16,13 +16,15 @@
     "test:e2e": "playwright test",
     "typecheck": "vue-tsc --noEmit",
     "i18n:translate": "node scripts/i18n-translate.mjs",
-    "i18n:check": "node scripts/i18n-check.mjs"
+    "i18n:check": "node scripts/i18n-check.mjs",
+    "api:generate": "openapi-ts"
   },
   "dependencies": {
     "@indoorequal/vue-maplibre-gl": "^9.0.1",
     "@nuxt/content": "^3.16.2",
     "@nuxt/ui": "^4.12.0",
     "@nuxtjs/i18n": "^10.6.0",
+    "@tanstack/vue-query": "^5.107.1",
     "@vueuse/core": "^15.0.0",
     "@vueuse/nuxt": "^15.0.0",
     "fflate": "^0.8.3",
@@ -39,6 +41,7 @@
     "@nuxt/devtools": "^4.0.0"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
     "@intlify/eslint-plugin-vue-i18n": "^4.5.1",
     "@nuxt/eslint": "^1.17.0",
     "@nuxt/fonts": "^1.2.0",
@@ -57,7 +60,6 @@
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0",
-    "vue-tsc": "^3.3.14",
-    "graphql": "^17.1.0"
+    "vue-tsc": "^3.3.14"
   }
 }

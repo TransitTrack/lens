@@ -1,5 +1,5 @@
-import { AVLApi, GTFSApi, PredictionsApi, ScheduleApi, ResponseError } from '~~/generated/rest'
-import type { AvlReport, AvlReportMatch, PredictionAlgorithm  } from '~~/generated/rest'
+import { Avl, Gtfs, Predictions, Schedule, optional } from '~/api'
+import type { AvlReport, AvlReportMatch, PredictionAlgorithm } from '~/api'
 import type {
   VehicleDetailQuery, VehicleDetailQueryVariables, StopBoardQuery, StopBoardQueryVariables,
   HeadwayInfoQuery, HeadwayInfoQueryVariables, HeadwayRoutePatternsQuery, HeadwayRoutePatternsQueryVariables,
@@ -10,27 +10,16 @@ import { fetchAllPages } from '~/utils/restPagination'
 import { blockWithTrips, gtfsFeedCodeOf, routesById, shapeOf, stopPathsByPattern, stopsById, withRoute } from '~/utils/restRelations'
 import { useRestQuery, type RestQueryOptions } from './useRestQuery'
 
-const avl = new AVLApi()
-const predictions = new PredictionsApi()
-const schedule = new ScheduleApi()
-const gtfs = new GTFSApi()
-async function optional<T>(load: Promise<T>): Promise<T | null> {
-  try { return await load } catch (error) {
-    if (error instanceof ResponseError && error.response.status === 404) return null
-    throw error
-  }
-}
-
 /** The vehicle with its trip, route, shape, pattern (with stops), block and current stop joined in. */
 async function vehicleWithRelations(v: VehicleDetailQueryVariables, signal: AbortSignal) {
-  const vehicle = await optional(avl.vehicle(v, { signal }))
+  const vehicle = await optional(Avl.vehicle({ path: { feedCode: v.feedCode, vehicleId: v.vehicleId }, signal }))
   if (!vehicle) return null
   const unmatched = { ...vehicle, trip: null, pattern: null, block: null, currentStop: null }
   if (!vehicle.revisionId) return unmatched
   const scope = { feedCode: await gtfsFeedCodeOf(v.feedCode, signal), revisionId: vehicle.revisionId }
-  const trip = vehicle.tripId ? await optional(gtfs.trip({ ...scope, revisionId: vehicle.revisionId ?? undefined, tripId: vehicle.tripId }, { signal })) : null
+  const trip = vehicle.tripId ? await optional(Gtfs.trip({ path: { feedCode: scope.feedCode, tripId: vehicle.tripId }, query: { revisionId: vehicle.revisionId }, signal })) : null
   const [route, shape, pattern, block, stops] = await Promise.all([
-    trip ? optional(gtfs.route({ feedCode: scope.feedCode, routeId: trip.routeId, revisionId: vehicle.revisionId ?? undefined }, { signal })) : null,
+    trip ? optional(Gtfs.route({ path: { feedCode: scope.feedCode, routeId: trip.routeId }, query: { revisionId: vehicle.revisionId }, signal })) : null,
     trip ? shapeOf(scope, trip.shapeId, signal) : null,
     trip?.patternKey ? patternWithStops(scope, trip.patternKey, signal) : null,
     trip?.blockId ? blockWithTrips({ ...scope, blockId: trip.blockId, serviceId: trip.serviceId }, signal) : null,
@@ -47,18 +36,18 @@ async function vehicleWithRelations(v: VehicleDetailQueryVariables, signal: Abor
 
 async function patternWithStops(scope: { feedCode: string, revisionId?: string | null }, patternKey: string, signal: AbortSignal) {
   const [pattern, stopPaths] = await Promise.all([
-    optional(schedule.tripPattern({ feedCode: scope.feedCode, patternKey, revisionId: scope.revisionId ?? undefined }, { signal })),
+    optional(Schedule.tripPattern({ path: { feedCode: scope.feedCode, patternKey }, query: { revisionId: scope.revisionId ?? undefined }, signal })),
     stopPathsByPattern({ ...scope, patternKey }, signal),
   ])
   return pattern ? { ...pattern, stopPaths: stopPaths.get(patternKey) ?? [] } : null
 }
 
 export function useVehicleDetailQuery(options: () => RestQueryOptions<VehicleDetailQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<VehicleDetailQuery> => {
+  return useRestQuery('useVehicleDetailQuery', options, async (v, signal): Promise<VehicleDetailQuery> => {
     const [vehicle, predictionRows, predictionAccuracy] = await Promise.all([
       vehicleWithRelations(v, signal),
-      fetchAllPages((offset, limit) => predictions.vehiclePredictionsRaw({ ...v, offset, limit }, { signal })),
-      fetchAllPages((offset, limit) => predictions.predictionAccuracyRaw({ feedCode: v.feedCode, offset, limit }, { signal })),
+      fetchAllPages((offset, limit) => Predictions.vehiclePredictions({ path: { feedCode: v.feedCode, vehicleId: v.vehicleId }, query: { offset, limit }, signal })),
+      fetchAllPages((offset, limit) => Predictions.predictionAccuracy({ path: { feedCode: v.feedCode }, query: { offset, limit }, signal })),
     ])
     const stops = vehicle?.revisionId
       ? await stopsById({ feedCode: await gtfsFeedCodeOf(v.feedCode, signal), revisionId: vehicle.revisionId }, signal)
@@ -69,31 +58,41 @@ export function useVehicleDetailQuery(options: () => RestQueryOptions<VehicleDet
 }
 
 export function useStopBoardQuery(options: () => RestQueryOptions<StopBoardQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<StopBoardQuery> => ({
-    stopPredictions: await fetchAllPages((offset, limit) => predictions.stopPredictionsRaw({
-      ...v, routeId: v.routeId ?? undefined, directionId: v.directionId ?? undefined,
-      algorithm: (v.algorithm ?? undefined) as PredictionAlgorithm | undefined, offset, limit,
-    }, { signal })) as StopBoardQuery['stopPredictions'],
+  return useRestQuery('useStopBoardQuery', options, async (v, signal): Promise<StopBoardQuery> => ({
+    stopPredictions: await fetchAllPages((offset, limit) => Predictions.stopPredictions({
+      path: { feedCode: v.feedCode, stopId: v.stopId },
+      query: {
+        routeId: v.routeId ?? undefined, directionId: v.directionId ?? undefined,
+        algorithm: (v.algorithm ?? undefined) as PredictionAlgorithm | undefined, offset, limit,
+      },
+      signal,
+    })) as StopBoardQuery['stopPredictions'],
   }))
 }
 
 export function useHeadwayInfoQuery(options: () => RestQueryOptions<HeadwayInfoQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<HeadwayInfoQuery> => ({
-    headway: await predictions.headway({ ...v, directionId: v.directionId ?? undefined,
-      algorithm: (v.algorithm ?? undefined) as PredictionAlgorithm | undefined }, { signal }) as HeadwayInfoQuery['headway'],
+  return useRestQuery('useHeadwayInfoQuery', options, async (v, signal): Promise<HeadwayInfoQuery> => ({
+    headway: (await Predictions.headway({
+      path: { feedCode: v.feedCode, stopId: v.stopId },
+      query: {
+        routeId: v.routeId, directionId: v.directionId ?? undefined,
+        algorithm: (v.algorithm ?? undefined) as PredictionAlgorithm | undefined,
+      },
+      signal,
+    })).data as HeadwayInfoQuery['headway'],
   }))
 }
 
 async function routePatternsWithStops(v: HeadwayRoutePatternsQueryVariables, signal: AbortSignal) {
   const [patterns, stopPaths] = await Promise.all([
-    fetchAllPages((offset, limit) => schedule.tripPatternsRaw({ ...v, offset, limit }, { signal })),
+    fetchAllPages((offset, limit) => Schedule.tripPatterns({ path: { feedCode: v.feedCode }, query: { routeId: v.routeId, offset, limit }, signal })),
     stopPathsByPattern(v, signal),
   ])
   return patterns.map((p) => ({ ...p, stopPaths: stopPaths.get(p.patternKey) ?? [] }))
 }
 
 export function useHeadwayRoutePatternsQuery(options: () => RestQueryOptions<HeadwayRoutePatternsQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<HeadwayRoutePatternsQuery> => ({
+  return useRestQuery('useHeadwayRoutePatternsQuery', options, async (v, signal): Promise<HeadwayRoutePatternsQuery> => ({
     tripPatterns: await routePatternsWithStops(v, signal) as HeadwayRoutePatternsQuery['tripPatterns'],
   }))
 }
@@ -111,7 +110,7 @@ async function reportsWithTrips<T extends { match?: AvlReportMatch | null }>(
   const keys = [...new Map(matches.map((m) => [`${m.revisionId}|${m.tripId}`, m])).values()]
   const trips = new Map(await Promise.all(keys.map(async (m) => [
     `${m.revisionId}|${m.tripId}`,
-    await optional(gtfs.trip({ feedCode, tripId: m.tripId, revisionId: m.revisionId }, { signal })),
+    await optional(Gtfs.trip({ path: { feedCode, tripId: m.tripId }, query: { revisionId: m.revisionId }, signal })),
   ] as const)))
   const routes = includeRoute
     ? new Map(await Promise.all([...new Set(matches.map((m) => m.revisionId))].map(async (revisionId) =>
@@ -126,28 +125,32 @@ async function reportsWithTrips<T extends { match?: AvlReportMatch | null }>(
 }
 
 export function useAvlLogQuery(options: () => RestQueryOptions<AvlLogQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<AvlLogQuery> => {
-    const reports = await avl.avlReports({ ...v, limit: v.limit ?? undefined }, { signal })
+  return useRestQuery('useAvlLogQuery', options, async (v, signal): Promise<AvlLogQuery> => {
+    const reports = (await Avl.avlReports({ path: { feedCode: v.feedCode, vehicleId: v.vehicleId }, query: { limit: v.limit ?? undefined }, signal })).data
     return { avlReports: await reportsWithTrips(v.feedCode, reports, true, signal) } as unknown as AvlLogQuery
   })
 }
 
 export function useAvlTrailQuery(options: () => RestQueryOptions<AvlTrailQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<AvlTrailQuery> => {
-    const reports = await avl.avlReports({ ...v, limit: v.limit ?? undefined }, { signal })
+  return useRestQuery('useAvlTrailQuery', options, async (v, signal): Promise<AvlTrailQuery> => {
+    const reports = (await Avl.avlReports({ path: { feedCode: v.feedCode, vehicleId: v.vehicleId }, query: { limit: v.limit ?? undefined }, signal })).data
     return { avlReports: await reportsWithTrips(v.feedCode, reports, false, signal) } as unknown as AvlTrailQuery
   })
 }
 
 export function useAvlReportCatalogQuery(options: () => RestQueryOptions<AvlReportCatalogQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<AvlReportCatalogQuery> => ({
-    avlReportCatalog: await avl.avlReportCatalog(v, { signal }),
+  return useRestQuery('useAvlReportCatalogQuery', options, async (v, signal): Promise<AvlReportCatalogQuery> => ({
+    avlReportCatalog: (await Avl.avlReportCatalog({ path: { feedCode: v.feedCode }, signal })).data,
   }))
 }
 
 export function useAvlReportPageQuery(options: () => RestQueryOptions<AvlReportPageQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<AvlReportPageQuery> => {
-    const page = await avl.avlReportPage({ ...v, page: v.page ?? undefined, pageSize: v.pageSize ?? undefined }, { signal })
+  return useRestQuery('useAvlReportPageQuery', options, async (v, signal): Promise<AvlReportPageQuery> => {
+    const { data: page } = await Avl.avlReportPage({
+      path: { feedCode: v.feedCode, vehicleId: v.vehicleId },
+      query: { date: v.date, startTime: v.startTime, endTime: v.endTime, page: v.page ?? undefined, pageSize: v.pageSize ?? undefined },
+      signal,
+    })
     const items: AvlReport[] = page.items
     return { avlReportPage: { ...page, items: await reportsWithTrips(v.feedCode, items, false, signal) } } as unknown as AvlReportPageQuery
   })

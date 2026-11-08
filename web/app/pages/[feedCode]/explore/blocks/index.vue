@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useBlocksListQuery } from '~/composables/useRestDetails'
-import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
-import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
+import { useExploreCalendarQuery, useExploreRoutesQuery } from '~/composables/useRestGtfs'
 import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
@@ -141,7 +140,10 @@ function onSelect(_e: Event, row: { original: Block }) {
 
 function durH(b: Block): string {
   const s = blockDurationSec(b)
-  return t('explore.duration', { hours: Math.floor(s / 3600), minutes: Math.round((s % 3600) / 60) })
+  return t('explore.duration', {
+    hours: Math.floor(s / 3600),
+    minutes: Math.round((s % 3600) / 60),
+  })
 }
 
 function blockKey(b: Block): string {
@@ -227,9 +229,7 @@ function routeTripCount(b: Block, routeId: string): number {
         <span class="text-sm font-medium text-highlighted">{{
           t('explore.blocks.assignments')
         }}</span>
-        <span class="text-xs text-dimmed">{{
-          t('explore.blocks.selectRow')
-        }}</span>
+        <span class="text-xs text-dimmed">{{ t('explore.blocks.selectRow') }}</span>
       </div>
       <UTable
         :data="blocks"

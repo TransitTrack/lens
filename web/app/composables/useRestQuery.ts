@@ -1,4 +1,6 @@
-import { onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { computed, watch, type Ref } from 'vue'
+import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { queryClient } from '~/api/queryClient'
 
 export interface RestQueryOptions<V> {
   variables: V
@@ -7,51 +9,53 @@ export interface RestQueryOptions<V> {
   fetchPolicy?: string
 }
 
-/** Reactive REST read with cancellation, error state, and optional polling. */
-export function useRestQuery<T, V>(options: () => RestQueryOptions<V>, load: (variables: V, signal: AbortSignal) => Promise<T>) {
-  const result = shallowRef<T | undefined>()
-  const error = shallowRef<Error | null>(null)
-  const loading = ref(false)
-  let controller: AbortController | undefined
-  let timer: ReturnType<typeof setTimeout> | undefined
-  let disposed = false
-  const listeners = new Set<(error: Error) => void>()
+export interface RestQuerySettings {
+  /** How long unobserved data stays cached (ms). Pass 0 for data that must never be shown stale, e.g. drafts under edit. */
+  gcTime?: number
+}
 
-  const refresh = async (variables: V, interval: number) => {
-    if (timer) clearTimeout(timer)
-    controller?.abort()
-    const request = new AbortController()
-    controller = request
-    loading.value = true
-    try {
-      const data = await load(variables, request.signal)
-      if (!request.signal.aborted) { result.value = data; error.value = null }
-      return { result: data }
-    } catch (cause) {
-      if (!request.signal.aborted) {
-        error.value = cause instanceof Error ? cause : new Error(String(cause))
-        for (const listener of listeners) listener(error.value)
-      }
-      return undefined
-    } finally {
-      if (!request.signal.aborted) {
-        loading.value = false
-        if (!disposed && interval > 0) timer = setTimeout(() => void refresh(variables, interval), interval)
-      }
+/**
+ * Reactive REST read on top of TanStack Query: cached per `[key, variables]`, de-duplicated across
+ * components, cancelled through the `AbortSignal`, with optional polling. `key` names the read
+ * (use the composable's name); the variables are appended automatically.
+ */
+export function useRestQuery<T, V>(
+  key: string,
+  options: () => RestQueryOptions<V>,
+  load: (variables: V, signal: AbortSignal) => Promise<T>,
+  settings: RestQuerySettings = {},
+) {
+  const query = useQuery(computed(() => {
+    const { variables, enabled, pollInterval } = options()
+    return {
+      queryKey: [key, variables] as const,
+      queryFn: ({ queryKey, signal }: { queryKey: readonly [string, unknown], signal: AbortSignal }) => load(queryKey[1] as V, signal),
+      enabled: enabled !== false,
+      refetchInterval: pollInterval && pollInterval > 0 ? pollInterval : false,
+      refetchIntervalInBackground: true,
+      // Keep showing the previous variables' result while the next ones load, as before.
+      placeholderData: keepPreviousData,
+      // Every response is a fresh object, so watchers on `result` re-run per poll.
+      structuralSharing: false,
+      gcTime: settings.gcTime,
     }
-  }
+  }), queryClient)
 
-  watch(options, (next, _previous, cleanup) => {
-    if (timer) clearTimeout(timer)
-    controller?.abort()
-    cleanup(() => { controller?.abort(); if (timer) clearTimeout(timer) })
-    if (next.enabled === false) { loading.value = false; return }
-    void refresh(next.variables, next.pollInterval ?? 0)
-  }, { deep: true, immediate: true })
-  onScopeDispose(() => { disposed = true; controller?.abort(); if (timer) clearTimeout(timer) })
+  const error = computed(() => (query.error.value instanceof Error ? query.error.value : null))
+  const listeners = new Set<(error: Error) => void>()
+  watch(error, (failure) => {
+    if (failure) for (const listener of listeners) listener(failure)
+  })
+
   return {
-    result, loading, error,
+    result: query.data as Readonly<Ref<T | undefined>>,
+    loading: query.isFetching,
+    error,
     onError: (listener: (error: Error) => void) => { listeners.add(listener); return () => listeners.delete(listener) },
-    refetch: (variables?: Partial<V>) => refresh(Object.assign({}, options().variables, variables) as V, options().pollInterval ?? 0),
+    /** Re-read now (cancelling a read in flight). Resolves to the fresh result, or `undefined` if it failed. */
+    refetch: async (): Promise<{ result: T } | undefined> => {
+      const outcome = await query.refetch()
+      return outcome.isError || outcome.data === undefined ? undefined : { result: outcome.data as T }
+    },
   }
 }

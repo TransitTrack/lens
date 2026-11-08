@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { useActivateRevisionMutation, useDeleteRevisionMutation, useIngestFeedMutation, useUpdateFeedMutation } from '~/composables/useRestManagement'
+import {
+  useActivateRevisionMutation,
+  useDeleteRevisionMutation,
+  useIngestFeedMutation,
+  useUpdateFeedMutation,
+} from '~/composables/useRestManagement'
 import { useFeedDetailQuery } from '~/composables/useRestDetails'
-import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
-import { useExploreRoutesQuery } from '~/composables/useRestGtfs'
+import { useAgenciesDetailQuery, useExploreRoutesQuery } from '~/composables/useRestGtfs'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
@@ -55,11 +59,14 @@ const rowCounts = computed<[string, number][]>(() => {
 })
 
 const features = computed(() =>
-  deriveFeatures({
-    filesPresent: rev.value?.filesPresent,
-    rowCounts: (rev.value?.rowCounts ?? null) as Record<string, number> | null,
-    routes: routes.value,
-  }, t),
+  deriveFeatures(
+    {
+      filesPresent: rev.value?.filesPresent,
+      rowCounts: (rev.value?.rowCounts ?? null) as Record<string, number> | null,
+      routes: routes.value,
+    },
+    t,
+  ),
 )
 
 interface StatusChip {
@@ -115,27 +122,47 @@ async function reingest() {
     })
     await refetch()
   } catch (e) {
-    toast.add({ title: t('explore.feed.ingestFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.ingestFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 
 async function activateRevision(id: string) {
   try {
     await activate({ variables: { revisionId: id } })
-    toast.add({ title: t('explore.feed.activated', { id }), color: 'success', icon: 'i-lucide-check' })
+    toast.add({
+      title: t('explore.feed.activated', { id }),
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
     await refetch()
   } catch (e) {
-    toast.add({ title: t('explore.feed.activateFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.activateFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 
 async function deleteRevision(id: string) {
   try {
     await remove({ variables: { revisionId: id } })
-    toast.add({ title: t('explore.feed.deleted', { id }), color: 'success', icon: 'i-lucide-trash-2' })
+    toast.add({
+      title: t('explore.feed.deleted', { id }),
+      color: 'success',
+      icon: 'i-lucide-trash-2',
+    })
     await refetch()
   } catch (e) {
-    toast.add({ title: t('explore.feed.deleteFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.deleteFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 
@@ -155,21 +182,27 @@ watch(editOpen, (open) => {
 
 async function saveFeed() {
   try {
-    await update({ variables: {
-      code: selectedFeedCode.value ?? '',
-      input: {
-        name: form.name,
-        description: form.description || null,
-        url: form.url,
-        pollingCron: form.pollingCron || null,
-        enabled: form.enabled,
+    await update({
+      variables: {
+        code: selectedFeedCode.value ?? '',
+        input: {
+          name: form.name,
+          description: form.description || null,
+          url: form.url,
+          pollingCron: form.pollingCron || null,
+          enabled: form.enabled,
+        },
       },
-    } })
+    })
     toast.add({ title: t('explore.feed.updated'), color: 'success', icon: 'i-lucide-check' })
     editOpen.value = false
     await refetch()
   } catch (e) {
-    toast.add({ title: t('explore.feed.updateFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.updateFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 </script>
@@ -238,7 +271,9 @@ async function saveFeed() {
                     date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale),
                     size: (rev.byteSize / 1e6).toFixed(1),
                   })
-                : t('explore.feed.latestDataset', { date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale) })
+                : t('explore.feed.latestDataset', {
+                    date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale),
+                  })
             }}
           </span>
         </div>
@@ -251,7 +286,9 @@ async function saveFeed() {
             v-if="rev && rowCounts.length"
             class="flex flex-col gap-3 border-b border-default p-4"
           >
-            <div class="text-sm font-medium text-muted">{{ t('explore.feed.activeRevision', { id: rev.id }) }}</div>
+            <div class="text-sm font-medium text-muted">
+              {{ t('explore.feed.activeRevision', { id: rev.id }) }}
+            </div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               <div
                 v-for="[name, count] in rowCounts"
@@ -306,7 +343,10 @@ async function saveFeed() {
               <dt class="text-dimmed">{{ t('explore.feed.language') }}</dt>
               <dd>{{ info.feedLang ?? '—' }}</dd>
               <dt class="text-dimmed">{{ t('explore.feed.valid') }}</dt>
-              <dd>{{ gtfsDate(info.feedStartDate, locale) }} → {{ gtfsDate(info.feedEndDate, locale) }}</dd>
+              <dd>
+                {{ gtfsDate(info.feedStartDate, locale) }} →
+                {{ gtfsDate(info.feedEndDate, locale) }}
+              </dd>
               <dt class="text-dimmed">{{ t('explore.feed.contact') }}</dt>
               <dd>{{ info.feedContactEmail ?? info.feedContactUrl ?? '—' }}</dd>
             </dl>
@@ -373,7 +413,12 @@ async function saveFeed() {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="editOpen = false" />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :label="t('common.cancel')"
+            @click="editOpen = false"
+          />
           <UButton :loading="updating" :label="t('common.save')" @click="saveFeed" />
         </div>
       </template>

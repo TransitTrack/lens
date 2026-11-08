@@ -1,5 +1,5 @@
-import { OptimizationApi, ResponseError } from '~~/generated/rest'
-import type { OptimizationRecommendationStatus } from '~~/generated/rest'
+import { Optimization, optional } from '~/api'
+import type { OptimizationRecommendationStatus, OptimizationRunInput } from '~/api'
 import type {
   OptimizationRunsQuery, OptimizationRunsQueryVariables, OptimizationRunQuery, OptimizationRunQueryVariables,
   OptimizationRecommendationsQuery, OptimizationRecommendationsQueryVariables,
@@ -9,41 +9,39 @@ import type {
 import { useRestQuery, type RestQueryOptions } from './useRestQuery'
 import { useRestMutation } from './useRestMutation'
 
-const api = new OptimizationApi()
 export function useOptimizationRunsQuery(options: () => RestQueryOptions<OptimizationRunsQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<OptimizationRunsQuery> => ({
-    optimizationRuns: await api.optimizationRuns({ ...v, limit: v.limit ?? undefined, offset: v.offset ?? undefined }, { signal }) as OptimizationRunsQuery['optimizationRuns'],
+  return useRestQuery('useOptimizationRunsQuery', options, async (v, signal): Promise<OptimizationRunsQuery> => ({
+    optimizationRuns: (await Optimization.optimizationRuns({
+      path: { feedCode: v.feedCode }, query: { limit: v.limit ?? undefined, offset: v.offset ?? undefined }, signal,
+    })).data as OptimizationRunsQuery['optimizationRuns'],
   }))
 }
 export function useOptimizationRunQuery(options: () => RestQueryOptions<OptimizationRunQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<OptimizationRunQuery> => {
-    try {
-      return { optimizationRun: await api.optimizationRun({ id: String(v.id) }, { signal }) as OptimizationRunQuery['optimizationRun'] }
-    } catch (error) {
-      if (error instanceof ResponseError && error.response.status === 404) return { optimizationRun: null }
-      throw error
-    }
-  })
+  return useRestQuery('useOptimizationRunQuery', options, async (v, signal): Promise<OptimizationRunQuery> => ({
+    optimizationRun: await optional(Optimization.optimizationRun({ path: { id: String(v.id) }, signal })) as OptimizationRunQuery['optimizationRun'],
+  }))
 }
 export function useOptimizationRecommendationsQuery(options: () => RestQueryOptions<OptimizationRecommendationsQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<OptimizationRecommendationsQuery> => ({
-    optimizationRecommendations: await api.optimizationRecommendations({
-      ...v, runId: String(v.runId), status: (v.status ?? undefined) as OptimizationRecommendationStatus | undefined,
-      limit: v.limit ?? undefined, offset: v.offset ?? undefined,
-    }, { signal }) as OptimizationRecommendationsQuery['optimizationRecommendations'],
+  return useRestQuery('useOptimizationRecommendationsQuery', options, async (v, signal): Promise<OptimizationRecommendationsQuery> => ({
+    optimizationRecommendations: (await Optimization.optimizationRecommendations({
+      path: { runId: String(v.runId) },
+      query: { status: (v.status ?? undefined) as OptimizationRecommendationStatus | undefined, limit: v.limit ?? undefined, offset: v.offset ?? undefined },
+      signal,
+    })).data as OptimizationRecommendationsQuery['optimizationRecommendations'],
   }))
 }
 export function useStartOptimizationRunMutation() {
   return useRestMutation<StartOptimizationRunMutation, StartOptimizationRunMutationVariables>(async (v) => ({
-    startOptimizationRun: await api.startOptimizationRun({ optimizationRunInput: v.input } as unknown as Parameters<typeof api.startOptimizationRun>[0]),
+    startOptimizationRun: (await Optimization.startOptimizationRun({ body: v.input as unknown as OptimizationRunInput })).data,
   }) as unknown as StartOptimizationRunMutation)
 }
 export function useApplyOptimizationRecommendationsMutation() {
   return useRestMutation<ApplyOptimizationRecommendationsMutation, ApplyOptimizationRecommendationsMutationVariables>(async (v) => ({
-    applyOptimizationRecommendations: await api.applyOptimizationRecommendations({
-      runId: String(v.runId), applyOptimizationRecommendationsRequest: {
+    applyOptimizationRecommendations: (await Optimization.applyOptimizationRecommendations({
+      path: { runId: String(v.runId) },
+      body: {
         recommendationIds: (Array.isArray(v.recommendationIds) ? v.recommendationIds : [v.recommendationIds]).map(String), editor: v.editor, label: v.label ?? undefined,
       },
-    }),
+    })).data,
   }) as unknown as ApplyOptimizationRecommendationsMutation)
 }

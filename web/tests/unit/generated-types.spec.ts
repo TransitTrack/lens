@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Vehicle } from '../../generated/rest'
+import type { Vehicle } from '../../app/api'
 
 describe('generated REST types', () => {
   it('shapes a vehicle response', () => {

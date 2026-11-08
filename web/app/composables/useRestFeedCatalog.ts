@@ -1,6 +1,6 @@
 import { createSharedComposable } from '@vueuse/core'
-import { AvlFeedCatalogApi, GTFSApi } from '~~/generated/rest'
-import type { AvlFeed, Feed } from '~~/generated/rest'
+import { AvlFeedCatalog, Gtfs } from '~/api'
+import type { AvlFeed, Feed } from '~/api'
 import { fetchAllPages } from '~/utils/restPagination'
 
 /** Shared polling for feed selection; callers reuse one pair of requests and timers. */
@@ -8,14 +8,12 @@ export const useRestFeedCatalog = createSharedComposable(() => {
   const gtfsFeeds = shallowRef<Feed[]>([])
   const avlFeeds = shallowRef<AvlFeed[]>([])
   const abort = new AbortController()
-  const gtfsApi = new GTFSApi()
-  const avlApi = new AvlFeedCatalogApi()
   let gtfsTimer: ReturnType<typeof setTimeout> | undefined
   let avlTimer: ReturnType<typeof setTimeout> | undefined
 
   const pollGtfs = async () => {
     try {
-      const data = await fetchAllPages((offset, limit) => gtfsApi.feedsRaw({ offset, limit }, { signal: abort.signal }))
+      const data = await fetchAllPages((offset, limit) => Gtfs.feeds({ query: { offset, limit }, signal: abort.signal }))
       if (!abort.signal.aborted) gtfsFeeds.value = data
     } catch {
       // Keep the last successful catalog until the next poll.
@@ -25,7 +23,7 @@ export const useRestFeedCatalog = createSharedComposable(() => {
   }
   const pollAvl = async () => {
     try {
-      const data = await fetchAllPages((offset, limit) => avlApi.avlFeedsRaw({ offset, limit }, { signal: abort.signal }))
+      const data = await fetchAllPages((offset, limit) => AvlFeedCatalog.avlFeeds({ query: { offset, limit }, signal: abort.signal }))
       if (!abort.signal.aborted) avlFeeds.value = data
     } catch {
       // Keep the last successful catalog until the next poll.

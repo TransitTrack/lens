@@ -1,5 +1,5 @@
-import { AvlFeedCatalogApi, GTFSApi, ScheduleApi } from '~~/generated/rest'
-import type { Block, BlockTrip, Route, Shape, Stop, StopPath, Trip } from '~~/generated/rest'
+import { AvlFeedCatalog, Gtfs, Schedule, notFoundAsNull } from '~/api'
+import type { Block, BlockTrip, Route, Shape, Stop, StopPath, Trip } from '~/api'
 import { fetchAllPages } from '~/utils/restPagination'
 
 /**
@@ -7,9 +7,6 @@ import { fetchAllPages } from '~/utils/restPagination'
  * join them client-side into the nested shapes the views render, sharing one cached read of the big
  * reference lists (stops, routes) so a detail page costs a handful of requests.
  */
-const gtfs = new GTFSApi()
-const schedule = new ScheduleApi()
-const avlCatalog = new AvlFeedCatalogApi()
 
 export interface Scope {
   feedCode: string
@@ -34,7 +31,7 @@ const scopeKey = (s: Scope) => `${s.feedCode}|${rev(s) ?? ''}`
 /** Every stop of the revision, by stop id. */
 export function stopsById(s: Scope, signal?: AbortSignal): Promise<Map<string, Stop>> {
   return cached(`stops|${scopeKey(s)}`, async () => {
-    const rows = await fetchAllPages((offset, limit) => gtfs.stopsRaw({ feedCode: s.feedCode, revisionId: rev(s), offset, limit }, { signal }))
+    const rows = await fetchAllPages((offset, limit) => Gtfs.stops({ path: { feedCode: s.feedCode }, query: { revisionId: rev(s), offset, limit }, signal }))
     return new Map(rows.map((stop) => [stop.stopId, stop]))
   })
 }
@@ -42,14 +39,14 @@ export function stopsById(s: Scope, signal?: AbortSignal): Promise<Map<string, S
 /** Every route of the revision, by route id. */
 export function routesById(s: Scope, signal?: AbortSignal): Promise<Map<string, Route>> {
   return cached(`routes|${scopeKey(s)}`, async () => {
-    const rows = await fetchAllPages((offset, limit) => gtfs.routesRaw({ feedCode: s.feedCode, revisionId: rev(s), offset, limit }, { signal }))
+    const rows = await fetchAllPages((offset, limit) => Gtfs.routes({ path: { feedCode: s.feedCode }, query: { revisionId: rev(s), offset, limit }, signal }))
     return new Map(rows.map((route) => [route.routeId, route]))
   })
 }
 
 /** The GTFS feed code an AVL feed is matched against. */
 export async function gtfsFeedCodeOf(avlFeedCode: string, signal?: AbortSignal): Promise<string> {
-  const feeds = await cached('avl-feeds', () => fetchAllPages((offset, limit) => avlCatalog.avlFeedsRaw({ offset, limit }, { signal })))
+  const feeds = await cached('avl-feeds', () => fetchAllPages((offset, limit) => AvlFeedCatalog.avlFeeds({ query: { offset, limit }, signal })))
   const feed = feeds.find((f) => f.code === avlFeedCode)
   if (!feed) throw new Error(`Unknown AVL feed '${avlFeedCode}'`)
   return feed.gtfsFeedCode
@@ -63,9 +60,11 @@ export async function stopPathsByPattern(
   signal?: AbortSignal,
 ): Promise<Map<string, StopPathWithStop[]>> {
   const [paths, stops] = await Promise.all([
-    fetchAllPages((offset, limit) => schedule.stopPathsRaw({
-      feedCode: s.feedCode, patternKey: s.patternKey, routeId: s.routeId, revisionId: rev(s), offset, limit,
-    }, { signal })),
+    fetchAllPages((offset, limit) => Schedule.stopPaths({
+      path: { feedCode: s.feedCode },
+      query: { patternKey: s.patternKey, routeId: s.routeId, revisionId: rev(s), offset, limit },
+      signal,
+    })),
     stopsById(s, signal),
   ])
   const grouped = new Map<string, StopPathWithStop[]>()
@@ -93,13 +92,19 @@ export async function blockWithTrips(
   signal?: AbortSignal,
 ): Promise<BlockWithTrips | null> {
   const [block, blockTrips, trips, routes] = await Promise.all([
-    schedule.block({ feedCode: s.feedCode, blockId: s.blockId, serviceId: s.serviceId, revisionId: rev(s) }, { signal }).catch(notFoundAsNull),
-    fetchAllPages((offset, limit) => schedule.blockTripsRaw({
-      feedCode: s.feedCode, blockId: s.blockId, serviceId: s.serviceId, revisionId: rev(s), offset, limit,
-    }, { signal })),
-    fetchAllPages((offset, limit) => gtfs.tripsRaw({
-      feedCode: s.feedCode, blockId: s.blockId, serviceId: s.serviceId, revisionId: rev(s), offset, limit,
-    }, { signal })),
+    Schedule.block({
+      path: { feedCode: s.feedCode, blockId: s.blockId }, query: { serviceId: s.serviceId, revisionId: rev(s) }, signal,
+    }).then((r) => r.data, notFoundAsNull),
+    fetchAllPages((offset, limit) => Schedule.blockTrips({
+      path: { feedCode: s.feedCode },
+      query: { blockId: s.blockId, serviceId: s.serviceId, revisionId: rev(s), offset, limit },
+      signal,
+    })),
+    fetchAllPages((offset, limit) => Gtfs.trips({
+      path: { feedCode: s.feedCode },
+      query: { blockId: s.blockId, serviceId: s.serviceId, revisionId: rev(s), offset, limit },
+      signal,
+    })),
     routesById(s, signal),
   ])
   if (!block) return null
@@ -115,11 +120,6 @@ export async function blockWithTrips(
 
 export async function shapeOf(s: Scope, shapeId: string | null | undefined, signal?: AbortSignal): Promise<Shape | null> {
   if (!shapeId) return null
-  return await gtfs.shape({ feedCode: s.feedCode, shapeId, revisionId: rev(s) }, { signal }).catch(notFoundAsNull)
-}
-
-/** Resolves a failed `404` request to `null`; anything else is rethrown. */
-export function notFoundAsNull(error: unknown): null {
-  if (error && typeof error === 'object' && 'response' in error && (error as { response: Response }).response?.status === 404) return null
-  throw error
+  return await Gtfs.shape({ path: { feedCode: s.feedCode, shapeId }, query: { revisionId: rev(s) }, signal })
+    .then((r) => r.data, notFoundAsNull)
 }

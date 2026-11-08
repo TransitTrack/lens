@@ -497,36 +497,3 @@ tasks.matching { it.name == "kaptGenerateStubsKotlin" }.configureEach { dependsO
 tasks.named("compileKotlin") { dependsOn(tasks.named("openApiGenerate")) }
 
 tasks.named("check") { dependsOn(tasks.named("openApiValidate")) }
-
-// The browser client is generated from the same contract as the server interfaces.
-tasks.register<org.openapitools.generator.gradle.plugin.tasks.GenerateTask>("generateRestClient") {
-    generatorName.set("typescript-fetch")
-    inputSpec.set(
-        rootProject.layout.projectDirectory
-            .file("api-contract/openapi.yaml")
-            .asFile.absolutePath,
-    )
-    outputDir.set(
-        rootProject.layout.projectDirectory
-            .dir("web/generated/rest")
-            .asFile.absolutePath,
-    )
-    cleanupOutput.set(true)
-    generateApiTests.set(false)
-    generateModelTests.set(false)
-    generateApiDocumentation.set(false)
-    generateModelDocumentation.set(false)
-    configOptions.set(
-        mapOf(
-            "supportsES6" to "true",
-            "modelPropertyNaming" to "original",
-            "useSingleRequestParameter" to "true",
-            "withoutRuntimeChecks" to "true",
-        ),
-    )
-    // TypeScript 6 requires an explicit override for Error.cause.
-    doLast {
-        val runtime = rootProject.file("web/generated/rest/runtime.ts")
-        runtime.writeText(runtime.readText().replace("constructor(public cause: Error,", "constructor(public override cause: Error,"))
-    }
-}

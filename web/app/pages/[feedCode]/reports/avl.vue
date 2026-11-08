@@ -96,11 +96,8 @@ function runReport() {
   submitted.value = next
   openFilterAccordion.value = undefined
   if (isRepeat) {
-    void refetchPage({
-      feedCode: selectedAvlFeedCode.value ?? '',
-      ...next,
-      pageSize: PAGE_SIZE,
-    })
+    // Same filters as the report on screen, so the query key is unchanged: re-run it explicitly.
+    void refetchPage()
   }
 }
 

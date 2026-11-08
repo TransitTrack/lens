@@ -1,5 +1,5 @@
 // View-specific response and variable types, backed by the OpenAPI-generated models.
-import type * as Rest from '~~/generated/rest'
+import type * as Rest from '~/api'
 
 type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] }
 type InputView<T> = { [K in keyof T]: undefined extends T[K] ? T[K] | null : T[K] }
@@ -47,7 +47,7 @@ export type ActivateRevisionMutationVariables = Exact<{
   revisionId: string | number;
 }>;
 
-export type AddTripMutation = { addTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type AddTripMutation = { addTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type AddTripMutationVariables = Exact<{
   input: AddTripInput;
@@ -141,7 +141,7 @@ export type BlocksListQueryVariables = Exact<{
   feedCode: string;
 }>;
 
-export type BulkShiftTripsMutation = { bulkShiftTrips: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type BulkShiftTripsMutation = { bulkShiftTrips: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type BulkShiftTripsMutationVariables = Exact<{
   input: BulkShiftTripsInput;
@@ -155,7 +155,7 @@ export type ClaimDraftEditorMutationVariables = Exact<{
   takeOver?: boolean | null | undefined;
 }>;
 
-export type CompareRevisionsQuery = { compareRevisions: { fromRevisionId: string, toRevisionId: string, fromDerivationStale: boolean, toDerivationStale: boolean, tripChangeCount: number, tripChanges: Array<{ tripId: string, kind: TripChangeKind, fieldChanges: any, runTimeDeltaSec: number | null, stopChanges: Array<{ stopSequence: number, kind: StopChangeKind, stopId: string | null, arrivalDeltaSec: number | null, departureDeltaSec: number | null }> }>, calendarChanges: Array<{ serviceId: string, kind: CalendarChangeKind, fieldChanges: any, exceptionChanges: Array<{ date: string, kind: ExceptionChangeKind, fromType: number | null, toType: number | null }> }>, headwaySummaries: Array<{ routeId: string, directionId: number | null, serviceId: string, fromTripCount: number, toTripCount: number, fromMeanGapSec: number | null, toMeanGapSec: number | null, fromMaxGapSec: number | null, toMaxGapSec: number | null }> } };
+export type CompareRevisionsQuery = { compareRevisions: { fromRevisionId: string, toRevisionId: string, fromDerivationStale: boolean, toDerivationStale: boolean, tripChangeCount: number, tripChanges: Array<{ tripId: string, kind: TripChangeKind, fieldChanges: unknown, runTimeDeltaSec: number | null, stopChanges: Array<{ stopSequence: number, kind: StopChangeKind, stopId: string | null, arrivalDeltaSec: number | null, departureDeltaSec: number | null }> }>, calendarChanges: Array<{ serviceId: string, kind: CalendarChangeKind, fieldChanges: unknown, exceptionChanges: Array<{ date: string, kind: ExceptionChangeKind, fromType: number | null, toType: number | null }> }>, headwaySummaries: Array<{ routeId: string, directionId: number | null, serviceId: string, fromTripCount: number, toTripCount: number, fromMeanGapSec: number | null, toMeanGapSec: number | null, fromMaxGapSec: number | null, toMaxGapSec: number | null }> } };
 
 export type CompareRevisionsQueryVariables = Exact<{
   fromRevisionId: string | number;
@@ -173,7 +173,7 @@ export type DeleteRevisionMutationVariables = Exact<{
   revisionId: string | number;
 }>;
 
-export type DeleteTripMutation = { deleteTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type DeleteTripMutation = { deleteTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type DeleteTripMutationVariables = Exact<{
   input: DeleteTripInput;
@@ -186,13 +186,13 @@ export type DiscardDraftMutationVariables = Exact<{
   editor: string;
 }>;
 
-export type DraftDetailQuery = { draft: { id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: RevisionStatus, kind: DraftKind, version: number, derivationStale: boolean, lastValidation: any, createdBy: string | null, createdAt: string, rowCounts: any, lock: { editor: string, expiresAt: string } | null } | null };
+export type DraftDetailQuery = { draft: { id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: RevisionStatus, kind: DraftKind, version: number, derivationStale: boolean, lastValidation: unknown, createdBy: string | null, createdAt: string, rowCounts: unknown, lock: { editor: string, expiresAt: string } | null } | null };
 
 export type DraftDetailQueryVariables = Exact<{
   id: string | number;
 }>;
 
-export type DraftEditResultFFragment = { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null };
+export type DraftEditResultFFragment = { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null };
 
 export type DraftEditsQuery = { draftEdits: Array<{ seq: number, op: string, summary: string, appliedAt: string, undone: boolean }> };
 
@@ -232,13 +232,13 @@ export type DraftTripDetailQueryVariables = Exact<{
   revisionId: string | number;
 }>;
 
-export type DraftsQuery = { drafts: Array<{ id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: RevisionStatus, kind: DraftKind, version: number, derivationStale: boolean, lastValidation: any, createdBy: string | null, createdAt: string, rowCounts: any, lock: { editor: string, expiresAt: string } | null }> };
+export type DraftsQuery = { drafts: Array<{ id: string, feedCode: string, label: string | null, baseRevisionId: string | null, status: RevisionStatus, kind: DraftKind, version: number, derivationStale: boolean, lastValidation: unknown, createdBy: string | null, createdAt: string, rowCounts: unknown, lock: { editor: string, expiresAt: string } | null }> };
 
 export type DraftsQueryVariables = Exact<{
   feedCode?: string | null | undefined;
 }>;
 
-export type DuplicateTripMutation = { duplicateTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type DuplicateTripMutation = { duplicateTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type DuplicateTripMutationVariables = Exact<{
   input: DuplicateTripInput;
@@ -268,7 +268,7 @@ export type ExploreStopsQueryVariables = Exact<{
   feedCode: string;
 }>;
 
-export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: FeedSource, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: any, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: Severity, count: number, sample: string }> } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: Severity, count: number, sample: string }> } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
+export type FeedDetailQuery = { feed: { code: string, name: string, description: string | null, url: string, pollingCron: string | null, enabled: boolean, source: FeedSource, activeRevision: { id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, filesPresent: Array<string>, rowCounts: unknown, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: Severity, count: number, sample: string }> } | null } | null, revisions: Array<{ id: string, status: RevisionStatus, createdAt: string, activatedAt: string | null, supersededAt: string | null, feedStartDate: string | null, feedEndDate: string | null, byteSize: number | null, contentSha256: string | null, errorMessage: string | null, validationSummary: { errorCount: number, warningCount: number, notices: Array<{ rule: string, severity: Severity, count: number, sample: string }> } | null }> } | null, feedInfo: { feedPublisherName: string | null, feedPublisherUrl: string | null, feedLang: string | null, feedStartDate: string | null, feedEndDate: string | null, feedVersion: string | null, feedContactEmail: string | null, feedContactUrl: string | null } | null };
 
 export type FeedDetailQueryVariables = Exact<{
   code: string;
@@ -311,7 +311,7 @@ export type IngestFeedMutationVariables = Exact<{
   feedCode: string;
 }>;
 
-export type OptimizationRecommendationsQuery = { optimizationRecommendations: Array<{ id: string, kind: OptimizationRecommendationKind, status: OptimizationRecommendationStatus, sampleCount: number, deltaSec: number, currentValue: any, proposedValue: any, evidence: any, reason: string }> };
+export type OptimizationRecommendationsQuery = { optimizationRecommendations: Array<{ id: string, kind: OptimizationRecommendationKind, status: OptimizationRecommendationStatus, sampleCount: number, deltaSec: number, currentValue: unknown, proposedValue: unknown, evidence: unknown, reason: string }> };
 
 export type OptimizationRecommendationsQueryVariables = Exact<{
   runId: string | number;
@@ -340,7 +340,7 @@ export type RebuildDraftMutationVariables = Exact<{
   id: string | number;
 }>;
 
-export type RedoDraftEditMutation = { redoDraftEdit: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type RedoDraftEditMutation = { redoDraftEdit: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type RedoDraftEditMutationVariables = Exact<{
   id: string | number;
@@ -390,13 +390,13 @@ export type RoutesQueryVariables = Exact<{
   feedCode: string;
 }>;
 
-export type SetStopDwellMutation = { setStopDwell: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type SetStopDwellMutation = { setStopDwell: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type SetStopDwellMutationVariables = Exact<{
   input: SetStopDwellInput;
 }>;
 
-export type ShiftTripMutation = { shiftTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type ShiftTripMutation = { shiftTrip: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type ShiftTripMutationVariables = Exact<{
   input: ShiftTripInput;
@@ -463,7 +463,7 @@ export type TripsByRouteQueryVariables = Exact<{
   routeId: string;
 }>;
 
-export type UndoDraftEditMutation = { undoDraftEdit: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type UndoDraftEditMutation = { undoDraftEdit: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type UndoDraftEditMutationVariables = Exact<{
   id: string | number;
@@ -478,7 +478,7 @@ export type UpdateFeedMutationVariables = Exact<{
   input: UpdateFeedInput;
 }>;
 
-export type UpdateStopTimeMutation = { updateStopTime: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: any, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
+export type UpdateStopTimeMutation = { updateStopTime: { canUndo: boolean, canRedo: boolean, draft: { id: string, version: number, derivationStale: boolean, lastValidation: unknown, lock: { editor: string, expiresAt: string } | null }, edit: { seq: number, op: string, summary: string, appliedAt: string, undone: boolean } | null } };
 
 export type UpdateStopTimeMutationVariables = Exact<{
   input: UpdateStopTimeInput;
@@ -491,7 +491,7 @@ export type ValidationFindingCountsQueryVariables = Exact<{
   entityType: string;
 }>;
 
-export type ValidationFindingsQuery = { validationFindings: Array<{ ruleId: string, title: string, severity: FindingSeverity, ruleClass: string, entityType: string, entityId: string | null, serviceId: string | null, file: string | null, line: number | null, field: string | null, observedValue: string | null, expectedValue: string | null, details: any, message: string, remediation: string }> };
+export type ValidationFindingsQuery = { validationFindings: Array<{ ruleId: string, title: string, severity: FindingSeverity, ruleClass: string, entityType: string, entityId: string | null, serviceId: string | null, file: string | null, line: number | null, field: string | null, observedValue: string | null, expectedValue: string | null, details: unknown, message: string, remediation: string }> };
 
 export type ValidationFindingsQueryVariables = Exact<{
   feedCode: string;

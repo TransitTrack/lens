@@ -1,15 +1,13 @@
 import { effectScope } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useExploreRoutesQuery } from '../../app/composables/useRestGtfs'
+import { page, stubFetch } from '../helpers/stubFetch'
 
 describe('REST GTFS queries', () => {
   afterEach(() => vi.unstubAllGlobals())
   it('loads routes and agencies from their REST endpoints', async () => {
-    const fetcher = vi.fn(async (input: string) => {
-      const rows = input.includes('/routes?') ? [{ routeId: 'r' }] : [{ agencyId: 'a', agencyName: 'Transit' }]
-      return new Response(JSON.stringify(rows), { headers: { 'X-Total-Count': '1' } })
-    })
-    vi.stubGlobal('fetch', fetcher)
+    const { fetcher } = stubFetch(({ url }) =>
+      page(url.includes('/routes?') ? [{ routeId: 'r' }] : [{ agencyId: 'a', agencyName: 'Transit' }]))
     const scope = effectScope()
     const query = scope.run(() => useExploreRoutesQuery(() => ({ variables: { feedCode: 'f' } })))!
     await vi.waitFor(() => expect(query.result.value?.routes[0]?.routeId).toBe('r'))

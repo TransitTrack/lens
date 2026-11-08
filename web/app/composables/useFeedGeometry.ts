@@ -1,6 +1,6 @@
 import { hexColor, routeTypeLabel } from '~/utils/gtfs'
 import type { GeoJSON } from 'geojson'
-import { ScheduleApi } from '~~/generated/rest'
+import { Schedule } from '~/api'
 
 /** Properties the backend puts on each `kind: 'pattern'` feature. */
 interface PatternProps {
@@ -40,7 +40,6 @@ function distinctRouteColor(routeId: string): string {
  */
 export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
   const { t } = useI18n()
-  const api = new ScheduleApi()
   const all = shallowRef<GeoJSON.Feature[]>([])
   const loading = ref(false)
   watch(gtfsFeedCode, (feedCode, _previous, onCleanup) => {
@@ -49,8 +48,8 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
     all.value = []
     if (!feedCode) { loading.value = false; return }
     loading.value = true
-    api.feedGeometry({ feedCode }, { signal: controller.signal })
-      .then((collection) => { if (!controller.signal.aborted) all.value = (collection as unknown as GeoJSON.FeatureCollection).features })
+    Schedule.feedGeometry({ path: { feedCode }, signal: controller.signal })
+      .then(({ data }) => { if (!controller.signal.aborted) all.value = (data as unknown as GeoJSON.FeatureCollection).features })
       .catch(() => { if (!controller.signal.aborted) all.value = [] })
       .finally(() => { if (!controller.signal.aborted) loading.value = false })
   }, { immediate: true })

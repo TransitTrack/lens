@@ -4,7 +4,7 @@ import { useExploreCalendarQuery } from '~/composables/useRestGtfs'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
-import { GTFSApi, ScheduleApi } from '~~/generated/rest'
+import { Gtfs, Schedule } from '~/api'
 import { fetchAllPages } from '~/utils/restPagination'
 import AppPage from '~/components/shell/AppPage.vue'
 import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
@@ -30,8 +30,6 @@ const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
 const { extent } = useFeedExtent(selectedFeedCode)
-const scheduleApi = new ScheduleApi()
-const gtfsApi = new GTFSApi()
 const stopId = computed(() => String(route.params.stopId))
 
 const { result: stopResult, loading: stopLoading } = useStopDetailQuery(() => ({
@@ -94,8 +92,8 @@ watch(
       const patterns = await Promise.all(keys.map(async (patternKey) => {
         const signal = controller.signal
         const [trips, times] = await Promise.all([
-          fetchAllPages((offset, limit) => gtfsApi.tripsRaw({ feedCode: fc, patternKey, offset, limit }, { signal })),
-          fetchAllPages((offset, limit) => scheduleApi.scheduleTimesRaw({ feedCode: fc, patternKey, offset, limit }, { signal })),
+          fetchAllPages((offset, limit) => Gtfs.trips({ path: { feedCode: fc }, query: { patternKey, offset, limit }, signal })),
+          fetchAllPages((offset, limit) => Schedule.scheduleTimes({ path: { feedCode: fc }, query: { patternKey, offset, limit }, signal })),
         ])
         const timesByTrip = Map.groupBy(times, (time) => time.tripId)
         return {

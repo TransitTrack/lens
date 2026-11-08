@@ -1,4 +1,4 @@
-import { AvlFeedCatalogApi, GTFSApi, ScheduleApi } from '~~/generated/rest'
+import { AvlFeedCatalog, Gtfs, Schedule } from '~/api'
 import type {
   AvlFeedsQuery, ExplorePatternsQuery, ExplorePatternsQueryVariables,
   ExploreRoutesQuery, ExploreRoutesQueryVariables, ExploreStopsQuery, ExploreStopsQueryVariables,
@@ -10,13 +10,9 @@ import { fetchAllPages } from '~/utils/restPagination'
 import { routesById, stopPathsByPattern } from '~/utils/restRelations'
 import { useRestQuery, type RestQueryOptions } from './useRestQuery'
 
-const gtfs = new GTFSApi()
-const schedule = new ScheduleApi()
-const avl = new AvlFeedCatalogApi()
-
 async function explorePatterns(feedCode: string, signal: AbortSignal): Promise<ExplorePatternsQuery['tripPatterns']> {
   const [patterns, routes, stopPaths] = await Promise.all([
-    fetchAllPages((offset, limit) => schedule.tripPatternsRaw({ feedCode, offset, limit }, { signal })),
+    fetchAllPages((offset, limit) => Schedule.tripPatterns({ path: { feedCode }, query: { offset, limit }, signal })),
     routesById({ feedCode }, signal),
     stopPathsByPattern({ feedCode }, signal),
   ])
@@ -24,83 +20,83 @@ async function explorePatterns(feedCode: string, signal: AbortSignal): Promise<E
 }
 
 async function feedsWithActiveRevision(signal: AbortSignal): Promise<FeedsQuery['feeds']> {
-  const feeds = await fetchAllPages((offset, limit) => gtfs.feedsRaw({ offset, limit }, { signal }))
+  const feeds = await fetchAllPages((offset, limit) => Gtfs.feeds({ query: { offset, limit }, signal }))
   return await Promise.all(feeds.map(async (feed) => {
-    const [activeRevision] = await fetchAllPages((offset, limit) => gtfs.revisionsRaw({ feedCode: feed.code, status: 'ACTIVE', offset, limit }, { signal }))
+    const [activeRevision] = await fetchAllPages((offset, limit) => Gtfs.revisions({ path: { feedCode: feed.code }, query: { status: 'ACTIVE', offset, limit }, signal }))
     return { ...feed, activeRevision: activeRevision ?? null }
   })) as FeedsQuery['feeds']
 }
 
 export function useExploreRoutesQuery(options: () => RestQueryOptions<ExploreRoutesQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<ExploreRoutesQuery> => {
+  return useRestQuery('useExploreRoutesQuery', options, async (variables, signal): Promise<ExploreRoutesQuery> => {
     const [routes, agencies] = await Promise.all([
-      fetchAllPages((offset, limit) => gtfs.routesRaw({ ...variables, offset, limit }, { signal })),
-      fetchAllPages((offset, limit) => gtfs.agenciesRaw({ ...variables, offset, limit }, { signal })),
+      fetchAllPages((offset, limit) => Gtfs.routes({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })),
+      fetchAllPages((offset, limit) => Gtfs.agencies({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })),
     ])
     return { routes, agencies } as unknown as ExploreRoutesQuery
   })
 }
 
 export function useExploreStopsQuery(options: () => RestQueryOptions<ExploreStopsQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<ExploreStopsQuery> => ({
-    stops: await fetchAllPages((offset, limit) => gtfs.stopsRaw({ ...variables, offset, limit }, { signal })) as ExploreStopsQuery['stops'],
+  return useRestQuery('useExploreStopsQuery', options, async (variables, signal): Promise<ExploreStopsQuery> => ({
+    stops: await fetchAllPages((offset, limit) => Gtfs.stops({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })) as ExploreStopsQuery['stops'],
   }))
 }
 
 export function useTripsByRouteQuery(options: () => RestQueryOptions<TripsByRouteQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<TripsByRouteQuery> => ({
-    trips: await fetchAllPages((offset, limit) => gtfs.tripsRaw({ ...variables, offset, limit }, { signal })) as TripsByRouteQuery['trips'],
+  return useRestQuery('useTripsByRouteQuery', options, async (variables, signal): Promise<TripsByRouteQuery> => ({
+    trips: await fetchAllPages((offset, limit) => Gtfs.trips({ path: { feedCode: variables.feedCode }, query: { routeId: variables.routeId, offset, limit }, signal })) as TripsByRouteQuery['trips'],
   }))
 }
 
 export function useExplorePatternsQuery(options: () => RestQueryOptions<ExplorePatternsQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<ExplorePatternsQuery> => ({
+  return useRestQuery('useExplorePatternsQuery', options, async (variables, signal): Promise<ExplorePatternsQuery> => ({
     tripPatterns: await explorePatterns(variables.feedCode, signal),
   }))
 }
 
 export function useFeedsQuery(options: () => { pollInterval?: number } = () => ({})) {
-  return useRestQuery(() => ({ ...options(), variables: {} }), async (_variables, signal): Promise<FeedsQuery> => ({
+  return useRestQuery('useFeedsQuery', () => ({ ...options(), variables: {} }), async (_variables, signal): Promise<FeedsQuery> => ({
     feeds: await feedsWithActiveRevision(signal),
   }))
 }
 
 export function useAvlFeedsQuery(options: () => { pollInterval?: number } = () => ({})) {
-  return useRestQuery(() => ({ ...options(), variables: {} }), async (_variables, signal): Promise<AvlFeedsQuery> => ({
-    avlFeeds: await fetchAllPages((offset, limit) => avl.avlFeedsRaw({ offset, limit }, { signal })) as AvlFeedsQuery['avlFeeds'],
+  return useRestQuery('useAvlFeedsQuery', () => ({ ...options(), variables: {} }), async (_variables, signal): Promise<AvlFeedsQuery> => ({
+    avlFeeds: await fetchAllPages((offset, limit) => AvlFeedCatalog.avlFeeds({ query: { offset, limit }, signal })) as AvlFeedsQuery['avlFeeds'],
   }))
 }
 
 export function useExploreCalendarQuery(options: () => RestQueryOptions<ExploreCalendarQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<ExploreCalendarQuery> => {
+  return useRestQuery('useExploreCalendarQuery', options, async (variables, signal): Promise<ExploreCalendarQuery> => {
     const [calendars, calendarDates] = await Promise.all([
-      fetchAllPages((offset, limit) => gtfs.calendarsRaw({ ...variables, offset, limit }, { signal })),
-      fetchAllPages((offset, limit) => gtfs.calendarDatesRaw({ ...variables, offset, limit }, { signal })),
+      fetchAllPages((offset, limit) => Gtfs.calendars({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })),
+      fetchAllPages((offset, limit) => Gtfs.calendarDates({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })),
     ])
     return { calendars, calendarDates } as unknown as ExploreCalendarQuery
   })
 }
 
 export function useAgenciesDetailQuery(options: () => RestQueryOptions<AgenciesDetailQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<AgenciesDetailQuery> => ({
-    agencies: await fetchAllPages((offset, limit) => gtfs.agenciesRaw({ ...variables, offset, limit }, { signal })) as AgenciesDetailQuery['agencies'],
+  return useRestQuery('useAgenciesDetailQuery', options, async (variables, signal): Promise<AgenciesDetailQuery> => ({
+    agencies: await fetchAllPages((offset, limit) => Gtfs.agencies({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })) as AgenciesDetailQuery['agencies'],
   }))
 }
 
 export function useRoutesQuery(options: () => RestQueryOptions<RoutesQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<RoutesQuery> => ({
-    routes: await fetchAllPages((offset, limit) => gtfs.routesRaw({ ...variables, offset, limit }, { signal })) as RoutesQuery['routes'],
+  return useRestQuery('useRoutesQuery', options, async (variables, signal): Promise<RoutesQuery> => ({
+    routes: await fetchAllPages((offset, limit) => Gtfs.routes({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })) as RoutesQuery['routes'],
   }))
 }
 
 export function useStopsQuery(options: () => RestQueryOptions<StopsQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<StopsQuery> => ({
-    stops: await fetchAllPages((offset, limit) => gtfs.stopsRaw({ ...variables, offset, limit }, { signal })) as StopsQuery['stops'],
+  return useRestQuery('useStopsQuery', options, async (variables, signal): Promise<StopsQuery> => ({
+    stops: await fetchAllPages((offset, limit) => Gtfs.stops({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })) as StopsQuery['stops'],
   }))
 }
 
 export function useAgenciesQuery(options: () => RestQueryOptions<AgenciesQueryVariables>) {
-  return useRestQuery(options, async (variables, signal): Promise<AgenciesQuery> => ({
-    agencies: await fetchAllPages((offset, limit) => gtfs.agenciesRaw({ ...variables, offset, limit }, { signal })) as AgenciesQuery['agencies'],
+  return useRestQuery('useAgenciesQuery', options, async (variables, signal): Promise<AgenciesQuery> => ({
+    agencies: await fetchAllPages((offset, limit) => Gtfs.agencies({ path: { feedCode: variables.feedCode }, query: { offset, limit }, signal })) as AgenciesQuery['agencies'],
   }))
 }

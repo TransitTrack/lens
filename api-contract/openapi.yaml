@@ -1,11 +1,11 @@
 openapi: 3.1.0
 info:
-  title: TransitTrack REST API
+  title: Lens REST API
   version: 0.1.0-draft
-  description: 'REST API for TransitTrack. Resources are flat: related resources are referenced by id and read through their
+  description: 'REST API for Lens. Resources are flat: related resources are referenced by id and read through their
     own endpoints.'
 servers:
-- url: /api/v1
+- url: http://localhost:8080/api/v1
 tags:
 - name: GTFS
 - name: AVL

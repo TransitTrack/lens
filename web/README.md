@@ -87,10 +87,16 @@ glossary in `i18n/glossary.json`). Conventions:
 
 ## Regenerating types
 
-The OpenAPI contract is `../api-contract/openapi.yaml`. From the repository root,
-run `./gradlew :app:generateRestClient` after changing it. The generated TypeScript
-client in `generated/rest/` is checked in; backend interfaces and models are
+The OpenAPI contract is `../api-contract/openapi.yaml`. After changing it, run
+`pnpm api:generate` (config: `openapi-ts.config.ts`) to refresh the checked-in
+[Hey API](https://heyapi.dev/docs/openapi/typescript/get-started) client in `generated/api/`:
+typed SDK classes per tag, request/response types and TanStack Query options.
+App code imports it through `~/api`, which also turns failed responses into an
+`ApiError` (HTTP status + the server's `Problem`). Backend interfaces and models are
 generated during the Gradle build.
+
+The older `generated/rest/` client (`./gradlew :app:generateRestClient`) is no longer
+used by the app and is kept only until the Gradle task is removed.
 
 ## Known limitations / deferred
 

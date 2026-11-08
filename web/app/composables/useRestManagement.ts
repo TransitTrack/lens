@@ -1,4 +1,4 @@
-import { GTFSApi, ScheduleApi } from '~~/generated/rest'
+import { Gtfs, Schedule } from '~/api'
 import type {
   IngestFeedMutation, IngestFeedMutationVariables, ActivateRevisionMutation, ActivateRevisionMutationVariables,
   DeleteRevisionMutation, DeleteRevisionMutationVariables, UpdateFeedMutation, UpdateFeedMutationVariables,
@@ -7,34 +7,35 @@ import type {
 import { useRestMutation } from './useRestMutation'
 import { useRestQuery, type RestQueryOptions } from './useRestQuery'
 
-const gtfs = new GTFSApi()
-const schedule = new ScheduleApi()
 export function useCompareRevisionsQuery(options: () => RestQueryOptions<CompareRevisionsQueryVariables>) {
-  return useRestQuery(options, async (v, signal): Promise<CompareRevisionsQuery> => ({
-    compareRevisions: await schedule.compareRevisions({
-      fromRevisionId: String(v.fromRevisionId), toRevisionId: String(v.toRevisionId),
-      routeId: v.routeId ?? undefined, directionId: v.directionId ?? undefined,
-      serviceId: v.serviceId ?? undefined, offset: v.offset ?? undefined, limit: v.limit ?? undefined,
-    }, { signal }) as unknown as CompareRevisionsQuery['compareRevisions'],
+  return useRestQuery('useCompareRevisionsQuery', options, async (v, signal): Promise<CompareRevisionsQuery> => ({
+    compareRevisions: (await Schedule.compareRevisions({
+      query: {
+        fromRevisionId: String(v.fromRevisionId), toRevisionId: String(v.toRevisionId),
+        routeId: v.routeId ?? undefined, directionId: v.directionId ?? undefined,
+        serviceId: v.serviceId ?? undefined, offset: v.offset ?? undefined, limit: v.limit ?? undefined,
+      },
+      signal,
+    })).data as unknown as CompareRevisionsQuery['compareRevisions'],
   }))
 }
 export function useIngestFeedMutation() {
   return useRestMutation<IngestFeedMutation, IngestFeedMutationVariables>(async (v) => ({
-    ingestFeed: await gtfs.ingestFeed({ feedCode: v.feedCode }),
+    ingestFeed: (await Gtfs.ingestFeed({ path: { feedCode: v.feedCode } })).data,
   }) as unknown as IngestFeedMutation)
 }
 export function useActivateRevisionMutation() {
   return useRestMutation<ActivateRevisionMutation, ActivateRevisionMutationVariables>(async (v) => ({
-    activateRevision: await gtfs.activateRevision({ revisionId: String(v.revisionId) }),
+    activateRevision: (await Gtfs.activateRevision({ path: { revisionId: String(v.revisionId) } })).data,
   }) as unknown as ActivateRevisionMutation)
 }
 export function useDeleteRevisionMutation() {
   return useRestMutation<DeleteRevisionMutation, DeleteRevisionMutationVariables>(async (v) => ({
-    deleteRevision: await gtfs.deleteRevision({ id: String(v.revisionId) }),
+    deleteRevision: (await Gtfs.deleteRevision({ path: { id: String(v.revisionId) } })).data,
   }))
 }
 export function useUpdateFeedMutation() {
   return useRestMutation<UpdateFeedMutation, UpdateFeedMutationVariables>(async (v) => ({
-    updateFeed: await gtfs.updateFeed({ code: v.code, updateFeedInput: v.input } as unknown as Parameters<typeof gtfs.updateFeed>[0]),
+    updateFeed: (await Gtfs.updateFeed({ path: { code: v.code }, body: v.input as never })).data,
   }) as unknown as UpdateFeedMutation)
 }
