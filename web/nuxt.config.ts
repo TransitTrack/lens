@@ -16,6 +16,8 @@ export default defineNuxtConfig({
     '@nuxt/content',
     '@nuxtjs/i18n',
     '@scalar/nuxt',
+    '@pinia/nuxt',
+    '@pinia/colada-nuxt',
   ],
   // REST API reference at /openapi (not under /api: the dev proxy below matches that prefix). The
   // backend serves its own contract at /api/v1/openapi.yaml (through the same /api proxy as every
@@ -98,7 +100,7 @@ export default defineNuxtConfig({
     },
   },
   css: ['~/assets/css/main.css'],
-  devtools: { enabled: false },
+  devtools: { enabled: true },
   vite: {
     optimizeDeps: {
       exclude: ['maplibre-gl'],

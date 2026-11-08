@@ -2,6 +2,11 @@
 import vueI18n from '@intlify/eslint-plugin-vue-i18n'
 import withNuxt from './.nuxt/eslint.config.mjs'
 
+const generatedHelperPatterns = [{
+  group: ['~~/generated/api/@pinia/*', '~~/generated/api/@tanstack/*'],
+  message: 'Use the SDK through app/composables/api queries and mutations instead.',
+}]
+
 export default withNuxt(
   {
     // Generated from OpenAPI — checked in, not hand-written; not our style rules to enforce.
@@ -23,6 +28,31 @@ export default withNuxt(
       // analysable and are skipped by the rule; they are declared via `i18n-keys:` markers and
       // verified by `pnpm i18n:check` instead.
       '@intlify/vue-i18n/no-missing-keys': 'error',
+    },
+  },
+  {
+    // Generated Colada / TanStack helpers are replaced by the hand-written queries in app/composables/api.
+    files: ['app/**/*.{ts,vue}'],
+    rules: {
+      'no-restricted-imports': ['warn', {
+        patterns: generatedHelperPatterns,
+      }],
+    },
+  },
+  {
+    // Pinia Colada is called from pages, layouts and app/composables/api only (see the
+    // pinia-colada-queries design). `warn` until the TanStack code is gone, then `error`.
+    files: ['app/components/**/*.{ts,vue}', 'app/composables/**/*.ts'],
+    ignores: ['app/composables/api/**'],
+    rules: {
+      'no-restricted-imports': ['warn', {
+        paths: [{
+          name: '@pinia/colada',
+          importNames: ['useQuery', 'useMutation', 'useQueryCache'],
+          message: 'Call queries and mutations from pages, layouts or app/composables/api only.',
+        }],
+        patterns: generatedHelperPatterns,
+      }],
     },
   },
   {
