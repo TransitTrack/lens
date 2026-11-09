@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { allRoutesAdherenceQuery } from '~/composables/api/queries/avl/allRoutesAdherenceQuery'
+import type { RouteAdherenceSummary } from '~/api'
 import type { TableColumn } from '@nuxt/ui'
-import type { AllRoutesAdherenceQuery } from '~/types/restViews'
-import { useAllRoutesAdherenceQuery } from '~/composables/useRestAdherence'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
@@ -51,18 +52,18 @@ function runReport() {
 }
 
 const {
-  result: adherenceResult,
-  loading: adherenceLoading,
+  data: adherence,
+  isLoading: adherenceLoading,
   error: adherenceError,
-} = useAllRoutesAdherenceQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
-  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+} = useQuery(() => ({
+  ...allRoutesAdherenceQuery({ feedCode: selectedAvlFeedCode.value!, startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' }),
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value,
 }))
 
-type ReportRow = AllRoutesAdherenceQuery['allRoutesAdherence'][number]
+type ReportRow = RouteAdherenceSummary
 
 const rows = computed<ReportRow[]>(() =>
-  [...(adherenceResult.value?.allRoutesAdherence ?? [])].sort((a, b) =>
+  [...(adherence.value ?? [])].sort((a, b) =>
     a.routeId.localeCompare(b.routeId, undefined, { numeric: true }),
   ),
 )

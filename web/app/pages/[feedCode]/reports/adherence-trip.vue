@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { useExploreRoutesQuery, useTripsByRouteQuery } from '~/composables/useRestGtfs'
+import { useQuery } from '@pinia/colada'
+import { tripAdherenceQuery } from '~/composables/api/queries/avl/tripAdherenceQuery'
+import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { tripsQuery } from '~/composables/api/queries/gtfs/tripsQuery'
+import type { StopPassage, Trip } from '~/api'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import type { TripAdherenceQuery, TripsByRouteQuery } from '~/types/restViews'
-import { useTripAdherenceQuery } from '~/composables/useRestAdherence'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
@@ -57,16 +59,16 @@ const filtersAccordionItems = computed(() => [
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
-  result: routesResult,
-  loading: routesLoading,
+  data: routes,
+  isLoading: routesLoading,
   error: routesError,
-} = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+} = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
   enabled: !!selectedFeedCode.value,
 }))
 
 const routeItems = computed(() =>
-  [...(routesResult.value?.routes ?? [])]
+  [...(routes.value ?? [])]
     .sort((a, b) =>
       (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
         numeric: true,
@@ -93,15 +95,13 @@ watch(
   },
 )
 
-const { result: tripsResult, loading: tripsLoading } = useTripsByRouteQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', routeId: filters.routeId ?? '' },
+const { data: trips, isLoading: tripsLoading } = useQuery(() => ({
+  ...tripsQuery({ feedCode: selectedFeedCode.value!, routeId: filters.routeId ?? undefined }),
   enabled: !!selectedFeedCode.value && !!filters.routeId,
 }))
 
-type Trip = TripsByRouteQuery['trips'][number]
-
 const tripItems = computed(() =>
-  [...(tripsResult.value?.trips ?? [])]
+  [...(trips.value ?? [])]
     .sort((a: Trip, b: Trip) => (a.startTimeSec ?? Infinity) - (b.startTimeSec ?? Infinity))
     .map((trip: Trip) => ({
       label: `${trip.tripHeadsign ?? trip.tripShortName ?? trip.tripId}${trip.startTimeSec != null ? ` (${formatHm(trip.startTimeSec)})` : ''}`,
@@ -138,18 +138,18 @@ if (filters.tripId) {
 }
 
 const {
-  result: adherenceResult,
-  loading: adherenceLoading,
+  data: adherence,
+  isLoading: adherenceLoading,
   error: adherenceError,
-} = useTripAdherenceQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', tripId: submitted.value?.tripId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
-  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+} = useQuery(() => ({
+  ...tripAdherenceQuery({ feedCode: selectedAvlFeedCode.value!, tripId: submitted.value?.tripId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' }),
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value,
 }))
 
-type ReportRow = TripAdherenceQuery['tripAdherence'][number]
+type ReportRow = StopPassage
 
 const rows = computed<ReportRow[]>(() =>
-  [...(adherenceResult.value?.tripAdherence ?? [])].sort((a, b) => {
+  [...(adherence.value ?? [])].sort((a, b) => {
     if (a.serviceDate !== b.serviceDate) return a.serviceDate.localeCompare(b.serviceDate)
     return a.stopPathIndex - b.stopPathIndex
   }),
