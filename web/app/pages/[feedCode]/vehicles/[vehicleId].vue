@@ -1,6 +1,23 @@
 <script setup lang="ts">
-import { useFeedPredictionAccuracyQuery, useVehicleDetailQuery, useVehicleTrailQuery } from '~/composables/useRestRealtime'
-import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
+import { useQuery, useQueryCache, type EntryKey } from '@pinia/colada'
+import { vehicleQuery } from '~/composables/api/queries/avl/vehicleQuery'
+import { vehiclePredictionsQuery } from '~/composables/api/queries/avl/vehiclePredictionsQuery'
+import { vehicleTrailQuery } from '~/composables/api/queries/avl/vehicleTrailQuery'
+import { predictionAccuracyQuery } from '~/composables/api/queries/avl/predictionAccuracyQuery'
+import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { tripQuery } from '~/composables/api/queries/gtfs/tripQuery'
+import { routeQuery } from '~/composables/api/queries/gtfs/routeQuery'
+import { routeStopsQuery } from '~/composables/api/queries/gtfs/routeStopsQuery'
+import { shapeQuery } from '~/composables/api/queries/gtfs/shapeQuery'
+import { stopsByIdsQuery } from '~/composables/api/queries/gtfs/stopsByIdsQuery'
+import { tripPatternQuery } from '~/composables/api/queries/schedule/tripPatternQuery'
+import { stopPathsQuery } from '~/composables/api/queries/schedule/stopPathsQuery'
+import { blockQuery } from '~/composables/api/queries/schedule/blockQuery'
+import { blockTripsQuery } from '~/composables/api/queries/schedule/blockTripsQuery'
+import type { PredictionAlgorithm } from '~/api'
+import type { PredictionAccuracy } from '~/types/restViews'
+import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
+import { missingStopIds, needsShape, vehicleDetail, vehiclePattern, type VehicleDetail } from '~/utils/joins/vehicleDetail'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
@@ -36,8 +53,8 @@ import { useSplitLayout } from '~/composables/useSplitLayout'
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath } = useFeeds()
-const { intervalMs } = usePollControl()
+const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath, avlFeeds } = useFeeds()
+const { paused, intervalMs } = usePollControl()
 const units = useUnits()
 const toast = useToast()
 const vehicleId = computed(() => String(route.params.vehicleId))
@@ -53,37 +70,159 @@ const algorithm = computed({
   },
 })
 
-const { result, loading, error } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, algorithm: algorithm.value },
-  enabled: !!selectedAvlFeedCode.value,
-  pollInterval: intervalMs.value,
+// --- the vehicle and its relations --------------------------------------------
+// The vehicle and its predictions poll; what they point into is pinned to the vehicle's revision and read once.
+// Pausing stops auto-refetch; a paused query still loads once when its own key has no cached data yet. The
+// cache is read by key, not through `data` (which holds the previous key's placeholder).
+const queryCache = useQueryCache()
+const pollInterval = () => (paused.value ? false : intervalMs.value)
+const pollEnabled = (base: boolean, key: EntryKey) =>
+  base && (!paused.value || queryCache.getQueryData(key) === undefined)
+
+const vehicleQ = useQuery(() => {
+  const options = vehicleQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value })
+  return { ...options, enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key), autoRefetch: pollInterval }
+})
+const predictionsQ = useQuery(() => {
+  const options = vehiclePredictionsQuery({
+    avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value,
+    algorithm: algorithm.value as PredictionAlgorithm | undefined,
+  })
+  return { ...options, enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key), autoRefetch: pollInterval }
+})
+const liveVehicle = computed(() => (selectedAvlFeedCode.value ? vehicleQ.data.value ?? null : null))
+const livePredictions = computed(() => (selectedAvlFeedCode.value ? predictionsQ.data.value ?? [] : []))
+
+const gtfsFeedCode = computed(() =>
+  selectedAvlFeedCode.value ? gtfsFeedCodeOf(avlFeeds.value, selectedAvlFeedCode.value) : null,
+)
+const scope = computed(() => {
+  const revisionId = liveVehicle.value?.revisionId
+  return gtfsFeedCode.value && revisionId ? { feedCode: gtfsFeedCode.value, revisionId } : null
+})
+const pinned = () => scope.value ?? { feedCode: '' }
+
+const tripEnabled = computed(() => !!scope.value && !!liveVehicle.value?.tripId)
+const tripQ = useQuery(() => ({
+  ...tripQuery({ ...pinned(), tripId: liveVehicle.value?.tripId ?? '' }),
+  enabled: tripEnabled.value,
+}))
+const trip = computed(() => (tripEnabled.value ? tripQ.data.value ?? null : null))
+
+const routeEnabled = computed(() => !!trip.value)
+const routeQ = useQuery(() => ({
+  ...routeQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
+  enabled: routeEnabled.value,
+}))
+const patternEnabled = computed(() => !!trip.value?.patternKey)
+const patternQ = useQuery(() => ({
+  ...tripPatternQuery({ ...pinned(), patternKey: trip.value?.patternKey ?? '' }),
+  enabled: patternEnabled.value,
+}))
+const stopPathsQ = useQuery(() => ({
+  ...stopPathsQuery({ ...pinned(), routeId: trip.value?.routeId, patternKey: trip.value?.patternKey ?? undefined }),
+  enabled: patternEnabled.value,
+}))
+const routeStopsQ = useQuery(() => ({
+  ...routeStopsQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
+  enabled: patternEnabled.value,
+}))
+const blockEnabled = computed(() => !!trip.value?.blockId)
+const blockParams = () => ({ ...pinned(), blockId: trip.value?.blockId ?? '', serviceId: trip.value?.serviceId ?? '' })
+const blockQ = useQuery(() => ({ ...blockQuery(blockParams()), enabled: blockEnabled.value }))
+const blockTripsQ = useQuery(() => ({ ...blockTripsQuery(blockParams()), enabled: blockEnabled.value }))
+
+/** Still waiting on an enabled read (no data of its own key yet, and no error). */
+const pending = (enabled: boolean, q: { data: Readonly<Ref<unknown>>, error: Readonly<Ref<unknown>>, isPlaceholderData: Readonly<Ref<boolean>> }) =>
+  enabled && !q.error.value && (q.data.value === undefined || q.isPlaceholderData.value)
+
+const pattern = computed(() => (patternEnabled.value ? patternQ.data.value ?? null : null))
+const patternSettled = computed(() =>
+  !pending(tripEnabled.value, tripQ)
+  && !pending(patternEnabled.value, patternQ) && !pending(patternEnabled.value, stopPathsQ) && !pending(patternEnabled.value, routeStopsQ),
+)
+const joinedPattern = computed(() =>
+  trip.value ? vehiclePattern(trip.value, pattern.value, stopPathsQ.data.value ?? [], routeStopsQ.data.value ?? []) : null,
+)
+// The route line falls back to the GTFS shape only when the pattern has no usable geometry.
+const shapeEnabled = computed(() => patternSettled.value && !!trip.value?.shapeId && needsShape(pattern.value))
+const shapeQ = useQuery(() => ({
+  ...shapeQuery({ ...pinned(), shapeId: trip.value?.shapeId ?? '' }),
+  enabled: shapeEnabled.value,
+}))
+// The current and predicted stops sit on the pattern; read only those that aren't there.
+const missingStops = computed(() =>
+  patternSettled.value && !pending(true, vehicleQ) && !pending(true, predictionsQ)
+    ? missingStopIds(liveVehicle.value, livePredictions.value, joinedPattern.value)
+    : [],
+)
+const stopsEnabled = computed(() => !!scope.value && missingStops.value.length > 0)
+const stopsQ = useQuery(() => ({
+  ...stopsByIdsQuery({ ...pinned(), stopIds: missingStops.value }),
+  enabled: stopsEnabled.value,
 }))
 
-const { result: trailResult } = useVehicleTrailQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 },
-  enabled: !!selectedAvlFeedCode.value,
-  pollInterval: intervalMs.value,
-}))
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+const chain = computed(() => [
+  { enabled: !!selectedAvlFeedCode.value, q: vehicleQ },
+  { enabled: !!selectedAvlFeedCode.value, q: predictionsQ },
+  { enabled: tripEnabled.value, q: tripQ },
+  { enabled: routeEnabled.value, q: routeQ },
+  { enabled: patternEnabled.value, q: patternQ },
+  { enabled: patternEnabled.value, q: stopPathsQ },
+  { enabled: patternEnabled.value, q: routeStopsQ },
+  { enabled: blockEnabled.value, q: blockQ },
+  { enabled: blockEnabled.value, q: blockTripsQ },
+  { enabled: shapeEnabled.value, q: shapeQ },
+  { enabled: stopsEnabled.value, q: stopsQ },
+])
+// Like the single composite read it replaces: the joined detail appears once every read it needs has
+// answered, and the previous detail stays on screen meanwhile (a new trip, another vehicle).
+const detail = computed<VehicleDetail | null>((previous) => {
+  if (chain.value.some(({ enabled, q }) => pending(enabled, q))) return previous ?? null
+  return vehicleDetail({
+    vehicle: liveVehicle.value,
+    predictions: livePredictions.value,
+    trip: trip.value,
+    route: routeEnabled.value ? routeQ.data.value ?? null : null,
+    shape: shapeEnabled.value ? shapeQ.data.value ?? null : null,
+    pattern: pattern.value,
+    stopPaths: patternEnabled.value ? stopPathsQ.data.value ?? [] : [],
+    routeStops: patternEnabled.value ? routeStopsQ.data.value ?? [] : [],
+    block: blockEnabled.value ? blockQ.data.value ?? null : null,
+    blockTrips: blockEnabled.value ? blockTripsQ.data.value ?? [] : [],
+    stops: stopsEnabled.value ? stopsQ.data.value ?? [] : [],
+  })
+})
+const loading = computed(() => chain.value.some(({ enabled, q }) => enabled && q.isLoading.value))
+const error = computed(() => chain.value.find(({ enabled, q }) => enabled && q.error.value)?.q.error.value ?? null)
+
+const { data: trailData } = useQuery(() => {
+  const options = vehicleTrailQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 })
+  return { ...options, enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key), autoRefetch: pollInterval }
+})
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value ?? '' }),
   enabled: !!selectedFeedCode.value,
 }))
 const agencyTimezone = computed(
-  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
+  () => agencies.value?.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )
 
-const vehicle = computed(() => result.value?.vehicle ?? null)
-const predictions = computed(() => result.value?.vehiclePredictions ?? [])
+const vehicle = computed(() => detail.value?.vehicle ?? null)
+const predictions = computed(() => detail.value?.vehiclePredictions ?? [])
 // Feed-wide aggregate (last 7 days) — slow to compute and the same for every vehicle, so poll it rarely.
-const { result: accuracyResult } = useFeedPredictionAccuracyQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '' },
-  enabled: !!selectedAvlFeedCode.value,
-  pollInterval: 5 * 60_000,
-}))
-const accuracy = computed(() => accuracyResult.value?.predictionAccuracy ?? [])
+const { data: accuracyData } = useQuery(() => {
+  const options = predictionAccuracyQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '' })
+  return {
+    ...options,
+    enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key),
+    autoRefetch: () => (paused.value ? false : 5 * 60_000),
+  }
+})
+const accuracy = computed(() => (accuracyData.value ?? []) as unknown as PredictionAccuracy)
 
-// avlReports come back newest-first (backend `OrderByTsDesc`).
-const vehicleTrail = computed(() => trailResult.value?.vehicleTrail ?? null)
+// The backend summarises the vehicle's recent movement (track, cadence, newest status, speeds).
+const vehicleTrail = computed(() => (selectedAvlFeedCode.value ? trailData.value ?? null : null))
 const trail = computed(() => trackCoords(vehicleTrail.value?.track ?? []))
 
 const avlLogOpen = ref(false)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { useVehicleDetailQuery } from '~/composables/useRestRealtime'
-import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
+import type { AvlReport } from '~/api'
 import type { VehicleRow } from '~/types/vehicles'
+import type { VehicleDetail } from '~/utils/joins/vehicleDetail'
 import type { LngLatBoundsExtent } from '~/utils/joins/extent'
 import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'
@@ -9,7 +9,6 @@ import VehicleMap, { type SelectedRouteOverlay } from '~/components/vehicles/Veh
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
 import { chosenAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
-import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useFeeds } from '~/composables/useFeeds'
 
@@ -24,6 +23,12 @@ const props = defineProps<{
   extent?: LngLatBoundsExtent | null
   /** The feed's network geometry features, drawn under the fleet. */
   networkFeatures?: GeoJSON.Feature[]
+  /** The selected vehicle with its relations and predictions (read by the page). */
+  detail?: VehicleDetail | null
+  detailLoading?: boolean
+  /** The selected vehicle's newest AVL reports, newest first. */
+  recentReports?: AvlReport[]
+  agencyTimezone?: string | null
 }>()
 
 const { locale } = useI18n()
@@ -34,7 +39,8 @@ const emit = defineEmits<{
 }>()
 
 const filters = ref(emptyFilters())
-const selectedVehicleId = ref<string | null>(null)
+/** The vehicle picked on the map or in the list; the page reads its detail. */
+const selectedVehicleId = defineModel<string | null>('selectedVehicleId', { default: null })
 const filteredVehicles = computed(() => filterVehicles(props.vehicles, filters.value))
 const showSkeleton = computed(() => props.loading && props.vehicles.length === 0)
 const matchedVehicles = computed(
@@ -44,7 +50,6 @@ const attentionVehicles = computed(
   () => props.vehicles.filter((vehicle) => vehicle.stale || !vehicle.matched).length,
 )
 
-const { intervalMs } = usePollControl()
 const { showTripDetails, boardListCollapsed } = useVehicleListPrefs()
 const { feedPath, selectedFeed } = useFeeds()
 
@@ -52,23 +57,8 @@ const selectedPredictionAlgorithm = computed(() =>
   chosenAlgorithm(selectedFeed.value?.predictionAlgorithms ?? []),
 )
 
-const { result: selectedVehicleResult } = useVehicleDetailQuery(() => ({
-  variables: {
-    feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '', algorithm: selectedPredictionAlgorithm.value,
-  },
-  enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value,
-}))
-
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '' },
-  enabled: !!props.feedCode,
-}))
-const agencyTimezone = computed(
-  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
-)
-
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
-  const vehicle = selectedVehicleResult.value?.vehicle
+  const vehicle = props.detail?.vehicle
   if (!vehicle) return null
 
   return {
@@ -76,9 +66,9 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
     line: routeLine(vehicle),
     stops: stopFeatureCollection(
       vehicle,
-      selectedVehicleResult.value?.vehiclePredictions ?? [],
+      props.detail?.vehiclePredictions ?? [],
       selectedPredictionAlgorithm.value,
-      agencyTimezone.value ?? undefined,
+      props.agencyTimezone ?? undefined,
       locale.value,
     ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
@@ -133,6 +123,10 @@ const mapInsetRight = computed(() =>
       :selected-route="selectedRoute"
       :inset-right="mapInsetRight"
       :network-features="networkFeatures"
+      :detail="detail"
+      :detail-loading="detailLoading"
+      :recent-reports="recentReports"
+      :agency-timezone="agencyTimezone"
       @select="selectVehicle"
       @view-trip="viewTripDetails"
       @view-block="viewBlockDetails"

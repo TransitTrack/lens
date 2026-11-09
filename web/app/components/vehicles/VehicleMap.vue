@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import MapToolLayers from '~/components/map/MapToolLayers.vue'
 import MapToolbox from '~/components/map/MapToolbox.vue'
+import type { AvlReport } from '~/api'
 import type { VehicleRow } from '~/types/vehicles'
+import type { VehicleDetail } from '~/utils/joins/vehicleDetail'
 import VehicleDetailCard from '~/components/vehicles/VehicleDetailCard.vue'
 import VehicleMapLegend from '~/components/vehicles/VehicleMapLegend.vue'
 import FeedNetworkLayer from '~/components/map/FeedNetworkLayer.vue'
@@ -31,6 +33,12 @@ const props = withDefaults(
     insetRight?: number
     /** The feed's network geometry features (the page reads them once `networkArmed` fired). */
     networkFeatures?: GeoJSON.Feature[]
+    /** The selected vehicle's detail, for its popup card (read by the page). */
+    detail?: VehicleDetail | null
+    detailLoading?: boolean
+    /** The selected vehicle's newest AVL reports, newest first. */
+    recentReports?: AvlReport[]
+    agencyTimezone?: string | null
   }>(),
   {
     extent: null,
@@ -39,6 +47,10 @@ const props = withDefaults(
     selectedVehicleId: null,
     insetRight: 0,
     networkFeatures: () => [],
+    detail: null,
+    detailLoading: false,
+    recentReports: () => [],
+    agencyTimezone: null,
   },
 )
 
@@ -701,7 +713,10 @@ watch(
       >
         <VehicleDetailCard
           :vehicle="activeVehicle"
-          :feed-code="feedCode"
+          :vehicle-detail="detail"
+          :detail-loading="detailLoading && selectedVehicleId === activeVehicle.vehicleId"
+          :recent-reports="recentReports"
+          :agency-timezone="agencyTimezone"
           @close="activeVehicleId = null"
           @view-trip="emit('viewTrip', $event)"
           @view-block="emit('viewBlock', $event)"
