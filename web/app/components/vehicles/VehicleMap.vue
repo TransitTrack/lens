@@ -33,10 +33,10 @@ const props = withDefaults(
     insetRight?: number
     /** The feed's network geometry features (the page reads them once `networkArmed` fired). */
     networkFeatures?: GeoJSON.Feature[]
-    /** The selected vehicle's detail, for its popup card (read by the page). */
-    detail?: VehicleDetail | null
-    detailLoading?: boolean
-    /** The selected vehicle's newest AVL reports, newest first. */
+    /** The popup vehicle's detail, for its card (read by the page for `activeVehicleId`). */
+    cardDetail?: VehicleDetail | null
+    cardDetailLoading?: boolean
+    /** The popup vehicle's newest AVL reports, newest first. */
     recentReports?: AvlReport[]
     agencyTimezone?: string | null
   }>(),
@@ -47,8 +47,8 @@ const props = withDefaults(
     selectedVehicleId: null,
     insetRight: 0,
     networkFeatures: () => [],
-    detail: null,
-    detailLoading: false,
+    cardDetail: null,
+    cardDetailLoading: false,
     recentReports: () => [],
     agencyTimezone: null,
   },
@@ -149,7 +149,8 @@ watch(
   },
 )
 
-const activeVehicleId = ref<string | null>(null)
+/** The vehicle whose popup card is open; the page reads the card's detail for it. */
+const activeVehicleId = defineModel<string | null>('activeVehicleId', { default: null })
 const activeVehicle = computed(
   () => props.vehicles.find((v) => v.vehicleId === activeVehicleId.value) ?? null,
 )
@@ -713,8 +714,8 @@ watch(
       >
         <VehicleDetailCard
           :vehicle="activeVehicle"
-          :vehicle-detail="detail"
-          :detail-loading="detailLoading && selectedVehicleId === activeVehicle.vehicleId"
+          :vehicle-detail="cardDetail"
+          :detail-loading="cardDetailLoading"
           :recent-reports="recentReports"
           :agency-timezone="agencyTimezone"
           @close="activeVehicleId = null"

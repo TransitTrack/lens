@@ -23,10 +23,12 @@ const props = defineProps<{
   extent?: LngLatBoundsExtent | null
   /** The feed's network geometry features, drawn under the fleet. */
   networkFeatures?: GeoJSON.Feature[]
-  /** The selected vehicle with its relations and predictions (read by the page). */
+  /** The selected vehicle with its relations and predictions, for the route overlay (read by the page). */
   detail?: VehicleDetail | null
-  detailLoading?: boolean
-  /** The selected vehicle's newest AVL reports, newest first. */
+  /** The popup vehicle's detail, for its card (read by the page). */
+  cardDetail?: VehicleDetail | null
+  cardDetailLoading?: boolean
+  /** The popup vehicle's newest AVL reports, newest first. */
   recentReports?: AvlReport[]
   agencyTimezone?: string | null
 }>()
@@ -41,6 +43,8 @@ const emit = defineEmits<{
 const filters = ref(emptyFilters())
 /** The vehicle picked on the map or in the list; the page reads its detail. */
 const selectedVehicleId = defineModel<string | null>('selectedVehicleId', { default: null })
+/** The vehicle whose popup card is open on the map; the page reads its detail for the card. */
+const activeVehicleId = defineModel<string | null>('activeVehicleId', { default: null })
 const filteredVehicles = computed(() => filterVehicles(props.vehicles, filters.value))
 const showSkeleton = computed(() => props.loading && props.vehicles.length === 0)
 const matchedVehicles = computed(
@@ -116,6 +120,7 @@ const mapInsetRight = computed(() =>
     :aria-label="$t('vehicles.board.ariaLabel')"
   >
     <VehicleMap
+      v-model:active-vehicle-id="activeVehicleId"
       :vehicles="filteredVehicles"
       :extent="extent"
       :feed-code="feedCode"
@@ -123,8 +128,8 @@ const mapInsetRight = computed(() =>
       :selected-route="selectedRoute"
       :inset-right="mapInsetRight"
       :network-features="networkFeatures"
-      :detail="detail"
-      :detail-loading="detailLoading"
+      :card-detail="cardDetail"
+      :card-detail-loading="cardDetailLoading"
       :recent-reports="recentReports"
       :agency-timezone="agencyTimezone"
       @select="selectVehicle"

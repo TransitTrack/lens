@@ -1,3 +1,4 @@
+import type { Ref } from 'vue'
 import type { Block, BlockTrip, Route, Shape, Stop, StopPath, StopPrediction, Trip, TripPattern, Vehicle } from '~/api'
 import type { VehicleDetailQuery } from '~/types/restViews'
 import { geometryLine } from '~/utils/gtfs'
@@ -88,4 +89,35 @@ export function vehicleDetail(parts: VehicleDetailParts): VehicleDetail {
     currentStop: vehicle.currentStopId ? stops.get(vehicle.currentStopId) ?? null : null,
   }
   return { vehicle: joined, vehiclePredictions } as unknown as VehicleDetail
+}
+
+/** One read of a page's query chain: whether the page enabled it, and its `useQuery` state refs. */
+export interface ChainRead {
+  enabled: boolean
+  q: {
+    data: Readonly<Ref<unknown>>
+    isPlaceholderData: Readonly<Ref<boolean>>
+    error: Readonly<Ref<Error | null>>
+    isLoading: Readonly<Ref<boolean>>
+  }
+}
+
+/** An enabled read still waiting: no data of its own key yet (none, or only the previous key's placeholder) and no error. */
+export function readPending({ enabled, q }: ChainRead): boolean {
+  return enabled && !q.error.value && (q.data.value === undefined || q.isPlaceholderData.value)
+}
+
+/** Some enabled read of the chain has not answered yet (see `readPending`). */
+export function chainPending(reads: ChainRead[]): boolean {
+  return reads.some(readPending)
+}
+
+/** Some enabled read of the chain is fetching (first load or a poll). */
+export function chainLoading(reads: ChainRead[]): boolean {
+  return reads.some(({ enabled, q }) => enabled && q.isLoading.value)
+}
+
+/** The first error among the chain's enabled reads. */
+export function chainError(reads: ChainRead[]): Error | null {
+  return reads.find(({ enabled, q }) => enabled && q.error.value)?.q.error.value ?? null
 }

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { gzipSync, strToU8 } from 'fflate'
+import { ref } from 'vue'
 import type { Block, BlockTrip, Route, Shape, Stop, StopPath, StopPrediction, Trip, TripPattern, Vehicle } from '~/api'
-import { missingStopIds, needsShape, vehicleDetail, vehiclePattern } from '~/utils/joins/vehicleDetail'
+import {
+  chainError, chainLoading, chainPending, missingStopIds, needsShape, readPending, vehicleDetail, vehiclePattern,
+} from '~/utils/joins/vehicleDetail'
 
 const as = <T>(v: unknown) => v as T
 const encode = (value: unknown) => btoa(String.fromCharCode(...gzipSync(strToU8(JSON.stringify(value)))))
@@ -86,5 +89,35 @@ describe('vehicleDetail', () => {
     const detail = vehicleDetail({ vehicle: null, predictions })
     expect(detail.vehicle).toBeNull()
     expect(detail.vehiclePredictions.map((p) => p.stop)).toEqual([null, null])
+  })
+})
+
+describe('read chain state', () => {
+  const read = (enabled: boolean, s: { data?: unknown, isPlaceholderData?: boolean, error?: Error | null, isLoading?: boolean }) => ({
+    enabled,
+    q: {
+      data: ref(s.data), isPlaceholderData: ref(s.isPlaceholderData ?? false),
+      error: ref(s.error ?? null), isLoading: ref(s.isLoading ?? false),
+    },
+  })
+
+  it('is pending while an enabled read has no data of its own key and no error', () => {
+    expect(readPending(read(true, {}))).toBe(true)
+    expect(readPending(read(true, { data: 'old', isPlaceholderData: true }))).toBe(true)
+    expect(readPending(read(true, { data: null }))).toBe(false)
+    expect(readPending(read(true, { error: new Error('x') }))).toBe(false)
+    expect(readPending(read(false, {}))).toBe(false)
+  })
+
+  it('reports any pending, any loading and the first error of the enabled reads', () => {
+    const failed = new Error('boom')
+    const reads = [read(true, { data: 1, isLoading: false }), read(false, { isLoading: true, error: new Error('off') }), read(true, { error: failed })]
+    expect(chainPending(reads)).toBe(false)
+    expect(chainLoading(reads)).toBe(false)
+    expect(chainError(reads)).toBe(failed)
+    const busy = [read(true, { data: 1, isLoading: true }), read(true, {})]
+    expect(chainPending(busy)).toBe(true)
+    expect(chainLoading(busy)).toBe(true)
+    expect(chainError(busy)).toBeNull()
   })
 })

@@ -43,7 +43,7 @@ describe('vehicle detail page polling', () => {
       if (pathname.endsWith('/avl/vehicles/v1')) return json(vehicle)
       if (pathname.endsWith('/avl/vehicles/v1/trail')) return json({ track: [], speeds: [] })
       if (pathname.endsWith('/trips/T')) return json({ tripId: 'T', routeId: 'R', serviceId: 'WK', patternKey: 'P' })
-      if (pathname.endsWith('/routes/R')) return json({ routeId: 'R', routeShortName: '7' })
+      if (pathname.endsWith('/routes/R')) return json({ routeId: 'R', routeShortName: 'R7-DETAIL' })
       if (pathname.endsWith('/trip-patterns/P')) return json({ patternKey: 'P', geometry: null })
       if (pathname.endsWith('/avl/vehicles/v1/reports')) return json([report])
       if (pathname.endsWith('/feeds/g/routes')) return page([{ routeId: 'R', routeShortName: 'R-SEVEN' }])
@@ -81,7 +81,7 @@ describe('vehicle detail page polling', () => {
     expect(count('/trip-patterns/P')).toBe(1)
     // The current stop is not on the (empty) pattern: read by id once, not per poll.
     expect(paths().filter((p) => p.endsWith('/feeds/g/stops'))).toHaveLength(1)
-    expect(wrapper.text()).toContain('7')
+    expect(wrapper.text()).toContain('R7-DETAIL')
 
     usePollControl().toggle()
     await settle()

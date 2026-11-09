@@ -18,7 +18,10 @@ import { blockTripsQuery } from '~/composables/api/queries/schedule/blockTripsQu
 import type { PredictionAlgorithm } from '~/api'
 import { agenciesExtent } from '~/utils/joins/extent'
 import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
-import { missingStopIds, needsShape, vehicleDetail, vehiclePattern, type VehicleDetail } from '~/utils/joins/vehicleDetail'
+import {
+  chainLoading, chainPending, missingStopIds, needsShape, readPending, vehicleDetail, vehiclePattern,
+  type ChainRead, type VehicleDetail,
+} from '~/utils/joins/vehicleDetail'
 import { chosenAlgorithm } from '~/utils/vehicleDetail'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
@@ -59,139 +62,150 @@ const { data: geometry } = useQuery(() => ({
 }))
 const networkFeatures = computed(() => (geometry.value as GeoJSON.FeatureCollection | undefined)?.features ?? [])
 
-// The vehicle picked on the board (map or list): its detail feeds the route overlay and the popup card.
-const selectedVehicleId = ref<string | null>(null)
-watch(selectedAvlFeedCode, () => {
-  selectedVehicleId.value = null
-})
-const selecting = computed(() => !!selectedAvlFeedCode.value && !!selectedVehicleId.value)
 const algorithm = computed(() => chosenAlgorithm(selectedFeed.value?.predictionAlgorithms ?? []))
-
-// --- the selected vehicle and its relations ---------------------------------------
-// The vehicle and its predictions poll; what they point into is pinned to the vehicle's revision and read once.
-
-const vehicleQ = useQuery(() => {
-  const options = vehicleQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: selectedVehicleId.value ?? '' })
-  return { ...options, enabled: pollEnabled(selecting.value, options.key), autoRefetch: pollInterval }
-})
-const predictionsQ = useQuery(() => {
-  const options = vehiclePredictionsQuery({
-    avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: selectedVehicleId.value ?? '',
-    algorithm: algorithm.value as PredictionAlgorithm | undefined,
-  })
-  return { ...options, enabled: pollEnabled(selecting.value, options.key), autoRefetch: pollInterval }
-})
-const liveVehicle = computed(() => (selecting.value ? vehicleQ.data.value ?? null : null))
-const livePredictions = computed(() => (selecting.value ? predictionsQ.data.value ?? [] : []))
-
 const gtfsFeedCode = computed(() =>
   selectedAvlFeedCode.value ? gtfsFeedCodeOf(avlFeeds.value, selectedAvlFeedCode.value) : null,
 )
-const scope = computed(() => {
-  const revisionId = liveVehicle.value?.revisionId
-  return gtfsFeedCode.value && revisionId ? { feedCode: gtfsFeedCode.value, revisionId } : null
-})
-const pinned = () => scope.value ?? { feedCode: '' }
 
-const tripEnabled = computed(() => !!scope.value && !!liveVehicle.value?.tripId)
-const tripQ = useQuery(() => ({
-  ...tripQuery({ ...pinned(), tripId: liveVehicle.value?.tripId ?? '' }),
-  enabled: tripEnabled.value,
-}))
-const trip = computed(() => (tripEnabled.value ? tripQ.data.value ?? null : null))
-
-const routeEnabled = computed(() => !!trip.value)
-const routeQ = useQuery(() => ({
-  ...routeQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
-  enabled: routeEnabled.value,
-}))
-const patternEnabled = computed(() => !!trip.value?.patternKey)
-const patternQ = useQuery(() => ({
-  ...tripPatternQuery({ ...pinned(), patternKey: trip.value?.patternKey ?? '' }),
-  enabled: patternEnabled.value,
-}))
-const stopPathsQ = useQuery(() => ({
-  ...stopPathsQuery({ ...pinned(), routeId: trip.value?.routeId, patternKey: trip.value?.patternKey ?? undefined }),
-  enabled: patternEnabled.value,
-}))
-const routeStopsQ = useQuery(() => ({
-  ...routeStopsQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
-  enabled: patternEnabled.value,
-}))
-const blockEnabled = computed(() => !!trip.value?.blockId)
-const blockParams = () => ({ ...pinned(), blockId: trip.value?.blockId ?? '', serviceId: trip.value?.serviceId ?? '' })
-const blockQ = useQuery(() => ({ ...blockQuery(blockParams()), enabled: blockEnabled.value }))
-const blockTripsQ = useQuery(() => ({ ...blockTripsQuery(blockParams()), enabled: blockEnabled.value }))
-
-/** Still waiting on an enabled read (no data of its own key yet, and no error). */
-const pending = (enabled: boolean, q: { data: Readonly<Ref<unknown>>, error: Readonly<Ref<unknown>>, isPlaceholderData: Readonly<Ref<boolean>> }) =>
-  enabled && !q.error.value && (q.data.value === undefined || q.isPlaceholderData.value)
-
-const pattern = computed(() => (patternEnabled.value ? patternQ.data.value ?? null : null))
-const patternSettled = computed(() =>
-  !pending(tripEnabled.value, tripQ)
-  && !pending(patternEnabled.value, patternQ) && !pending(patternEnabled.value, stopPathsQ) && !pending(patternEnabled.value, routeStopsQ),
-)
-const joinedPattern = computed(() =>
-  trip.value ? vehiclePattern(trip.value, pattern.value, stopPathsQ.data.value ?? [], routeStopsQ.data.value ?? []) : null,
-)
-// The route line falls back to the GTFS shape only when the pattern has no usable geometry.
-const shapeEnabled = computed(() => patternSettled.value && !!trip.value?.shapeId && needsShape(pattern.value))
-const shapeQ = useQuery(() => ({
-  ...shapeQuery({ ...pinned(), shapeId: trip.value?.shapeId ?? '' }),
-  enabled: shapeEnabled.value,
-}))
-// The current and predicted stops sit on the pattern; read only those that aren't there.
-const missingStops = computed(() =>
-  patternSettled.value && !pending(selecting.value, vehicleQ) && !pending(selecting.value, predictionsQ)
-    ? missingStopIds(liveVehicle.value, livePredictions.value, joinedPattern.value)
-    : [],
-)
-const stopsEnabled = computed(() => !!scope.value && missingStops.value.length > 0)
-const stopsQ = useQuery(() => ({
-  ...stopsByIdsQuery({ ...pinned(), stopIds: missingStops.value }),
-  enabled: stopsEnabled.value,
-}))
-
-const chain = computed(() => [
-  { enabled: selecting.value, q: vehicleQ },
-  { enabled: selecting.value, q: predictionsQ },
-  { enabled: tripEnabled.value, q: tripQ },
-  { enabled: routeEnabled.value, q: routeQ },
-  { enabled: patternEnabled.value, q: patternQ },
-  { enabled: patternEnabled.value, q: stopPathsQ },
-  { enabled: patternEnabled.value, q: routeStopsQ },
-  { enabled: blockEnabled.value, q: blockQ },
-  { enabled: blockEnabled.value, q: blockTripsQ },
-  { enabled: shapeEnabled.value, q: shapeQ },
-  { enabled: stopsEnabled.value, q: stopsQ },
-])
-// Like the single composite read it replaces: the joined detail appears once every read it needs has
-// answered, and the previous detail stays on screen meanwhile (a new trip, another vehicle).
-const detail = computed<VehicleDetail | null>((previous) => {
-  if (chain.value.some(({ enabled, q }) => pending(enabled, q))) return previous ?? null
-  return vehicleDetail({
-    vehicle: liveVehicle.value,
-    predictions: livePredictions.value,
-    trip: trip.value,
-    route: routeEnabled.value ? routeQ.data.value ?? null : null,
-    shape: shapeEnabled.value ? shapeQ.data.value ?? null : null,
-    pattern: pattern.value,
-    stopPaths: patternEnabled.value ? stopPathsQ.data.value ?? [] : [],
-    routeStops: patternEnabled.value ? routeStopsQ.data.value ?? [] : [],
-    block: blockEnabled.value ? blockQ.data.value ?? null : null,
-    blockTrips: blockEnabled.value ? blockTripsQ.data.value ?? [] : [],
-    stops: stopsEnabled.value ? stopsQ.data.value ?? [] : [],
+/**
+ * The reads behind one vehicle's joined detail. The vehicle and its predictions poll; what they point into
+ * is pinned to the vehicle's revision and read once. Used for the board's selected vehicle and for the popup's
+ * vehicle — the same id shares every cache entry, so the two never duplicate a request.
+ */
+function vehicleDetailReads(vehicleId: () => string | null) {
+  const active = computed(() => !!selectedAvlFeedCode.value && !!vehicleId())
+  const vehicleQ = useQuery(() => {
+    const options = vehicleQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId() ?? '' })
+    return { ...options, enabled: pollEnabled(active.value, options.key), autoRefetch: pollInterval }
   })
-})
-const detailLoading = computed(() => chain.value.some(({ enabled, q }) => enabled && q.isLoading.value))
+  const predictionsQ = useQuery(() => {
+    const options = vehiclePredictionsQuery({
+      avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId() ?? '',
+      algorithm: algorithm.value as PredictionAlgorithm | undefined,
+    })
+    return { ...options, enabled: pollEnabled(active.value, options.key), autoRefetch: pollInterval }
+  })
+  const liveVehicle = computed(() => (active.value ? vehicleQ.data.value ?? null : null))
+  const livePredictions = computed(() => (active.value ? predictionsQ.data.value ?? [] : []))
 
-// The newest two reports, for the card's speed estimate when the vehicle reports none.
-const { data: reportsData } = useQuery(() => {
-  const options = avlReportsQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: selectedVehicleId.value ?? '', limit: 2 })
-  return { ...options, enabled: pollEnabled(selecting.value, options.key), autoRefetch: pollInterval }
+  const scope = computed(() => {
+    const revisionId = liveVehicle.value?.revisionId
+    return gtfsFeedCode.value && revisionId ? { feedCode: gtfsFeedCode.value, revisionId } : null
+  })
+  const pinned = () => scope.value ?? { feedCode: '' }
+
+  const tripEnabled = computed(() => !!scope.value && !!liveVehicle.value?.tripId)
+  const tripQ = useQuery(() => ({
+    ...tripQuery({ ...pinned(), tripId: liveVehicle.value?.tripId ?? '' }),
+    enabled: tripEnabled.value,
+  }))
+  const trip = computed(() => (tripEnabled.value ? tripQ.data.value ?? null : null))
+
+  const routeEnabled = computed(() => !!trip.value)
+  const routeQ = useQuery(() => ({
+    ...routeQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
+    enabled: routeEnabled.value,
+  }))
+  const patternEnabled = computed(() => !!trip.value?.patternKey)
+  const patternQ = useQuery(() => ({
+    ...tripPatternQuery({ ...pinned(), patternKey: trip.value?.patternKey ?? '' }),
+    enabled: patternEnabled.value,
+  }))
+  const stopPathsQ = useQuery(() => ({
+    ...stopPathsQuery({ ...pinned(), routeId: trip.value?.routeId, patternKey: trip.value?.patternKey ?? undefined }),
+    enabled: patternEnabled.value,
+  }))
+  const routeStopsQ = useQuery(() => ({
+    ...routeStopsQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
+    enabled: patternEnabled.value,
+  }))
+  const blockEnabled = computed(() => !!trip.value?.blockId)
+  const blockParams = () => ({ ...pinned(), blockId: trip.value?.blockId ?? '', serviceId: trip.value?.serviceId ?? '' })
+  const blockQ = useQuery(() => ({ ...blockQuery(blockParams()), enabled: blockEnabled.value }))
+  const blockTripsQ = useQuery(() => ({ ...blockTripsQuery(blockParams()), enabled: blockEnabled.value }))
+
+  const pattern = computed(() => (patternEnabled.value ? patternQ.data.value ?? null : null))
+  const patternSettled = computed(() => !chainPending([
+    { enabled: tripEnabled.value, q: tripQ },
+    { enabled: patternEnabled.value, q: patternQ },
+    { enabled: patternEnabled.value, q: stopPathsQ },
+    { enabled: patternEnabled.value, q: routeStopsQ },
+  ]))
+  const joinedPattern = computed(() =>
+    trip.value ? vehiclePattern(trip.value, pattern.value, stopPathsQ.data.value ?? [], routeStopsQ.data.value ?? []) : null,
+  )
+  // The route line falls back to the GTFS shape only when the pattern has no usable geometry.
+  const shapeEnabled = computed(() => patternSettled.value && !!trip.value?.shapeId && needsShape(pattern.value))
+  const shapeQ = useQuery(() => ({
+    ...shapeQuery({ ...pinned(), shapeId: trip.value?.shapeId ?? '' }),
+    enabled: shapeEnabled.value,
+  }))
+  // The current and predicted stops sit on the pattern; read only those that aren't there.
+  const missingStops = computed(() =>
+    patternSettled.value && !readPending({ enabled: active.value, q: vehicleQ }) && !readPending({ enabled: active.value, q: predictionsQ })
+      ? missingStopIds(liveVehicle.value, livePredictions.value, joinedPattern.value)
+      : [],
+  )
+  const stopsEnabled = computed(() => !!scope.value && missingStops.value.length > 0)
+  const stopsQ = useQuery(() => ({
+    ...stopsByIdsQuery({ ...pinned(), stopIds: missingStops.value }),
+    enabled: stopsEnabled.value,
+  }))
+
+  const chain = computed<ChainRead[]>(() => [
+    { enabled: active.value, q: vehicleQ },
+    { enabled: active.value, q: predictionsQ },
+    { enabled: tripEnabled.value, q: tripQ },
+    { enabled: routeEnabled.value, q: routeQ },
+    { enabled: patternEnabled.value, q: patternQ },
+    { enabled: patternEnabled.value, q: stopPathsQ },
+    { enabled: patternEnabled.value, q: routeStopsQ },
+    { enabled: blockEnabled.value, q: blockQ },
+    { enabled: blockEnabled.value, q: blockTripsQ },
+    { enabled: shapeEnabled.value, q: shapeQ },
+    { enabled: stopsEnabled.value, q: stopsQ },
+  ])
+  // Like the single composite read it replaces: the joined detail appears once every read it needs has
+  // answered, and the previous detail stays on screen meanwhile (a new trip, another vehicle).
+  const detail = computed<VehicleDetail | null>((previous) => {
+    if (!active.value) return null
+    if (chainPending(chain.value)) return previous ?? null
+    return vehicleDetail({
+      vehicle: liveVehicle.value,
+      predictions: livePredictions.value,
+      trip: trip.value,
+      route: routeEnabled.value ? routeQ.data.value ?? null : null,
+      shape: shapeEnabled.value ? shapeQ.data.value ?? null : null,
+      pattern: pattern.value,
+      stopPaths: patternEnabled.value ? stopPathsQ.data.value ?? [] : [],
+      routeStops: patternEnabled.value ? routeStopsQ.data.value ?? [] : [],
+      block: blockEnabled.value ? blockQ.data.value ?? null : null,
+      blockTrips: blockEnabled.value ? blockTripsQ.data.value ?? [] : [],
+      stops: stopsEnabled.value ? stopsQ.data.value ?? [] : [],
+    })
+  })
+  const loading = computed(() => chainLoading(chain.value))
+  return { detail, loading }
+}
+
+// The vehicle picked on the board (map or list): its detail draws the route overlay.
+const selectedVehicleId = ref<string | null>(null)
+// The vehicle whose popup card is open on the map: its detail fills the card.
+const popupVehicleId = ref<string | null>(null)
+watch(selectedAvlFeedCode, () => {
+  selectedVehicleId.value = null
+  popupVehicleId.value = null
 })
-const recentReports = computed(() => (selecting.value ? reportsData.value ?? [] : []))
+const { detail: selectedDetail } = vehicleDetailReads(() => selectedVehicleId.value)
+const { detail: popupDetail, loading: popupDetailLoading } = vehicleDetailReads(() => popupVehicleId.value)
+
+// The popup vehicle's newest two reports, for the card's speed estimate when the vehicle reports none.
+const popupOpen = computed(() => !!selectedAvlFeedCode.value && !!popupVehicleId.value)
+const { data: reportsData } = useQuery(() => {
+  const options = avlReportsQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: popupVehicleId.value ?? '', limit: 2 })
+  return { ...options, enabled: pollEnabled(popupOpen.value, options.key), autoRefetch: pollInterval }
+})
+const recentReports = computed(() => (popupOpen.value ? reportsData.value ?? [] : []))
 
 const newestReport = computed(() =>
   vehicles.value.reduce<string | null>(
@@ -207,6 +221,7 @@ const newestReport = computed(() =>
     <VehicleOperationsBoard
       v-else
       v-model:selected-vehicle-id="selectedVehicleId"
+      v-model:active-vehicle-id="popupVehicleId"
       :title="t('home.operationsOverview')"
       :description="t('home.operationsDescription')"
       :vehicles="vehicles"
@@ -215,8 +230,9 @@ const newestReport = computed(() =>
       :feed-code="selectedFeedCode"
       :extent="extent"
       :network-features="networkFeatures"
-      :detail="detail"
-      :detail-loading="detailLoading"
+      :detail="selectedDetail"
+      :card-detail="popupDetail"
+      :card-detail-loading="popupDetailLoading"
       :recent-reports="recentReports"
       :agency-timezone="agencyTimezone"
       @select-vehicle="(id) => navigateTo(feedPath('/vehicles/' + id))"

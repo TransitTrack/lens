@@ -18,7 +18,8 @@ export const routesByRevisionQuery = defineQueryOptions((p: { feedCode: string, 
     .filter(([, ids]) => ids.length > 0)
     .sort(([a], [b]) => a.localeCompare(b))
   return {
-    key: feedKeys.resource({ feedCode: p.feedCode }, 'routes-by-revision', { revisions }),
+    // Under the feed, not its active-revision scope: every read here is pinned to an explicit revision.
+    key: [...feedKeys.feed(p.feedCode), 'routes-by-revision', { revisions }] as const,
     query: async ({ signal }): Promise<Map<string, Map<string, Route>>> => {
       const entries = await Promise.all(revisions.map(async ([revisionId, routeIds]) => {
         const chunks: string[][] = []

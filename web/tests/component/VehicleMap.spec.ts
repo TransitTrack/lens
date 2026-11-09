@@ -37,14 +37,14 @@ describe('VehicleMap', () => {
     expect(wrapper.find('[data-testid="vehicle-card"]').exists()).toBe(false)
   })
 
-  it('shows the selected vehicle\'s detail, read by the page, in its card', async () => {
+  it('shows the popup vehicle\'s detail, read by the page, in its card', async () => {
     const vehicle = fixtures.vehicles[0]!
     const detail = {
       vehicle: { ...vehicle, currentStop: { stopId: 'S1', stopName: 'Main Square', stopLat: null, stopLon: null }, trip: null, block: null, pattern: null },
       vehiclePredictions: [],
     }
     const wrapper = await mountSuspended(VehicleMap, {
-      props: { vehicles: fixtures.vehicles, selectedVehicleId: vehicle.vehicleId, detail: detail as never },
+      props: { vehicles: fixtures.vehicles, cardDetail: detail as never },
       ...withFeedContext(),
     })
     await wrapper.get('.mgl-symbol-feature-stub').trigger('click')

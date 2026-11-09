@@ -21,7 +21,10 @@ import type { PredictionAlgorithm } from '~/api'
 import type { AvlLogQuery, PredictionAccuracy } from '~/types/restViews'
 import { reportRouteIdsByRevision, reportTripKeys, reportsWithTripsByRevision } from '~/utils/joins/reports'
 import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
-import { missingStopIds, needsShape, vehicleDetail, vehiclePattern, type VehicleDetail } from '~/utils/joins/vehicleDetail'
+import {
+  chainError, chainLoading, chainPending, missingStopIds, needsShape, readPending, vehicleDetail, vehiclePattern,
+  type ChainRead, type VehicleDetail,
+} from '~/utils/joins/vehicleDetail'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
@@ -136,15 +139,13 @@ const blockParams = () => ({ ...pinned(), blockId: trip.value?.blockId ?? '', se
 const blockQ = useQuery(() => ({ ...blockQuery(blockParams()), enabled: blockEnabled.value }))
 const blockTripsQ = useQuery(() => ({ ...blockTripsQuery(blockParams()), enabled: blockEnabled.value }))
 
-/** Still waiting on an enabled read (no data of its own key yet, and no error). */
-const pending = (enabled: boolean, q: { data: Readonly<Ref<unknown>>, error: Readonly<Ref<unknown>>, isPlaceholderData: Readonly<Ref<boolean>> }) =>
-  enabled && !q.error.value && (q.data.value === undefined || q.isPlaceholderData.value)
-
 const pattern = computed(() => (patternEnabled.value ? patternQ.data.value ?? null : null))
-const patternSettled = computed(() =>
-  !pending(tripEnabled.value, tripQ)
-  && !pending(patternEnabled.value, patternQ) && !pending(patternEnabled.value, stopPathsQ) && !pending(patternEnabled.value, routeStopsQ),
-)
+const patternSettled = computed(() => !chainPending([
+  { enabled: tripEnabled.value, q: tripQ },
+  { enabled: patternEnabled.value, q: patternQ },
+  { enabled: patternEnabled.value, q: stopPathsQ },
+  { enabled: patternEnabled.value, q: routeStopsQ },
+]))
 const joinedPattern = computed(() =>
   trip.value ? vehiclePattern(trip.value, pattern.value, stopPathsQ.data.value ?? [], routeStopsQ.data.value ?? []) : null,
 )
@@ -156,7 +157,7 @@ const shapeQ = useQuery(() => ({
 }))
 // The current and predicted stops sit on the pattern; read only those that aren't there.
 const missingStops = computed(() =>
-  patternSettled.value && !pending(true, vehicleQ) && !pending(true, predictionsQ)
+  patternSettled.value && !readPending({ enabled: true, q: vehicleQ }) && !readPending({ enabled: true, q: predictionsQ })
     ? missingStopIds(liveVehicle.value, livePredictions.value, joinedPattern.value)
     : [],
 )
@@ -166,7 +167,7 @@ const stopsQ = useQuery(() => ({
   enabled: stopsEnabled.value,
 }))
 
-const chain = computed(() => [
+const chain = computed<ChainRead[]>(() => [
   { enabled: !!selectedAvlFeedCode.value, q: vehicleQ },
   { enabled: !!selectedAvlFeedCode.value, q: predictionsQ },
   { enabled: tripEnabled.value, q: tripQ },
@@ -182,7 +183,7 @@ const chain = computed(() => [
 // Like the single composite read it replaces: the joined detail appears once every read it needs has
 // answered, and the previous detail stays on screen meanwhile (a new trip, another vehicle).
 const detail = computed<VehicleDetail | null>((previous) => {
-  if (chain.value.some(({ enabled, q }) => pending(enabled, q))) return previous ?? null
+  if (chainPending(chain.value)) return previous ?? null
   return vehicleDetail({
     vehicle: liveVehicle.value,
     predictions: livePredictions.value,
@@ -197,8 +198,8 @@ const detail = computed<VehicleDetail | null>((previous) => {
     stops: stopsEnabled.value ? stopsQ.data.value ?? [] : [],
   })
 })
-const loading = computed(() => chain.value.some(({ enabled, q }) => enabled && q.isLoading.value))
-const error = computed(() => chain.value.find(({ enabled, q }) => enabled && q.error.value)?.q.error.value ?? null)
+const loading = computed(() => chainLoading(chain.value))
+const error = computed(() => chainError(chain.value))
 
 const { data: trailData } = useQuery(() => {
   const options = vehicleTrailQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 })
@@ -243,18 +244,18 @@ const logReportsQ = useQuery(() => {
   }
 })
 const logReports = computed(() => (logEnabled.value ? logReportsQ.data.value ?? [] : []))
-const logTripsEnabled = computed(() => logEnabled.value && !!gtfsFeedCode.value && !pending(true, logReportsQ))
+const logTripsEnabled = computed(() => logEnabled.value && !!gtfsFeedCode.value && !readPending({ enabled: true, q: logReportsQ }))
 const logTripsQ = useQuery(() => ({
   ...tripsByKeysQuery({ feedCode: gtfsFeedCode.value ?? '', keys: reportTripKeys(logReports.value) }),
   enabled: logTripsEnabled.value,
 }))
 const logTrips = computed(() => (logTripsEnabled.value ? logTripsQ.data.value : undefined) ?? new Map())
-const logRoutesEnabled = computed(() => logTripsEnabled.value && !pending(true, logTripsQ))
+const logRoutesEnabled = computed(() => logTripsEnabled.value && !readPending({ enabled: true, q: logTripsQ }))
 const logRoutesQ = useQuery(() => ({
   ...routesByRevisionQuery({ feedCode: gtfsFeedCode.value ?? '', routeIdsByRevision: reportRouteIdsByRevision(logTrips.value) }),
   enabled: logRoutesEnabled.value,
 }))
-const logChain = computed(() => [
+const logChain = computed<ChainRead[]>(() => [
   { enabled: logEnabled.value, q: logReportsQ },
   { enabled: logTripsEnabled.value, q: logTripsQ },
   { enabled: logRoutesEnabled.value, q: logRoutesQ },
@@ -262,12 +263,12 @@ const logChain = computed(() => [
 // Rows appear once the trips and routes of the newest reports have answered; the previous rows stay meanwhile.
 const logRows = computed<AvlLogQuery['avlReports']>((previous) => {
   if (!logEnabled.value) return []
-  if (logChain.value.some(({ enabled, q }) => pending(enabled, q))) return previous ?? []
+  if (chainPending(logChain.value)) return previous ?? []
   const routes = (logRoutesEnabled.value ? logRoutesQ.data.value : undefined) ?? new Map()
   return reportsWithTripsByRevision(logReports.value, logTrips.value, routes) as unknown as AvlLogQuery['avlReports']
 })
-const logLoading = computed(() => logChain.value.some(({ enabled, q }) => enabled && q.isLoading.value))
-const logError = computed(() => logChain.value.find(({ enabled, q }) => enabled && q.error.value)?.q.error.value ?? null)
+const logLoading = computed(() => chainLoading(logChain.value))
+const logError = computed(() => chainError(logChain.value))
 
 // Details panel beside (desktop) or above (mobile) the trip workspace.
 const { splitterOrientation: pageSplitterOrientation } = useSplitLayout()

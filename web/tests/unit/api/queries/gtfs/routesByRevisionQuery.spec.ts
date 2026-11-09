@@ -21,7 +21,7 @@ describe('routesByRevisionQuery', () => {
     expect(result.get('1')!.get('a')!.routeShortName).toBe('a@1')
     expect(result.get('2')!.get('a')!.routeShortName).toBe('a@2')
     expect(result.get('2')!.get('b')!.routeShortName).toBe('b@2')
-    expect(options.key).toEqual(['feeds', 'f', 'rev', 'active', 'routes-by-revision', { revisions: [['1', ['a']], ['2', ['a', 'b']]] }])
+    expect(options.key).toEqual(['feeds', 'f', 'routes-by-revision', { revisions: [['1', ['a']], ['2', ['a', 'b']]] }])
     expect(options.staleTime).toBe(Infinity)
   })
 
