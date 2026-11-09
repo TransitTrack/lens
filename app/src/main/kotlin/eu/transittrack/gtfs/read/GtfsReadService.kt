@@ -157,6 +157,23 @@ class GtfsReadService(
         return trips.findByTripId(rev, tripId)
     }
 
+    fun tripStops(
+        feedCode: String,
+        tripId: String,
+        revisionId: String?,
+    ): List<Stop>? {
+        val rev = resolver.resolve(feedCode, revisionId)
+        val trip = trips.findByTripId(rev, tripId) ?: return null
+        val patternIds = tripPatterns
+            .findByRouteId(rev, trip.routeId)
+            .sortedBy { it.patternKey }
+            .map { it.id!! }
+        val stopIds = stopPaths.findStopIdsAlongPatterns(rev, patternIds)
+        if (stopIds.isEmpty()) return emptyList()
+        val byId = stops.findByStopIds(rev, stopIds).associateBy { it.stopId }
+        return stopIds.mapNotNull(byId::get)
+    }
+
     fun stopTimes(
         feedCode: String,
         tripId: String,

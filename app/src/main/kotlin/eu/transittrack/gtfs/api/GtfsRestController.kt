@@ -2,8 +2,6 @@
 
 package eu.transittrack.gtfs.api
 
-import kotlin.reflect.KClass
-
 import io.github.transittrack.gtfsanalyzer.Notice
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -321,7 +319,19 @@ class GtfsRestController(
         feedCode: String,
         tripId: String,
         revisionId: String?,
-    ): ResponseEntity<Trip> = found(query.trip(feedCode, tripId, revisionId)) { entities.trips(listOf(it)).single() }
+    ): ResponseEntity<Trip> =
+        found(query.trip(feedCode, tripId, revisionId)) {
+            entities.trips(listOf(it)).single()
+        }
+
+    override fun tripStops(
+        feedCode: String,
+        tripId: String,
+        revisionId: String?,
+    ): ResponseEntity<List<Stop>> =
+        found(query.tripStops(feedCode, tripId, revisionId)) {
+            it.map(entities::stop)
+        }
 
     override fun trips(
         feedCode: String,

@@ -2172,6 +2172,45 @@ paths:
           $ref: '#/components/responses/Error409'
         '500':
           $ref: '#/components/responses/Error500'
+  /feeds/{feedCode}/trips/{tripId}/stops:
+    get:
+      operationId: tripStops
+      tags:
+        - GTFS
+      summary: trip stops
+      parameters:
+        - name: feedCode
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: revisionId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Stop'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+        '409':
+          $ref: '#/components/responses/Error409'
+        '500':
+          $ref: '#/components/responses/Error500'
   /feeds/{feedCode}/trips/{tripId}/stop-times:
     get:
       operationId: stopTimes
