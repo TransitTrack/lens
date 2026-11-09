@@ -4,6 +4,9 @@ import { vehicleQuery } from '~/composables/api/queries/avl/vehicleQuery'
 import { vehiclePredictionsQuery } from '~/composables/api/queries/avl/vehiclePredictionsQuery'
 import { vehicleTrailQuery } from '~/composables/api/queries/avl/vehicleTrailQuery'
 import { predictionAccuracyQuery } from '~/composables/api/queries/avl/predictionAccuracyQuery'
+import { avlReportsQuery } from '~/composables/api/queries/avl/avlReportsQuery'
+import { tripsByKeysQuery } from '~/composables/api/queries/gtfs/tripsByKeysQuery'
+import { routesByRevisionQuery } from '~/composables/api/queries/gtfs/routesByRevisionQuery'
 import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
 import { tripQuery } from '~/composables/api/queries/gtfs/tripQuery'
 import { routeQuery } from '~/composables/api/queries/gtfs/routeQuery'
@@ -15,7 +18,8 @@ import { stopPathsQuery } from '~/composables/api/queries/schedule/stopPathsQuer
 import { blockQuery } from '~/composables/api/queries/schedule/blockQuery'
 import { blockTripsQuery } from '~/composables/api/queries/schedule/blockTripsQuery'
 import type { PredictionAlgorithm } from '~/api'
-import type { PredictionAccuracy } from '~/types/restViews'
+import type { AvlLogQuery, PredictionAccuracy } from '~/types/restViews'
+import { reportRouteIdsByRevision, reportTripKeys, reportsWithTripsByRevision } from '~/utils/joins/reports'
 import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
 import { missingStopIds, needsShape, vehicleDetail, vehiclePattern, type VehicleDetail } from '~/utils/joins/vehicleDetail'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
@@ -225,7 +229,45 @@ const accuracy = computed(() => (accuracyData.value ?? []) as unknown as Predict
 const vehicleTrail = computed(() => (selectedAvlFeedCode.value ? trailData.value ?? null : null))
 const trail = computed(() => trackCoords(vehicleTrail.value?.track ?? []))
 
+// --- AVL log ------------------------------------------------------------------
+// Read (and polled) only while the log is open. Reports may span revisions: their trips are read per
+// (revision, trip) and their routes per revision, and each report joins its own revision's route.
 const avlLogOpen = ref(false)
+const logEnabled = computed(() => avlLogOpen.value && !!selectedAvlFeedCode.value)
+const logReportsQ = useQuery(() => {
+  const options = avlReportsQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 100 })
+  return {
+    ...options,
+    enabled: pollEnabled(logEnabled.value, options.key),
+    autoRefetch: () => (logEnabled.value && !paused.value ? intervalMs.value : false),
+  }
+})
+const logReports = computed(() => (logEnabled.value ? logReportsQ.data.value ?? [] : []))
+const logTripsEnabled = computed(() => logEnabled.value && !!gtfsFeedCode.value && !pending(true, logReportsQ))
+const logTripsQ = useQuery(() => ({
+  ...tripsByKeysQuery({ feedCode: gtfsFeedCode.value ?? '', keys: reportTripKeys(logReports.value) }),
+  enabled: logTripsEnabled.value,
+}))
+const logTrips = computed(() => (logTripsEnabled.value ? logTripsQ.data.value : undefined) ?? new Map())
+const logRoutesEnabled = computed(() => logTripsEnabled.value && !pending(true, logTripsQ))
+const logRoutesQ = useQuery(() => ({
+  ...routesByRevisionQuery({ feedCode: gtfsFeedCode.value ?? '', routeIdsByRevision: reportRouteIdsByRevision(logTrips.value) }),
+  enabled: logRoutesEnabled.value,
+}))
+const logChain = computed(() => [
+  { enabled: logEnabled.value, q: logReportsQ },
+  { enabled: logTripsEnabled.value, q: logTripsQ },
+  { enabled: logRoutesEnabled.value, q: logRoutesQ },
+])
+// Rows appear once the trips and routes of the newest reports have answered; the previous rows stay meanwhile.
+const logRows = computed<AvlLogQuery['avlReports']>((previous) => {
+  if (!logEnabled.value) return []
+  if (logChain.value.some(({ enabled, q }) => pending(enabled, q))) return previous ?? []
+  const routes = (logRoutesEnabled.value ? logRoutesQ.data.value : undefined) ?? new Map()
+  return reportsWithTripsByRevision(logReports.value, logTrips.value, routes) as unknown as AvlLogQuery['avlReports']
+})
+const logLoading = computed(() => logChain.value.some(({ enabled, q }) => enabled && q.isLoading.value))
+const logError = computed(() => logChain.value.find(({ enabled, q }) => enabled && q.error.value)?.q.error.value ?? null)
 
 // Details panel beside (desktop) or above (mobile) the trip workspace.
 const { splitterOrientation: pageSplitterOrientation } = useSplitLayout()
@@ -930,8 +972,9 @@ function adherenceTextClass(sec: number | null): string {
     <VehicleAvlLog
       v-if="selectedAvlFeedCode"
       v-model:open="avlLogOpen"
-      :feed-code="selectedAvlFeedCode"
-      :vehicle-id="vehicleId"
+      :rows="logRows"
+      :loading="logLoading"
+      :error="logError"
     />
   </AppPage>
 </template>

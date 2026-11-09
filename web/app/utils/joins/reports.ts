@@ -28,3 +28,26 @@ export function reportsWithTrips<T extends { match?: AvlReportMatch | null }>(
     return { ...r, match: { ...r.match, trip: joined } }
   })
 }
+
+/** Each revision's route ids, from trips keyed `${revisionId}|${tripId}` (unknown trips skipped). */
+export function reportRouteIdsByRevision(trips: Map<string, Trip | null>): Record<string, string[]> {
+  const byRevision: Record<string, Set<string>> = {}
+  for (const [key, trip] of trips) {
+    if (!trip) continue
+    const revisionId = key.slice(0, key.indexOf('|'))
+    ;(byRevision[revisionId] ??= new Set()).add(trip.routeId)
+  }
+  return Object.fromEntries(Object.entries(byRevision).map(([revisionId, ids]) => [revisionId, [...ids]]))
+}
+
+/**
+ * [reportsWithTrips] with each report's route taken from its own revision's routes (`routes` keyed by
+ * revision id), so routes of different revisions are never mixed. Reports keep their order.
+ */
+export function reportsWithTripsByRevision<T extends { match?: AvlReportMatch | null }>(
+  reports: T[],
+  trips: Map<string, Trip | null>,
+  routes: Map<string, Map<string, Route>>,
+) {
+  return reports.map((r) => reportsWithTrips([r], trips, (r.match && routes.get(r.match.revisionId)) || new Map())[0]!)
+}

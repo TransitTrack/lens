@@ -19,6 +19,12 @@ const vehicle = {
   matched: true, stale: false, revisionId: '51', tripId: 'T', currentStopId: 'S1',
 }
 
+const report = {
+  vehicleId: 'v1', ts: '2026-11-09T10:00:00Z', processedAt: '2026-11-09T10:00:01Z', source: 'GTFS_RT',
+  position: { lat: 1, lon: 2 }, matchStatus: 'MATCHED',
+  match: { revisionId: '51', tripId: 'T', stopPathIndex: 0, distanceAlongTripM: 0, deviationM: 1, snappedPosition: { lat: 1, lon: 2 } },
+}
+
 describe('vehicle detail page polling', () => {
   beforeEach(() => {
     useCookie('tt-demo-authenticated').value = 'true'
@@ -39,6 +45,8 @@ describe('vehicle detail page polling', () => {
       if (pathname.endsWith('/trips/T')) return json({ tripId: 'T', routeId: 'R', serviceId: 'WK', patternKey: 'P' })
       if (pathname.endsWith('/routes/R')) return json({ routeId: 'R', routeShortName: '7' })
       if (pathname.endsWith('/trip-patterns/P')) return json({ patternKey: 'P', geometry: null })
+      if (pathname.endsWith('/avl/vehicles/v1/reports')) return json([report])
+      if (pathname.endsWith('/feeds/g/routes')) return page([{ routeId: 'R', routeShortName: 'R-SEVEN' }])
       return page([])
     })
     const wrapper = await mountSuspended(
@@ -50,9 +58,10 @@ describe('vehicle detail page polling', () => {
       }),
     )
     await settle()
+    const vm = wrapper.findComponent(VehiclePage).vm as unknown as { avlLogOpen: boolean }
     const paths = () => calls.map((c) => new URL(c.url).pathname)
     const count = (suffix: string) => paths().filter((p) => p.endsWith(suffix)).length
-    return { wrapper, calls, paths, count }
+    return { wrapper, vm, calls, paths, count }
   }
 
   it('polls the vehicle but reads its revision-pinned trip once, and pausing stops every request', async () => {
@@ -82,6 +91,35 @@ describe('vehicle detail page polling', () => {
     await vi.advanceTimersByTimeAsync(interval)
     await settle()
     expect(calls.length).toBe(before)
+    wrapper.unmount()
+  })
+
+  it('reads the AVL log with its trips and routes only while the log is open', async () => {
+    const { wrapper, vm, calls, count } = await mountPage()
+    const interval = usePollControl().intervalMs.value
+    await vi.advanceTimersByTimeAsync(interval)
+    await settle()
+    expect(count('/avl/vehicles/v1/reports')).toBe(0)
+
+    vm.avlLogOpen = true
+    await settle()
+    expect(count('/avl/vehicles/v1/reports')).toBe(1)
+    const routeReads = calls.filter((c) => new URL(c.url).pathname.endsWith('/feeds/g/routes')).map((c) => new URL(c.url).searchParams)
+    expect(routeReads.map((q) => `${q.get('revisionId')}:${q.getAll('routeId').join(',')}`)).toEqual(['51:R'])
+    await vi.waitFor(() => expect(document.body.textContent).toContain('R-SEVEN'))
+
+    await vi.advanceTimersByTimeAsync(interval)
+    await settle()
+    expect(count('/avl/vehicles/v1/reports')).toBe(2)
+
+    vm.avlLogOpen = false
+    await settle()
+    const closed = count('/avl/vehicles/v1/reports')
+    await vi.advanceTimersByTimeAsync(interval)
+    await settle()
+    await vi.advanceTimersByTimeAsync(interval)
+    await settle()
+    expect(count('/avl/vehicles/v1/reports')).toBe(closed)
     wrapper.unmount()
   })
 })

@@ -3,7 +3,7 @@ import type { AvlFeed, AvlReportMatch, Block, BlockTrip, Feed, Route, Stop, Stop
 import { blocksWithTrips, blockTripsWithTrips } from '~/utils/joins/blocks'
 import { agenciesExtent } from '~/utils/joins/extent'
 import { activeRevision, annotateFeeds, gtfsFeedCodeOf } from '~/utils/joins/feeds'
-import { reportsWithTrips, reportTripKeys } from '~/utils/joins/reports'
+import { reportRouteIdsByRevision, reportsWithTrips, reportsWithTripsByRevision, reportTripKeys } from '~/utils/joins/reports'
 import { indexBy, routesWithAgency, withRoute } from '~/utils/joins/routes'
 import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'
 
@@ -81,6 +81,27 @@ describe('reports', () => {
     const routed = reportsWithTrips(reports, trips, new Map([['R1', route]]))
     expect(routed[0]!.match).toMatchObject({ trip: { tripId: 'a', route } })
     expect(routed[3]!.match).toMatchObject({ trip: null })
+  })
+
+  it('lists each revision\'s route ids from the matched trips', () => {
+    const trips = new Map<string, Trip | null>([
+      ['1|a', as<Trip>({ tripId: 'a', routeId: 'R1' })], ['1|c', as<Trip>({ tripId: 'c', routeId: 'R1' })],
+      ['2|b', as<Trip>({ tripId: 'b', routeId: 'R1' })], ['2|x', null],
+    ])
+    expect(reportRouteIdsByRevision(trips)).toEqual({ 1: ['R1'], 2: ['R1'] })
+  })
+
+  it('joins each report with its own revision\'s route, keeping the report order', () => {
+    const trips = new Map<string, Trip | null>([['1|a', as<Trip>({ tripId: 'a', routeId: 'R1' })], ['2|b', as<Trip>({ tripId: 'b', routeId: 'R1' })]])
+    const routes = new Map([
+      ['1', new Map([['R1', as<Route>({ routeId: 'R1', routeShortName: 'old' })]])],
+      ['2', new Map([['R1', as<Route>({ routeId: 'R1', routeShortName: 'new' })]])],
+    ])
+    const joined = reportsWithTripsByRevision(reports, trips, routes)
+    expect(joined.map((r) => r.id)).toEqual([1, 2, 3, 4])
+    expect(joined.map((r) => r.match?.trip?.route?.routeShortName ?? null)).toEqual(['old', null, 'old', 'new'])
+    const unknown = reportsWithTripsByRevision(reports, trips, new Map())
+    expect(unknown[0]!.match).toMatchObject({ trip: { tripId: 'a', route: null } })
   })
 })
 
