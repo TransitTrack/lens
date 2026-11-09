@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import { validationFindingsQuery } from '~/composables/api/queries/gtfs/validationFindingsQuery'
-import { useRouteDetailQuery } from '~/composables/useRestDetails'
+import { routeQuery } from '~/composables/api/queries/gtfs/routeQuery'
+import { routeStopsQuery } from '~/composables/api/queries/gtfs/routeStopsQuery'
+import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { tripPatternsQuery } from '~/composables/api/queries/schedule/tripPatternsQuery'
+import { stopPathsQuery } from '~/composables/api/queries/schedule/stopPathsQuery'
+import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'
+import { agenciesExtent } from '~/utils/joins/extent'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
 import VehicleRouteMap from '~/components/map/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
 
 import { routeTypeLabel, geometryLine, patternStopFeatures } from '~/utils/gtfs'
 import { useSplitLayout } from '~/composables/useSplitLayout'
@@ -17,7 +22,6 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
 const routeId = computed(() => String(route.params.routeId))
 
 const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
@@ -25,13 +29,40 @@ const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
   enabled: !!selectedFeedCode.value && !!routeId.value,
 }))
 
-const { result, loading, error } = useRouteDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', routeId: routeId.value },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const extent = computed(() => agenciesExtent(agencies.value ?? []))
+
+const { data: routeData, isLoading: routeLoading, error: routeError } = useQuery(() => ({
+  ...routeQuery({ feedCode: selectedFeedCode.value!, routeId: routeId.value }),
+  enabled: enabled.value,
+}))
+const { data: tripPatterns, isLoading: patternsLoading, error: patternsError } = useQuery(() => ({
+  ...tripPatternsQuery({ feedCode: selectedFeedCode.value!, routeId: routeId.value }),
+  enabled: enabled.value,
+}))
+const { data: stopPaths, isLoading: pathsLoading, error: pathsError } = useQuery(() => ({
+  ...stopPathsQuery({ feedCode: selectedFeedCode.value!, routeId: routeId.value }),
+  enabled: enabled.value,
+}))
+const { data: routeStops, isLoading: routeStopsLoading, error: routeStopsError } = useQuery(() => ({
+  ...routeStopsQuery({ feedCode: selectedFeedCode.value!, routeId: routeId.value }),
+  enabled: enabled.value,
 }))
 
-const gtfsRoute = computed(() => result.value?.route ?? null)
-const patterns = computed(() => result.value?.tripPatterns ?? [])
+const loading = computed(() => routeLoading.value || patternsLoading.value || pathsLoading.value || routeStopsLoading.value)
+const error = computed(() => routeError.value ?? patternsError.value ?? pathsError.value ?? routeStopsError.value)
+
+const gtfsRoute = computed(() => routeData.value ?? null)
+const patterns = computed(() =>
+  patternsWithStopPaths(
+    tripPatterns.value ?? [],
+    groupStopPaths(stopPaths.value ?? [], routeStops.value ?? []),
+  ),
+)
 
 const patternKey = ref<string | undefined>()
 watch(

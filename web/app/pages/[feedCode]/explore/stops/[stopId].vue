@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
 import { validationFindingsQuery } from '~/composables/api/queries/gtfs/validationFindingsQuery'
-import { useStopDetailQuery, useStopScheduleQuery } from '~/composables/useRestDetails'
+import { stopQuery } from '~/composables/api/queries/gtfs/stopQuery'
+import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { stopScheduleQuery } from '~/composables/api/queries/schedule/stopScheduleQuery'
+import { agenciesExtent } from '~/utils/joins/extent'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
@@ -10,7 +13,6 @@ import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPane
 import StopsMap from '~/components/explore/StopsMap.vue'
 import BarChart from '~/components/charts/BarChart.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
 
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 import {
@@ -27,7 +29,6 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
 const stopId = computed(() => String(route.params.stopId))
 
 const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
@@ -35,21 +36,28 @@ const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
   enabled: !!selectedFeedCode.value && !!stopId.value,
 }))
 
-const { result: stopResult, loading: stopLoading } = useStopDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', stopId: stopId.value },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-const stop = computed(() => stopResult.value?.stop ?? null)
+const extent = computed(() => agenciesExtent(agencies.value ?? []))
+
+const { data: stopData, isLoading: stopLoading } = useQuery(() => ({
+  ...stopQuery({ feedCode: selectedFeedCode.value!, stopId: stopId.value }),
+  enabled: enabled.value,
+}))
+const stop = computed(() => stopData.value ?? null)
 
 // What the schedule does at this stop — the patterns calling here, their departures, and the days each
 // service runs — computed by the backend in one request.
-const { result: scheduleResult, loading: scheduleLoading } = useStopScheduleQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', stopId: stopId.value },
-  enabled: !!selectedFeedCode.value,
+const { data: scheduleData, isLoading: scheduleLoading } = useQuery(() => ({
+  ...stopScheduleQuery({ feedCode: selectedFeedCode.value!, stopId: stopId.value }),
+  enabled: enabled.value,
 }))
-const schedule = computed(() => scheduleResult.value?.stopSchedule ?? { calls: [], services: [] })
+const schedule = computed(() => scheduleData.value ?? { calls: [], services: [] })
 // Loading only while there is nothing to show yet (a refetch keeps the previous schedule on screen).
-const tripsLoading = computed(() => scheduleLoading.value && !scheduleResult.value)
+const tripsLoading = computed(() => scheduleLoading.value && !scheduleData.value)
 
 const routes = computed(() => routesOfCalls(schedule.value.calls))
 const tripTotals = computed(() => tripTotalsOf(schedule.value.calls))

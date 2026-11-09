@@ -28,15 +28,15 @@ export function peakConcurrency(blocks: BlockLike[]): number {
 
 export interface BlockTripLike {
   listIndex: number
-  layoverAfterSec: number | null
-  deadheadAfter: boolean | null
+  layoverAfterSec?: number | null
+  deadheadAfter?: boolean | null
   trip: {
     tripId: string
-    tripHeadsign: string | null
+    tripHeadsign?: string | null
     routeId: string
-    startTimeSec: number | null
-    endTimeSec: number | null
-    route?: { routeShortName: string | null, routeColor: string | null } | null
+    startTimeSec?: number | null
+    endTimeSec?: number | null
+    route?: { routeShortName?: string | null, routeColor?: string | null } | null
   }
 }
 
@@ -134,7 +134,7 @@ export function timelineSegments(
       w: Math.max(0.002, at(e) - at(s)),
       color: hexColor(bt.trip.route?.routeColor, '#3b82f6'),
       routeLabel: bt.trip.route?.routeShortName ?? bt.trip.routeId,
-      headsign: bt.trip.tripHeadsign,
+      headsign: bt.trip.tripHeadsign ?? null,
       startSec: s,
       endSec: e,
       deadheadAfter: !!bt.deadheadAfter,

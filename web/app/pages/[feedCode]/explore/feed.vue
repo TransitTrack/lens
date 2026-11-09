@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import {
-  useActivateRevisionMutation,
-  useDeleteRevisionMutation,
-  useIngestFeedMutation,
-  useUpdateFeedMutation,
-} from '~/composables/useRestManagement'
-import { useFeedDetailQuery } from '~/composables/useRestDetails'
-import { useAgenciesDetailQuery, useExploreRoutesQuery } from '~/composables/useRestGtfs'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import { feedQuery } from '~/composables/api/queries/gtfs/feedQuery'
+import { revisionsQuery } from '~/composables/api/queries/gtfs/revisionsQuery'
+import { feedInfoQuery } from '~/composables/api/queries/gtfs/feedInfoQuery'
+import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { ingestFeedMutation } from '~/composables/api/mutations/gtfs/ingestFeedMutation'
+import { updateFeedMutation } from '~/composables/api/mutations/gtfs/updateFeedMutation'
+import { activateRevisionMutation } from '~/composables/api/mutations/gtfs/activateRevisionMutation'
+import { deleteRevisionMutation } from '~/composables/api/mutations/gtfs/deleteRevisionMutation'
+import { activeRevision } from '~/utils/joins/feeds'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
@@ -22,34 +25,48 @@ const { t, te, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: agenciesData } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-const { result: routesResult } = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const { data: routesData } = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-const routes = computed(() => routesResult.value?.routes ?? [])
+const routes = computed(() => routesData.value ?? [])
 
 const agencies = computed(() => {
   const byAgency = new Map<string, number>()
   for (const r of routes.value) {
     if (r.agencyId) byAgency.set(r.agencyId, (byAgency.get(r.agencyId) ?? 0) + 1)
   }
-  return (agenciesResult.value?.agencies ?? []).map((a) => ({
+  return (agenciesData.value ?? []).map((a) => ({
     ...a,
     routeCount: a.agencyId ? (byAgency.get(a.agencyId) ?? 0) : 0,
   }))
 })
 
-const { result, loading, refetch } = useFeedDetailQuery(() => ({
-  variables: { code: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const { data: feedData, isLoading: feedLoading } = useQuery(() => ({
+  ...feedQuery({ code: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: revisions, isLoading: revisionsLoading } = useQuery(() => ({
+  ...revisionsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: infoData } = useQuery(() => ({
+  ...feedInfoQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
 
-const feed = computed(() => result.value?.feed ?? null)
-const info = computed(() => result.value?.feedInfo ?? null)
+const loading = computed(() => feedLoading.value || revisionsLoading.value)
+const feed = computed(() => {
+  if (!feedData.value) return null
+  const list = revisions.value ?? []
+  return { ...feedData.value, revisions: list, activeRevision: activeRevision(list) }
+})
+const info = computed(() => infoData.value ?? null)
 const rev = computed(() => feed.value?.activeRevision ?? null)
 
 const rowCounts = computed<[string, number][]>(() => {
@@ -97,10 +114,11 @@ const statusChips = computed<StatusChip[]>(() => {
 })
 
 // --- mutations -------------------------------------------------------------
-const { mutate: ingest, loading: ingesting } = useIngestFeedMutation()
-const { mutate: activate } = useActivateRevisionMutation()
-const { mutate: remove } = useDeleteRevisionMutation()
-const { mutate: update, loading: updating } = useUpdateFeedMutation()
+const queryCache = useQueryCache()
+const { mutateAsync: ingest, isLoading: ingesting } = useMutation(ingestFeedMutation(queryCache))
+const { mutateAsync: activate } = useMutation(activateRevisionMutation(queryCache))
+const { mutateAsync: remove } = useMutation(deleteRevisionMutation(queryCache))
+const { mutateAsync: update, isLoading: updating } = useMutation(updateFeedMutation(queryCache))
 
 // i18n-keys: feed.dataset.statusValue.*
 function statusLabel(status: string): string {
@@ -110,17 +128,16 @@ function statusLabel(status: string): string {
 
 async function reingest() {
   try {
-    const res = await ingest({ variables: { feedCode: selectedFeedCode.value ?? '' } })
+    const res = await ingest({ path: { feedCode: selectedFeedCode.value ?? '' } })
     toast.add({
       title: t('explore.feed.ingestTriggered'),
       description: t('explore.feed.ingestRevision', {
-        id: res?.data?.ingestFeed.id,
-        status: statusLabel(String(res?.data?.ingestFeed.status)),
+        id: res?.id,
+        status: statusLabel(String(res?.status)),
       }),
       color: 'success',
       icon: 'i-lucide-download',
     })
-    await refetch()
   } catch (e) {
     toast.add({
       title: t('explore.feed.ingestFailed'),
@@ -132,13 +149,12 @@ async function reingest() {
 
 async function activateRevision(id: string) {
   try {
-    await activate({ variables: { revisionId: id } })
+    await activate({ path: { revisionId: id } })
     toast.add({
       title: t('explore.feed.activated', { id }),
       color: 'success',
       icon: 'i-lucide-check',
     })
-    await refetch()
   } catch (e) {
     toast.add({
       title: t('explore.feed.activateFailed'),
@@ -150,13 +166,12 @@ async function activateRevision(id: string) {
 
 async function deleteRevision(id: string) {
   try {
-    await remove({ variables: { revisionId: id } })
+    await remove({ path: { id } })
     toast.add({
       title: t('explore.feed.deleted', { id }),
       color: 'success',
       icon: 'i-lucide-trash-2',
     })
-    await refetch()
   } catch (e) {
     toast.add({
       title: t('explore.feed.deleteFailed'),
@@ -183,20 +198,17 @@ watch(editOpen, (open) => {
 async function saveFeed() {
   try {
     await update({
-      variables: {
-        code: selectedFeedCode.value ?? '',
-        input: {
-          name: form.name,
-          description: form.description || null,
-          url: form.url,
-          pollingCron: form.pollingCron || null,
-          enabled: form.enabled,
-        },
+      path: { code: selectedFeedCode.value ?? '' },
+      body: {
+        name: form.name,
+        description: form.description || null,
+        url: form.url,
+        pollingCron: form.pollingCron || null,
+        enabled: form.enabled,
       },
     })
     toast.add({ title: t('explore.feed.updated'), color: 'success', icon: 'i-lucide-check' })
     editOpen.value = false
-    await refetch()
   } catch (e) {
     toast.add({
       title: t('explore.feed.updateFailed'),
