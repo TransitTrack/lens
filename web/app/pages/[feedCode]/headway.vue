@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useQuery } from '@pinia/colada'
+import { useQuery, useQueryCache } from '@pinia/colada'
 import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
 import { routeStopsQuery } from '~/composables/api/queries/gtfs/routeStopsQuery'
 import { tripPatternsQuery } from '~/composables/api/queries/schedule/tripPatternsQuery'
@@ -124,8 +124,10 @@ const querySelected = computed(
   () => !!selectedAvlFeedCode.value && !!selectedStopId.value && !!selectedRouteId.value,
 )
 
-// Polled queries: pausing turns both `enabled` and `autoRefetch` off.
-const pollEnabled = computed(() => querySelected.value && !paused.value)
+// Polled queries: pausing stops auto-refetch; a paused query still loads once when its own key has no cached
+// data yet (first open, or a changed stop / route / direction / algorithm), then stays idle. The cache is read
+// by key rather than through the query's `data`, which shows the previous key's placeholder meanwhile.
+const queryCache = useQueryCache()
 const pollInterval = () => (paused.value ? false : intervalMs.value)
 const predictionParams = () => ({
   avlFeedCode: selectedAvlFeedCode.value!,
@@ -138,18 +140,24 @@ const {
   data: headwayData,
   isLoading: headwayLoading,
   error: headwayError,
-} = useQuery(() => ({
-  ...headwayQuery({ ...predictionParams(), routeId: selectedRouteId.value ?? '' }),
-  enabled: pollEnabled.value,
-  autoRefetch: pollInterval,
-}))
+} = useQuery(() => {
+  const options = headwayQuery({ ...predictionParams(), routeId: selectedRouteId.value ?? '' })
+  return {
+    ...options,
+    enabled: querySelected.value && (!paused.value || queryCache.getQueryData(options.key) === undefined),
+    autoRefetch: pollInterval,
+  }
+})
 const headway = computed(() => headwayData.value ?? null)
 
-const {data: boardData} = useQuery(() => ({
-  ...stopPredictionsQuery({ ...predictionParams(), routeId: selectedRouteId.value ?? undefined }),
-  enabled: pollEnabled.value,
-  autoRefetch: pollInterval,
-}))
+const {data: boardData} = useQuery(() => {
+  const options = stopPredictionsQuery({ ...predictionParams(), routeId: selectedRouteId.value ?? undefined })
+  return {
+    ...options,
+    enabled: querySelected.value && (!paused.value || queryCache.getQueryData(options.key) === undefined),
+    autoRefetch: pollInterval,
+  }
+})
 type BoardRow = StopPrediction
 const board = computed<BoardRow[]>(() => boardData.value ?? [])
 
