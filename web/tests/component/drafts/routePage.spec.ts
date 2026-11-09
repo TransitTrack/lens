@@ -31,6 +31,8 @@ const grid = {
 
 const pathOf = (c: SeenRequest) => new URL(c.url).pathname
 const isGrid = (c: SeenRequest) => pathOf(c).endsWith('/drafts/D1/grid')
+const isEdits = (c: SeenRequest) => pathOf(c).endsWith('/drafts/D1/edits')
+const limitOf = (c: SeenRequest) => new URL(c.url).searchParams.get('limit')
 
 describe('draft route editor page', () => {
   let version: number
@@ -46,8 +48,12 @@ describe('draft route editor page', () => {
     vi.unstubAllGlobals()
   })
 
-  async function mountPage() {
-    const { calls } = stubFetch(({ url, method }) => {
+  /** `override` answers a request first when it returns a response (or a promise of one). */
+  async function mountPage(override?: (request: SeenRequest) => Response | Promise<Response> | undefined) {
+    const { calls } = stubFetch((request) => {
+      const overridden = override?.(request)
+      if (overridden) return overridden
+      const { url, method } = request
       const path = new URL(url).pathname
       if (path.endsWith('/drafts/D1') && method === 'GET') return json(draftRow(version))
       if (path.endsWith('/drafts/D1/grid')) return json(grid)
@@ -100,6 +106,50 @@ describe('draft route editor page', () => {
     const lastUndo = calls.indexOf(undos[2]!)
     expect(calls.slice(firstUndo, lastUndo).filter(isGrid)).toHaveLength(0)
     expect(calls.slice(lastUndo + 1).filter(isGrid)).toHaveLength(1)
+    // The history reads too: nothing per step, each window (500 / 200) once at the end.
+    expect(calls.slice(firstUndo, lastUndo).filter(isEdits)).toHaveLength(0)
+    expect(calls.slice(lastUndo + 1).filter(isEdits).map(limitOf).sort()).toEqual(['200', '500'])
+    wrapper.unmount()
+  })
+
+  it('retries a STALE_DRAFT edit with a newly requested draft, not one read before the conflict', async () => {
+    let hold = false
+    let release: (() => void) | undefined
+    const { calls, wrapper } = await mountPage(({ url, method, body }) => {
+      const path = new URL(url).pathname
+      if (path.endsWith('/drafts/D1') && method === 'GET' && hold) {
+        // A detail read that started before another editor's write and is still in flight.
+        hold = false
+        const snapshot = draftRow(version)
+        return new Promise<Response>((resolve) => {
+          release = () => resolve(json(snapshot))
+        })
+      }
+      if (path.endsWith('/update-stop-time') && (body as { expectedVersion: number }).expectedVersion !== version) {
+        return json({ title: 'Stale draft', status: 409, code: 'STALE_DRAFT' }, 409)
+      }
+      return undefined
+    })
+    const grid = wrapper.findComponent(DraftGrid)
+    const cell = { tripId: 'T1', stopSequence: 1, arrivalSec: 25_260, departureSec: 25_260 }
+
+    // A first edit lands (v3 → v4); its invalidation starts a detail read that stays pending.
+    hold = true
+    grid.vm.$emit('commit-cell', cell)
+    await settle()
+    expect(release).toBeDefined()
+
+    version = 10 // another editor writes meanwhile
+    const before = calls.length
+    grid.vm.$emit('commit-cell', cell)
+    await settle()
+    release!()
+    await settle()
+
+    const edits = calls.filter((c) => pathOf(c).endsWith('/update-stop-time')).map((c) => (c.body as { expectedVersion: number }).expectedVersion)
+    expect(edits).toEqual([3, 4, 10])
+    const conflict = calls.findIndex((c, i) => i >= before && pathOf(c).endsWith('/update-stop-time'))
+    expect(calls.slice(conflict + 1).some((c) => pathOf(c).endsWith('/drafts/D1') && c.method === 'GET')).toBe(true)
     wrapper.unmount()
   })
 })

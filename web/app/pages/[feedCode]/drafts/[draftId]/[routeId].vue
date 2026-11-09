@@ -2,7 +2,6 @@
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type {SplitterItem} from '@nuxt/ui'
 import type { DraftEditResult } from '~/api'
-import { draftKeys } from '~/composables/api/keys/drafts'
 import { draftQuery } from '~/composables/api/queries/drafts/draftQuery'
 import { draftEditsQuery } from '~/composables/api/queries/drafts/draftEditsQuery'
 import { draftGridQuery } from '~/composables/api/queries/drafts/draftGridQuery'
@@ -25,6 +24,8 @@ import { addTripMutation } from '~/composables/api/mutations/drafts/addTripMutat
 import { duplicateTripMutation } from '~/composables/api/mutations/drafts/duplicateTripMutation'
 import { bulkShiftTripsMutation } from '~/composables/api/mutations/drafts/bulkShiftTripsMutation'
 import { undoDraftEditMutation } from '~/composables/api/mutations/drafts/undoDraftEditMutation'
+import { invalidateDraft, undoDraftEditStepMutation } from '~/composables/api/mutations/drafts/undoDraftEditStepMutation'
+import { cancelDraftReads } from '~/composables/api/mutations/drafts/cancelDraftReads'
 import { redoDraftEditMutation } from '~/composables/api/mutations/drafts/redoDraftEditMutation'
 import { rebuildDraftMutation } from '~/composables/api/mutations/drafts/rebuildDraftMutation'
 import { activateDraftMutation } from '~/composables/api/mutations/drafts/activateDraftMutation'
@@ -75,7 +76,7 @@ const {
   data: draftData,
   isLoading: draftLoading,
   error: draftError,
-  refresh: refreshDraftQuery,
+  refetch: refetchDraftQuery,
 } = useQuery(() => ({
   ...draftQuery({ id: draftId.value }),
   enabled: !!draftId.value,
@@ -96,7 +97,9 @@ const { mutateAsync: releaseEditor } = useMutation(releaseDraftEditorMutation())
 const editor = useDraftEditor(draftId, {
   draft: draftData,
   edits: editorEdits,
-  refreshDraft: async () => (await refreshDraftQuery()).data ?? null,
+  // `refetch`, not `refresh`: after a claim or a STALE_DRAFT conflict the draft must be read
+  // anew — `refresh` would join a read already in flight from before the write.
+  refreshDraft: async () => (await refetchDraftQuery()).data ?? null,
   claim: claimEditor,
   renew: renewEditor,
   release: releaseEditor,
@@ -288,11 +291,16 @@ function onExport() {
 }
 
 function isLockLost(e: unknown): boolean {
-  const err = e as {
-    graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }>
-    cause?: { graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }> }
-  }
-  return (err?.graphQLErrors ?? err?.cause?.graphQLErrors)?.[0]?.extensions?.code === 'LOCK_LOST'
+  return restProblemOf(e)?.code === 'LOCK_LOST'
+}
+
+/**
+ * The draft no longer exists as a draft (activated / discarded): stop the refetches its
+ * mutation's invalidation started — their 404s would flash "draft gone" — then leave.
+ */
+function leaveDraft(path: string) {
+  cancelDraftReads(queryCache, draftId.value)
+  navigateTo(feedPath(path))
 }
 
 // --- activate --------------------------------------------------------
@@ -309,7 +317,7 @@ async function confirmActivate() {
     await activateDraft({ path: {id: draftId.value}, body: {editor: editor.me.value ?? '', force: force.value} })
     toast.add({title: t('drafts.activated'), color: 'success', icon: 'i-lucide-check'})
     activateOpen.value = false
-    navigateTo(feedPath('/explore/feed'))
+    leaveDraft('/explore/feed')
   } catch (e) {
     if (isLockLost(e)) {
       toast.add({
@@ -332,7 +340,7 @@ async function confirmDiscard() {
     await discardDraft({ path: {id: draftId.value}, body: {editor: editor.me.value ?? ''} })
     toast.add({title: t('drafts.discarded'), color: 'success', icon: 'i-lucide-trash-2'})
     discardOpen.value = false
-    navigateTo(feedPath('/drafts'))
+    leaveDraft('/drafts')
   } catch (e) {
     if (isLockLost(e)) {
       toast.add({
@@ -407,10 +415,12 @@ const {data: recentEdits, refresh: refreshRecentEdits} = useQuery(() => ({
 // Another editor's change reaches us as a new draft version (after a refresh of the draft):
 // reload the history then. Our own edits already refresh it through the mutation's
 // invalidation, and `refresh` joins that pending request instead of issuing a second one.
+// An undo burst bumps the version once per step and reloads the history once at its end.
+let undoBurst = false
 watch(
   () => draft.value?.version,
   (version, previous) => {
-    if (previous != null && version !== previous) void refreshRecentEdits()
+    if (!undoBurst && previous != null && version !== previous) void refreshRecentEdits()
   },
 )
 const undoneCount = computed(
@@ -469,9 +479,9 @@ const {mutateAsync: duplicateTrip} = useMutation(duplicateTripMutation(queryCach
 const {mutateAsync: bulkShiftTrips} = useMutation(bulkShiftTripsMutation(queryCache))
 const {mutateAsync: undoDraftEdit} = useMutation(undoDraftEditMutation(queryCache))
 const {mutateAsync: redoDraftEdit} = useMutation(redoDraftEditMutation(queryCache))
-// One step of an "undo to here" burst: the same request without the per-step invalidation —
-// the burst invalidates the draft's queries once at the end instead.
-const {mutateAsync: undoBurstStep} = useMutation({ mutation: undoDraftEditMutation(queryCache).mutation })
+// One step of an "undo to here" burst: no per-step invalidation — the burst refreshes the
+// draft's reads once at the end instead.
+const {mutateAsync: undoBurstStep} = useMutation(undoDraftEditStepMutation())
 
 const {run: runEdit} = useDraftEdit(editor)
 
@@ -524,20 +534,27 @@ function onCommitCell(payload: {
 /** "Undo to here": apply each undo locally, then refresh the draft's queries once. */
 async function onUndoSteps(count: number) {
   let applied = 0
-  for (let i = 0; i < count; i++) {
-    try {
-      const result = await editor.mutate((v) =>
-        undoBurstStep({ path: { id: v.draftId }, body: { editor: v.editor, expectedVersion: v.expectedVersion } }),
-      )
-      if (!result) break
-      editor.applyResult(result)
-      applied++
-    } catch {
-      // editor.mutate already toasts
-      break
+  undoBurst = true
+  try {
+    for (let i = 0; i < count; i++) {
+      try {
+        const result = await editor.mutate((v) =>
+          undoBurstStep({ path: { id: v.draftId }, body: { editor: v.editor, expectedVersion: v.expectedVersion } }),
+        )
+        if (!result) break
+        editor.applyResult(result)
+        applied++
+      } catch {
+        // editor.mutate already toasts
+        break
+      }
     }
+    // let the version watcher see the last step while the burst is still on
+    await nextTick()
+  } finally {
+    undoBurst = false
   }
-  if (applied > 0) void queryCache.invalidateQueries({ key: draftKeys.draft(draftId.value) })
+  if (applied > 0) void invalidateDraft(queryCache, draftId.value)
 }
 
 // --- grid / rail split --------------------------------------------
