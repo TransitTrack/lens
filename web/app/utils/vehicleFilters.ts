@@ -1,4 +1,4 @@
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 
 /**
  * What a vehicle is doing right now. Every vehicle is in exactly one state, so the per-state

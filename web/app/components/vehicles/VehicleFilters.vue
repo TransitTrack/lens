@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 import {
   VEHICLE_STATES,
   emptyFilters,

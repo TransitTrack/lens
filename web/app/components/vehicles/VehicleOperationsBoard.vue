@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useVehicleDetailQuery } from '~/composables/useRestRealtime'
 import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
-import type { VehicleRow } from '~/composables/useVehiclePolling'
-import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import type { VehicleRow } from '~/types/vehicles'
+import type { LngLatBoundsExtent } from '~/utils/joins/extent'
 import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'
 import VehicleMap, { type SelectedRouteOverlay } from '~/components/vehicles/VehicleMap.vue'
@@ -22,12 +22,15 @@ const props = defineProps<{
   error?: { message: string } | null
   feedCode: string | null
   extent?: LngLatBoundsExtent | null
+  /** The feed's network geometry features, drawn under the fleet. */
+  networkFeatures?: GeoJSON.Feature[]
 }>()
 
 const { locale } = useI18n()
 
 const emit = defineEmits<{
   selectVehicle: [vehicleId: string]
+  networkArmed: []
 }>()
 
 const filters = ref(emptyFilters())
@@ -129,11 +132,13 @@ const mapInsetRight = computed(() =>
       :selected-vehicle-id="selectedVehicleId"
       :selected-route="selectedRoute"
       :inset-right="mapInsetRight"
+      :network-features="networkFeatures"
       @select="selectVehicle"
       @view-trip="viewTripDetails"
       @view-block="viewBlockDetails"
       @view-route="viewRouteDetails"
       @view-vehicle="viewVehicleDetails"
+      @network-armed="emit('networkArmed')"
     />
 
     <Transition

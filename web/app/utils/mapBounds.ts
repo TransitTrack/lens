@@ -1,7 +1,7 @@
-import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import type { LngLatBoundsExtent } from '~/utils/joins/extent'
 
 /**
- * Convert the GraphQL `Extent` shape (as combined by `useFeedExtent`) into the
+ * Convert the GraphQL `Extent` shape (as combined by `agenciesExtent`) into the
  * `[[west, south], [east, north]]` tuple maplibre / `<MglMap :bounds>` expects.
  * Returns `undefined` when there is no extent, so it can be bound directly.
  */

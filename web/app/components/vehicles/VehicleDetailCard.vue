@@ -2,7 +2,7 @@
 import { useRecentAvlReportsQuery, useVehicleDetailQuery } from '~/composables/useRestRealtime'
 import { useAgenciesDetailQuery } from '~/composables/useRestGtfs'
 import { formatClock, formatDottedTimestamp } from '~/utils/clock'
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 import { adherenceBadge } from '~/utils/adherence'
 import { coarseAgeLabel, haversineM } from '~/utils/vehicleTelemetry'
 import { chosenAlgorithm, stopRows } from '~/utils/vehicleDetail'

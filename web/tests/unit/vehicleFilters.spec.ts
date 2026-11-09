@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { VehicleRow } from '../../app/composables/useVehiclePolling'
+import type { VehicleRow } from '../../app/types/vehicles'
 import { fixtures } from '../../mocks/handlers'
 import {
   emptyFilters,

@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import MapToolLayers from '~/components/map/MapToolLayers.vue'
 import MapToolbox from '~/components/map/MapToolbox.vue'
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 import VehicleDetailCard from '~/components/vehicles/VehicleDetailCard.vue'
 import VehicleMapLegend from '~/components/vehicles/VehicleMapLegend.vue'
 import FeedNetworkLayer from '~/components/map/FeedNetworkLayer.vue'
 import { hideBasemapLabels, useMapStyle } from '~/composables/useMapStyle'
 import { useFeedGeometry } from '~/composables/useFeedGeometry'
 import { extentToBounds } from '~/utils/mapBounds'
-import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import type { LngLatBoundsExtent } from '~/utils/joins/extent'
 
 export interface SelectedRouteOverlay {
   vehicleId: string
@@ -29,6 +29,8 @@ const props = withDefaults(
     selectedVehicleId?: string | null
     /** Width (px) of a panel floating over the map's right edge; fits and the legend avoid it. */
     insetRight?: number
+    /** The feed's network geometry features (the page reads them once `networkArmed` fired). */
+    networkFeatures?: GeoJSON.Feature[]
   }>(),
   {
     extent: null,
@@ -36,6 +38,7 @@ const props = withDefaults(
     selectedRoute: null,
     selectedVehicleId: null,
     insetRight: 0,
+    networkFeatures: () => [],
   },
 )
 
@@ -49,6 +52,8 @@ const emit = defineEmits<{
   viewBlock: [block: { blockId: string; serviceId: string }]
   viewRoute: [routeId: string]
   viewVehicle: [vehicleId: string]
+  /** The map has loaded and the browser is idle: the page may now read the network geometry. */
+  networkArmed: []
 }>()
 
 const MAP_ID = 'vehicle-map'
@@ -84,7 +89,7 @@ const tools = useMapTools()
 // fleet, which is what actually matters for first paint. Hold the query off
 // until the map has loaded and the browser is idle, so fetching + building
 // that GeoJSON doesn't compete with map/marker setup for CPU while the page
-// is still loading.
+// is still loading. The page holds its geometry read until `networkArmed`.
 const networkFeedCode = ref<string | null>(null)
 const visibleLayers = reactive({
   networkRoutes: true,
@@ -102,6 +107,7 @@ watch(
     networkArmed = true
     const start = () => {
       networkFeedCode.value = props.feedCode ?? null
+      emit('networkArmed')
     }
     if (typeof requestIdleCallback === 'function') {
       requestIdleCallback(start, { timeout: 2000 })
@@ -119,10 +125,10 @@ watch(
   },
 )
 
-const { lines: networkLines, stops: networkStops } = useFeedGeometry(networkFeedCode)
+const { lines: networkLines, stops: networkStops } = useFeedGeometry(computed(() => props.networkFeatures))
 
-// Capture the agency extent once — `useFeedExtent` re-emits a fresh object on
-// every Apollo tick and binding it live would snap the view back on each poll.
+// Capture the agency extent once — the page's extent is a fresh object on
+// every data refresh and binding it live would snap the view back on each poll.
 const initialBounds = shallowRef(extentToBounds(props.extent))
 watch(
   () => props.extent,

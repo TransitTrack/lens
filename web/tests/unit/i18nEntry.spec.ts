@@ -6,7 +6,7 @@ import pl from '../../i18n/locales/pl.json'
 import fr from '../../i18n/locales/fr.json'
 import { deriveFeatures } from '../../app/utils/feedFeatures'
 import { buildOverviewStats } from '../../app/utils/overviewStats'
-import type { VehicleRow } from '../../app/composables/useVehiclePolling'
+import type { VehicleRow } from '../../app/types/vehicles'
 
 function make(locale: 'en' | 'pl' | 'fr') {
   return createI18n({
