@@ -1,33 +1,33 @@
 <script setup lang="ts">
-import { useForkDraftMutation } from '~/composables/useRestDraftMutations'
-import { useFeedDetailQuery } from '~/composables/useRestDetails'
-
-import { useFeeds } from '~/composables/useFeeds'
+import type { Revision } from '~/api'
 import { useEditorIdentity } from '~/composables/useEditorIdentity'
 import { gtfsDate } from '~/utils/gtfs'
 
 const open = defineModel<boolean>('open', { default: false })
 
-const { selectedFeedCode, feedPath } = useFeeds()
-const toast = useToast()
+const props = defineProps<{
+  /** The feed's ACTIVE revision — the base every new draft is forked from. */
+  activeRevision: Revision | null
+  forking: boolean
+}>()
+
+const emit = defineEmits<{
+  submit: [input: { label: string | null, editor: string }]
+}>()
+
 const { t, locale } = useI18n()
 const { name: editorName } = useEditorIdentity()
 
 const label = ref('')
 const editor = ref('')
 
-const { result: feedResult } = useFeedDetailQuery(() => ({
-  variables: { code: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value && open.value,
-}))
-
 // ITEM-5 stopgap: forking is restricted to the feed's ACTIVE revision. Picking a
 // non-active base offers routes/services the draft doesn't contain and lets
 // AddTripDialog write a dangling service_id. Draft-scoped `draftRoutes` /
-// `draftCalendar` queries are the proper fix (deferred). We always send
+// `draftCalendar` queries are the proper fix (deferred). The page always sends
 // `baseRevisionId: null` so the backend uses ACTIVE.
 const activeRevisionLabel = computed(() => {
-  const active = feedResult.value?.feed?.activeRevision
+  const active = props.activeRevision
   return active
     ? t('drafts.revisionLabel', { id: active.id, date: gtfsDate(active.createdAt, locale.value) })
     : t('feed.overview.activeRevision')
@@ -40,28 +40,10 @@ watch(open, (isOpen) => {
   }
 })
 
-const { mutate: fork, loading: forking } = useForkDraftMutation()
-
-async function submit() {
+function submit() {
   const name = editor.value.trim()
   if (!name) return
-  editorName.value = name
-  toast.add({ title: t('drafts.forking'), description: t('drafts.copyingRows'), color: 'info', icon: 'i-lucide-git-fork' })
-  try {
-    const res = await fork({ variables: {
-      input: {
-        feedCode: selectedFeedCode.value ?? '',
-        baseRevisionId: null,
-        label: label.value.trim() || null,
-        editor: name,
-      },
-    } })
-    const id = res?.data?.forkDraft.id
-    open.value = false
-    if (id) await navigateTo(feedPath('/drafts/' + id))
-  } catch (e) {
-    toast.add({ title: t('drafts.forkFailed'), description: (e as Error).message, color: 'error' })
-  }
+  emit('submit', { label: label.value.trim() || null, editor: name })
 }
 </script>
 
