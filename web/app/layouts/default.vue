@@ -11,6 +11,7 @@ import { feedQuery } from '~/composables/api/queries/gtfs/feedQuery'
 import { revisionsQuery } from '~/composables/api/queries/gtfs/revisionsQuery'
 import { avlFeedsQuery } from '~/composables/api/queries/avl/avlFeedsQuery'
 import { activeRevision, annotateFeeds } from '~/utils/joins/feeds'
+import { ApiError, type Revision } from '~/api'
 import { useFeedAlerts } from '~/composables/useFeedAlerts'
 import { isInProgressRevisionStatus } from '~/utils/feedStatus'
 import { docSearchItems, type DocSearchSection } from '~/utils/docs'
@@ -59,10 +60,18 @@ const ctx: FeedContext = {
 provideFeedContext(ctx)
 useFeedAlerts(avlFeeds, avlFeedsError)
 
-// Readiness only gates the UI until the selected feed has an active revision, so poll (feed + every
-// revision) only until then; switching feeds starts a fresh read for the new feed either way.
-const readinessSettled = ref(false)
-const readinessEnabled = computed(() => !!selectedFeedCode.value)
+// Readiness gates the UI until the selected feed has an active revision, so it polls (feed + every revision)
+// only until then. Once settled the gate stays open for that feed code (latched): pages read the same cache
+// entries, so a later failed page read must not block the app; switching feeds resets the latch.
+// `enabled` stays constant: Pinia Colada keeps one set of options per entry (the last consumer to apply its
+// options wins), and a disabled entry is skipped by invalidations, so polling stops through `autoRefetch` only.
+const settledFeedCode = ref<string | null>(null)
+watch(selectedFeedCode, () => {
+  settledFeedCode.value = null
+})
+const readinessSettled = computed(
+  () => !!selectedFeedCode.value && settledFeedCode.value === selectedFeedCode.value,
+)
 const {
   data: readinessFeedData,
   error: feedError,
@@ -70,7 +79,7 @@ const {
   isPlaceholderData: feedIsPlaceholder,
 } = useQuery(() => ({
   ...feedQuery({ code: selectedFeedCode.value ?? '' }),
-  enabled: readinessEnabled.value && !readinessSettled.value,
+  enabled: !!selectedFeedCode.value,
   autoRefetch: readinessSettled.value ? false : 10_000,
 }))
 const {
@@ -80,10 +89,22 @@ const {
   isPlaceholderData: revisionsIsPlaceholder,
 } = useQuery(() => ({
   ...revisionsQuery({ feedCode: selectedFeedCode.value ?? '' }),
-  enabled: readinessEnabled.value && !readinessSettled.value,
-  autoRefetch: readinessSettled.value ? false : 10_000,
+  enabled: !!selectedFeedCode.value,
+  // Decided from the response itself when the next tick is scheduled: the tick queued by the response that
+  // settles readiness would otherwise still fire (a later `false` does not clear an already scheduled tick).
+  autoRefetch: readinessSettled.value
+    ? false
+    : (state: { data?: Revision[] }) => (activeRevision(state.data ?? []) ? false : 10_000),
 }))
-const error = computed(() => feedError.value ?? revisionsError.value)
+// An unknown feed answers 404 on its revisions too (read in parallel with the feed): that is "unknown", not
+// "preparing" — the feed read resolves to null and the unknown-feed redirect takes over.
+const error = computed(() => {
+  const revisionsFailure =
+    revisionsError.value instanceof ApiError && revisionsError.value.status === 404
+      ? null
+      : revisionsError.value
+  return feedError.value ?? revisionsFailure
+})
 const loading = computed(() => feedLoading.value || revisionsLoading.value)
 // Placeholder data (the previous feed's) must never count as the selected feed's readiness.
 const readinessFeed = computed(() => {
@@ -97,7 +118,7 @@ const readinessActive = computed(() =>
   readinessFeed.value ? activeRevision(revisions.value ?? []) : null,
 )
 watchEffect(() => {
-  readinessSettled.value = error.value == null && !!readinessActive.value
+  if (error.value == null && readinessActive.value) settledFeedCode.value = selectedFeedCode.value
 })
 
 const feedIsPreparing = computed(
@@ -110,9 +131,9 @@ const feedIsPreparing = computed(
 const feedIsLoading = computed(
   () => !!selectedFeedCode.value && loading.value && !readinessFeed.value,
 )
-const feedIsBlocked = computed(() => {
-  return feedIsLoading.value || feedIsPreparing.value
-})
+const feedIsBlocked = computed(
+  () => !readinessSettled.value && (feedIsLoading.value || feedIsPreparing.value),
+)
 const preparingFeedName = computed(
   () => readinessFeed.value?.name ?? selectedFeed.value?.name ?? t('nav.feedFallback'),
 )

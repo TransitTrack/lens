@@ -30,9 +30,11 @@ const { data: draftsData, isLoading: loading, error } = useQuery(() => ({
 const drafts = computed<Draft[]>(() => draftsData.value ?? [])
 
 // --- new draft (forked from the ACTIVE revision) --------------------------
+// Read on mount rather than when the dialog opens: the layout's readiness shares this entry, and Pinia Colada
+// keeps the options of whichever consumer applied them last — a disabled read here would stop its polling.
 const { data: revisions } = useQuery(() => ({
   ...revisionsQuery({ feedCode: selectedFeedCode.value ?? '' }),
-  enabled: !!selectedFeedCode.value && newOpen.value,
+  enabled: !!selectedFeedCode.value,
 }))
 const newDraftBase = computed(() => activeRevision(revisions.value ?? []))
 
