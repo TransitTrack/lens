@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import { useApplyOptimizationRecommendationsMutation } from '~/composables/useRestOptimization'
-
 import {useEditorIdentity} from '~/composables/useEditorIdentity'
-import {useFeeds} from '~/composables/useFeeds'
 
-const props = defineProps<{ runId: string; selectedIds: string[] }>()
+const props = defineProps<{ selectedIds: string[]; applying?: boolean }>()
 const emit = defineEmits<{
-  applied: []
-  conflict: [ids: string[]]
+  apply: [payload: { label: string | null; editor: string }]
 }>()
 
-const {feedPath} = useFeeds()
 const {name: editorName} = useEditorIdentity()
-const toast = useToast()
-const {t} = useI18n()
 
 const label = ref('')
 const editor = ref('')
@@ -24,45 +17,11 @@ watch(
   {immediate: true},
 )
 
-const {mutate: apply, loading: applying} = useApplyOptimizationRecommendationsMutation()
-
-
-async function submit() {
+function submit() {
   const name = editor.value.trim()
   if (!name || !props.selectedIds.length) return
   editorName.value = name
-  try {
-    const res = await apply({ variables: {
-      runId: props.runId,
-      recommendationIds: props.selectedIds,
-      label: label.value.trim() || null,
-      editor: name,
-    } })
-    const draft = res?.data?.applyOptimizationRecommendations
-    toast.add({
-      title: t('optimize.applied'),
-      description: draft ? t('optimize.createdDraft', {id: draft.id}) : undefined,
-      color: 'success',
-      icon: 'i-lucide-check',
-      actions: draft
-        ? [{label: t('optimize.viewDraft'), onClick: () => navigateTo(feedPath('/drafts/' + draft.id))}]
-        : undefined,
-    })
-    emit('applied')
-  } catch (e) {
-    const first = restProblemOf(e)
-    if (first?.code === 'RECOMMENDATION_CONFLICT') {
-      const ids = (first.conflictingRecommendationIds ?? []).map(String)
-      emit('conflict', ids)
-      toast.add({
-        title: t('optimize.conflictTitle'),
-        description: t('optimize.conflictBody'),
-        color: 'error',
-      })
-    } else {
-      toast.add({title: t('optimize.applyFailed'), description: (e as Error).message, color: 'error'})
-    }
-  }
+  emit('apply', {label: label.value.trim() || null, editor: name})
 }
 </script>
 

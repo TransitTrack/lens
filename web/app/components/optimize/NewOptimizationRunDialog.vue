@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { useStartOptimizationRunMutation } from '~/composables/useRestOptimization'
-import { useExploreCalendarQuery, useRoutesQuery } from '~/composables/useRestGtfs'
-
-import {useFeeds} from '~/composables/useFeeds'
+import type { Calendar, CalendarDate, OptimizationRunInput, Route } from '~/api'
 
 const open = defineModel<boolean>('open', {default: false})
 
-const {selectedFeedCode, feedPath} = useFeeds()
+const props = defineProps<{
+  routes?: Route[]
+  calendars?: Calendar[]
+  calendarDates?: CalendarDate[]
+  starting?: boolean
+}>()
+const emit = defineEmits<{ start: [input: Omit<OptimizationRunInput, 'feedCode'>] }>()
+
 const toast = useToast()
 const {t} = useI18n()
 
@@ -19,23 +23,14 @@ const directionId = ref<string | null>(null)
 const windowFrom = ref('')
 const windowTo = ref('')
 
-const {result: routesResult} = useRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value && open.value,
-}))
-const {result: calendarResult} = useExploreCalendarQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value && open.value,
-}))
-
 const routeOptions = computed(() =>
-  (routesResult.value?.routes ?? []).map((r) => ({
+  (props.routes ?? []).map((r) => ({
     label: `${r.routeShortName ?? r.routeId} — ${r.routeLongName ?? ''}`.trim(),
     value: r.routeId,
   })),
 )
 const serviceOptions = computed(() => {
-  const ids = new Set((calendarResult.value?.calendars ?? []).map((c) => c.serviceId))
+  const ids = new Set([...(props.calendars ?? []), ...(props.calendarDates ?? [])].map((c) => c.serviceId))
   return [...ids].sort().map((id) => ({label: id, value: id}))
 })
 const directionOptions = computed(() => [
@@ -65,8 +60,6 @@ watch(open, (isOpen) => {
   windowTo.value = ''
 })
 
-const {mutate: start, loading: starting} = useStartOptimizationRunMutation()
-
 const canSubmit = computed(() => {
   if (!observedFrom.value || !observedTo.value || minimumSamples.value <= 0) return false
   return new Date(observedFrom.value).getTime() < new Date(observedTo.value).getTime()
@@ -87,26 +80,16 @@ async function submit() {
     toast.add({title: t('optimize.invalidWindow'), description: t('optimize.windowOrder'), color: 'error'})
     return
   }
-  try {
-    const res = await start({ variables: {
-      input: {
-        feedCode: selectedFeedCode.value ?? '',
-        serviceId: serviceId.value,
-        routeId: routeId.value,
-        directionId: directionId.value == null ? null : Number(directionId.value),
-        windowFromSec,
-        windowToSec,
-        observedFrom: new Date(observedFrom.value).toISOString(),
-        observedTo: new Date(observedTo.value).toISOString(),
-        minimumSamples: minimumSamples.value,
-      },
-    } })
-    const id = res?.data?.startOptimizationRun.id
-    open.value = false
-    if (id) await navigateTo(feedPath('/optimize/' + id))
-  } catch (e) {
-    toast.add({title: t('optimize.startFailed'), description: (e as Error).message, color: 'error'})
-  }
+  emit('start', {
+    serviceId: serviceId.value,
+    routeId: routeId.value,
+    directionId: directionId.value == null ? null : Number(directionId.value),
+    windowFromSec,
+    windowToSec,
+    observedFrom: new Date(observedFrom.value).toISOString(),
+    observedTo: new Date(observedTo.value).toISOString(),
+    minimumSamples: minimumSamples.value,
+  })
 }
 </script>
 

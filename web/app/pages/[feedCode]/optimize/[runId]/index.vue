@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { useOptimizationRunQuery } from '~/composables/useRestOptimization'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import type { OptimizationRunInput } from '~/api'
+import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
+import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
+import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { optimizationRecommendationsQuery } from '~/composables/api/queries/optimization/optimizationRecommendationsQuery'
+import { optimizationRunQuery } from '~/composables/api/queries/optimization/optimizationRunQuery'
+import { applyOptimizationRecommendationsMutation } from '~/composables/api/mutations/optimization/applyOptimizationRecommendationsMutation'
+import { startOptimizationRunMutation } from '~/composables/api/mutations/optimization/startOptimizationRunMutation'
+import { restProblemOf } from '~/utils/restErrors'
 
 import AppPage from '~/components/shell/AppPage.vue'
 import RecommendationList from '~/components/optimize/RecommendationList.vue'
@@ -10,18 +19,16 @@ import {useFeeds} from '~/composables/useFeeds'
 
 const route = useRoute()
 const runId = computed(() => String(route.params.runId))
-const {feedPath} = useFeeds()
+const {selectedFeedCode, feedPath} = useFeeds()
 const { t, te, locale } = useI18n()
 
 const selectedIds = ref<string[]>([])
 const conflictIds = ref<string[]>([])
-const recommendationList = ref<InstanceType<typeof RecommendationList> | null>(null)
 const newOpen = ref(false)
 
 function onApplied() {
   selectedIds.value = []
   conflictIds.value = []
-  recommendationList.value?.refetch()
 }
 
 function onConflict(ids: string[]) {
@@ -34,19 +41,79 @@ const TERMINAL_STATES = ['SUCCEEDED', 'FAILED']
  * reaches a terminal state, so a finished run doesn't keep re-fetching every second forever. */
 const polling = ref(true)
 
-const {result, loading} = useOptimizationRunQuery(() => ({
-  variables: { id: runId.value },
-  pollInterval: polling.value ? 1000 : 0,
+const {data: runData, isLoading: loading} = useQuery(() => ({
+  ...optimizationRunQuery({ id: runId.value }),
+  autoRefetch: polling.value ? 1000 : false,
 }))
 
-const run = computed(() => result.value?.optimizationRun ?? null)
+const run = computed(() => runData.value ?? null)
 const isTerminal = computed(() => !!run.value && TERMINAL_STATES.includes(run.value.state))
 
-watch(result, (r) => {
-  if (!r) return
-  const optimizationRun = r.optimizationRun
-  if (!optimizationRun || TERMINAL_STATES.includes(optimizationRun.state)) polling.value = false
+watch(runData, (r) => {
+  if (r === undefined) return
+  if (!r || TERMINAL_STATES.includes(r.state)) polling.value = false
 })
+
+const {data: recommendationsData, isLoading: recommendationsLoading, error: recommendationsError} = useQuery(() => ({
+  ...optimizationRecommendationsQuery({ runId: runId.value, status: 'PENDING', offset: 0, limit: 100 }),
+}))
+
+const toast = useToast()
+const queryCache = useQueryCache()
+const {mutateAsync: applyRecommendations, isLoading: applying} = useMutation(applyOptimizationRecommendationsMutation(queryCache))
+
+async function onApply(payload: { label: string | null; editor: string }) {
+  try {
+    const draft = await applyRecommendations({
+      path: { runId: runId.value },
+      body: { recommendationIds: selectedIds.value, editor: payload.editor, label: payload.label ?? undefined },
+    })
+    toast.add({
+      title: t('optimize.applied'),
+      description: draft ? t('optimize.createdDraft', {id: draft.id}) : undefined,
+      color: 'success',
+      icon: 'i-lucide-check',
+      actions: draft
+        ? [{label: t('optimize.viewDraft'), onClick: () => navigateTo(feedPath('/drafts/' + draft.id))}]
+        : undefined,
+    })
+    onApplied()
+  } catch (e) {
+    const first = restProblemOf(e)
+    if (first?.code === 'RECOMMENDATION_CONFLICT') {
+      onConflict((first.conflictingRecommendationIds ?? []).map(String))
+      toast.add({title: t('optimize.conflictTitle'), description: t('optimize.conflictBody'), color: 'error'})
+    } else {
+      toast.add({title: t('optimize.applyFailed'), description: (e as Error).message, color: 'error'})
+    }
+  }
+}
+
+// The new-analysis dialog (offered when a run failed) loads its pickers only while open.
+const dialogEnabled = computed(() => !!selectedFeedCode.value && newOpen.value)
+const {data: routes} = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: dialogEnabled.value,
+}))
+const {data: calendars} = useQuery(() => ({
+  ...calendarsQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: dialogEnabled.value,
+}))
+const {data: calendarDates} = useQuery(() => ({
+  ...calendarDatesQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: dialogEnabled.value,
+}))
+const {mutateAsync: startRun, isLoading: starting} = useMutation(startOptimizationRunMutation(queryCache))
+
+async function onStart(input: Omit<OptimizationRunInput, 'feedCode'>) {
+  try {
+    const started = await startRun({ body: { ...input, feedCode: selectedFeedCode.value ?? '' } })
+    newOpen.value = false
+    if (started?.id) await navigateTo(feedPath('/optimize/' + started.id))
+  } catch (e) {
+    toast.add({title: t('optimize.startFailed'), description: (e as Error).message, color: 'error'})
+  }
+}
 
 // i18n-keys: optimize.state.*
 function stateLabel(state: string): string {
@@ -146,21 +213,28 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
 
       <template v-else>
         <RecommendationList
-          ref="recommendationList"
           v-model:selected="selectedIds"
           v-model:conflict-ids="conflictIds"
-          :run-id="runId"
+          :recommendations="recommendationsData ?? []"
+          :loading="recommendationsLoading"
+          :error="recommendationsError"
         />
         <ApplyRecommendationsBar
           v-if="selectedIds.length"
-          :run-id="runId"
           :selected-ids="selectedIds"
-          @applied="onApplied"
-          @conflict="onConflict"
+          :applying="applying"
+          @apply="onApply"
         />
       </template>
     </div>
 
-    <NewOptimizationRunDialog v-model:open="newOpen" />
+    <NewOptimizationRunDialog
+      v-model:open="newOpen"
+      :routes="routes ?? []"
+      :calendars="calendars ?? []"
+      :calendar-dates="calendarDates ?? []"
+      :starting="starting"
+      @start="onStart"
+    />
   </AppPage>
 </template>

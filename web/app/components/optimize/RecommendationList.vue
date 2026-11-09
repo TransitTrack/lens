@@ -1,24 +1,18 @@
 <script setup lang="ts">
-import { useOptimizationRecommendationsQuery } from '~/composables/useRestOptimization'
-import type { OptimizationRecommendationsQuery } from '~/types/restViews'
+import type { OptimizationRecommendation } from '~/api'
 import {secToHm} from '~/utils/gtfs'
 import {formatOptimizationKind, formatSignedDuration} from '~/utils/optimizationPresentation'
 
 const {t} = useI18n()
-const props = defineProps<{ runId: string }>()
+defineProps<{
+  recommendations: OptimizationRecommendation[]
+  loading?: boolean
+  error?: Error | null
+}>()
 const selected = defineModel<string[]>('selected', {default: () => []})
 const conflictIds = defineModel<string[]>('conflictIds', {default: () => []})
 
-const {result, loading, error, refetch} = useOptimizationRecommendationsQuery(() => ({ variables: { runId: props.runId, status: 'PENDING', offset: 0, limit: 100 } })
-)
-
-defineExpose({refetch})
-
-type Recommendation = OptimizationRecommendationsQuery['optimizationRecommendations'][number]
-const recommendations = computed<Recommendation[]>(
-  () => result.value?.optimizationRecommendations ?? [],
-)
-
+type Recommendation = OptimizationRecommendation
 function toggle(id: string, checked: boolean) {
   if (checked) {
     if (!selected.value.includes(id)) selected.value = [...selected.value, id]
