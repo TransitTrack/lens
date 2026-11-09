@@ -20,7 +20,9 @@ class RestRevisionMapper {
             ValidationSummary(
                 Math.toIntExact(report.errorCount),
                 Math.toIntExact(report.warningCount),
-                report.issues.map { ValidationNotice(it.rule, Severity.valueOf(it.severity.name), Math.toIntExact(it.count), it.sample) },
+                report.issues.map {
+                    ValidationNotice(it.rule, Severity.valueOf(it.severity.name), Math.toIntExact(it.count), it.sample)
+                },
             )
         }
         return Revision(
