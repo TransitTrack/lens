@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import { useExploreCalendarQuery, useRoutesQuery } from '~/composables/useRestGtfs'
+import { useQuery } from '@pinia/colada'
+import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
+import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
 
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
@@ -10,24 +13,33 @@ const { selectedFeedCode, feedPath } = useFeeds()
 
 const draftId = computed(() => String(route.params.draftId))
 
-const { result: routesResult, loading: routesLoading } = useRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+// The pickers read the feed's active revision, as the editor page does.
+const enabled = computed(() => !!selectedFeedCode.value)
+const routesRead = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: enabled.value,
 }))
-const { result: calendarResult, loading: calendarLoading } = useExploreCalendarQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const calendarsRead = useQuery(() => ({
+  ...calendarsQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: enabled.value,
+}))
+const calendarDatesRead = useQuery(() => ({
+  ...calendarDatesQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: enabled.value,
 }))
 
-const routes = computed(() => routesResult.value?.routes ?? [])
+const routes = computed(() => routesRead.data.value ?? [])
 const services = computed(() => {
   const ids = new Set<string>()
-  for (const c of calendarResult.value?.calendars ?? []) ids.add(c.serviceId)
-  for (const d of calendarResult.value?.calendarDates ?? []) ids.add(d.serviceId)
+  for (const c of calendarsRead.data.value ?? []) ids.add(c.serviceId)
+  for (const d of calendarDatesRead.data.value ?? []) ids.add(d.serviceId)
   return [...ids].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
 })
 
-const ready = computed(() => !routesLoading.value && !calendarLoading.value)
+// Settled = every read has an answer (data or error) and none is in flight. Checking only
+// `isLoading` would redirect before the first fetch starts (it starts on mount).
+const reads = [routesRead, calendarsRead, calendarDatesRead]
+const ready = computed(() => reads.every((r) => r.status.value !== 'pending' && !r.isLoading.value))
 const noRoutes = computed(() => ready.value && routes.value.length === 0)
 
 let redirected = false

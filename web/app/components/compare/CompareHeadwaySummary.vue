@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CompareRevisionsQuery } from '~/types/restViews'
-
-type HeadwaySummary = CompareRevisionsQuery['compareRevisions']['headwaySummaries'][number]
+import type { HeadwaySummary } from '~/api'
 
 defineProps<{ summaries: HeadwaySummary[] }>()
 const { t } = useI18n()
