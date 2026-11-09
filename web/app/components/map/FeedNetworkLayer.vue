@@ -134,7 +134,7 @@ function onClusterClick(e: MapLayerMouseEvent) {
     source-id="feed-network-stops"
     :data="stops"
     cluster
-    :cluster-radius="48"
+    :cluster-radius="64"
     :cluster-max-zoom="14"
   >
     <MglCircleLayer
@@ -142,11 +142,11 @@ function onClusterClick(e: MapLayerMouseEvent) {
       :before="before"
       :filter="['has', 'point_count']"
       :paint="{
-        'circle-radius': ['step', ['get', 'point_count'], 13, 10, 16, 50, 20, 250, 24],
+        'circle-radius': ['step', ['get', 'point_count'], 10, 50, 13, 250, 16],
         'circle-color': colorMode.value === 'dark' ? '#0b0d0e' : '#f8fafc',
         'circle-opacity': 0.8,
         'circle-stroke-width': 1,
-        'circle-stroke-color': '#ffffff',
+        'circle-stroke-color': colorMode.value !== 'dark' ? '#0b0d0e' : '#f8fafc',
       }"
       @click="onClusterClick"
     />
@@ -157,10 +157,10 @@ function onClusterClick(e: MapLayerMouseEvent) {
       :layout="{
         'text-field': ['get', 'point_count_abbreviated'],
         'text-font': ['noto_sans_bold'],
-        'text-size': 12,
+        'text-size': 10,
         'text-allow-overlap': true,
       }"
-      :paint="{ 'text-color': '#ffffff' }"
+      :paint="{ 'text-color': colorMode.value !== 'dark' ? '#0b0d0e' : '#f8fafc' }"
     />
     <MglCircleLayer
       layer-id="feed-network-stops-circles"

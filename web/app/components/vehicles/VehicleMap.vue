@@ -137,7 +137,9 @@ watch(
   },
 )
 
-const { lines: networkLines, stops: networkStops } = useFeedGeometry(computed(() => props.networkFeatures))
+const { lines: networkLines, stops: networkStops } = useFeedGeometry(
+  computed(() => props.networkFeatures),
+)
 
 // Capture the agency extent once — the page's extent is a fresh object on
 // every data refresh and binding it live would snap the view back on each poll.
@@ -730,7 +732,7 @@ watch(
     </MglMap>
 
     <VehicleMapLegend
-      class="absolute bottom-10 transition-[right] duration-200"
+      class="absolute bottom-3.5 transition-[right] duration-200"
       :style="{ right: `${insetRight + 8}px` }"
     />
 
@@ -739,8 +741,16 @@ watch(
       route-colors-available
       :route-color-mode="routeColorMode"
       :layers="[
-        { id: 'networkRoutes', label: $t('map.layer.networkRoutes'), enabled: visibleLayers.networkRoutes },
-        { id: 'networkStops', label: $t('map.layer.networkStops'), enabled: visibleLayers.networkStops },
+        {
+          id: 'networkRoutes',
+          label: $t('map.layer.networkRoutes'),
+          enabled: visibleLayers.networkRoutes,
+        },
+        {
+          id: 'networkStops',
+          label: $t('map.layer.networkStops'),
+          enabled: visibleLayers.networkStops,
+        },
         {
           id: 'selectedTripLine',
           label: $t('map.layer.selectedTripLine'),
