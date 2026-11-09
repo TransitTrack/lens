@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { blockQuery } from '~/composables/api/queries/schedule/blockQuery'
-import { blockTripsQuery } from '~/composables/api/queries/schedule/blockTripsQuery'
-import { tripsQuery } from '~/composables/api/queries/gtfs/tripsQuery'
-import { routesByIdsQuery } from '~/composables/api/queries/gtfs/routesByIdsQuery'
+import { blockQuery, blockTripsQuery } from '~/composables/api/queries/schedule'
+import { tripsQuery, routesByIdsQuery } from '~/composables/api/queries/gtfs'
 import { blockTripsWithTrips } from '~/utils/joins/blocks'
 import { indexBy } from '~/utils/joins/routes'
 import AppPage from '~/components/shell/AppPage.vue'

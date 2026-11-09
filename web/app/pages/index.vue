@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { feedsQuery } from '~/composables/api/queries/gtfs/feedsQuery'
+import { feedsQuery } from '~/composables/api/queries/gtfs'
 
 definePageMeta({ layout: false })
 

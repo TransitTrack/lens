@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { blocksQuery } from '~/composables/api/queries/schedule/blocksQuery'
+import { blocksQuery } from '~/composables/api/queries/schedule'
 import { runQuery } from '../../../../helpers/colada'
 import { page, stubFetch } from '../../../../helpers/stubFetch'
 

@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { avlReportCatalogQuery } from '~/composables/api/queries/avl/avlReportCatalogQuery'
-import { avlReportPageQuery } from '~/composables/api/queries/avl/avlReportPageQuery'
-import { tripsByKeysQuery } from '~/composables/api/queries/gtfs/tripsByKeysQuery'
+import { avlReportCatalogQuery, avlReportPageQuery } from '~/composables/api/queries/avl'
+import { tripsByKeysQuery } from '~/composables/api/queries/gtfs'
 import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
 import { reportTripKeys, reportsWithTrips } from '~/utils/joins/reports'
 import { h } from 'vue'

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
-import { validationFindingCountsQuery } from '~/composables/api/queries/gtfs/validationFindingCountsQuery'
+import { routesQuery, agenciesQuery, validationFindingCountsQuery } from '~/composables/api/queries/gtfs'
 import type { Route } from '~/api'
 import { useFindingsFilter } from '~/composables/useFindingsFilter'
 import type { TableColumn } from '@nuxt/ui'

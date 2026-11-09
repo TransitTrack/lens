@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { shapeQuery } from '~/composables/api/queries/gtfs/shapeQuery'
+import { shapeQuery } from '~/composables/api/queries/gtfs'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

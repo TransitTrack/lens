@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { stopAdherenceQuery } from '~/composables/api/queries/avl/stopAdherenceQuery'
-import { stopsQuery } from '~/composables/api/queries/gtfs/stopsQuery'
+import { stopAdherenceQuery } from '~/composables/api/queries/avl'
+import { stopsQuery } from '~/composables/api/queries/gtfs'
 import type { StopPassage } from '~/api'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'

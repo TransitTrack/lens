@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
-import { feedQuery } from '~/composables/api/queries/gtfs/feedQuery'
-import { revisionsQuery } from '~/composables/api/queries/gtfs/revisionsQuery'
-import { feedInfoQuery } from '~/composables/api/queries/gtfs/feedInfoQuery'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
+import { feedQuery, revisionsQuery, feedInfoQuery, routesQuery, agenciesQuery } from '~/composables/api/queries/gtfs'
 import { ingestFeedMutation } from '~/composables/api/mutations/gtfs/ingestFeedMutation'
 import { updateFeedMutation } from '~/composables/api/mutations/gtfs/updateFeedMutation'
 import { activateRevisionMutation } from '~/composables/api/mutations/gtfs/activateRevisionMutation'

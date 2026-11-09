@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { routeQuery } from '~/composables/api/queries/gtfs/routeQuery'
+import { routeQuery } from '~/composables/api/queries/gtfs'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

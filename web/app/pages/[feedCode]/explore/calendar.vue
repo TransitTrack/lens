@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
-import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
+import { calendarsQuery, calendarDatesQuery } from '~/composables/api/queries/gtfs'
 import type { CalendarDate } from '~/api'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'

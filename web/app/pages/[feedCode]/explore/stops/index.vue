@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { stopsQuery } from '~/composables/api/queries/gtfs/stopsQuery'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
-import { validationFindingCountsQuery } from '~/composables/api/queries/gtfs/validationFindingCountsQuery'
-import { tripPatternsQuery } from '~/composables/api/queries/schedule/tripPatternsQuery'
-import { stopPathsQuery } from '~/composables/api/queries/schedule/stopPathsQuery'
+import { stopsQuery, routesQuery, agenciesQuery, validationFindingCountsQuery } from '~/composables/api/queries/gtfs'
+import { tripPatternsQuery, stopPathsQuery } from '~/composables/api/queries/schedule'
 import type { Stop } from '~/api'
 import { useFindingsFilter } from '~/composables/useFindingsFilter'
 import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'

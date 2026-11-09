@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { routeAdherenceQuery } from '~/composables/api/queries/avl/routeAdherenceQuery'
+import { routeAdherenceQuery } from '~/composables/api/queries/avl'
 import { runQuery } from '../../../../helpers/colada'
 import { page, stubFetch } from '../../../../helpers/stubFetch'
 

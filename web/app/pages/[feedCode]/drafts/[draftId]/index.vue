@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
-import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
+import { routesQuery, calendarsQuery, calendarDatesQuery } from '~/composables/api/queries/gtfs'
 
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'

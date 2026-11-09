@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type { OptimizationRunInput } from '~/api'
-import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { optimizationRecommendationsQuery } from '~/composables/api/queries/optimization/optimizationRecommendationsQuery'
-import { optimizationRunQuery } from '~/composables/api/queries/optimization/optimizationRunQuery'
+import { calendarsQuery, routesQuery } from '~/composables/api/queries/gtfs'
+import { optimizationRecommendationsQuery, optimizationRunQuery } from '~/composables/api/queries/optimization'
 import { applyOptimizationRecommendationsMutation } from '~/composables/api/mutations/optimization/applyOptimizationRecommendationsMutation'
 import { startOptimizationRunMutation } from '~/composables/api/mutations/optimization/startOptimizationRunMutation'
 import { restProblemOf } from '~/utils/restErrors'

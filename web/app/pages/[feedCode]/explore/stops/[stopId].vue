@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { validationFindingsQuery } from '~/composables/api/queries/gtfs/validationFindingsQuery'
-import { stopQuery } from '~/composables/api/queries/gtfs/stopQuery'
-import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
-import { stopScheduleQuery } from '~/composables/api/queries/schedule/stopScheduleQuery'
+import { validationFindingsQuery, stopQuery, agenciesQuery } from '~/composables/api/queries/gtfs'
+import { stopScheduleQuery } from '~/composables/api/queries/schedule'
 import { agenciesExtent } from '~/utils/joins/extent'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { vehicleTrailQuery } from '~/composables/api/queries/avl/vehicleTrailQuery'
+import { vehicleTrailQuery } from '~/composables/api/queries/avl'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

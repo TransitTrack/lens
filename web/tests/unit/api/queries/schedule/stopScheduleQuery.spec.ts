@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { stopScheduleQuery } from '~/composables/api/queries/schedule/stopScheduleQuery'
+import { stopScheduleQuery } from '~/composables/api/queries/schedule'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

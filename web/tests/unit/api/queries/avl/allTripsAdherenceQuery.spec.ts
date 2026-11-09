@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { allTripsAdherenceQuery } from '~/composables/api/queries/avl/allTripsAdherenceQuery'
+import { allTripsAdherenceQuery } from '~/composables/api/queries/avl'
 import { runQuery } from '../../../../helpers/colada'
 import { page, stubFetch } from '../../../../helpers/stubFetch'
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { tripsByKeysQuery } from '~/composables/api/queries/gtfs/tripsByKeysQuery'
+import { tripsByKeysQuery } from '~/composables/api/queries/gtfs'
 import { reportsWithTrips } from '~/utils/joins/reports'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'

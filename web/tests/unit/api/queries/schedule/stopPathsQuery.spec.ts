@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { stopPathsQuery } from '~/composables/api/queries/schedule/stopPathsQuery'
+import { stopPathsQuery } from '~/composables/api/queries/schedule'
 import { runQuery } from '../../../../helpers/colada'
 import { page, stubFetch } from '../../../../helpers/stubFetch'
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { draftKeys } from '~/composables/api/keys/drafts'
-import { draftGridQuery } from '~/composables/api/queries/drafts/draftGridQuery'
+import { draftGridQuery } from '~/composables/api/queries/drafts'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

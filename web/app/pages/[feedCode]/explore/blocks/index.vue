@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { blocksQuery } from '~/composables/api/queries/schedule/blocksQuery'
-import { tripsQuery } from '~/composables/api/queries/gtfs/tripsQuery'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { agenciesQuery } from '~/composables/api/queries/gtfs/agenciesQuery'
-import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
+import { blocksQuery } from '~/composables/api/queries/schedule'
+import { tripsQuery, routesQuery, agenciesQuery, calendarsQuery } from '~/composables/api/queries/gtfs'
 import { blocksWithTrips } from '~/utils/joins/blocks'
 import { formatNumber } from '~/utils/intlLocale'
 import type { TableColumn } from '@nuxt/ui'

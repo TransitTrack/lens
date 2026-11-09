@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery, useQueryCache } from '@pinia/colada'
-import { liveVehiclesQuery } from '~/composables/api/queries/avl/liveVehiclesQuery'
+import { liveVehiclesQuery } from '~/composables/api/queries/avl'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'

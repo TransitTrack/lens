@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { allRoutesAdherenceQuery } from '~/composables/api/queries/avl/allRoutesAdherenceQuery'
+import { allRoutesAdherenceQuery } from '~/composables/api/queries/avl'
 import type { RouteAdherenceSummary } from '~/api'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'

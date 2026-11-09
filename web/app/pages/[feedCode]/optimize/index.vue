@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type { OptimizationRun, OptimizationRunInput } from '~/api'
-import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
-import { optimizationRunsQuery } from '~/composables/api/queries/optimization/optimizationRunsQuery'
+import { calendarsQuery, routesQuery } from '~/composables/api/queries/gtfs'
+import { optimizationRunsQuery } from '~/composables/api/queries/optimization'
 import { startOptimizationRunMutation } from '~/composables/api/mutations/optimization/startOptimizationRunMutation'
 import {useFeeds} from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'

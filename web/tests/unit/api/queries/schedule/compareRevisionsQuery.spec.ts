@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { compareRevisionsQuery } from '~/composables/api/queries/schedule/compareRevisionsQuery'
+import { compareRevisionsQuery } from '~/composables/api/queries/schedule'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

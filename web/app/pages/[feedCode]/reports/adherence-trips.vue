@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { allTripsAdherenceQuery } from '~/composables/api/queries/avl/allTripsAdherenceQuery'
-import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
+import { allTripsAdherenceQuery } from '~/composables/api/queries/avl'
+import { routesQuery } from '~/composables/api/queries/gtfs'
 import type { TripAdherenceSummary } from '~/api'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'

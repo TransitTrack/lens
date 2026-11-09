@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useQuery } from '@pinia/colada'
-import { revisionsQuery } from '~/composables/api/queries/gtfs/revisionsQuery'
-import { draftsQuery } from '~/composables/api/queries/drafts/draftsQuery'
-import { compareRevisionsQuery } from '~/composables/api/queries/schedule/compareRevisionsQuery'
+import { revisionsQuery } from '~/composables/api/queries/gtfs'
+import { draftsQuery } from '~/composables/api/queries/drafts'
+import { compareRevisionsQuery } from '~/composables/api/queries/schedule'
 
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'

@@ -4,7 +4,7 @@ import { defineComponent, h } from 'vue'
 import { useQuery, useQueryCache } from '@pinia/colada'
 import { UApp } from '#components'
 import DefaultLayout from '../../app/layouts/default.vue'
-import { revisionsQuery } from '../../app/composables/api/queries/gtfs/revisionsQuery'
+import { revisionsQuery } from '../../app/composables/api/queries/gtfs'
 import { json, page, stubFetch } from '../helpers/stubFetch'
 
 const feed = { code: 'feed-a', name: 'Feed A', description: null, enabled: true, source: 'REMOTE' }

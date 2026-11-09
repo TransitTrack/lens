@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { draftJobQuery } from '~/composables/api/queries/drafts/draftJobQuery'
+import { draftJobQuery } from '~/composables/api/queries/drafts'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

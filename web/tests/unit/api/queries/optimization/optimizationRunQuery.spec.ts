@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { optimizationRunQuery } from '~/composables/api/queries/optimization/optimizationRunQuery'
+import { optimizationRunQuery } from '~/composables/api/queries/optimization'
 import { runQuery } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 
