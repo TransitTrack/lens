@@ -2,13 +2,11 @@
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 
-import type { AvlLogQuery } from '~/types/restViews'
+import type { AvlLogRow } from '~/utils/joins/reports'
 import { useUnits } from '~/composables/useUnits'
 import { adherenceBadge } from '~/utils/adherence'
 import { formatClock } from '~/utils/clock'
 import { matchStatusLabel } from '~/utils/vehicleTelemetry'
-
-type AvlLogRow = AvlLogQuery['avlReports'][number]
 
 /** The vehicle's newest AVL reports with their matched trip and route; the page reads them while the log is open. */
 defineProps<{

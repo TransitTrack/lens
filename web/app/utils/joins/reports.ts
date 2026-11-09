@@ -1,5 +1,8 @@
-import type { AvlReportMatch, Route, Trip } from '~/api'
+import type { AvlReportMatch, MatchStatus, Route, Trip } from '~/api'
 import { withRoute } from './routes'
+
+/** A vehicle's AVL report with its matched trip and that trip's route, as the AVL log renders it. */
+export type AvlLogRow = { ts: string, speedMps: number | null, bearing: number | null, matchStatus: MatchStatus, descTripId: string | null, position: { lat: number, lon: number }, match: { stopPathIndex: number, distanceAlongTripM: number, deviationM: number, scheduleAdherenceSec: number | null, score: number | null, trip: { tripId: string, tripHeadsign: string | null, route: { routeShortName: string | null, routeColor: string | null } | null } | null } | null }
 
 const tripKey = (m: { revisionId: string, tripId: string }) => `${m.revisionId}|${m.tripId}`
 

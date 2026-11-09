@@ -18,7 +18,7 @@ import { stopPathsQuery } from '~/composables/api/queries/schedule/stopPathsQuer
 import { blockQuery } from '~/composables/api/queries/schedule/blockQuery'
 import { blockTripsQuery } from '~/composables/api/queries/schedule/blockTripsQuery'
 import type { PredictionAlgorithm } from '~/api'
-import type { AvlLogQuery, PredictionAccuracy } from '~/types/restViews'
+import type { AvlLogRow } from '~/utils/joins/reports'
 import { reportRouteIdsByRevision, reportTripKeys, reportsWithTripsByRevision } from '~/utils/joins/reports'
 import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
 import {
@@ -224,7 +224,7 @@ const { data: accuracyData } = useQuery(() => {
     autoRefetch: () => (paused.value ? false : 5 * 60_000),
   }
 })
-const accuracy = computed(() => (accuracyData.value ?? []) as unknown as PredictionAccuracy)
+const accuracy = computed(() => accuracyData.value ?? [])
 
 // The backend summarises the vehicle's recent movement (track, cadence, newest status, speeds).
 const vehicleTrail = computed(() => (selectedAvlFeedCode.value ? trailData.value ?? null : null))
@@ -261,11 +261,11 @@ const logChain = computed<ChainRead[]>(() => [
   { enabled: logRoutesEnabled.value, q: logRoutesQ },
 ])
 // Rows appear once the trips and routes of the newest reports have answered; the previous rows stay meanwhile.
-const logRows = computed<AvlLogQuery['avlReports']>((previous) => {
+const logRows = computed<AvlLogRow[]>((previous) => {
   if (!logEnabled.value) return []
   if (chainPending(logChain.value)) return previous ?? []
   const routes = (logRoutesEnabled.value ? logRoutesQ.data.value : undefined) ?? new Map()
-  return reportsWithTripsByRevision(logReports.value, logTrips.value, routes) as unknown as AvlLogQuery['avlReports']
+  return reportsWithTripsByRevision(logReports.value, logTrips.value, routes) as unknown as AvlLogRow[]
 })
 const logLoading = computed(() => chainLoading(logChain.value))
 const logError = computed(() => chainError(logChain.value))

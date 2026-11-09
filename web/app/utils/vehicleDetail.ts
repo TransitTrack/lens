@@ -1,10 +1,11 @@
-import type { VehicleDetailQuery } from '~/types/restViews'
+import type { PredictionAccuracySummary } from '~/api'
+import type { VehicleDetail } from '~/utils/joins/vehicleDetail'
 import { formatClock } from './clock'
 import { geometryLine } from './gtfs'
 
-type Vehicle = NonNullable<VehicleDetailQuery['vehicle']>
-type Prediction = VehicleDetailQuery['vehiclePredictions'][number]
-type Accuracy = VehicleDetailQuery['predictionAccuracy'][number]
+type Vehicle = NonNullable<VehicleDetail['vehicle']>
+type Prediction = VehicleDetail['vehiclePredictions'][number]
+type Accuracy = PredictionAccuracySummary
 
 /**
  * The route line, as an ordered list of [lon, lat] pairs. Prefers the schedule

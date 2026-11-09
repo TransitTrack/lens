@@ -34,18 +34,18 @@ export default withNuxt(
     // Generated Colada / TanStack helpers are replaced by the hand-written queries in app/composables/api.
     files: ['app/**/*.{ts,vue}'],
     rules: {
-      'no-restricted-imports': ['warn', {
+      'no-restricted-imports': ['error', {
         patterns: generatedHelperPatterns,
       }],
     },
   },
   {
     // Pinia Colada is called from pages, layouts and app/composables/api only (see the
-    // pinia-colada-queries design). `warn` until the TanStack code is gone, then `error`.
-    files: ['app/components/**/*.{ts,vue}', 'app/composables/**/*.ts'],
+    // pinia-colada-queries design).
+    files: ['app/components/**/*.{ts,vue}', 'app/composables/**/*.ts', 'app/utils/**/*.ts', 'app/plugins/**/*.ts'],
     ignores: ['app/composables/api/**'],
     rules: {
-      'no-restricted-imports': ['warn', {
+      'no-restricted-imports': ['error', {
         paths: [{
           name: '@pinia/colada',
           importNames: ['useQuery', 'useMutation', 'useQueryCache'],

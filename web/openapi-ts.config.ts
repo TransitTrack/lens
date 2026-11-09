@@ -7,8 +7,6 @@ export default defineConfig({
   output: { path: 'generated/api', clean: true },
   plugins: [
     '@hey-api/typescript',
-    '@pinia/colada',
-    { name: '@tanstack/vue-query', queryOptions: true },
     // Relative, so the same build works behind the dev proxy and the nginx `/api` proxy (the
     // contract's `servers` entry is the local backend, for API tools only).
     { name: '@hey-api/client-fetch', throwOnError: true, baseUrl: '/api/v1' },

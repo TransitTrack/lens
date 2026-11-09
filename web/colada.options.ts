@@ -1,7 +1,7 @@
 import type { PiniaColadaOptions } from '@pinia/colada'
 import { PiniaColadaAutoRefetch } from '@pinia/colada-plugin-auto-refetch'
 
-// Mirrors the defaults in app/api/queryClient.ts. Polling is opt-in per query via `autoRefetch`.
+// Polling is opt-in per query via `autoRefetch`.
 export default {
   queryOptions: {
     staleTime: 0,
