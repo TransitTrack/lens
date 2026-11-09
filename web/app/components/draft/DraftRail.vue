@@ -1,37 +1,38 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
-import type {DraftGridQuery} from '~/types/restViews'
-import type {useDraftEditor} from '~/composables/useDraftEditor'
+import type {DraftEdit, DraftGridTrip} from '~/api'
+import type {DraftEditCommand, DraftTripDetail} from '~/types/draftEdits'
 import DraftTripPanel from '~/components/draft/DraftTripPanel.vue'
 import DraftHistoryPanel from '~/components/draft/DraftHistoryPanel.vue'
 import DraftValidationPanel from '~/components/draft/DraftValidationPanel.vue'
 
-type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
-
 const { t } = useI18n()
 
 const props = defineProps<{
-  draftId: string
   selectedTrip: DraftGridTrip | null
+  /** The selected trip's derived detail in the draft, or null. */
+  tripDetail: DraftTripDetail | null
   activeCell: { tripId: string; stopSequence: number } | null
   activeCellValue: { arrivalSec: number | null; departureSec: number | null } | null
   activeStopName?: string | null
   readOnly: boolean
   derivationStale: boolean
-  feedCode: string
   lastValidation: unknown
   undoneCount: number
   errorCount: number
-  editor: ReturnType<typeof useDraftEditor>
+  /** The draft's latest edits, for the history tab. */
+  edits: DraftEdit[]
+  canUndo: boolean
+  canRedo: boolean
   /** collapsed/expanded state now lives in the parent splitter panel. */
   collapsed: boolean
 }>()
 
 const emit = defineEmits<{
   goto: [payload: { tripId: string; stopSequence: number }]
-  changed: []
+  edit: [command: DraftEditCommand]
+  'undo-steps': [count: number]
   duplicate: [tripId: string]
-  deleted: [tripId: string]
   expand: []
   collapse: []
 }>()
@@ -126,26 +127,26 @@ const tabs = computed<{ id: Tab; label: string; icon: string }[]>(() => [
           <DraftTripPanel
             v-if="selectedTrip"
             :trip="selectedTrip"
+            :detail="tripDetail"
             :active-cell="activeCell"
             :active-cell-value="activeCellValue"
             :active-stop-name="activeStopName"
             :read-only="readOnly"
             :derivation-stale="derivationStale"
-            :feed-code="feedCode"
-            :draft-id="draftId"
-            :editor="editor"
-            @changed="emit('changed')"
+            @edit="(command) => emit('edit', command)"
             @duplicate="(id) => emit('duplicate', id)"
-            @deleted="(id) => emit('deleted', id)"
           />
           <p v-else class="p-3 text-xs text-muted">{{ $t('drafts.selectTrip') }}</p>
         </template>
 
         <DraftHistoryPanel
           v-else-if="tab === 'history'"
-          :draft-id="draftId"
-          :editor="editor"
-          @changed="emit('changed')"
+          :edits="edits"
+          :can-undo="canUndo"
+          :can-redo="canRedo"
+          :read-only="readOnly"
+          @edit="(command) => emit('edit', command)"
+          @undo-steps="(count) => emit('undo-steps', count)"
         />
 
         <DraftValidationPanel

@@ -1,105 +1,45 @@
 <script setup lang="ts">
-import { useDraftEditsQuery } from '~/composables/useRestDraftQueries'
-import { useRedoDraftEditMutation, useUndoDraftEditMutation } from '~/composables/useRestDraftMutations'
-import { computed, watch } from 'vue'
-
-import type { useDraftEditor } from '~/composables/useDraftEditor'
-import { useDraftEdit } from '~/composables/useDraftEdit'
+import { computed } from 'vue'
+import type { DraftEdit } from '~/api'
+import type { DraftEditCommand } from '~/types/draftEdits'
 import { formatClock } from '~/utils/clock'
 
 const props = defineProps<{
-  draftId: string
-  editor: ReturnType<typeof useDraftEditor>
+  /** The draft's latest edits (read by the page). */
+  edits: DraftEdit[]
+  canUndo: boolean
+  canRedo: boolean
+  readOnly: boolean
 }>()
 
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{
+  edit: [command: DraftEditCommand]
+  /** Undo the newest `count` active edits — the page runs them as one burst. */
+  'undo-steps': [count: number]
+}>()
 
 const { locale } = useI18n()
 
-const { result, refetch } = useDraftEditsQuery(() => ({
-  variables: { id: props.draftId, limit: 200 },
-  enabled: !!props.draftId,
-}))
-
 // newest-first
 const rows = computed(() => {
-  const list = [...(result.value?.draftEdits ?? [])]
+  const list = [...props.edits]
   list.sort((a, b) => b.seq - a.seq)
   return list
 })
 
-// refetch whenever the draft version changes (an edit landed)
-watch(
-  () => props.editor.draft.value?.version,
-  () => {
-    void refetch()
-  },
-)
-
-const { mutate: undoDraftEdit } = useUndoDraftEditMutation()
-const { mutate: redoDraftEdit } = useRedoDraftEditMutation()
-
-const { run } = useDraftEdit(props.editor, {
-  onChanged: async () => {
-    await refetch()
-    emit('changed')
-  },
-})
-
-async function undoOnce(): Promise<boolean> {
-  const result = await run(
-    (v) =>
-      undoDraftEdit({ variables: { id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion } }),
-    'undoDraftEdit',
-  )
-  return result != null
+function onUndo() {
+  emit('edit', { op: 'undoDraftEdit' })
 }
 
-async function onUndo() {
-  await undoOnce()
+function onRedo() {
+  emit('edit', { op: 'redoDraftEdit' })
 }
 
-async function onRedo() {
-  await run(
-    (v) =>
-      redoDraftEdit({ variables: { id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion } }),
-    'redoDraftEdit',
-  )
-}
-
-async function undoToHere(targetSeq: number) {
+function undoToHere(targetSeq: number) {
   // count the active edits newer than this row up front — the list can't
-  // refresh inside the tight await loop, so don't re-read it per iteration.
-  const n = (result.value?.draftEdits ?? []).filter(
-    (e) => !e.undone && e.seq > targetSeq,
-  ).length
-  // Don't route through the `run` helper here: its `onChanged` chain (heavy
-  // draftGrid refetch + refetchDraft + emit) would fire once per step. Apply
-  // each undo locally, then refresh once after the loop.
-  let applied = 0
-  for (let i = 0; i < n; i++) {
-    try {
-      const data = await props.editor.mutate(async (vars) => {
-        const res = await undoDraftEdit({ variables: {
-          id: vars.draftId,
-          editor: vars.editor,
-          expectedVersion: vars.expectedVersion,
-        } })
-        return res?.data
-      })
-      if (!data?.undoDraftEdit) break
-      props.editor.applyResult(data.undoDraftEdit)
-      applied++
-    } catch {
-      // editor.mutate already toasts
-      break
-    }
-  }
-  if (applied > 0) {
-    await props.editor.refetchEdits().catch(() => {})
-    await refetch()
-    emit('changed')
-  }
+  // refresh inside the page's await loop, so it doesn't re-read it per step.
+  const n = props.edits.filter((e) => !e.undone && e.seq > targetSeq).length
+  if (n > 0) emit('undo-steps', n)
 }
 
 function fmt(iso: string): string {
@@ -116,7 +56,7 @@ function fmt(iso: string): string {
         variant="soft"
         icon="i-lucide-undo-2"
         :label="$t('drafts.undo')"
-        :disabled="!editor.canUndo.value || editor.readOnly.value"
+        :disabled="!canUndo || readOnly"
         @click="onUndo"
       />
       <UButton
@@ -125,7 +65,7 @@ function fmt(iso: string): string {
         variant="soft"
         icon="i-lucide-redo-2"
         :label="$t('drafts.redo')"
-        :disabled="!editor.canRedo.value || editor.readOnly.value"
+        :disabled="!canRedo || readOnly"
         @click="onRedo"
       />
     </div>
@@ -148,7 +88,7 @@ function fmt(iso: string): string {
           v-if="!row.undone && i !== 0"
           type="button"
           class="self-start text-[0.65rem] text-primary hover:underline disabled:opacity-50"
-          :disabled="editor.readOnly.value"
+          :disabled="readOnly"
           @click="undoToHere(row.seq)"
         >
           {{ $t('drafts.undoToHere') }}

@@ -1,19 +1,16 @@
 <script setup lang="ts">
-import { useDraftPatternsQuery } from '~/composables/useRestDraftQueries'
-import { useAddTripMutation, useDuplicateTripMutation } from '~/composables/useRestDraftMutations'
 import {computed, ref, watch} from 'vue'
-import type { DraftGridQuery } from '~/types/restViews'
-import type {useDraftEditor} from '~/composables/useDraftEditor'
-import {useDraftEdit} from '~/composables/useDraftEdit'
+import type { DraftGridTrip } from '~/api'
+import type { DraftEditCommand, DraftPattern } from '~/types/draftEdits'
 import {parseTimeInput, parseDeltaInput, secToClock} from '~/utils/gtfsTime'
-
-type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
 
 const open = defineModel<boolean>('open', {default: false})
 
+type Mode = 'new' | 'duplicate'
+/** The page reads the route's patterns only while the dialog is open in 'new' mode. */
+const mode = defineModel<Mode>('mode', {default: 'duplicate'})
+
 const props = defineProps<{
-  editor: ReturnType<typeof useDraftEditor>
-  feedCode: string
   routeId: string
   directionId: number | null
   serviceId: string | null
@@ -21,12 +18,13 @@ const props = defineProps<{
   trips: DraftGridTrip[]
   duplicateSourceTripId?: string | null
   serviceItems?: { label: string; value: string }[]
+  /** The route's patterns in the draft with their stop paths (read by the page). */
+  patterns: DraftPattern[]
+  /** True while the page runs the submitted edit; the page closes the dialog when it lands. */
+  submitting: boolean
 }>()
 
-const emit = defineEmits<{ changed: [] }>()
-
-type Mode = 'new' | 'duplicate'
-const mode = ref<Mode>('duplicate')
+const emit = defineEmits<{ edit: [command: DraftEditCommand] }>()
 
 // duplicate mode
 const sourceTripId = ref<string | null>(null)
@@ -62,17 +60,7 @@ const tripItems = computed(() =>
   })),
 )
 
-const {result: patternsResult} = useDraftPatternsQuery(() => ({
-  variables: { feedCode: props.feedCode, routeId: props.routeId, revisionId: props.editor.draft.value?.id ?? '' },
-  enabled:
-      !!props.routeId &&
-      !!props.editor.draft.value?.id &&
-      !props.derivationStale &&
-      open.value &&
-      mode.value === 'new',
-})
-)
-const patterns = computed(() => patternsResult.value?.tripPatterns ?? [])
+const patterns = computed(() => props.patterns)
 const patternItems = computed(() =>
   patterns.value.map((p) => ({label: p.headsign ?? p.patternKey, value: p.patternKey})),
 )
@@ -94,11 +82,6 @@ const canSubmit = computed(() => {
   return !props.derivationStale && !!selectedPattern.value && !!serviceSel.value && baseSec.value != null
 })
 
-const {mutate: addTrip} = useAddTripMutation()
-const {mutate: duplicateTrip} = useDuplicateTripMutation()
-const {run} = useDraftEdit(props.editor, {onChanged: () => emit('changed')})
-const submitting = ref(false)
-
 function buildStops(base: number) {
   const paths = [...(selectedPattern.value?.stopPaths ?? [])].sort(
     (a, b) => a.stopPathIndex - b.stopPathIndex,
@@ -114,54 +97,34 @@ function buildStops(base: number) {
   return stops
 }
 
-async function submit() {
-  if (!canSubmit.value) return
-  submitting.value = true
-  try {
-    if (mode.value === 'duplicate') {
-      const result = await run(
-        (v) =>
-          duplicateTrip({ variables: {
-            input: {
-              draftId: v.draftId,
-              editor: v.editor,
-              expectedVersion: v.expectedVersion,
-              sourceTripId: sourceTripId.value as string,
-              newTripId: newTripId.value || null,
-              offsetSec: offsetSec.value as number,
-            },
-          } }),
-        'duplicateTrip',
-      )
-      if (result) open.value = false
-    } else {
-      const stops = buildStops(baseSec.value as number)
-      const result = await run(
-        (v) =>
-          addTrip({ variables: {
-            input: {
-              draftId: v.draftId,
-              editor: v.editor,
-              expectedVersion: v.expectedVersion,
-              routeId: props.routeId,
-              serviceId: serviceSel.value as string,
-              tripId: null,
-              headsign: headsign.value || null,
-              directionId:
-                directionRaw.value === '' || directionRaw.value == null
-                  ? null
-                  : Number(directionRaw.value),
-              shapeId: null,
-              blockId: blockId.value || null,
-              stops,
-            },
-          } }),
-        'addTrip',
-      )
-      if (result) open.value = false
-    }
-  } finally {
-    submitting.value = false
+function submit() {
+  if (!canSubmit.value || props.submitting) return
+  if (mode.value === 'duplicate') {
+    emit('edit', {
+      op: 'duplicateTrip',
+      body: {
+        sourceTripId: sourceTripId.value as string,
+        newTripId: newTripId.value || null,
+        offsetSec: offsetSec.value as number,
+      },
+    })
+  } else {
+    emit('edit', {
+      op: 'addTrip',
+      body: {
+        routeId: props.routeId,
+        serviceId: serviceSel.value as string,
+        tripId: null,
+        headsign: headsign.value || null,
+        directionId:
+          directionRaw.value === '' || directionRaw.value == null
+            ? null
+            : Number(directionRaw.value),
+        shapeId: null,
+        blockId: blockId.value || null,
+        stops: buildStops(baseSec.value as number),
+      },
+    })
   }
 }
 </script>
