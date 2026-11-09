@@ -60,12 +60,13 @@ jobs:
             )
           ' "$latest" > app/build/benchmark-comparison.json
 
-      - name: JMH Benchmark Action
-        uses: kitlangton/jmh-benchmark-action@v0.1.1
-        with:
-          jmh-output-path: app/build/benchmark-comparison.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
+      # Render + upload before the benchmark-comparison action: on a push event, that action
+      # commits its updated baseline by checking out `internal/benchmark-data` in this same
+      # working directory and leaves it checked out. That branch predates the app/ module split
+      # (it's rooted at the repo's very first commit), so app/build.gradle.kts - and the
+      # benchmarkReport task it defines - no longer exist on disk once the action has run,
+      # which fails `./gradlew benchmarkReport` with exit code 1. Neither step below depends on
+      # the action's output, so running them first keeps them on the real checkout.
       - name: Render HTML report
         if: always()
         run: ./gradlew benchmarkReport --no-daemon
@@ -79,3 +80,9 @@ jobs:
             app/build/reports/benchmarks/main/
             app/build/reports/benchmarks/html/
           retention-days: 90
+
+      - name: JMH Benchmark Action
+        uses: kitlangton/jmh-benchmark-action@v0.1.1
+        with:
+          jmh-output-path: app/build/benchmark-comparison.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
