@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { cancelDraftReads, invalidateDraft } from '~/composables/api/mutations/drafts/draftCache'
+import { cancelDraftReads, invalidateDraft } from '~/composables/api/mutations/drafts'
 import type { QueryCache } from '~/composables/api/mutations/types'
 import { fakeQueryCache } from '../../../../helpers/colada'
 

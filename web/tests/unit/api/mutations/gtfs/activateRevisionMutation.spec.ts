@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/api'
-import { activateRevisionMutation } from '~/composables/api/mutations/gtfs/activateRevisionMutation'
+import { activateRevisionMutation } from '~/composables/api/mutations/gtfs'
 import { fakeQueryCache } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

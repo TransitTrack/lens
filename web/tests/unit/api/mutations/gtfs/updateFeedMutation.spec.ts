@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/api'
-import { updateFeedMutation } from '~/composables/api/mutations/gtfs/updateFeedMutation'
+import { updateFeedMutation } from '~/composables/api/mutations/gtfs'
 import { fakeQueryCache } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

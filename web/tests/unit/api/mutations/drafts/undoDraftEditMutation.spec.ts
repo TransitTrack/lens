@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/api'
-import { undoDraftEditMutation } from '~/composables/api/mutations/drafts/undoDraftEditMutation'
+import { undoDraftEditMutation } from '~/composables/api/mutations/drafts'
 import { fakeQueryCache } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 

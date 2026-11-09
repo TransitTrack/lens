@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import { feedQuery, revisionsQuery, feedInfoQuery, routesQuery, agenciesQuery } from '~/composables/api/queries/gtfs'
-import { ingestFeedMutation } from '~/composables/api/mutations/gtfs/ingestFeedMutation'
-import { updateFeedMutation } from '~/composables/api/mutations/gtfs/updateFeedMutation'
-import { activateRevisionMutation } from '~/composables/api/mutations/gtfs/activateRevisionMutation'
-import { deleteRevisionMutation } from '~/composables/api/mutations/gtfs/deleteRevisionMutation'
+import { ingestFeedMutation, updateFeedMutation, activateRevisionMutation, deleteRevisionMutation } from '~/composables/api/mutations/gtfs'
 import { activeRevision } from '~/utils/joins/feeds'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'

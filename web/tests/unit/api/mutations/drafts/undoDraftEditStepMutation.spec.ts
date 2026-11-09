@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/api'
-import { undoDraftEditStepMutation } from '~/composables/api/mutations/drafts/undoDraftEditStepMutation'
+import { undoDraftEditStepMutation } from '~/composables/api/mutations/drafts'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 
 const vars = { path: { id: '9' }, body: { editor: 'e', expectedVersion: 3 } }

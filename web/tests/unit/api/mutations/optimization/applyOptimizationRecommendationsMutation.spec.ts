@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/api'
-import { applyOptimizationRecommendationsMutation } from '~/composables/api/mutations/optimization/applyOptimizationRecommendationsMutation'
+import { applyOptimizationRecommendationsMutation } from '~/composables/api/mutations/optimization'
 import { fakeQueryCache } from '../../../../helpers/colada'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 
