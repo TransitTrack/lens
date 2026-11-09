@@ -4,7 +4,7 @@ import { blocksWithTrips, blockTripsWithTrips } from '~/utils/joins/blocks'
 import { agenciesExtent } from '~/utils/joins/extent'
 import { activeRevision, annotateFeeds, gtfsFeedCodeOf } from '~/utils/joins/feeds'
 import { reportRouteIdsByRevision, reportsWithTrips, reportsWithTripsByRevision, reportTripKeys } from '~/utils/joins/reports'
-import { indexBy, routesWithAgency, withRoute } from '~/utils/joins/routes'
+import { indexBy, withRoute } from '~/utils/joins/routes'
 import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'
 
 const as = <T>(v: unknown) => v as T
@@ -38,8 +38,6 @@ describe('routes', () => {
     const map = indexBy(routes, 'routeId')
     expect(withRoute({ routeId: 'R1' }, map).route).toBe(routes[0])
     expect(withRoute({ routeId: 'zz' }, map).route).toBeNull()
-    const out = routesWithAgency(routes, [{ agencyId: 'A' }])
-    expect(out.map((r) => r.agency?.agencyId ?? null)).toEqual(['A', null, null])
   })
 })
 

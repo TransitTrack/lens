@@ -10,7 +10,7 @@ describe('feedsQuery', () => {
     const { calls } = stubFetch(() => page([{ code: 'a' }]))
     expect(await runQuery(feedsQuery)).toEqual([{ code: 'a' }])
     expect(new URL(calls[0]!.url).pathname).toBe('/api/v1/feeds')
-    expect(feedsQuery.key).toEqual(['feeds', 'list'])
+    expect(feedsQuery.key).toEqual(['feeds', { list: true }])
   })
 
   it('reads every page', async () => {

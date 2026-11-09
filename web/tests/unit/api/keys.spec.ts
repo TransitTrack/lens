@@ -8,10 +8,13 @@ import { optimizationKeys } from '~/composables/api/keys/optimization'
 describe('feedKeys', () => {
   it('builds the plain feed keys', () => {
     expect(feedKeys.all).toEqual(['feeds'])
-    expect(feedKeys.list()).toEqual(['feeds', 'list'])
+    expect(feedKeys.list()).toEqual(['feeds', { list: true }])
     expect(feedKeys.feed('f')).toEqual(['feeds', 'f'])
-    expect(feedKeys.feedInfo('f')).toEqual(['feeds', 'f', 'feed-info'])
     expect(feedKeys.revisions('f', { limit: 5, q: null })).toEqual(['feeds', 'f', 'revisions', { limit: 5 }])
+  })
+  it('keeps the feed list apart from any feed code, under the feeds root', () => {
+    expect(feedKeys.list()).not.toEqual(feedKeys.feed('list'))
+    expect(feedKeys.list().slice(0, feedKeys.all.length)).toEqual(feedKeys.all)
   })
   it('rev defaults to active', () => {
     expect(feedKeys.rev({ feedCode: 'f' })).toEqual(['feeds', 'f', 'rev', 'active'])
@@ -47,7 +50,6 @@ describe('draftKeys', () => {
 describe('avlKeys', () => {
   it('builds keys', () => {
     expect(avlKeys.feeds()).toEqual(['avl-feeds'])
-    expect(avlKeys.feed('a')).toEqual(['avl', 'a'])
     expect(avlKeys.resource('a', 'vehicles', { routeId: null })).toEqual(['avl', 'a', 'vehicles', {}])
   })
 })

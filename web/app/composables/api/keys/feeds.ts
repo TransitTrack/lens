@@ -10,10 +10,11 @@ const hasId = (v: string | number | null | undefined): v is string | number => v
 
 export const feedKeys = {
   all: ['feeds'] as const,
-  list: () => ['feeds', 'list'] as const,
+  // An object marker, so the list can never collide with feed(code) for an operator-chosen code like 'list';
+  // still under `all`, so feed mutations invalidating `all` refresh it.
+  list: () => ['feeds', { list: true }] as const,
   feed: (code: string) => ['feeds', code] as const,
   revisions: (code: string, params?: KeyParams) => ['feeds', code, 'revisions', cleanParams(params)] as const,
-  feedInfo: (code: string) => ['feeds', code, 'feed-info'] as const,
   rev: (s: Rev) =>
     hasId(s.draftId)
       ? (['drafts', String(s.draftId), 'feeds', s.feedCode] as const)
