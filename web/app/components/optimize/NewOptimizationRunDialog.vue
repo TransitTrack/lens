@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import type { Calendar, CalendarDate, OptimizationRunInput, Route } from '~/api'
+import type { Calendar, OptimizationRunInput, Route } from '~/api'
 
 const open = defineModel<boolean>('open', {default: false})
 
 const props = defineProps<{
   routes?: Route[]
   calendars?: Calendar[]
-  calendarDates?: CalendarDate[]
   starting?: boolean
 }>()
 const emit = defineEmits<{ start: [input: Omit<OptimizationRunInput, 'feedCode'>] }>()
@@ -30,7 +29,7 @@ const routeOptions = computed(() =>
   })),
 )
 const serviceOptions = computed(() => {
-  const ids = new Set([...(props.calendars ?? []), ...(props.calendarDates ?? [])].map((c) => c.serviceId))
+  const ids = new Set((props.calendars ?? []).map((c) => c.serviceId))
   return [...ids].sort().map((id) => ({label: id, value: id}))
 })
 const directionOptions = computed(() => [
@@ -65,7 +64,7 @@ const canSubmit = computed(() => {
   return new Date(observedFrom.value).getTime() < new Date(observedTo.value).getTime()
 })
 
-async function submit() {
+function submit() {
   if (!canSubmit.value) return
   let windowFromSec: number | null
   let windowToSec: number | null

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type { OptimizationRun, OptimizationRunInput } from '~/api'
-import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
 import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
 import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
 import { optimizationRunsQuery } from '~/composables/api/queries/optimization/optimizationRunsQuery'
@@ -34,10 +33,6 @@ const {data: routes} = useQuery(() => ({
 }))
 const {data: calendars} = useQuery(() => ({
   ...calendarsQuery({ feedCode: selectedFeedCode.value ?? '' }),
-  enabled: dialogEnabled.value,
-}))
-const {data: calendarDates} = useQuery(() => ({
-  ...calendarDatesQuery({ feedCode: selectedFeedCode.value ?? '' }),
   enabled: dialogEnabled.value,
 }))
 
@@ -146,7 +141,6 @@ function stateLabel(state: string): string {
       v-model:open="newOpen"
       :routes="routes ?? []"
       :calendars="calendars ?? []"
-      :calendar-dates="calendarDates ?? []"
       :starting="starting"
       @start="onStart"
     />

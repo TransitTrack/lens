@@ -12,7 +12,6 @@ defineProps<{
 const selected = defineModel<string[]>('selected', {default: () => []})
 const conflictIds = defineModel<string[]>('conflictIds', {default: () => []})
 
-type Recommendation = OptimizationRecommendation
 function toggle(id: string, checked: boolean) {
   if (checked) {
     if (!selected.value.includes(id)) selected.value = [...selected.value, id]
@@ -21,7 +20,7 @@ function toggle(id: string, checked: boolean) {
   }
 }
 
-function targetSummary(row: Recommendation): string {
+function targetSummary(row: OptimizationRecommendation): string {
   const proposed = row.proposedValue as {targets?: Array<Record<string, unknown>>}
   const targets = proposed?.targets ?? []
   if (!targets.length) return t('optimize.target.schedule')
@@ -46,7 +45,7 @@ interface TargetGroup {
   count: number
 }
 
-function targetGroups(row: Recommendation): TargetGroup[] {
+function targetGroups(row: OptimizationRecommendation): TargetGroup[] {
   const proposed = row.proposedValue as {targets?: Array<Record<string, unknown>>}
   const groups = new Map<string, TargetGroup>()
   for (const target of proposed?.targets ?? []) {
@@ -62,7 +61,7 @@ function targetGroups(row: Recommendation): TargetGroup[] {
   }))
 }
 
-function hasMultipleTargets(row: Recommendation): boolean {
+function hasMultipleTargets(row: OptimizationRecommendation): boolean {
   return targetGroups(row).some((group) => group.count > 1) || targetGroups(row).length > 1
 }
 
@@ -84,7 +83,7 @@ function stopRange(stopSequences: number[]): string {
   return t('optimize.target.stops', {ranges: ranges.join(', ')})
 }
 
-function timing(row: Recommendation, value: 'currentValue' | 'proposedValue'): string {
+function timing(row: OptimizationRecommendation, value: 'currentValue' | 'proposedValue'): string {
   const payload = row[value] as {targets?: Array<Record<string, unknown>>}
   const target = payload?.targets?.[0]
   if (!target) return '—'
@@ -94,11 +93,11 @@ function timing(row: Recommendation, value: 'currentValue' | 'proposedValue'): s
   return secToHm(seconds as number | null)
 }
 
-function delta(row: Recommendation) {
+function delta(row: OptimizationRecommendation) {
   return formatSignedDuration(row.deltaSec, t)
 }
 
-function deltaText(row: Recommendation): string {
+function deltaText(row: OptimizationRecommendation): string {
   const {text, direction} = delta(row)
   if (direction === 'later') return t('optimize.deltaLater', {duration: text})
   if (direction === 'earlier') return t('optimize.deltaEarlier', {duration: text})

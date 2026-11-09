@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type { OptimizationRunInput } from '~/api'
-import { calendarDatesQuery } from '~/composables/api/queries/gtfs/calendarDatesQuery'
 import { calendarsQuery } from '~/composables/api/queries/gtfs/calendarsQuery'
 import { routesQuery } from '~/composables/api/queries/gtfs/routesQuery'
 import { optimizationRecommendationsQuery } from '~/composables/api/queries/optimization/optimizationRecommendationsQuery'
@@ -56,6 +55,8 @@ watch(runData, (r) => {
 
 const {data: recommendationsData, isLoading: recommendationsLoading, error: recommendationsError} = useQuery(() => ({
   ...optimizationRecommendationsQuery({ runId: runId.value, status: 'PENDING', offset: 0, limit: 100 }),
+  // Only the succeeded-run branch renders RecommendationList.
+  enabled: run.value?.state === 'SUCCEEDED',
 }))
 
 const toast = useToast()
@@ -97,10 +98,6 @@ const {data: routes} = useQuery(() => ({
 }))
 const {data: calendars} = useQuery(() => ({
   ...calendarsQuery({ feedCode: selectedFeedCode.value ?? '' }),
-  enabled: dialogEnabled.value,
-}))
-const {data: calendarDates} = useQuery(() => ({
-  ...calendarDatesQuery({ feedCode: selectedFeedCode.value ?? '' }),
   enabled: dialogEnabled.value,
 }))
 const {mutateAsync: startRun, isLoading: starting} = useMutation(startOptimizationRunMutation(queryCache))
@@ -232,7 +229,6 @@ const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
       v-model:open="newOpen"
       :routes="routes ?? []"
       :calendars="calendars ?? []"
-      :calendar-dates="calendarDates ?? []"
       :starting="starting"
       @start="onStart"
     />
