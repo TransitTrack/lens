@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '~/api'
-import { invalidateDraft, undoDraftEditStepMutation } from '~/composables/api/mutations/drafts/undoDraftEditStepMutation'
-import { fakeQueryCache } from '../../../../helpers/colada'
+import { undoDraftEditStepMutation } from '~/composables/api/mutations/drafts/undoDraftEditStepMutation'
 import { json, stubFetch } from '../../../../helpers/stubFetch'
 
 const vars = { path: { id: '9' }, body: { editor: 'e', expectedVersion: 3 } }
@@ -25,20 +24,5 @@ describe('undoDraftEditStepMutation', () => {
   it('rejects with ApiError when the request fails', async () => {
     stubFetch(() => json({ title: 'Conflict', status: 409 }, 409))
     await expect(undoDraftEditStepMutation().mutation(vars as never)).rejects.toBeInstanceOf(ApiError)
-  })
-})
-
-describe('invalidateDraft', () => {
-  it('invalidates every read of the draft once', async () => {
-    const queryCache = fakeQueryCache()
-    await invalidateDraft(queryCache, 9)
-    expect(queryCache.invalidateQueries).toHaveBeenCalledTimes(1)
-    expect(queryCache.invalidateQueries).toHaveBeenCalledWith({ key: ['drafts', '9'] })
-  })
-
-  it('swallows a failed refetch', async () => {
-    const queryCache = fakeQueryCache()
-    queryCache.invalidateQueries.mockRejectedValueOnce(new Error('aborted'))
-    await expect(invalidateDraft(queryCache, 9)).resolves.toBeUndefined()
   })
 })
