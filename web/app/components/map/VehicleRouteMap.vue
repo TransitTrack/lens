@@ -5,7 +5,7 @@ import VehicleHeadingMarker from '~/components/map/VehicleHeadingMarker.vue'
 import {hideBasemapLabels, useMapStyle} from '~/composables/useMapStyle'
 import {boundsOf} from '~/utils/vehicleDetail'
 import {extentToBounds} from '~/utils/mapBounds'
-import type {LngLatBoundsExtent} from '~/composables/useFeedExtent'
+import type {LngLatBoundsExtent} from '~/utils/joins/extent'
 
 const props = withDefaults(
   defineProps<{
@@ -228,7 +228,7 @@ watch(() => tools.activeTool.value, (active) => {
           :layout="{
             'text-field': ['coalesce', ['get', 'label'], ['get', 'name']],
             'text-size': 11,
-            'text-font': ['Open Sans SemiBold'],
+            'text-font': ['noto_sans_bold'],
             'text-anchor': 'top',
             'text-offset': [0, 0.9],
             'text-max-width': 14,

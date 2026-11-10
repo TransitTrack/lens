@@ -1,10 +1,11 @@
-import type { VehicleDetailQuery } from '~~/generated/graphql'
+import type { PredictionAccuracySummary } from '~/api'
+import type { VehicleDetail } from '~/utils/joins/vehicleDetail'
 import { formatClock } from './clock'
 import { geometryLine } from './gtfs'
 
-type Vehicle = NonNullable<VehicleDetailQuery['vehicle']>
-type Prediction = VehicleDetailQuery['vehiclePredictions'][number]
-type Accuracy = VehicleDetailQuery['predictionAccuracy'][number]
+type Vehicle = NonNullable<VehicleDetail['vehicle']>
+type Prediction = VehicleDetail['vehiclePredictions'][number]
+type Accuracy = PredictionAccuracySummary
 
 /**
  * The route line, as an ordered list of [lon, lat] pairs. Prefers the schedule
@@ -137,6 +138,14 @@ export function preferredAlgorithm(
   return configured.find((algorithm) => available.includes(algorithm)) ?? available[0]
 }
 
+/**
+ * The algorithm whose predictions to request: the user's pick if the feed runs it, else the feed's first
+ * configured one. Chosen from configuration (not from returned predictions) so the request can name it.
+ */
+export function chosenAlgorithm(configured: string[], selected?: string): string | undefined {
+  return selected && configured.includes(selected) ? selected : configured[0]
+}
+
 export function accuracyFor(
   algorithm: string | undefined,
   accuracy: Accuracy[],
@@ -214,17 +223,11 @@ function diffSec(a: string | null, b: string | null): number | null {
   return Math.round((new Date(a).getTime() - new Date(b).getTime()) / 1000)
 }
 
-interface TrailReport {
-  ts: string
-  position: { lat: number | null; lon: number | null } | null
-}
-
-/** AVL fixes as an oldest→newest [lon, lat] polyline. */
-export function trailCoords(reports: TrailReport[]): LngLat[] {
-  return [...reports]
-    .filter((r) => r.position?.lat != null && r.position?.lon != null)
-    .sort((a, b) => a.ts.localeCompare(b.ts))
-    .map((r) => [r.position!.lon as number, r.position!.lat as number])
+/** The vehicle's reported positions (oldest first, as the backend returns them) as a [lon, lat] polyline. */
+export function trackCoords(track: { lat: number | null; lon: number | null }[]): LngLat[] {
+  return track
+    .filter((p) => p.lat != null && p.lon != null)
+    .map((p) => [p.lon as number, p.lat as number])
 }
 
 export interface StripStop {
@@ -361,33 +364,19 @@ export interface SpeedPoint {
   speedMps: number
 }
 
-interface MatchedReport {
-  ts: string
-  speedMps?: number | null
-  match?: { distanceAlongTripM: number; trip?: { tripId: string } | null } | null
+/** A speed the backend reported for the vehicle's current trip, at a distance along it. */
+export interface TripSpeedSample {
+  distanceAlongTripM: number
+  speedMps: number
 }
 
-/** Reported speeds along the current trip, ordered by distance along it. */
-export function speedProfile(
-  strip: TripStrip,
-  reports: MatchedReport[],
-  tripId: string | null | undefined,
-): SpeedPoint[] {
-  if (!tripId) return []
-  return reports
-    .filter(
-      (r) =>
-        r.match?.trip?.tripId === tripId &&
-        r.speedMps != null &&
-        Number.isFinite(r.match.distanceAlongTripM),
-    )
-    .sort((a, b) => a.ts.localeCompare(b.ts))
-    .map((r) => ({
-      offset: stripOffset(strip, r.match!.distanceAlongTripM),
-      distanceM: r.match!.distanceAlongTripM,
-      speedMps: r.speedMps!,
-    }))
-    .sort((a, b) => a.offset - b.offset)
+/** The backend's per-trip speed samples placed on the strip (they arrive ordered by distance along the trip). */
+export function speedProfile(strip: TripStrip, samples: TripSpeedSample[]): SpeedPoint[] {
+  return samples.map((sample) => ({
+    offset: stripOffset(strip, sample.distanceAlongTripM),
+    distanceM: sample.distanceAlongTripM,
+    speedMps: sample.speedMps,
+  }))
 }
 
 /** Mean reported speed on the stretch leading to each stop, keyed by stop path index. */

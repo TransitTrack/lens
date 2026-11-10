@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useDraftGridQuery } from '~~/generated/graphql'
+import type { DraftGrid } from '~/api'
+
 import { secToClock } from '~/utils/gtfsTime'
 import DraftGridCell from '~/components/draft/DraftGridCell.vue'
 
 const props = defineProps<{
-  draftId: string
-  routeId: string
-  directionId: number | null
-  serviceId: string | null
+  /** The route's stop-time grid (read by the page); undefined until it loads. */
+  grid: DraftGrid | undefined
+  loading: boolean
+  error: Error | null
   readOnly: boolean
 }>()
 
@@ -29,15 +30,10 @@ const emit = defineEmits<{
   'add-trip': []
 }>()
 
-const { result, loading, error, refetch } = useDraftGridQuery(() => ({
-  variables: { draftId: props.draftId, routeId: props.routeId, directionId: props.directionId, serviceId: props.serviceId },
-  enabled: !!props.draftId && !!props.routeId,
-}))
-
-const stops = computed(() => result.value?.draftGrid.stops ?? [])
-const trips = computed(() => result.value?.draftGrid.trips ?? [])
+const stops = computed(() => props.grid?.stops ?? [])
+const trips = computed(() => props.grid?.trips ?? [])
 const isEmpty = computed(
-  () => !loading.value && !error.value && (stops.value.length === 0 || trips.value.length === 0),
+  () => !props.loading && !props.error && (stops.value.length === 0 || trips.value.length === 0),
 )
 
 type CellVal = { arrivalSec: number | null; departureSec: number | null }
@@ -47,8 +43,8 @@ const cellMap = computed(() => {
     const inner = new Map<number, CellVal>()
     for (const cell of trip.cells) {
       inner.set(cell.stopSequence, {
-        arrivalSec: cell.arrivalSec,
-        departureSec: cell.departureSec,
+        arrivalSec: cell.arrivalSec ?? null,
+        departureSec: cell.departureSec ?? null,
       })
     }
     map.set(trip.tripId, inner)
@@ -63,13 +59,6 @@ function cellFor(tripId: string, stopSequence: number): CellVal {
 function tripLabel(tripId: string): string {
   return tripId.split('_').pop() ?? tripId
 }
-
-defineExpose({
-  refetch,
-  trips,
-  stops,
-  cellAt: (tripId: string, stopSequence: number): CellVal => cellFor(tripId, stopSequence),
-})
 </script>
 
 <template>

@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { routeAdherenceQuery } from '~/composables/api/queries/avl'
+import { routesQuery } from '~/composables/api/queries/gtfs'
+import type { StopPassage } from '~/api'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type RouteAdherenceQuery,
-  useExploreRoutesQuery,
-  useRouteAdherenceQuery,
-} from '~~/generated/graphql'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
@@ -48,16 +47,16 @@ const filtersAccordionItems = computed(() => [
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
-  result: routesResult,
-  loading: routesLoading,
+  data: routes,
+  isLoading: routesLoading,
   error: routesError,
-} = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+} = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
   enabled: !!selectedFeedCode.value,
 }))
 
 const routeItems = computed(() =>
-  [...(routesResult.value?.routes ?? [])]
+  [...(routes.value ?? [])]
     .sort((a, b) =>
       (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
         numeric: true,
@@ -83,17 +82,17 @@ function runReport() {
 }
 
 const {
-  result: adherenceResult,
-  loading: adherenceLoading,
+  data: adherence,
+  isLoading: adherenceLoading,
   error: adherenceError,
-} = useRouteAdherenceQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', routeId: submitted.value?.routeId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
-  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+} = useQuery(() => ({
+  ...routeAdherenceQuery({ feedCode: selectedAvlFeedCode.value!, routeId: submitted.value?.routeId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' }),
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value,
 }))
 
-type ReportRow = RouteAdherenceQuery['routeAdherence'][number]
+type ReportRow = StopPassage
 
-const rows = computed<ReportRow[]>(() => adherenceResult.value?.routeAdherence ?? [])
+const rows = computed<ReportRow[]>(() => adherence.value ?? [])
 
 const UBadge = resolveComponent('UBadge')
 const NuxtLink = resolveComponent('NuxtLink')

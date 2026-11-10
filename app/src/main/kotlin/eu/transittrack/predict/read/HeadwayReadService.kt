@@ -14,7 +14,7 @@ import eu.transittrack.avl.model.AvlFeedRepository
 import eu.transittrack.gtfs.read.RevisionResolver
 import eu.transittrack.predict.PredictionAlgorithm
 import eu.transittrack.predict.generate.serviceSecToInstant
-import eu.transittrack.predict.read.dto.HeadwayDto
+import eu.transittrack.rest.generated.model.Headway
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPathRepository
 import eu.transittrack.schedule.model.TripPatternRepository
@@ -42,7 +42,7 @@ class HeadwayReadService(
         routeId: String,
         directionId: Int?,
         algorithm: PredictionAlgorithm? = null,
-    ): HeadwayDto {
+    ): Headway {
         val now = clock.instant()
         val arrivals =
             read
@@ -61,7 +61,7 @@ class HeadwayReadService(
         val from = (arrivals.firstOrNull() ?: now).minus(SCHEDULE_MARGIN)
         val to = (arrivals.lastOrNull() ?: now).plus(SCHEDULE_MARGIN)
         val scheduledHeadwaySec = computeScheduledHeadway(feedCode, stopId, routeId, directionId, from, to)
-        return HeadwayDto(stopId, routeId, directionId, waitSec, gaps, scheduledHeadwaySec)
+        return Headway(stopId, routeId, gaps, directionId, waitSec, scheduledHeadwaySec)
     }
 
     /**

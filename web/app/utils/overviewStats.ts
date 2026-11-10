@@ -1,4 +1,4 @@
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 
 type Translate = (key: string, params?: Record<string, unknown>, plural?: number) => string
 

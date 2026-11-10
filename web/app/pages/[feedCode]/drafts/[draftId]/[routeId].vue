@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import SplitterGrip from '~/components/shell/SplitterGrip.vue'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type {SplitterItem} from '@nuxt/ui'
-import {
-  useRoutesQuery,
-  useExploreCalendarQuery,
-  useRebuildDraftMutation,
-  useDraftJobQuery,
-  useActivateDraftMutation,
-  useDiscardDraftMutation,
-  useUndoDraftEditMutation,
-  useRedoDraftEditMutation,
-  useUpdateStopTimeMutation,
-  useDraftEditsQuery,
-} from '~~/generated/graphql'
+import type { DraftEditResult } from '~/api'
+import { draftQuery, draftEditsQuery, draftGridQuery, draftJobQuery } from '~/composables/api/queries/drafts'
+import { routesQuery, calendarsQuery, calendarDatesQuery, tripQuery } from '~/composables/api/queries/gtfs'
+import { tripPatternQuery, tripPatternsQuery, stopPathsQuery } from '~/composables/api/queries/schedule'
+import { claimDraftEditorMutation, renewDraftEditorMutation, releaseDraftEditorMutation, updateStopTimeMutation, setStopDwellMutation, shiftTripMutation, deleteTripMutation, addTripMutation, duplicateTripMutation, bulkShiftTripsMutation, undoDraftEditMutation, undoDraftEditStepMutation, cancelDraftReads, invalidateDraft, redoDraftEditMutation, rebuildDraftMutation, activateDraftMutation, discardDraftMutation } from '~/composables/api/mutations/drafts'
+import type { DraftEditCommand, DraftTripDetail } from '~/types/draftEdits'
+import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'
+import SplitterGrip from '~/components/shell/SplitterGrip.vue'
+
 import {useFeeds} from '~/composables/useFeeds'
-import {useDraftEditor} from '~/composables/useDraftEditor'
+import {useDraftEditor, type MutateVars} from '~/composables/useDraftEditor'
 import {useDraftEdit} from '~/composables/useDraftEdit'
 import {formatClock} from '~/utils/clock'
 import AppPage from '~/components/shell/AppPage.vue'
@@ -34,9 +31,11 @@ const route = useRoute()
 const toast = useToast()
 const {t, locale} = useI18n()
 const {selectedFeedCode, feedPath} = useFeeds()
+const queryCache = useQueryCache()
 
 const draftId = computed(() => String(route.params.draftId))
 const routeId = computed(() => String(route.params.routeId))
+const feedCode = computed(() => selectedFeedCode.value ?? '')
 const directionId = computed<number | null>(() => {
   const d = route.query.dir
   if (d === '0') return 0
@@ -48,10 +47,41 @@ const serviceId = computed<string | null>(() => {
   return typeof s === 'string' && s ? s : null
 })
 
-const editor = useDraftEditor(draftId)
+// --- draft session: detail, edit history (undo/redo seed), editor lock ----
+const {
+  data: draftData,
+  isLoading: draftLoading,
+  error: draftError,
+  refetch: refetchDraftQuery,
+} = useQuery(() => ({
+  ...draftQuery({ id: draftId.value }),
+  enabled: !!draftId.value,
+}))
+watch(draftError, (err) => {
+  if (err) toast.add({ title: t('drafts.loadFailed'), description: err.message, color: 'error' })
+})
+
+const { data: editorEdits } = useQuery(() => ({
+  ...draftEditsQuery({ id: draftId.value, limit: 500 }),
+  enabled: !!draftId.value,
+}))
+
+const { mutateAsync: claimEditor } = useMutation(claimDraftEditorMutation())
+const { mutateAsync: renewEditor } = useMutation(renewDraftEditorMutation())
+const { mutateAsync: releaseEditor } = useMutation(releaseDraftEditorMutation())
+
+const editor = useDraftEditor(draftId, {
+  draft: draftData,
+  edits: editorEdits,
+  // `refetch`, not `refresh`: after a claim or a STALE_DRAFT conflict the draft must be read
+  // anew — `refresh` would join a read already in flight from before the write.
+  refreshDraft: async () => (await refetchDraftQuery()).data ?? null,
+  claim: claimEditor,
+  renew: renewEditor,
+  release: releaseEditor,
+})
 const {
   draft,
-  loading: draftLoading,
   readOnly,
   identityMissing,
   lockBanner,
@@ -85,13 +115,13 @@ function formatTime(iso: string): string {
   return formatClock(iso, { seconds: true, locale: locale.value })
 }
 
-// --- route / service pickers -------------------------------------------
-const {result: routesResult} = useRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+// --- route / service pickers (the feed's active revision, as before) -----
+const {data: routesData} = useQuery(() => ({
+  ...routesQuery({ feedCode: feedCode.value }),
   enabled: !!selectedFeedCode.value,
 }))
 const routeItems = computed(() =>
-  [...(routesResult.value?.routes ?? [])]
+  [...(routesData.value ?? [])]
     .sort((a, b) =>
       (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
         numeric: true,
@@ -103,14 +133,18 @@ const routeItems = computed(() =>
     })),
 )
 
-const {result: calendarResult} = useExploreCalendarQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+const {data: calendars} = useQuery(() => ({
+  ...calendarsQuery({ feedCode: feedCode.value }),
+  enabled: !!selectedFeedCode.value,
+}))
+const {data: calendarDates} = useQuery(() => ({
+  ...calendarDatesQuery({ feedCode: feedCode.value }),
   enabled: !!selectedFeedCode.value,
 }))
 const serviceItems = computed(() => {
   const ids = new Set<string>()
-  for (const c of calendarResult.value?.calendars ?? []) ids.add(c.serviceId)
-  for (const d of calendarResult.value?.calendarDates ?? []) ids.add(d.serviceId)
+  for (const c of calendars.value ?? []) ids.add(c.serviceId)
+  for (const d of calendarDates.value ?? []) ids.add(d.serviceId)
   return [...ids]
     .sort((a, b) => a.localeCompare(b, undefined, {numeric: true}))
     .map((id) => ({label: id, value: id}))
@@ -149,21 +183,22 @@ function setService(v: string) {
 }
 
 // --- rebuild & validate -----------------------------------------------
-const {mutate: rebuildDraft} = useRebuildDraftMutation()
+const {mutateAsync: rebuildDraft} = useMutation(rebuildDraftMutation(queryCache))
 const rebuilding = ref(false)
 const rebuildPhase = ref<string | null>(null)
 const jobId = ref<string | null>(null)
 
-const {result: jobResult} = useDraftJobQuery(() => ({
-  variables: { jobId: jobId.value ?? '' },
-  enabled: !!jobId.value && rebuilding.value, pollInterval: 1000,
+const {data: jobData} = useQuery(() => ({
+  ...draftJobQuery({ jobId: jobId.value ?? '' }),
+  enabled: !!jobId.value && rebuilding.value,
+  autoRefetch: () => (rebuilding.value ? 1000 : false),
 }))
 
 async function finishRebuild() {
   rebuilding.value = false
   jobId.value = null
   rebuildPhase.value = null
-  const fresh = await editor.refetchDraft()
+  const fresh = await editor.refreshDraft()
   const v = parseValidation(fresh?.lastValidation)
   toast.add({
     title: t('drafts.rebuildComplete'),
@@ -174,9 +209,10 @@ async function finishRebuild() {
 }
 
 watch(
-  () => jobResult.value?.draftJob,
+  jobData,
   (job) => {
-    if (!rebuilding.value || !job) return
+    // `data` keeps the previous key's job as a placeholder: only act on the job being polled.
+    if (!rebuilding.value || !job || job.id !== jobId.value) return
     rebuildPhase.value = job.phase
     if (job.state !== 'RUNNING') {
       if (job.error) {
@@ -184,7 +220,7 @@ watch(
         rebuilding.value = false
         jobId.value = null
         rebuildPhase.value = null
-        void editor.refetchDraft()
+        void editor.refreshDraft()
       } else {
         void finishRebuild()
       }
@@ -196,8 +232,7 @@ async function onRebuild() {
   if (rebuilding.value) return
   rebuilding.value = true
   try {
-    const res = await rebuildDraft({ variables: {id: draftId.value} })
-    const job = res?.data?.rebuildDraft
+    const job = await rebuildDraft({ path: {id: draftId.value} })
     if (!job) {
       rebuilding.value = false
       return
@@ -232,15 +267,20 @@ function onExport() {
 }
 
 function isLockLost(e: unknown): boolean {
-  const err = e as {
-    graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }>
-    cause?: { graphQLErrors?: ReadonlyArray<{ extensions?: Record<string, unknown> | null }> }
-  }
-  return (err?.graphQLErrors ?? err?.cause?.graphQLErrors)?.[0]?.extensions?.code === 'LOCK_LOST'
+  return restProblemOf(e)?.code === 'LOCK_LOST'
+}
+
+/**
+ * The draft no longer exists as a draft (activated / discarded): stop the refetches its
+ * mutation's invalidation started — their 404s would flash "draft gone" — then leave.
+ */
+function leaveDraft(path: string) {
+  cancelDraftReads(queryCache, draftId.value)
+  navigateTo(feedPath(path))
 }
 
 // --- activate --------------------------------------------------------
-const {mutate: activateDraft, loading: activating} = useActivateDraftMutation()
+const {mutateAsync: activateDraft, isLoading: activating} = useMutation(activateDraftMutation(queryCache))
 const activateOpen = ref(false)
 const force = ref(false)
 const canActivate = computed(
@@ -250,10 +290,10 @@ const canActivate = computed(
 
 async function confirmActivate() {
   try {
-    await activateDraft({ variables: {id: draftId.value, editor: editor.me.value ?? '', force: force.value} })
+    await activateDraft({ path: {id: draftId.value}, body: {editor: editor.me.value ?? '', force: force.value} })
     toast.add({title: t('drafts.activated'), color: 'success', icon: 'i-lucide-check'})
     activateOpen.value = false
-    navigateTo(feedPath('/explore/feed'))
+    leaveDraft('/explore/feed')
   } catch (e) {
     if (isLockLost(e)) {
       toast.add({
@@ -268,15 +308,15 @@ async function confirmActivate() {
 }
 
 // --- discard --------------------------------------------------------
-const {mutate: discardDraft, loading: discarding} = useDiscardDraftMutation()
+const {mutateAsync: discardDraft, isLoading: discarding} = useMutation(discardDraftMutation(queryCache))
 const discardOpen = ref(false)
 
 async function confirmDiscard() {
   try {
-    await discardDraft({ variables: {id: draftId.value, editor: editor.me.value ?? ''} })
+    await discardDraft({ path: {id: draftId.value}, body: {editor: editor.me.value ?? ''} })
     toast.add({title: t('drafts.discarded'), color: 'success', icon: 'i-lucide-trash-2'})
     discardOpen.value = false
-    navigateTo(feedPath('/drafts'))
+    leaveDraft('/drafts')
   } catch (e) {
     if (isLockLost(e)) {
       toast.add({
@@ -290,82 +330,79 @@ async function confirmDiscard() {
   }
 }
 
-// --- undo / redo ----------------------------------------------------
-const {mutate: undoDraftEdit} = useUndoDraftEditMutation()
-const {mutate: redoDraftEdit} = useRedoDraftEditMutation()
-
-const {run: runEdit} = useDraftEdit(editor, {
-  onChanged: () => gridRef.value?.refetch(),
-})
-
-async function onUndo() {
-  await runEdit(
-    (v) => undoDraftEdit({ variables: {id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion} }),
-    'undoDraftEdit',
-  )
-}
-
-async function onRedo() {
-  await runEdit(
-    (v) => redoDraftEdit({ variables: {id: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion} }),
-    'redoDraftEdit',
-  )
-}
-
-// --- grid model + cell commit -------------------------------------
-type GridCellVal = { arrivalSec: number | null; departureSec: number | null }
-type DraftGridTrip = {
-  tripId: string
-  firstDepartureSec: number | null
-  headsign: string | null
-  blockId: string | null
-  directionId: number | null
-  serviceId: string | null
-  cells: Array<{ stopSequence: number; arrivalSec: number | null; departureSec: number | null }>
-}
+// --- grid model ---------------------------------------------------
 const selectedTripId = ref<string | null>(null)
 const activeCell = ref<{ tripId: string; stopSequence: number } | null>(null)
-type DraftGridStop = {
-  stopSequence: number
-  stopId: string
-  stopName: string | null
-  timepoint: boolean
-}
-const gridRef = ref<{
-  refetch: () => Promise<void>
-  trips: DraftGridTrip[]
-  stops: DraftGridStop[]
-  cellAt: (tripId: string, stopSequence: number) => GridCellVal
-} | null>(null)
-const {mutate: updateStopTime} = useUpdateStopTimeMutation()
 
-const selectedTrip = computed<DraftGridTrip | null>(
-  () => gridRef.value?.trips?.find((t) => t.tripId === selectedTripId.value) ?? null,
+const {data: grid, isLoading: gridLoading, error: gridError} = useQuery(() => ({
+  ...draftGridQuery({
+    draftId: draftId.value,
+    routeId: routeId.value,
+    directionId: directionId.value ?? undefined,
+    serviceId: serviceId.value ?? undefined,
+  }),
+  enabled: !!draftId.value && !!routeId.value,
+}))
+const gridTrips = computed(() => grid.value?.trips ?? [])
+
+const selectedTrip = computed(
+  () => gridTrips.value.find((t) => t.tripId === selectedTripId.value) ?? null,
 )
-const activeCellValue = computed<GridCellVal | null>(() => {
+const activeCellValue = computed<{ arrivalSec: number | null; departureSec: number | null } | null>(() => {
   const c = activeCell.value
-  if (!c || !gridRef.value) return null
-  return gridRef.value.cellAt(c.tripId, c.stopSequence)
+  if (!c || !grid.value) return null
+  const cell = gridTrips.value.find((t) => t.tripId === c.tripId)?.cells.find((x) => x.stopSequence === c.stopSequence)
+  return { arrivalSec: cell?.arrivalSec ?? null, departureSec: cell?.departureSec ?? null }
 })
 const activeStopName = computed<string | null>(() => {
-  const stop = gridRef.value?.stops?.find((s) => s.stopSequence === activeCell.value?.stopSequence)
+  const stop = grid.value?.stops.find((s) => s.stopSequence === activeCell.value?.stopSequence)
   return stop?.stopName ?? stop?.stopId ?? null
 })
 
-// --- rail: undone (redo tail) + error counts --------------------
-const {result: editsResult} = useDraftEditsQuery(() => ({
-  variables: { id: draftId.value, limit: 200 },
+// --- selected trip's derived detail in the draft --------------------
+const derivationStale = computed(() => draft.value?.derivationStale ?? false)
+const tripDetailEnabled = computed(
+  () => !!selectedFeedCode.value && !!selectedTripId.value && !derivationStale.value,
+)
+const {data: selectedTripRow} = useQuery(() => ({
+  ...tripQuery({ feedCode: feedCode.value, draftId: draftId.value, tripId: selectedTripId.value ?? '' }),
+  enabled: tripDetailEnabled.value,
+}))
+const selectedPatternKey = computed(() =>
+  selectedTripRow.value?.tripId === selectedTripId.value ? selectedTripRow.value?.patternKey ?? null : null,
+)
+const {data: selectedTripPattern} = useQuery(() => ({
+  ...tripPatternQuery({ feedCode: feedCode.value, draftId: draftId.value, patternKey: selectedPatternKey.value ?? '' }),
+  enabled: tripDetailEnabled.value && !!selectedPatternKey.value,
+}))
+const tripDetail = computed<DraftTripDetail | null>(() => {
+  const trip = selectedTripRow.value
+  // `data` holds the previous trip as a placeholder while the next one loads: never mix the two.
+  if (!trip || trip.tripId !== selectedTripId.value) return null
+  const pattern = selectedTripPattern.value
+  return { ...trip, pattern: pattern && pattern.patternKey === trip.patternKey ? pattern : null }
+})
+
+// --- rail: history (latest 200 edits), undone (redo tail) + error counts ----
+const {data: recentEdits, refresh: refreshRecentEdits} = useQuery(() => ({
+  ...draftEditsQuery({ id: draftId.value, limit: 200 }),
   enabled: !!draftId.value,
 }))
+// Another editor's change reaches us as a new draft version (after a refresh of the draft):
+// reload the history then. Our own edits already refresh it through the mutation's
+// invalidation, and `refresh` joins that pending request instead of issuing a second one.
+// An undo burst bumps the version once per step and reloads the history once at its end.
+let undoBurst = false
+watch(
+  () => draft.value?.version,
+  (version, previous) => {
+    if (!undoBurst && previous != null && version !== previous) void refreshRecentEdits()
+  },
+)
 const undoneCount = computed(
-  () => (editsResult.value?.draftEdits ?? []).filter((e) => e.undone).length,
+  () => (recentEdits.value ?? []).filter((e) => e.undone).length,
 )
 const errorCount = computed(() => lastValidation.value?.errorCount ?? 0)
-
-async function onRailChanged() {
-  await gridRef.value?.refetch()
-  await editor.refetchDraft()
-}
 
 function onRailGoto(payload: { tripId: string; stopSequence: number }) {
   navigateTo({
@@ -374,38 +411,12 @@ function onRailGoto(payload: { tripId: string; stopSequence: number }) {
   })
 }
 
-function onRailDeleted() {
-  selectedTripId.value = null
-}
-
-async function onCommitCell(payload: {
-  tripId: string
-  stopSequence: number
-  arrivalSec: number | null
-  departureSec: number | null
-}) {
-  await runEdit(
-    (v) =>
-      updateStopTime({ variables: {
-        input: {
-          draftId: v.draftId,
-          editor: v.editor,
-          expectedVersion: v.expectedVersion,
-          tripId: payload.tripId,
-          stopSequence: payload.stopSequence,
-          arrivalSec: payload.arrivalSec,
-          departureSec: payload.departureSec,
-        },
-      } }),
-    'updateStopTime',
-  )
-}
-
-// --- dialogs wired in later tasks --------------------------------
-const addTripOpen = ref(false) // AddTripDialog — task 8
-const bulkShiftOpen = ref(false) // BulkShiftDialog — task 8
+// --- dialogs -------------------------------------------------------
+const addTripOpen = ref(false)
+const addTripMode = ref<'new' | 'duplicate'>('duplicate')
+const bulkShiftOpen = ref(false)
 const duplicateSourceTripId = ref<string | null>(null)
-const derivationStale = computed(() => draft.value?.derivationStale ?? false)
+const dialogSubmitting = ref(false)
 
 function openAddTrip() {
   duplicateSourceTripId.value = null
@@ -415,6 +426,111 @@ function openAddTrip() {
 function openDuplicate(tripId: string) {
   duplicateSourceTripId.value = tripId
   addTripOpen.value = true
+}
+
+// The route's patterns in the draft — read only while a dialog needs them (as before).
+const patternsAllowed = computed(
+  () => !!selectedFeedCode.value && !!routeId.value && !!draft.value?.id && !derivationStale.value,
+)
+const addTripNeedsPatterns = computed(() => addTripOpen.value && addTripMode.value === 'new')
+const {data: patternRows} = useQuery(() => ({
+  ...tripPatternsQuery({ feedCode: feedCode.value, draftId: draftId.value, routeId: routeId.value }),
+  enabled: patternsAllowed.value && (addTripNeedsPatterns.value || bulkShiftOpen.value),
+}))
+const {data: patternStopPaths} = useQuery(() => ({
+  ...stopPathsQuery({ feedCode: feedCode.value, draftId: draftId.value, routeId: routeId.value }),
+  enabled: patternsAllowed.value && addTripNeedsPatterns.value,
+}))
+const draftPatterns = computed(() =>
+  patternsWithStopPaths(patternRows.value ?? [], groupStopPaths(patternStopPaths.value ?? [], new Map())),
+)
+
+// --- edits: every command runs here, through the editor session -----
+const {mutateAsync: updateStopTime} = useMutation(updateStopTimeMutation(queryCache))
+const {mutateAsync: setStopDwell} = useMutation(setStopDwellMutation(queryCache))
+const {mutateAsync: shiftTrip} = useMutation(shiftTripMutation(queryCache))
+const {mutateAsync: deleteTrip} = useMutation(deleteTripMutation(queryCache))
+const {mutateAsync: addTrip} = useMutation(addTripMutation(queryCache))
+const {mutateAsync: duplicateTrip} = useMutation(duplicateTripMutation(queryCache))
+const {mutateAsync: bulkShiftTrips} = useMutation(bulkShiftTripsMutation(queryCache))
+const {mutateAsync: undoDraftEdit} = useMutation(undoDraftEditMutation(queryCache))
+const {mutateAsync: redoDraftEdit} = useMutation(redoDraftEditMutation(queryCache))
+// One step of an "undo to here" burst: no per-step invalidation — the burst refreshes the
+// draft's reads once at the end instead.
+const {mutateAsync: undoBurstStep} = useMutation(undoDraftEditStepMutation())
+
+const {run: runEdit} = useDraftEdit(editor)
+
+function editRequest(command: DraftEditCommand, v: MutateVars): Promise<DraftEditResult> {
+  const session = { draftId: v.draftId, editor: v.editor, expectedVersion: v.expectedVersion }
+  switch (command.op) {
+    case 'updateStopTime': return updateStopTime({ body: { ...command.body, ...session } })
+    case 'setStopDwell': return setStopDwell({ body: { ...command.body, ...session } })
+    case 'shiftTrip': return shiftTrip({ body: { ...command.body, ...session } })
+    case 'deleteTrip': return deleteTrip({ body: { ...command.body, ...session } })
+    case 'addTrip': return addTrip({ body: { ...command.body, ...session } })
+    case 'duplicateTrip': return duplicateTrip({ body: { ...command.body, ...session } })
+    case 'bulkShiftTrips': return bulkShiftTrips({ body: { ...command.body, ...session } })
+    case 'undoDraftEdit': return undoDraftEdit({ path: { id: v.draftId }, body: { editor: v.editor, expectedVersion: v.expectedVersion } })
+    case 'redoDraftEdit': return redoDraftEdit({ path: { id: v.draftId }, body: { editor: v.editor, expectedVersion: v.expectedVersion } })
+  }
+}
+
+async function onEdit(command: DraftEditCommand) {
+  const fromDialog = command.op === 'addTrip' || command.op === 'duplicateTrip' || command.op === 'bulkShiftTrips'
+  if (fromDialog) dialogSubmitting.value = true
+  try {
+    const result = await runEdit((v) => editRequest(command, v))
+    if (!result) return
+    if (command.op === 'deleteTrip') selectedTripId.value = null
+    if (command.op === 'addTrip' || command.op === 'duplicateTrip') addTripOpen.value = false
+    if (command.op === 'bulkShiftTrips') bulkShiftOpen.value = false
+  } finally {
+    if (fromDialog) dialogSubmitting.value = false
+  }
+}
+
+function onUndo() {
+  return onEdit({ op: 'undoDraftEdit' })
+}
+
+function onRedo() {
+  return onEdit({ op: 'redoDraftEdit' })
+}
+
+function onCommitCell(payload: {
+  tripId: string
+  stopSequence: number
+  arrivalSec: number | null
+  departureSec: number | null
+}) {
+  return onEdit({ op: 'updateStopTime', body: payload })
+}
+
+/** "Undo to here": apply each undo locally, then refresh the draft's queries once. */
+async function onUndoSteps(count: number) {
+  let applied = 0
+  undoBurst = true
+  try {
+    for (let i = 0; i < count; i++) {
+      try {
+        const result = await editor.mutate((v) =>
+          undoBurstStep({ path: { id: v.draftId }, body: { editor: v.editor, expectedVersion: v.expectedVersion } }),
+        )
+        if (!result) break
+        editor.applyResult(result)
+        applied++
+      } catch {
+        // editor.mutate already toasts
+        break
+      }
+    }
+    // let the version watcher see the last step while the burst is still on
+    await nextTick()
+  } finally {
+    undoBurst = false
+  }
+  if (applied > 0) void invalidateDraft(queryCache, draftId.value)
 }
 
 // --- grid / rail split --------------------------------------------
@@ -613,13 +729,11 @@ const draftSplitterItems: SplitterItem[] = [
       >
         <template #grid>
           <DraftGrid
-            ref="gridRef"
             v-model:selected-trip-id="selectedTripId"
             v-model:active-cell="activeCell"
-            :draft-id="draftId"
-            :route-id="routeId"
-            :direction-id="directionId"
-            :service-id="serviceId"
+            :grid="grid"
+            :loading="gridLoading"
+            :error="gridError"
             :read-only="readOnly"
             @commit-cell="onCommitCell"
             @add-trip="openAddTrip"
@@ -628,22 +742,23 @@ const draftSplitterItems: SplitterItem[] = [
 
         <template #rail="{ collapsed, collapse, expand }">
           <DraftRail
-            :draft-id="draftId"
             :selected-trip="selectedTrip"
+            :trip-detail="tripDetail"
             :active-cell="activeCell"
             :active-cell-value="activeCellValue"
             :active-stop-name="activeStopName"
             :read-only="readOnly"
             :derivation-stale="draft?.derivationStale ?? false"
-            :feed-code="selectedFeedCode ?? ''"
             :last-validation="draft?.lastValidation"
             :undone-count="undoneCount"
             :error-count="errorCount"
-            :editor="editor"
+            :edits="recentEdits ?? []"
+            :can-undo="canUndo"
+            :can-redo="canRedo"
             :collapsed="collapsed"
-            @changed="onRailChanged"
+            @edit="onEdit"
+            @undo-steps="onUndoSteps"
             @goto="onRailGoto"
-            @deleted="onRailDeleted"
             @duplicate="openDuplicate"
             @expand="expand"
             @collapse="collapse"
@@ -657,27 +772,28 @@ const draftSplitterItems: SplitterItem[] = [
 
       <BulkShiftDialog
         v-model:open="bulkShiftOpen"
-        :editor="editor"
-        :feed-code="selectedFeedCode ?? ''"
         :route-id="routeId"
         :service-id="serviceId"
         :derivation-stale="derivationStale"
-        :trips="gridRef?.trips ?? []"
+        :trips="gridTrips"
         :service-items="serviceItems"
-        @changed="onRailChanged"
+        :patterns="patternRows ?? []"
+        :submitting="dialogSubmitting"
+        @edit="onEdit"
       />
       <AddTripDialog
         v-model:open="addTripOpen"
-        :editor="editor"
-        :feed-code="selectedFeedCode ?? ''"
+        v-model:mode="addTripMode"
         :route-id="routeId"
         :direction-id="directionId"
         :service-id="serviceId"
         :derivation-stale="derivationStale"
-        :trips="gridRef?.trips ?? []"
+        :trips="gridTrips"
         :duplicate-source-trip-id="duplicateSourceTripId"
         :service-items="serviceItems"
-        @changed="onRailChanged"
+        :patterns="draftPatterns"
+        :submitting="dialogSubmitting"
+        @edit="onEdit"
       />
     </template>
 

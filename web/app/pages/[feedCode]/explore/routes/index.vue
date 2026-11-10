@@ -1,40 +1,50 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { routesQuery, agenciesQuery, validationFindingCountsQuery } from '~/composables/api/queries/gtfs'
+import type { Route } from '~/api'
+import { useFindingsFilter } from '~/composables/useFindingsFilter'
 import type { TableColumn } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
 import { useRouteTypeFilter } from '~/composables/useRouteTypeFilter'
-import { useExploreRoutesQuery, type ExploreRoutesQuery } from '~~/generated/graphql'
 import { routeTextColor, routeTypeLabel, hexColor } from '~/utils/gtfs'
 
 const { t } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { agencyId } = useAgencyFilter()
-const { typeId } = useRouteTypeFilter()
 
-const { result, loading } = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: routes, isLoading: loading } = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: findingCounts } = useQuery(() => ({
+  ...validationFindingCountsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Route' }),
+  enabled: enabled.value,
 }))
 
-type Row = ExploreRoutesQuery['routes'][number]
+const { agencyId } = useAgencyFilter(agencies)
+const { typeId } = useRouteTypeFilter(routes)
+
+type Row = Route
 const agencyName = computed(() => {
   const map = new Map<string, string>()
-  for (const a of result.value?.agencies ?? []) {
+  for (const a of agencies.value ?? []) {
     if (a.agencyId) map.set(a.agencyId, a.agencyName ?? a.agencyId)
   }
   return map
 })
 
-const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(
-  selectedFeedCode,
-  'Route',
-)
+const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(findingCounts)
 const search = ref('')
 const rows = computed(() => {
   const q = search.value.trim().toLowerCase()
-  let all = [...(result.value?.routes ?? [])].sort((a, b) =>
+  let all = [...(routes.value ?? [])].sort((a, b) =>
     (a.routeShortName ?? a.routeId).localeCompare(b.routeShortName ?? b.routeId, undefined, {
       numeric: true,
     }),
@@ -49,7 +59,7 @@ const rows = computed(() => {
 })
 
 const routeStats = computed(() => {
-  const all = result.value?.routes ?? []
+  const all = routes.value ?? []
   return {
     routes: rows.value.length,
     agencies: new Set(rows.value.map((r) => r.agencyId).filter(Boolean)).size,
@@ -74,7 +84,7 @@ function onSelect(_e: Event, row: { original: Row }) {
 <template>
   <AppPage :title="t('nav.routes')" :description="t('explore.routes.description')">
     <template #toolbar>
-      <ExploreToolbar show-route-type />
+      <ExploreToolbar show-route-type :agencies="agencies" :routes="routes" />
     </template>
 
     <div class="flex flex-col gap-6">

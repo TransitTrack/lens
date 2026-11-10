@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type { CompareRevisionsQuery } from '~~/generated/graphql'
-
-type TripChange = CompareRevisionsQuery['compareRevisions']['tripChanges'][number]
+import type { TripChange } from '~/api'
 
 const props = defineProps<{ changes: TripChange[]; totalCount?: number }>()
 const { t, te } = useI18n()

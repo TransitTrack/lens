@@ -1,29 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  useDraftPatternsQuery,
-  useBulkShiftTripsMutation,
-  type DraftGridQuery,
-} from '~~/generated/graphql'
-import type { useDraftEditor } from '~/composables/useDraftEditor'
-import { useDraftEdit } from '~/composables/useDraftEdit'
+import type { DraftGridTrip, TripPattern } from '~/api'
+import type { DraftEditCommand } from '~/types/draftEdits'
 import { parseTimeInput, parseDeltaInput, secToClock } from '~/utils/gtfsTime'
-
-type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
 
 const open = defineModel<boolean>('open', { default: false })
 
 const props = defineProps<{
-  editor: ReturnType<typeof useDraftEditor>
-  feedCode: string
   routeId: string
   serviceId: string | null
   derivationStale: boolean
   trips: DraftGridTrip[]
   serviceItems?: { label: string; value: string }[]
+  /** The route's patterns in the draft (read by the page while the dialog is open). */
+  patterns: TripPattern[]
+  /** True while the page runs the submitted edit; the page closes the dialog when it lands. */
+  submitting: boolean
 }>()
 
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ edit: [command: DraftEditCommand] }>()
 
 const { t } = useI18n()
 
@@ -43,12 +38,8 @@ watch(open, (isOpen) => {
   }
 })
 
-const { result: patternsResult } = useDraftPatternsQuery(() => ({
-  variables: { feedCode: props.feedCode, routeId: props.routeId, revisionId: props.editor.draft.value?.id ?? '' },
-  enabled: !!props.routeId && !!props.editor.draft.value?.id && !props.derivationStale && open.value,
-}))
 const patternItems = computed(() =>
-  (patternsResult.value?.tripPatterns ?? []).map((p) => ({
+  props.patterns.map((p) => ({
     label: p.headsign ?? p.patternKey,
     value: p.patternKey,
   })),
@@ -103,35 +94,19 @@ const shiftNote = computed(() => {
   return `${preview} ${patternKey.value ? t('drafts.applyAllPattern') : t('drafts.applyAll')}`
 })
 
-const { mutate: bulkShift } = useBulkShiftTripsMutation()
-const { run } = useDraftEdit(props.editor, { onChanged: () => emit('changed') })
-const submitting = ref(false)
-
-async function submit() {
-  if (deltaSec.value == null || windowInvalid.value) return
-  submitting.value = true
-  try {
-    const result = await run(
-      (v) =>
-        bulkShift({ variables: {
-          input: {
-            draftId: v.draftId,
-            editor: v.editor,
-            expectedVersion: v.expectedVersion,
-            routeId: props.routeId,
-            patternKey: patternKey.value || null,
-            serviceId: serviceSel.value || null,
-            windowFromSec: windowFromSec.value,
-            windowToSec: windowToSec.value,
-            deltaSec: deltaSec.value as number,
-          },
-        } }),
-      'bulkShiftTrips',
-    )
-    if (result) open.value = false
-  } finally {
-    submitting.value = false
-  }
+function submit() {
+  if (deltaSec.value == null || windowInvalid.value || props.submitting) return
+  emit('edit', {
+    op: 'bulkShiftTrips',
+    body: {
+      routeId: props.routeId,
+      patternKey: patternKey.value || null,
+      serviceId: serviceSel.value || null,
+      windowFromSec: windowFromSec.value,
+      windowToSec: windowToSec.value,
+      deltaSec: deltaSec.value,
+    },
+  })
 }
 </script>
 

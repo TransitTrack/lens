@@ -32,17 +32,6 @@ export function polygonAreaM2(points: [number, number][]): number {
   return Math.abs(sum) * (6_371_000 ** 2) / 2
 }
 
-/** Mean seconds between consecutive AVL reports. `null` with fewer than two. */
-export function avgIntervalSec(reports: { ts: string }[]): number | null {
-  const times = reports
-    .map((r) => Date.parse(r.ts))
-    .filter((t) => Number.isFinite(t))
-    .sort((x, y) => x - y)
-  if (times.length < 2) return null
-  const span = times[times.length - 1]! - times[0]!
-  return span / (times.length - 1) / 1000
-}
-
 interface BlockTripLike {
   listIndex: number
   trip: { tripId: string }

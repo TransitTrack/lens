@@ -2,16 +2,17 @@ package eu.transittrack.gtfs
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.graphql.test.tester.HttpGraphQlTester
-import org.springframework.graphql.test.tester.entity
 
 import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.GtfsFeedRepository
@@ -20,11 +21,12 @@ import eu.transittrack.gtfs.revision.GtfsRevisionStatus
 import eu.transittrack.gtfs.revision.RevisionService
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.support.PostgresPerMethodTest
+import eu.transittrack.support.RestGet
 
 /**
  * Whole-subsystem acceptance test: a real [eu.transittrack.Application] context (pinned via `classes` so the `GtfsSliceTestApplication` is not picked up first), Testcontainers Postgres + LGTM, a stubbed [FeedDownloader] serving the
  * `full-spec-sample` fixture (~32 files). The `e2e` feed is defined purely through `transittrack.feed.feeds[0]` config — `GtfsFeedConfigSynchronizer` upserts it into `gtfs_feed` with `source = CONFIG` at startup. The test then ingests it, reads it back over
- * HTTP GraphQL, and confirms a byte-identical re-ingest is `UNCHANGED`.
+ * HTTP REST, and confirms a byte-identical re-ingest is `UNCHANGED`.
  */
 @SpringBootTest(
     classes = [eu.transittrack.Application::class],
@@ -37,9 +39,8 @@ import eu.transittrack.support.PostgresPerMethodTest
         ],
 )
 @Import(GtfsEndToEndTest.Stub::class)
-@AutoConfigureHttpGraphQlTester
 class GtfsEndToEndTest(
-    @Autowired val tester: HttpGraphQlTester,
+    @LocalServerPort val port: Int,
     @Autowired val ingestion: IngestionService,
     @Autowired val feeds: GtfsFeedRepository,
     @Autowired val revisionService: RevisionService,
@@ -75,33 +76,23 @@ class GtfsEndToEndTest(
     }
 
     @Test
-    fun `config feed ingests and serves via GraphQL, second ingest is unchanged`() {
+    fun `config feed ingests and serves via REST, second ingest is unchanged`() {
         // The config synchronizer already created the `e2e` feed and kicked off an
         // async ingest at startup; let it finish before we ingest synchronously.
         awaitStartupIngestSettled()
         ingestion.ingestBlocking("e2e")
 
-        tester
-            .document("{ feed(code:\"e2e\"){ source activeRevision { status rowCounts } } }")
-            .execute()
-            .path(
-                "feed.source",
-            ).entity<String>()
-            .isEqualTo("CONFIG")
-            .path("feed.activeRevision.status")
-            .entity<String>()
-            .isEqualTo("ACTIVE")
+        val get = RestGet(port)
+        val feed = get("/api/v1/feeds/e2e").jsonObject
+        assertThat(feed.getValue("source").jsonPrimitive.content).isEqualTo("CONFIG")
+        val active = get("/api/v1/feeds/e2e/revisions?status=ACTIVE").jsonArray.single().jsonObject
+        assertThat(active.getValue("status").jsonPrimitive.content).isEqualTo("ACTIVE")
 
-        tester
-            .document(
-                "{ stopTimes(feedCode:\"e2e\", tripId:\"T1\"){ arrivalTime stop { stopName } } }",
-            ).execute()
-            .path("stopTimes[0].arrivalTime")
-            .entity(String::class.java)
-            .isEqualTo("08:00:00")
-            .path("stopTimes[0].stop.stopName")
-            .entity(String::class.java)
-            .isEqualTo("First")
+        val stopTime = get("/api/v1/feeds/e2e/trips/T1/stop-times").jsonArray[0].jsonObject
+        assertThat(stopTime.getValue("arrivalTime").jsonPrimitive.content).isEqualTo("08:00:00")
+        val stopId = stopTime.getValue("stopId").jsonPrimitive.content
+        val stop = get("/api/v1/feeds/e2e/stops/$stopId").jsonObject
+        assertThat(stop.getValue("stopName").jsonPrimitive.content).isEqualTo("First")
 
         val second = ingestion.ingestBlocking("e2e")
         assertThat(second.status).isEqualTo(GtfsRevisionStatus.UNCHANGED)

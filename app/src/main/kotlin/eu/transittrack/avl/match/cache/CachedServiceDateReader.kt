@@ -9,7 +9,7 @@ import eu.transittrack.schedule.read.ServiceDateResolver
 
 /**
  * Revision-scoped, cached active-service-id sets for the AVL match path. [ServiceDateResolver] itself
- * stays uncached (its GraphQL callers pass unbounded client dates); the match path only asks about
+ * stays uncached (its API callers pass unbounded client dates); the match path only asks about
  * dates at or near "today", so caching here is safe and bounded.
  */
 @Component

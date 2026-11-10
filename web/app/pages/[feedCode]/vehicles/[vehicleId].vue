@@ -1,4 +1,16 @@
 <script setup lang="ts">
+import { useQuery, useQueryCache, type EntryKey } from '@pinia/colada'
+import { vehicleQuery, vehiclePredictionsQuery, vehicleTrailQuery, predictionAccuracyQuery, avlReportsQuery } from '~/composables/api/queries/avl'
+import { tripsByKeysQuery, routesByRevisionQuery, agenciesQuery, tripQuery, routeQuery, routeStopsQuery, shapeQuery, stopsByIdsQuery } from '~/composables/api/queries/gtfs'
+import { tripPatternQuery, stopPathsQuery, blockQuery, blockTripsQuery } from '~/composables/api/queries/schedule'
+import type { PredictionAlgorithm } from '~/api'
+import type { AvlLogRow } from '~/utils/joins/reports'
+import { reportRouteIdsByRevision, reportTripKeys, reportsWithTripsByRevision } from '~/utils/joins/reports'
+import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
+import {
+  chainError, chainLoading, chainPending, missingStopIds, needsShape, readPending, vehicleDetail, vehiclePattern,
+  type ChainRead, type VehicleDetail,
+} from '~/utils/joins/vehicleDetail'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem } from '@nuxt/ui'
@@ -11,27 +23,21 @@ import VehicleTripStrip from '~/components/vehicles/VehicleTripStrip.vue'
 import { useFeeds } from '~/composables/useFeeds'
 import { usePollControl } from '~/composables/usePollControl'
 import { useUnits } from '~/composables/useUnits'
-import {
-  useVehicleDetailQuery,
-  useAvlTrailQuery,
-  useAgenciesDetailQuery,
-} from '~~/generated/graphql'
+
 import { adherenceBadge, signedAdherence } from '~/utils/adherence'
 import { formatClock } from '~/utils/clock'
 import {
   haversineM,
-  avgIntervalSec,
   blockTripProgress,
   currentStatusLabel,
   occupancyLabel,
   ageLabel,
 } from '~/utils/vehicleTelemetry'
 import {
-  algorithmsIn,
-  preferredAlgorithm,
+  chosenAlgorithm,
   accuracyFor,
   stopRows,
-  trailCoords,
+  trackCoords,
   tripStrip,
   speedProfile,
 } from '~/utils/vehicleDetail'
@@ -40,41 +46,215 @@ import { useSplitLayout } from '~/composables/useSplitLayout'
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath } = useFeeds()
-const { intervalMs } = usePollControl()
+const { selectedFeedCode, selectedFeed, selectedAvlFeedCode, feedPath, avlFeeds } = useFeeds()
+const { paused, intervalMs } = usePollControl()
 const units = useUnits()
 const toast = useToast()
 const vehicleId = computed(() => String(route.params.vehicleId))
 
-const { result, loading, error } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value },
-  enabled: !!selectedAvlFeedCode.value,
-  pollInterval: intervalMs.value,
+// Which algorithm's predictions to load: the selector's options are the feed's configured algorithms,
+// and the pick is sent with the request (the server returns only that algorithm's rows).
+const algorithms = computed(() => selectedFeed.value?.predictionAlgorithms ?? [])
+const selectedAlgorithm = ref<string | undefined>()
+const algorithm = computed({
+  get: () => chosenAlgorithm(algorithms.value, selectedAlgorithm.value),
+  set: (value: string | undefined) => {
+    selectedAlgorithm.value = value
+  },
+})
+
+// --- the vehicle and its relations --------------------------------------------
+// The vehicle and its predictions poll; what they point into is pinned to the vehicle's revision and read once.
+// Pausing stops auto-refetch; a paused query still loads once when its own key has no cached data yet. The
+// cache is read by key, not through `data` (which holds the previous key's placeholder).
+const queryCache = useQueryCache()
+const pollInterval = () => (paused.value ? false : intervalMs.value)
+const pollEnabled = (base: boolean, key: EntryKey) =>
+  base && (!paused.value || queryCache.getQueryData(key) === undefined)
+
+const vehicleQ = useQuery(() => {
+  const options = vehicleQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value })
+  return { ...options, enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key), autoRefetch: pollInterval }
+})
+const predictionsQ = useQuery(() => {
+  const options = vehiclePredictionsQuery({
+    avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value,
+    algorithm: algorithm.value as PredictionAlgorithm | undefined,
+  })
+  return { ...options, enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key), autoRefetch: pollInterval }
+})
+const liveVehicle = computed(() => (selectedAvlFeedCode.value ? vehicleQ.data.value ?? null : null))
+const livePredictions = computed(() => (selectedAvlFeedCode.value ? predictionsQ.data.value ?? [] : []))
+
+const gtfsFeedCode = computed(() =>
+  selectedAvlFeedCode.value ? gtfsFeedCodeOf(avlFeeds.value, selectedAvlFeedCode.value) : null,
+)
+const scope = computed(() => {
+  const revisionId = liveVehicle.value?.revisionId
+  return gtfsFeedCode.value && revisionId ? { feedCode: gtfsFeedCode.value, revisionId } : null
+})
+const pinned = () => scope.value ?? { feedCode: '' }
+
+const tripEnabled = computed(() => !!scope.value && !!liveVehicle.value?.tripId)
+const tripQ = useQuery(() => ({
+  ...tripQuery({ ...pinned(), tripId: liveVehicle.value?.tripId ?? '' }),
+  enabled: tripEnabled.value,
+}))
+const trip = computed(() => (tripEnabled.value ? tripQ.data.value ?? null : null))
+
+const routeEnabled = computed(() => !!trip.value)
+const routeQ = useQuery(() => ({
+  ...routeQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
+  enabled: routeEnabled.value,
+}))
+const patternEnabled = computed(() => !!trip.value?.patternKey)
+const patternQ = useQuery(() => ({
+  ...tripPatternQuery({ ...pinned(), patternKey: trip.value?.patternKey ?? '' }),
+  enabled: patternEnabled.value,
+}))
+const stopPathsQ = useQuery(() => ({
+  ...stopPathsQuery({ ...pinned(), routeId: trip.value?.routeId, patternKey: trip.value?.patternKey ?? undefined }),
+  enabled: patternEnabled.value,
+}))
+const routeStopsQ = useQuery(() => ({
+  ...routeStopsQuery({ ...pinned(), routeId: trip.value?.routeId ?? '' }),
+  enabled: patternEnabled.value,
+}))
+const blockEnabled = computed(() => !!trip.value?.blockId)
+const blockParams = () => ({ ...pinned(), blockId: trip.value?.blockId ?? '', serviceId: trip.value?.serviceId ?? '' })
+const blockQ = useQuery(() => ({ ...blockQuery(blockParams()), enabled: blockEnabled.value }))
+const blockTripsQ = useQuery(() => ({ ...blockTripsQuery(blockParams()), enabled: blockEnabled.value }))
+
+const pattern = computed(() => (patternEnabled.value ? patternQ.data.value ?? null : null))
+const patternSettled = computed(() => !chainPending([
+  { enabled: tripEnabled.value, q: tripQ },
+  { enabled: patternEnabled.value, q: patternQ },
+  { enabled: patternEnabled.value, q: stopPathsQ },
+  { enabled: patternEnabled.value, q: routeStopsQ },
+]))
+const joinedPattern = computed(() =>
+  trip.value ? vehiclePattern(trip.value, pattern.value, stopPathsQ.data.value ?? [], routeStopsQ.data.value ?? []) : null,
+)
+// The route line falls back to the GTFS shape only when the pattern has no usable geometry.
+const shapeEnabled = computed(() => patternSettled.value && !!trip.value?.shapeId && needsShape(pattern.value))
+const shapeQ = useQuery(() => ({
+  ...shapeQuery({ ...pinned(), shapeId: trip.value?.shapeId ?? '' }),
+  enabled: shapeEnabled.value,
+}))
+// The current and predicted stops sit on the pattern; read only those that aren't there.
+const missingStops = computed(() =>
+  patternSettled.value && !readPending({ enabled: true, q: vehicleQ }) && !readPending({ enabled: true, q: predictionsQ })
+    ? missingStopIds(liveVehicle.value, livePredictions.value, joinedPattern.value)
+    : [],
+)
+const stopsEnabled = computed(() => !!scope.value && missingStops.value.length > 0)
+const stopsQ = useQuery(() => ({
+  ...stopsByIdsQuery({ ...pinned(), stopIds: missingStops.value }),
+  enabled: stopsEnabled.value,
 }))
 
-const { result: trailResult } = useAvlTrailQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 },
-  enabled: !!selectedAvlFeedCode.value,
-  pollInterval: intervalMs.value,
-}))
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+const chain = computed<ChainRead[]>(() => [
+  { enabled: !!selectedAvlFeedCode.value, q: vehicleQ },
+  { enabled: !!selectedAvlFeedCode.value, q: predictionsQ },
+  { enabled: tripEnabled.value, q: tripQ },
+  { enabled: routeEnabled.value, q: routeQ },
+  { enabled: patternEnabled.value, q: patternQ },
+  { enabled: patternEnabled.value, q: stopPathsQ },
+  { enabled: patternEnabled.value, q: routeStopsQ },
+  { enabled: blockEnabled.value, q: blockQ },
+  { enabled: blockEnabled.value, q: blockTripsQ },
+  { enabled: shapeEnabled.value, q: shapeQ },
+  { enabled: stopsEnabled.value, q: stopsQ },
+])
+// Like the single composite read it replaces: the joined detail appears once every read it needs has
+// answered, and the previous detail stays on screen meanwhile (a new trip, another vehicle).
+const detail = computed<VehicleDetail | null>((previous) => {
+  if (chainPending(chain.value)) return previous ?? null
+  return vehicleDetail({
+    vehicle: liveVehicle.value,
+    predictions: livePredictions.value,
+    trip: trip.value,
+    route: routeEnabled.value ? routeQ.data.value ?? null : null,
+    shape: shapeEnabled.value ? shapeQ.data.value ?? null : null,
+    pattern: pattern.value,
+    stopPaths: patternEnabled.value ? stopPathsQ.data.value ?? [] : [],
+    routeStops: patternEnabled.value ? routeStopsQ.data.value ?? [] : [],
+    block: blockEnabled.value ? blockQ.data.value ?? null : null,
+    blockTrips: blockEnabled.value ? blockTripsQ.data.value ?? [] : [],
+    stops: stopsEnabled.value ? stopsQ.data.value ?? [] : [],
+  })
+})
+const loading = computed(() => chainLoading(chain.value))
+const error = computed(() => chainError(chain.value))
+
+const { data: trailData } = useQuery(() => {
+  const options = vehicleTrailQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 200 })
+  return { ...options, enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key), autoRefetch: pollInterval }
+})
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value ?? '' }),
   enabled: !!selectedFeedCode.value,
 }))
 const agencyTimezone = computed(
-  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
+  () => agencies.value?.find((agency) => agency.agencyTimezone)?.agencyTimezone,
 )
 
-const vehicle = computed(() => result.value?.vehicle ?? null)
-const predictions = computed(() => result.value?.vehiclePredictions ?? [])
-const accuracy = computed(() => result.value?.predictionAccuracy ?? [])
+const vehicle = computed(() => detail.value?.vehicle ?? null)
+const predictions = computed(() => detail.value?.vehiclePredictions ?? [])
+// Feed-wide aggregate (last 7 days) — slow to compute and the same for every vehicle, so poll it rarely.
+const { data: accuracyData } = useQuery(() => {
+  const options = predictionAccuracyQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '' })
+  return {
+    ...options,
+    enabled: pollEnabled(!!selectedAvlFeedCode.value, options.key),
+    autoRefetch: () => (paused.value ? false : 5 * 60_000),
+  }
+})
+const accuracy = computed(() => accuracyData.value ?? [])
 
-// avlReports come back newest-first (backend `OrderByTsDesc`).
-const reports = computed(() => trailResult.value?.avlReports ?? [])
-const latestReport = computed(() => reports.value[0] ?? null)
-const trail = computed(() => trailCoords(reports.value))
+// The backend summarises the vehicle's recent movement (track, cadence, newest status, speeds).
+const vehicleTrail = computed(() => (selectedAvlFeedCode.value ? trailData.value ?? null : null))
+const trail = computed(() => trackCoords(vehicleTrail.value?.track ?? []))
 
+// --- AVL log ------------------------------------------------------------------
+// Read (and polled) only while the log is open. Reports may span revisions: their trips are read per
+// (revision, trip) and their routes per revision, and each report joins its own revision's route.
 const avlLogOpen = ref(false)
+const logEnabled = computed(() => avlLogOpen.value && !!selectedAvlFeedCode.value)
+const logReportsQ = useQuery(() => {
+  const options = avlReportsQuery({ avlFeedCode: selectedAvlFeedCode.value ?? '', vehicleId: vehicleId.value, limit: 100 })
+  return {
+    ...options,
+    enabled: pollEnabled(logEnabled.value, options.key),
+    autoRefetch: () => (logEnabled.value && !paused.value ? intervalMs.value : false),
+  }
+})
+const logReports = computed(() => (logEnabled.value ? logReportsQ.data.value ?? [] : []))
+const logTripsEnabled = computed(() => logEnabled.value && !!gtfsFeedCode.value && !readPending({ enabled: true, q: logReportsQ }))
+const logTripsQ = useQuery(() => ({
+  ...tripsByKeysQuery({ feedCode: gtfsFeedCode.value ?? '', keys: reportTripKeys(logReports.value) }),
+  enabled: logTripsEnabled.value,
+}))
+const logTrips = computed(() => (logTripsEnabled.value ? logTripsQ.data.value : undefined) ?? new Map())
+const logRoutesEnabled = computed(() => logTripsEnabled.value && !readPending({ enabled: true, q: logTripsQ }))
+const logRoutesQ = useQuery(() => ({
+  ...routesByRevisionQuery({ feedCode: gtfsFeedCode.value ?? '', routeIdsByRevision: reportRouteIdsByRevision(logTrips.value) }),
+  enabled: logRoutesEnabled.value,
+}))
+const logChain = computed<ChainRead[]>(() => [
+  { enabled: logEnabled.value, q: logReportsQ },
+  { enabled: logTripsEnabled.value, q: logTripsQ },
+  { enabled: logRoutesEnabled.value, q: logRoutesQ },
+])
+// Rows appear once the trips and routes of the newest reports have answered; the previous rows stay meanwhile.
+const logRows = computed<AvlLogRow[]>((previous) => {
+  if (!logEnabled.value) return []
+  if (chainPending(logChain.value)) return previous ?? []
+  const routes = (logRoutesEnabled.value ? logRoutesQ.data.value : undefined) ?? new Map()
+  return reportsWithTripsByRevision(logReports.value, logTrips.value, routes) as unknown as AvlLogRow[]
+})
+const logLoading = computed(() => chainLoading(logChain.value))
+const logError = computed(() => chainError(logChain.value))
 
 // Details panel beside (desktop) or above (mobile) the trip workspace.
 const { splitterOrientation: pageSplitterOrientation } = useSplitLayout()
@@ -91,19 +271,6 @@ const pageSplitterItems: SplitterItem[] = [
   { id: 'workspace', slot: 'workspace', class: 'flex min-h-0 flex-col overflow-hidden' },
 ]
 
-const algorithms = computed(() => algorithmsIn(predictions.value))
-const selectedAlgorithm = ref<string | undefined>()
-const algorithm = computed({
-  get: () =>
-    preferredAlgorithm(
-      algorithms.value,
-      selectedFeed.value?.predictionAlgorithms ?? [],
-      selectedAlgorithm.value,
-    ),
-  set: (value: string | undefined) => {
-    selectedAlgorithm.value = value
-  },
-})
 watch(selectedAvlFeedCode, () => {
   selectedAlgorithm.value = undefined
 })
@@ -130,7 +297,7 @@ const rows = computed(() =>
 )
 const strip = computed(() => (vehicle.value ? tripStrip(vehicle.value, rows.value) : null))
 const stripSpeeds = computed(() =>
-  strip.value ? speedProfile(strip.value, reports.value, vehicle.value?.trip?.tripId) : [],
+  strip.value ? speedProfile(strip.value, vehicleTrail.value?.speeds ?? []) : [],
 )
 const currentStopRow = ref<HTMLElement | null>(null)
 // const currentStopKey = computed(() => {
@@ -167,10 +334,10 @@ const blockProgress = computed(() =>
   blockTripProgress(vehicle.value?.block?.blockTrips, vehicle.value?.trip?.tripId),
 )
 
-const currentStatus = computed(() => currentStatusLabel(latestReport.value?.currentStatus, t))
+const currentStatus = computed(() => currentStatusLabel(vehicleTrail.value?.currentStatus, t))
 
 const descMismatch = computed(() => {
-  const declared = latestReport.value?.descTripId
+  const declared = vehicleTrail.value?.descTripId
   const matched = vehicle.value?.trip?.tripId
   return declared && matched && declared !== matched ? { declared, matched } : null
 })
@@ -184,7 +351,7 @@ const distToNextStopM = computed(() => {
   return cs ? haversineM(vehicle.value?.position, { lat: cs.stopLat, lon: cs.stopLon }) : null
 })
 
-const avgInterval = computed(() => avgIntervalSec(reports.value))
+const avgInterval = computed(() => vehicleTrail.value?.avgReportIntervalSec ?? null)
 
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | undefined
@@ -792,8 +959,9 @@ function adherenceTextClass(sec: number | null): string {
     <VehicleAvlLog
       v-if="selectedAvlFeedCode"
       v-model:open="avlLogOpen"
-      :feed-code="selectedAvlFeedCode"
-      :vehicle-id="vehicleId"
+      :rows="logRows"
+      :loading="logLoading"
+      :error="logError"
     />
   </AppPage>
 </template>

@@ -1,3 +1,5 @@
+/* Scalar's API reference styles sit below Tailwind's layers (see @scalar/nuxt's Tailwind v4 note). */
+@layer scalar-base, scalar-theme, scalar-config, theme, base, components, utilities;
 @import 'maplibre-gl/dist/maplibre-gl.css';
 @import 'tailwindcss';
 @import '@nuxt/ui';

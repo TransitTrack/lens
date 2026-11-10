@@ -18,6 +18,11 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage
 import com.google.transit.realtime.GtfsRealtime.Position
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
@@ -26,13 +31,12 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.TestInstance
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.graphql.test.tester.HttpGraphQlTester
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -60,13 +64,14 @@ import eu.transittrack.predict.model.PredictionAccuracyRepository
 import eu.transittrack.predict.model.TravelTimeObservationRepository
 import eu.transittrack.predict.model.VehiclePredictionRepository
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.support.RestGet
 
 /**
  * Full AVL + prediction pipeline through a real HTTP endpoint: a GTFS-RT `VehiclePosition` feed
  * served by [MockWebServer] is polled by [AvlIngestService], matched by [AvlMatchProcessor] against
  * the derived schedule model (`schedule-sample`), and the resulting [PredictionService] output -
  * predictions, filled-in actuals, accuracy samples, and read-time headway - is read back over
- * GraphQL. Mirrors the poll/match structure of `eu.transittrack.avl.AvlEndToEndTest`, asserting on
+ * REST. Mirrors the poll/match structure of `eu.transittrack.avl.AvlEndToEndTest`, asserting on
  * predictions instead of just match state.
  *
  * The first poll is positioned at 25% along the shape so the next report crosses an intermediate
@@ -87,11 +92,10 @@ import eu.transittrack.support.PostgresPerClassTest
     ],
 )
 @Import(PredictionEndToEndTest.Stub::class)
-@AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class PredictionEndToEndTest(
-    @Autowired val tester: HttpGraphQlTester,
+    @LocalServerPort val port: Int,
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val ingestService: AvlIngestService,
@@ -179,7 +183,7 @@ class PredictionEndToEndTest(
             .toByteArray()
 
     @Test
-    fun `poll, match, cross a stop, then read predictions, accuracy and headway over GraphQL`() {
+    fun `poll, match, cross a stop, then read predictions, accuracy and headway over REST`() {
         val feedRow = feeds.findByCode("mbta-vp")!!
         val ctx = contextFactory.open(feedRow)!!
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!
@@ -206,19 +210,12 @@ class PredictionEndToEndTest(
         processor.processBatch()
         predictionProcessor.processBatch()
 
-        val predictionsAfterPoll1 =
-            tester
-                .document(
-                    """{ vehiclePredictions(feedCode:"mbta-vp", vehicleId:"bus-1") {
-                         stopPathIndex predictedArrival algorithm actualArrival
-                       } }""",
-                ).execute()
-                .path("vehiclePredictions")
-                .entityList(Map::class.java)
-                .get()
+        val get = RestGet(port)
+        val predictionsAfterPoll1 = get("/api/v1/feeds/mbta-vp/avl/vehicles/bus-1/predictions").jsonArray.map { it.jsonObject }
 
         assertThat(predictionsAfterPoll1).isNotEmpty()
-        assertThat(predictionsAfterPoll1.map { it["algorithm"] }.toSet()).isEqualTo(setOf("SCHEDULE_ADHERENCE"))
+        assertThat(predictionsAfterPoll1.map { it.getValue("algorithm").jsonPrimitive.content }.toSet())
+            .isEqualTo(setOf("SCHEDULE_ADHERENCE"))
 
         // --- poll 2: advanced to 60% along T1, later ts -> crosses a stop ---
         server.enqueue(MockResponse().setBody(Buffer().write(feedMessageBytes(p60, svcTs(12).epochSecond))))
@@ -227,32 +224,17 @@ class PredictionEndToEndTest(
         processor.processBatch()
         predictionProcessor.processBatch()
 
-        val predictionsAfterPoll2 =
-            tester
-                .document(
-                    """{ vehiclePredictions(feedCode:"mbta-vp", vehicleId:"bus-1") {
-                         stopPathIndex predictedArrival algorithm actualArrival
-                       } }""",
-                ).execute()
-                .path("vehiclePredictions")
-                .entityList(Map::class.java)
-                .get()
+        val predictionsAfterPoll2 = get("/api/v1/feeds/mbta-vp/avl/vehicles/bus-1/predictions").jsonArray.map { it.jsonObject }
 
-        assertThat(predictionsAfterPoll2.any { it["actualArrival"] != null }).isTrue()
+        assertThat(predictionsAfterPoll2.any { it["actualArrival"].let { v -> v != null && v !is JsonNull } }).isTrue()
 
-        val accuracy =
-            tester
-                .document(
-                    """{ predictionAccuracy(feedCode:"mbta-vp", algorithm:SCHEDULE_ADHERENCE) {
-                         algorithm sampleCount
-                       } }""",
-                ).execute()
-                .path("predictionAccuracy")
-                .entityList(Map::class.java)
-                .get()
+        val accuracy = get("/api/v1/feeds/mbta-vp/avl/prediction-accuracy?algorithm=SCHEDULE_ADHERENCE").jsonArray.map { it.jsonObject }
 
         assertThat(accuracy).isNotEmpty()
-        val sampleCount = (accuracy.first()["sampleCount"] as Number).toInt()
+        val sampleCount = accuracy
+            .first()
+            .getValue("sampleCount")
+            .jsonPrimitive.int
         assertThat(sampleCount).isGreaterThanOrEqualTo(1)
 
         // --- headway: single matched vehicle on route RA at stop S4 (T1's final stop) ---
@@ -261,19 +243,9 @@ class PredictionEndToEndTest(
         // actual_arrival_ts (crossing detection fills the same row) and is excluded from
         // stopPredictions' forward-looking filter - see HeadwayReadService/PredictionReadService.
         // S4 is still purely in the future and stays eligible.
-        val headway =
-            tester
-                .document(
-                    """{ headway(feedCode:"mbta-vp", stopId:"S4", routeId:"RA", directionId:0) {
-                         waitSec gapsSec
-                       } }""",
-                ).execute()
-                .path("headway")
-                .entity(Map::class.java)
-                .get()
+        val headway = get("/api/v1/feeds/mbta-vp/avl/stops/S4/headway?routeId=RA&directionId=0").jsonObject
 
         assertThat(headway["waitSec"]).isNotNull()
-        @Suppress("UNCHECKED_CAST")
-        assertThat(headway["gapsSec"] as List<Int>).isEmpty()
+        assertThat(headway.getValue("gapsSec").jsonArray).isEmpty()
     }
 }

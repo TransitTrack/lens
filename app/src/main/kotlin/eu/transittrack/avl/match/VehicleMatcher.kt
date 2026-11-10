@@ -6,7 +6,18 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
-import eu.transittrack.schedule.model.TripRef
+import eu.transittrack.gtfs.model.Trip
+
+/** Assigns a report to a trip for one [AvlAssignmentMode]; core picks the bean whose [mode] matches the feed. */
+interface VehicleMatcher {
+    val mode: AvlAssignmentMode
+
+    fun match(
+        report: AvlReportView,
+        prev: VehicleStateView?,
+        ctx: MatchContext,
+    ): MatchOutcome
+}
 
 /**
  * The instant a service day's GTFS times count from: noon minus 12 hours, per the GTFS reference -
@@ -29,15 +40,14 @@ fun serviceDayStart(
  */
 fun inferServiceDate(
     report: AvlReportView,
-    trip: TripRef,
+    tripStartSec: Int?,
     zone: ZoneId,
 ): LocalDate {
     report.descStartDate?.let { return it }
     val zoned = report.ts.atZone(zone)
     val localDate = zoned.toLocalDate()
     val secOfDay = zoned.toLocalTime().toSecondOfDay()
-    val start = trip.startTimeSec
-    return if (start != null && secOfDay + 14_400 < start) localDate.minusDays(1) else localDate
+    return if (tripStartSec != null && secOfDay + 14_400 < tripStartSec) localDate.minusDays(1) else localDate
 }
 
 /**
@@ -48,18 +58,18 @@ fun inferServiceDate(
 internal fun tryBlockAdvance(
     prev: VehicleStateView,
     geom: PatternGeometry,
-    trip: TripRef,
+    trip: Trip,
     actualServiceSec: Int,
     ctx: MatchContext,
     backtrackToleranceM: Double,
     tripEndAdvanceGraceSec: Int,
-): Pair<TripRef, PatternGeometry>? {
+): Pair<Trip, PatternGeometry>? {
     if (prev.tripRowId != trip.id) return null
     val along = prev.distanceAlongTripM ?: return null
     if (along < geom.line.lengthM - backtrackToleranceM) return null
     val end = trip.endTimeSec ?: return null
     if (actualServiceSec <= end + tripEndAdvanceGraceSec) return null
-    val bt = ctx.blockTripOf(trip.id) ?: return null
+    val bt = ctx.blockTripOf(trip.id!!) ?: return null
     val next = ctx.nextBlockTrip(bt.blockId, bt.listIndex) ?: return null
     val nextTrip = ctx.trip(next.tripId) ?: return null
     val nextPatternId = nextTrip.tripPatternId ?: return null

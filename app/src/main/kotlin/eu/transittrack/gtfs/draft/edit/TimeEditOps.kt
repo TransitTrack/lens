@@ -18,7 +18,7 @@ private fun JsonElement.nullableTime(): Int? = if (this == JsonNull) null else j
  * `arr` and `dep` as either a number or JSON null, so the replay builder is a pure function
  * of the direction JSON.
  *
- * NOTE for the GraphQL layer (Task 6): a `null` arg means "set the column to NULL", NOT "leave
+ * NOTE for the API layer: a `null` arg means "set the column to NULL", NOT "leave
  * unchanged" — this op has no partial-update semantics.
  */
 class UpdateStopTimeOp(

@@ -52,13 +52,13 @@ export function secToHm(sec: number | null): string {
 }
 
 export interface DayFlags {
-  monday: boolean | null
-  tuesday: boolean | null
-  wednesday: boolean | null
-  thursday: boolean | null
-  friday: boolean | null
-  saturday: boolean | null
-  sunday: boolean | null
+  monday?: boolean | null
+  tuesday?: boolean | null
+  wednesday?: boolean | null
+  thursday?: boolean | null
+  friday?: boolean | null
+  saturday?: boolean | null
+  sunday?: boolean | null
 }
 
 export function activeDays(cal: DayFlags): boolean[] {

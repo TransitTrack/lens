@@ -29,10 +29,11 @@ import eu.transittrack.gtfs.download.FeedDownloader
 import eu.transittrack.gtfs.feed.FeedInput
 import eu.transittrack.gtfs.feed.GtfsFeedService
 import eu.transittrack.gtfs.ingest.IngestionService
+import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
-import eu.transittrack.schedule.model.TripRef
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.support.copy
 
 @SpringBootTest(classes = [eu.transittrack.Application::class])
 @Import(FullInferenceMatcherTest.Stub::class)
@@ -302,14 +303,14 @@ class FullInferenceMatcherTest(
      */
     private fun withSharedCorridor(
         ctx: MatchContext,
-        t1: TripRef,
-    ): Pair<MatchContext, TripRef> {
+        t1: Trip,
+    ): Pair<MatchContext, Trip> {
         val other = t1.copy(id = 999_001L, tripId = "X1", routeId = "RB", blockId = null)
         val shared =
             object : MatchContext by ctx {
                 override fun trip(tripRowId: Long) = if (tripRowId == other.id) other else ctx.trip(tripRowId)
 
-                override fun scheduleOf(tripRowId: Long) = ctx.scheduleOf(if (tripRowId == other.id) t1.id else tripRowId)
+                override fun scheduleOf(tripRowId: Long) = ctx.scheduleOf(if (tripRowId == other.id) t1.id!! else tripRowId)
 
                 override fun blockTripOf(tripRowId: Long) = if (tripRowId == other.id) null else ctx.blockTripOf(tripRowId)
 
@@ -339,7 +340,8 @@ class FullInferenceMatcherTest(
         val p = geom.line.pointAt(0.5 * geom.line.lengthM)
 
         // Continuity and hysteresis would keep the vehicle on route RB; its descriptor says RA.
-        val outcome = matcher.match(report(p.lat, p.lon, ts0805(), descRouteId = "RA"), prevOnTrip(other.id, 0.4 * geom.line.lengthM), ctx)
+        val outcome = matcher
+            .match(report(p.lat, p.lon, ts0805(), descRouteId = "RA"), prevOnTrip(other.id!!, 0.4 * geom.line.lengthM), ctx)
 
         assertThat(outcome).isInstanceOf(MatchOutcome.Matched::class)
         assertThat((outcome as MatchOutcome.Matched).tripRowId).isEqualTo(t1.id)

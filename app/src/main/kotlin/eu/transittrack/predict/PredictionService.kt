@@ -16,6 +16,7 @@ import eu.transittrack.avl.match.cache.CachedTravelTimesReader
 import eu.transittrack.avl.match.inferServiceDate
 import eu.transittrack.avl.model.AvlFeed
 import eu.transittrack.avl.model.AvlReportRow
+import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.predict.generate.GeneratedPrediction
 import eu.transittrack.predict.generate.HorizonStop
 import eu.transittrack.predict.generate.PredictionStrategy
@@ -33,7 +34,6 @@ import eu.transittrack.predict.learn.updateRunningAverage
 import eu.transittrack.predict.model.AvlStopCrossing
 import eu.transittrack.predict.model.PredictionAccuracy
 import eu.transittrack.schedule.model.TravelTimesForStopPath
-import eu.transittrack.schedule.model.TripRef
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /** The vehicle's previous match, as needed for stop-pass detection — deliberately not a full
@@ -106,7 +106,7 @@ class PredictionService(
         generatePredictions: Boolean = true,
     ) {
         val trip = ctx.trip(outcome.tripRowId) ?: return
-        val serviceDate = inferServiceDate(report, trip, ctx.zone)
+        val serviceDate = inferServiceDate(report, trip.startTimeSec, ctx.zone)
         val receivedAt = clock.instant()
 
         val detected = if (prev != null && prev.tripRowId == outcome.tripRowId) detectPasses(report, prev, outcome, ctx) else null
@@ -140,13 +140,13 @@ class PredictionService(
         report: AvlReportRow,
         prev: PrevVehicleMatch?,
         outcome: MatchOutcome.Matched,
-        trip: TripRef,
+        trip: Trip,
         serviceDate: LocalDate,
         ctx: AvlMatchContext,
     ): Instant {
         val serviceStart = serviceSecToInstant(serviceDate, 0, ctx.zone)
         if (trip.frequencyBased != true) return serviceStart
-        val state = writer.frequencyRun(feed.code, report.vehicleId, trip.id)
+        val state = writer.frequencyRun(feed.code, report.vehicleId, trip.id!!)
         if (state != null && report.ts.isBefore(state.lastReportTs)) {
             check(!report.ts.isBefore(state.startedAt)) { "Report ${report.ts} precedes the current frequency run ${state.startedAt}" }
             return state.startedAt
@@ -154,7 +154,7 @@ class PredictionService(
         val previousDistance = state?.lastDistanceAlongTripM ?: prev?.takeIf { it.tripRowId == trip.id }?.distanceAlongTripM
         val recent = if (previousDistance == null) {
             writer.passObservations(
-                feed.code, report.vehicleId, trip.id, serviceStart, report.ts,
+                feed.code, report.vehicleId, trip.id!!, serviceStart, report.ts,
             )
         } else {
             emptyList()
@@ -170,9 +170,9 @@ class PredictionService(
             (priorDistance != null && priorDistance - outcome.distanceAlongTripM > avlProps.match.backtrackToleranceM)
         val startedAt = if (reset) report.ts else state?.startedAt ?: recent.lastOrNull()?.runStartedAt ?: serviceStart
         val startTimeSec = report.descStartTimeSec ?: state?.takeUnless { reset }?.startTimeSec
-        if (reset) writer.clearPreviousRun(feed.code, report.vehicleId, trip.id)
+        if (reset) writer.clearPreviousRun(feed.code, report.vehicleId, trip.id!!)
         writer.saveFrequencyRun(
-            feed.code, report.vehicleId, trip.id,
+            feed.code, report.vehicleId, trip.id!!,
             FrequencyRunState(
                 serviceDate, startedAt, report.ts, startTimeSec, outcome.distanceAlongTripM,
             ),
@@ -342,7 +342,7 @@ class PredictionService(
         feed: AvlFeed,
         report: AvlReportRow,
         outcome: MatchOutcome.Matched,
-        trip: TripRef,
+        trip: Trip,
         serviceDate: LocalDate,
         ctx: AvlMatchContext,
         detected: DetectedPasses,
@@ -473,14 +473,14 @@ class PredictionService(
     private fun scoreCheckpoints(
         feed: AvlFeed,
         vehicleId: String,
-        trip: TripRef,
+        trip: Trip,
         serviceDate: LocalDate,
         ctx: AvlMatchContext,
         passedAt: Map<Int, Instant>,
         reliable: Boolean,
         now: Instant,
     ) {
-        val checkpoints = writer.takeCheckpoints(feed.code, vehicleId, trip.id, passedAt.keys)
+        val checkpoints = writer.takeCheckpoints(feed.code, vehicleId, trip.id!!, passedAt.keys)
         if (!reliable) return
         val rows = ArrayList<PredictionAccuracy>()
         for ((stopIndex, snapshots) in checkpoints.groupBy { it.stopPathIndex }) {
@@ -504,7 +504,7 @@ class PredictionService(
                         PredictionAccuracy(
                             feedCode = feed.code,
                             vehicleId = vehicleId,
-                            tripRowId = trip.id,
+                            tripRowId = trip.id!!,
                             stopPathIndex = stopIndex,
                             algorithm = c.algorithm,
                             predictedTs = c.predictedTs,

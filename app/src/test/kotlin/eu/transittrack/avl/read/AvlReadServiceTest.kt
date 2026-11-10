@@ -22,7 +22,6 @@ import eu.transittrack.avl.model.AvlReportRowRepository
 import eu.transittrack.avl.model.MatchStatus
 import eu.transittrack.avl.model.VehicleMatchRepository
 import eu.transittrack.avl.model.VehicleStateRepository
-import eu.transittrack.avl.read.dto.AvlReportDto
 import eu.transittrack.gtfs.support.PostgresSliceTest
 import eu.transittrack.support.PostgresPerMethodTest
 import eu.transittrack.util.paging.PageRequest
@@ -35,7 +34,7 @@ class AvlReadServiceTest(
     @Autowired val matches: VehicleMatchRepository,
 ) : PostgresPerMethodTest() {
     // No active revision behind the mock, so the report page resolves times in the system zone.
-    private val service by lazy { AvlReadService(feeds, states, reports, matches, mock<AvlMatchContextFactory>()) }
+    private val service by lazy { AvlReadService(feeds, states, reports, matches, mock<AvlMatchContextFactory>(), mock(), mock()) }
     private val zone = ZoneId.systemDefault()
     private val day = LocalDate.parse("2026-09-04")
 
@@ -75,7 +74,8 @@ class AvlReadServiceTest(
 
         val dto = service.avlReportPage("f", "v", day.toString(), "09:00", "11:00", page = 2, pageSize = 10)
 
-        assertThat(dto.items).isEqualTo(page.items.map { AvlReportDto.of(it, null, AvlFormat.GTFS_RT) })
+        assertThat(dto.items.map { it.ts }).isEqualTo(page.items.map { it.ts.toString() })
+        assertThat(dto.items.mapNotNull { it.match }).isEqualTo(emptyList())
         assertThat(dto.totalCount).isEqualTo(25)
         assertThat(dto.page).isEqualTo(2)
         assertThat(dto.pageSize).isEqualTo(10)

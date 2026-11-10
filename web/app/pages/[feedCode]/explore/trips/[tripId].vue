@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { validationFindingsQuery, tripQuery, routeQuery, stopTimesQuery, shapeQuery, stopsByIdsQuery, agenciesQuery } from '~/composables/api/queries/gtfs'
+import { tripPatternQuery, blockQuery, scheduleTimesQuery } from '~/composables/api/queries/schedule'
+import { agenciesExtent } from '~/utils/joins/extent'
+import { indexBy } from '~/utils/joins/routes'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import type { SplitterItem } from '@nuxt/ui'
 import AppPage from '~/components/shell/AppPage.vue'
 import ValidationFindingsPanel from '~/components/explore/ValidationFindingsPanel.vue'
 import VehicleRouteMap from '~/components/map/VehicleRouteMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
-import { useTripDetailQuery } from '~~/generated/graphql'
+
 import type { LngLat } from '~/utils/gtfs'
 import { useSplitLayout } from '~/composables/useSplitLayout'
 
@@ -14,15 +18,73 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
 const tripId = computed(() => String(route.params.tripId))
 
-const { result, loading, error } = useTripDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', tripId: tripId.value },
-  enabled: !!selectedFeedCode.value,
+const { data: findings, isLoading: findingsLoading } = useQuery(() => ({
+  ...validationFindingsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Trip', entityId: tripId.value }),
+  enabled: !!selectedFeedCode.value && !!tripId.value,
 }))
 
-const trip = computed(() => result.value?.trip ?? null)
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const extent = computed(() => agenciesExtent(agencies.value ?? []))
+
+const { data: tripData, isLoading: tripLoading, error: tripError } = useQuery(() => ({
+  ...tripQuery({ feedCode: selectedFeedCode.value!, tripId: tripId.value }),
+  enabled: enabled.value,
+}))
+
+// Everything below hangs off the trip: a 404 (null) leaves these disabled.
+const hasTrip = computed(() => enabled.value && !!tripData.value)
+const { data: tripRoute } = useQuery(() => ({
+  ...routeQuery({ feedCode: selectedFeedCode.value!, routeId: tripData.value?.routeId ?? '' }),
+  enabled: hasTrip.value,
+}))
+const { data: pattern } = useQuery(() => ({
+  ...tripPatternQuery({ feedCode: selectedFeedCode.value!, patternKey: tripData.value?.patternKey ?? '' }),
+  enabled: hasTrip.value && !!tripData.value?.patternKey,
+}))
+const { data: block } = useQuery(() => ({
+  ...blockQuery({ feedCode: selectedFeedCode.value!, blockId: tripData.value?.blockId ?? '', serviceId: tripData.value?.serviceId ?? '' }),
+  enabled: hasTrip.value && !!tripData.value?.blockId,
+}))
+const { data: scheduleTimes } = useQuery(() => ({
+  ...scheduleTimesQuery({ feedCode: selectedFeedCode.value!, tripId: tripData.value?.tripId ?? '' }),
+  enabled: hasTrip.value,
+}))
+const { data: rawStopTimes, isLoading: stopTimesLoading, error: stopTimesError } = useQuery(() => ({
+  ...stopTimesQuery({ feedCode: selectedFeedCode.value!, tripId: tripData.value?.tripId ?? '' }),
+  enabled: hasTrip.value,
+}))
+const { data: shape } = useQuery(() => ({
+  ...shapeQuery({ feedCode: selectedFeedCode.value!, shapeId: tripData.value?.shapeId ?? '' }),
+  enabled: hasTrip.value && !!tripData.value?.shapeId,
+}))
+const stopIds = computed(() => (rawStopTimes.value ?? []).map((st) => st.stopId).filter((id): id is string => !!id))
+const { data: stopsData } = useQuery(() => ({
+  ...stopsByIdsQuery({ feedCode: selectedFeedCode.value!, stopIds: stopIds.value }),
+  enabled: hasTrip.value && stopIds.value.length > 0,
+}))
+
+const loading = computed(() => tripLoading.value || stopTimesLoading.value)
+const error = computed(() => tripError.value ?? stopTimesError.value)
+
+const trip = computed(() => {
+  if (!tripData.value) return null
+  const stopById = indexBy(stopsData.value ?? [], 'stopId')
+  return {
+    ...tripData.value,
+    route: tripRoute.value ?? null,
+    pattern: pattern.value ?? null,
+    block: block.value ?? null,
+    scheduleTimes: scheduleTimes.value ?? [],
+    stopTimes: (rawStopTimes.value ?? []).map((st) => ({ ...st, stop: st.stopId ? stopById.get(st.stopId) ?? null : null })),
+    shape: shape.value ?? null,
+  }
+})
 
 const stopTimes = computed(() =>
   [...(trip.value?.stopTimes ?? [])].sort((a, b) => a.stopSequence - b.stopSequence),
@@ -36,7 +98,7 @@ watch(tripId, () => {
 const line = computed<LngLat[]>(() => {
   const pts = trip.value?.shape?.points ?? []
   const fromShape = pts
-    .filter((p): p is { lat: number; lon: number } => p.lat != null && p.lon != null)
+    .filter((p) => p.lat != null && p.lon != null)
     .map((p) => [p.lon, p.lat] as LngLat)
   if (fromShape.length >= 2) return fromShape
   return stopTimes.value
@@ -141,11 +203,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
       />
     </template>
     <template #actions>
-      <ValidationFindingsPanel
-        :feed-code="selectedFeedCode"
-        entity-type="Trip"
-        :entity-id="tripId"
-      />
+      <ValidationFindingsPanel :findings="findings" :loading="findingsLoading" />
       <UBadge v-if="trip?.route?.routeShortName" :style="{ backgroundColor: '#ff0000' }">
         {{ trip.route.routeShortName }}
       </UBadge>

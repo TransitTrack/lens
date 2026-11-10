@@ -1,11 +1,10 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { stopAdherenceQuery } from '~/composables/api/queries/avl'
+import { stopsQuery } from '~/composables/api/queries/gtfs'
+import type { StopPassage } from '~/api'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type StopAdherenceQuery,
-  useExploreStopsQuery,
-  useStopAdherenceQuery,
-} from '~~/generated/graphql'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
@@ -48,16 +47,16 @@ const filtersAccordionItems = computed(() => [
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
-  result: stopsResult,
-  loading: stopsLoading,
+  data: stops,
+  isLoading: stopsLoading,
   error: stopsError,
-} = useExploreStopsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+} = useQuery(() => ({
+  ...stopsQuery({ feedCode: selectedFeedCode.value! }),
   enabled: !!selectedFeedCode.value,
 }))
 
 const stopItems = computed(() =>
-  [...(stopsResult.value?.stops ?? [])]
+  [...(stops.value ?? [])]
     .sort((a, b) =>
       (a.stopName ?? a.stopId).localeCompare(b.stopName ?? b.stopId, undefined, { numeric: true }),
     )
@@ -81,18 +80,18 @@ function runReport() {
 }
 
 const {
-  result: adherenceResult,
-  loading: adherenceLoading,
+  data: adherence,
+  isLoading: adherenceLoading,
   error: adherenceError,
-} = useStopAdherenceQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: submitted.value?.stopId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' },
-  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+} = useQuery(() => ({
+  ...stopAdherenceQuery({ feedCode: selectedAvlFeedCode.value!, stopId: submitted.value?.stopId ?? '', startDate: submitted.value?.startDate ?? '', endDate: submitted.value?.endDate ?? '' }),
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value,
 }))
 
-type ReportRow = StopAdherenceQuery['stopAdherence'][number]
+type ReportRow = StopPassage
 
 const rows = computed<ReportRow[]>(() =>
-  [...(adherenceResult.value?.stopAdherence ?? [])].sort((a, b) => {
+  [...(adherence.value ?? [])].sort((a, b) => {
     if (a.serviceDate !== b.serviceDate) return a.serviceDate.localeCompare(b.serviceDate)
     return (a.scheduledSec ?? 0) - (b.scheduledSec ?? 0)
   }),

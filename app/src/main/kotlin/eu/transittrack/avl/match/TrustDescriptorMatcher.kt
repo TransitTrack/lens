@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 
 import eu.transittrack.avl.AvlProperties
 import eu.transittrack.geo.Point
-import eu.transittrack.schedule.model.TripRef
+import eu.transittrack.gtfs.model.Trip
 import eu.transittrack.util.observability.TransitTrackMetrics
 
 /**
@@ -40,7 +40,7 @@ class TrustDescriptorMatcher(
         val (trip, geom) = resolveTrip(report, prev, ctx, report.point) ?: return MatchOutcome.Failed
 
         // 2. service date + actual service seconds
-        val serviceDate = inferServiceDate(report, trip, ctx.zone)
+        val serviceDate = inferServiceDate(report, trip.startTimeSec, ctx.zone)
         val actualServiceSec = TemporalMatcher.toServiceSeconds(report.ts, ctx.zone, serviceDate)
 
         // 3. spatial match with the sequential constraint: prev on the SAME trip, and the descriptor's
@@ -86,16 +86,16 @@ class TrustDescriptorMatcher(
         // 5. temporal
         val adherence =
             TemporalMatcher.adherenceSec(
-                ctx.scheduleOf(activeTrip.id),
+                ctx.scheduleOf(activeTrip.id!!),
                 activeGeom.stopPathCumM,
                 match.distanceAlongTripM,
                 actualServiceSec,
                 activeTrip.noSchedule == true,
                 activeGeom.line.lengthM,
             )
-        val blockPk = ctx.blockTripOf(activeTrip.id)?.blockId
+        val blockPk = ctx.blockTripOf(activeTrip.id!!)?.blockId
         return MatchOutcome.Matched(
-            tripRowId = activeTrip.id,
+            tripRowId = activeTrip.id!!,
             blockPk = blockPk,
             tripPatternId = activeTrip.tripPatternId!!,
             stopPathIndex = match.stopPathIndex,
@@ -114,7 +114,7 @@ class TrustDescriptorMatcher(
         prev: VehicleStateView?,
         ctx: MatchContext,
         point: Point,
-    ): Pair<TripRef, PatternGeometry>? {
+    ): Pair<Trip, PatternGeometry>? {
         report.descTripId?.let { id ->
             ctx.tripByGtfsId(id)?.let { return geometryOf(it, ctx) }
             log.warn(
@@ -149,7 +149,7 @@ class TrustDescriptorMatcher(
     }
 
     private data class Survivor(
-        val trip: TripRef,
+        val trip: Trip,
         val geom: PatternGeometry,
         val match: SpatialMatch,
     )
@@ -162,12 +162,12 @@ class TrustDescriptorMatcher(
      * `null` only when no trip survives, or none of the survivors has a usable schedule.
      */
     private fun disambiguate(
-        candidates: List<TripRef>,
+        candidates: List<Trip>,
         report: AvlReportView,
         prev: VehicleStateView?,
         ctx: MatchContext,
         point: Point,
-    ): Pair<TripRef, PatternGeometry>? {
+    ): Pair<Trip, PatternGeometry>? {
         val survivors =
             candidates.mapNotNull { t ->
                 val patternId = t.tripPatternId ?: return@mapNotNull null
@@ -209,10 +209,11 @@ class TrustDescriptorMatcher(
     ): Survivor? =
         survivors
             .mapNotNull { s ->
-                val serviceSec = TemporalMatcher.toServiceSeconds(report.ts, ctx.zone, inferServiceDate(report, s.trip, ctx.zone))
+                val serviceSec = TemporalMatcher
+                    .toServiceSeconds(report.ts, ctx.zone, inferServiceDate(report, s.trip.startTimeSec, ctx.zone))
                 TemporalMatcher
                     .adherenceSec(
-                        ctx.scheduleOf(s.trip.id),
+                        ctx.scheduleOf(s.trip.id!!),
                         s.geom.stopPathCumM,
                         s.match.distanceAlongTripM,
                         serviceSec,
@@ -223,9 +224,9 @@ class TrustDescriptorMatcher(
             ?.first
 
     private fun geometryOf(
-        trip: TripRef,
+        trip: Trip,
         ctx: MatchContext,
-    ): Pair<TripRef, PatternGeometry>? {
+    ): Pair<Trip, PatternGeometry>? {
         val geom = trip.tripPatternId?.let { ctx.patternGeometry(it) } ?: return null
         return trip to geom
     }

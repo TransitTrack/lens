@@ -1,7 +1,0 @@
-query ValidationFindingCounts($feedCode: String!, $entityType: String!) {
-  validationFindingCounts(feedCode: $feedCode, entityType: $entityType) {
-    entityId
-    count
-    worstSeverity
-  }
-}

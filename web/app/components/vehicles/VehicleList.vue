@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDottedTimestamp } from '~/utils/clock'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 import { adherenceBadge, formatAdherence } from '~/utils/adherence'
 import { useUnits } from '~/composables/useUnits'
 import { hexColor, routeTextColor } from '~/utils/gtfs'

@@ -1,31 +1,23 @@
 <script setup lang="ts">
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { useAvlLogQuery } from '~~/generated/graphql'
-import { usePollControl } from '~/composables/usePollControl'
+
+import type { AvlLogRow } from '~/utils/joins/reports'
 import { useUnits } from '~/composables/useUnits'
 import { adherenceBadge } from '~/utils/adherence'
 import { formatClock } from '~/utils/clock'
 import { matchStatusLabel } from '~/utils/vehicleTelemetry'
 
-const props = defineProps<{
-  feedCode: string
-  vehicleId: string
+/** The vehicle's newest AVL reports with their matched trip and route; the page reads them while the log is open. */
+defineProps<{
+  rows: AvlLogRow[]
+  loading?: boolean
+  error?: { message: string } | null
 }>()
 const open = defineModel<boolean>('open', { default: false })
 
 const { t, locale } = useI18n()
 const units = useUnits()
-const { intervalMs } = usePollControl()
-
-const { result, loading, error } = useAvlLogQuery(() => ({
-  variables: { feedCode: props.feedCode, vehicleId: props.vehicleId, limit: 100 },
-  enabled: open.value, pollInterval: open.value ? intervalMs.value : 0,
-}))
-
-type AvlLogRow = NonNullable<typeof result.value>['avlReports'][number]
-
-const rows = computed<AvlLogRow[]>(() => result.value?.avlReports ?? [])
 
 const STATUS_COLOR: Record<string, 'success' | 'error' | 'neutral' | 'warning'> = {
   MATCHED: 'success',

@@ -1,16 +1,17 @@
 <script setup lang="ts">
-import type { VehicleRow } from '~/composables/useVehiclePolling'
-import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import type { AvlReport } from '~/api'
+import type { VehicleRow } from '~/types/vehicles'
+import type { VehicleDetail } from '~/utils/joins/vehicleDetail'
+import type { LngLatBoundsExtent } from '~/utils/joins/extent'
 import VehicleFilters from '~/components/vehicles/VehicleFilters.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'
 import VehicleMap, { type SelectedRouteOverlay } from '~/components/vehicles/VehicleMap.vue'
 import { emptyFilters, filterVehicles } from '~/utils/vehicleFilters'
-import { algorithmsIn, preferredAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
+import { chosenAlgorithm, routeLine, stopFeatureCollection } from '~/utils/vehicleDetail'
 import { hexColor } from '~/utils/gtfs'
-import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
 import { useFeeds } from '~/composables/useFeeds'
-import { useAgenciesDetailQuery, useVehicleDetailQuery } from '~~/generated/graphql'
+
 
 const props = defineProps<{
   title?: string
@@ -20,16 +21,30 @@ const props = defineProps<{
   error?: { message: string } | null
   feedCode: string | null
   extent?: LngLatBoundsExtent | null
+  /** The feed's network geometry features, drawn under the fleet. */
+  networkFeatures?: GeoJSON.Feature[]
+  /** The selected vehicle with its relations and predictions, for the route overlay (read by the page). */
+  detail?: VehicleDetail | null
+  /** The popup vehicle's detail, for its card (read by the page). */
+  cardDetail?: VehicleDetail | null
+  cardDetailLoading?: boolean
+  /** The popup vehicle's newest AVL reports, newest first. */
+  recentReports?: AvlReport[]
+  agencyTimezone?: string | null
 }>()
 
 const { locale } = useI18n()
 
 const emit = defineEmits<{
   selectVehicle: [vehicleId: string]
+  networkArmed: []
 }>()
 
 const filters = ref(emptyFilters())
-const selectedVehicleId = ref<string | null>(null)
+/** The vehicle picked on the map or in the list; the page reads its detail. */
+const selectedVehicleId = defineModel<string | null>('selectedVehicleId', { default: null })
+/** The vehicle whose popup card is open on the map; the page reads its detail for the card. */
+const activeVehicleId = defineModel<string | null>('activeVehicleId', { default: null })
 const filteredVehicles = computed(() => filterVehicles(props.vehicles, filters.value))
 const showSkeleton = computed(() => props.loading && props.vehicles.length === 0)
 const matchedVehicles = computed(
@@ -39,32 +54,15 @@ const attentionVehicles = computed(
   () => props.vehicles.filter((vehicle) => vehicle.stale || !vehicle.matched).length,
 )
 
-const { intervalMs } = usePollControl()
 const { showTripDetails, boardListCollapsed } = useVehicleListPrefs()
 const { feedPath, selectedFeed } = useFeeds()
 
-const { result: selectedVehicleResult } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '', vehicleId: selectedVehicleId.value ?? '' },
-  enabled: !!props.feedCode && !!selectedVehicleId.value, pollInterval: intervalMs.value,
-}))
-
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '' },
-  enabled: !!props.feedCode,
-}))
-const agencyTimezone = computed(
-  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
-)
-
 const selectedPredictionAlgorithm = computed(() =>
-  preferredAlgorithm(
-    algorithmsIn(selectedVehicleResult.value?.vehiclePredictions ?? []),
-    selectedFeed.value?.predictionAlgorithms ?? [],
-  ),
+  chosenAlgorithm(selectedFeed.value?.predictionAlgorithms ?? []),
 )
 
 const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
-  const vehicle = selectedVehicleResult.value?.vehicle
+  const vehicle = props.detail?.vehicle
   if (!vehicle) return null
 
   return {
@@ -72,9 +70,9 @@ const selectedRoute = computed<SelectedRouteOverlay | null>(() => {
     line: routeLine(vehicle),
     stops: stopFeatureCollection(
       vehicle,
-      selectedVehicleResult.value?.vehiclePredictions ?? [],
+      props.detail?.vehiclePredictions ?? [],
       selectedPredictionAlgorithm.value,
-      agencyTimezone.value,
+      props.agencyTimezone ?? undefined,
       locale.value,
     ),
     routeColor: hexColor(vehicle.trip?.route?.routeColor, '#2563eb'),
@@ -122,17 +120,24 @@ const mapInsetRight = computed(() =>
     :aria-label="$t('vehicles.board.ariaLabel')"
   >
     <VehicleMap
+      v-model:active-vehicle-id="activeVehicleId"
       :vehicles="filteredVehicles"
       :extent="extent"
       :feed-code="feedCode"
       :selected-vehicle-id="selectedVehicleId"
       :selected-route="selectedRoute"
       :inset-right="mapInsetRight"
+      :network-features="networkFeatures"
+      :card-detail="cardDetail"
+      :card-detail-loading="cardDetailLoading"
+      :recent-reports="recentReports"
+      :agency-timezone="agencyTimezone"
       @select="selectVehicle"
       @view-trip="viewTripDetails"
       @view-block="viewBlockDetails"
       @view-route="viewRouteDetails"
       @view-vehicle="viewVehicleDetails"
+      @network-armed="emit('networkArmed')"
     />
 
     <Transition

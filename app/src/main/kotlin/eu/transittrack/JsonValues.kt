@@ -12,7 +12,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.longOrNull
 
-/** The GraphQL JSON scalar expects ordinary objects, not serialization tree wrappers. */
+/** Converts a serialization tree to plain Kotlin values (maps, lists, primitives). */
 internal fun JsonElement.toScalarValue(): Any? =
     when (this) {
         JsonNull -> {

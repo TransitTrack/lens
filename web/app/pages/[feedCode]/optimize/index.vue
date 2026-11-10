@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import {useOptimizationRunsQuery, type OptimizationRunsQuery} from '~~/generated/graphql'
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import type { OptimizationRun, OptimizationRunInput } from '~/api'
+import { calendarsQuery, routesQuery } from '~/composables/api/queries/gtfs'
+import { optimizationRunsQuery } from '~/composables/api/queries/optimization'
+import { startOptimizationRunMutation } from '~/composables/api/mutations/optimization'
 import {useFeeds} from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'
@@ -11,13 +15,39 @@ const {selectedFeedCode, feedPath} = useFeeds()
 const { t, te, locale } = useI18n()
 const newOpen = ref(false)
 
-const {result, loading, error} = useOptimizationRunsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', limit: 50, offset: 0 },
-  enabled: !!selectedFeedCode.value, pollInterval: 5000,
+const {data: runsData, isLoading: loading, error} = useQuery(() => ({
+  ...optimizationRunsQuery({ feedCode: selectedFeedCode.value ?? '', limit: 50, offset: 0 }),
+  enabled: !!selectedFeedCode.value,
+  autoRefetch: 5000,
 }))
 
-type Run = OptimizationRunsQuery['optimizationRuns'][number]
-const runs = computed<Run[]>(() => result.value?.optimizationRuns ?? [])
+type Run = OptimizationRun
+const runs = computed<Run[]>(() => runsData.value ?? [])
+
+// The dialog's pickers load only while it is open.
+const dialogEnabled = computed(() => !!selectedFeedCode.value && newOpen.value)
+const {data: routes} = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: dialogEnabled.value,
+}))
+const {data: calendars} = useQuery(() => ({
+  ...calendarsQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: dialogEnabled.value,
+}))
+
+const toast = useToast()
+const queryCache = useQueryCache()
+const {mutateAsync: startRun, isLoading: starting} = useMutation(startOptimizationRunMutation(queryCache))
+
+async function onStart(input: Omit<OptimizationRunInput, 'feedCode'>) {
+  try {
+    const run = await startRun({ body: { ...input, feedCode: selectedFeedCode.value ?? '' } })
+    newOpen.value = false
+    if (run?.id) await navigateTo(feedPath('/optimize/' + run.id))
+  } catch (e) {
+    toast.add({title: t('optimize.startFailed'), description: (e as Error).message, color: 'error'})
+  }
+}
 
 const STATE_COLOR: Record<string, 'neutral' | 'info' | 'success' | 'error'> = {
   QUEUED: 'neutral',
@@ -106,6 +136,12 @@ function stateLabel(state: string): string {
       </div>
     </PageSection>
 
-    <NewOptimizationRunDialog v-model:open="newOpen" />
+    <NewOptimizationRunDialog
+      v-model:open="newOpen"
+      :routes="routes ?? []"
+      :calendars="calendars ?? []"
+      :starting="starting"
+      @start="onStart"
+    />
   </AppPage>
 </template>

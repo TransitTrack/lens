@@ -1,8 +1,13 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { blockQuery, blockTripsQuery } from '~/composables/api/queries/schedule'
+import { tripsQuery, routesByIdsQuery } from '~/composables/api/queries/gtfs'
+import { blockTripsWithTrips } from '~/utils/joins/blocks'
+import { indexBy } from '~/utils/joins/routes'
 import AppPage from '~/components/shell/AppPage.vue'
 import BlockTimeline from '~/components/explore/BlockTimeline.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useBlockDetailQuery } from '~~/generated/graphql'
+
 import { hexColor, routeTextColor } from '~/utils/gtfs'
 import { layoverLabel, timeSplit, timelineSegments } from '~/utils/blocks'
 
@@ -14,12 +19,36 @@ const blockId = computed(() => String(route.params.blockId))
 const serviceId = computed(() => String(route.query.service ?? ''))
 const timelineOpen = ref(false)
 
-const { result, loading, error } = useBlockDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', blockId: blockId.value, serviceId: serviceId.value },
+const { data: blockData, isLoading: blockLoading, error: blockError } = useQuery(() => ({
+  ...blockQuery({ feedCode: selectedFeedCode.value!, blockId: blockId.value, serviceId: serviceId.value }),
   enabled: !!selectedFeedCode.value && !!serviceId.value,
 }))
+// The rest hangs off the block: a 404 (null) leaves these disabled.
+const hasBlock = computed(() => !!selectedFeedCode.value && !!serviceId.value && !!blockData.value)
+const { data: blockTrips, isLoading: blockTripsLoading, error: blockTripsError } = useQuery(() => ({
+  ...blockTripsQuery({ feedCode: selectedFeedCode.value!, blockId: blockId.value, serviceId: serviceId.value }),
+  enabled: hasBlock.value,
+}))
+const { data: tripRows, isLoading: tripRowsLoading, error: tripRowsError } = useQuery(() => ({
+  ...tripsQuery({ feedCode: selectedFeedCode.value!, blockId: blockId.value, serviceId: serviceId.value }),
+  enabled: hasBlock.value,
+}))
+const routeIds = computed(() => (tripRows.value ?? []).map((trip) => trip.routeId))
+const { data: routeRows, error: routeRowsError } = useQuery(() => ({
+  ...routesByIdsQuery({ feedCode: selectedFeedCode.value!, routeIds: routeIds.value }),
+  enabled: hasBlock.value && routeIds.value.length > 0,
+}))
 
-const block = computed(() => result.value?.block ?? null)
+const loading = computed(() => blockLoading.value || blockTripsLoading.value || tripRowsLoading.value)
+const error = computed(() => blockError.value ?? blockTripsError.value ?? tripRowsError.value ?? routeRowsError.value)
+
+const block = computed(() => {
+  if (!blockData.value) return null
+  return {
+    ...blockData.value,
+    blockTrips: blockTripsWithTrips(blockTrips.value ?? [], tripRows.value ?? [], indexBy(routeRows.value ?? [], 'routeId')),
+  }
+})
 const trips = computed(() =>
   [...(block.value?.blockTrips ?? [])].sort((a, b) => a.listIndex - b.listIndex),
 )

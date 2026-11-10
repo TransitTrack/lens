@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type { CompareRevisionsQuery } from '~~/generated/graphql'
-
-type CalendarChange = CompareRevisionsQuery['compareRevisions']['calendarChanges'][number]
+import type { CalendarChange } from '~/api'
 
 defineProps<{ changes: CalendarChange[] }>()
 const { t, te } = useI18n()

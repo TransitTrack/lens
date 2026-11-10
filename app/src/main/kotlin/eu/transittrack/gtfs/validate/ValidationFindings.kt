@@ -2,43 +2,9 @@ package eu.transittrack.gtfs.validate
 
 import io.github.transittrack.gtfsanalyzer.Notice
 
-/** The analyzer's own five severity levels (the API's [Severity] collapses them to three). */
-enum class FindingSeverity {
-    CRITICAL,
-    HIGH,
-    MEDIUM,
-    LOW,
-    INFO,
-}
-
-/**
- * One analyzer notice as exposed over GraphQL: what fired, on which entity and file row, what was
- * observed versus expected, and how to fix it. Unlike [ValidationIssue] this is not rolled up per rule.
- */
-data class ValidationFinding(
-    val ruleId: String,
-    val title: String,
-    val severity: FindingSeverity,
-    val ruleClass: String,
-    val entityType: String,
-    val entityId: String?,
-    val serviceId: String?,
-    val file: String?,
-    val line: Int?,
-    val field: String?,
-    val observedValue: String?,
-    val expectedValue: String?,
-    val details: Map<String, String>?,
-    val message: String,
-    val remediation: String,
-)
-
-/** How many findings one entity has, and the most severe of them. */
-data class EntityFindingCount(
-    val entityId: String,
-    val count: Int,
-    val worstSeverity: FindingSeverity,
-)
+import eu.transittrack.rest.generated.model.EntityFindingCount
+import eu.transittrack.rest.generated.model.FindingSeverity
+import eu.transittrack.rest.generated.model.ValidationFinding
 
 /** Per-entity finding counts for one entity type, for list views that filter to entities with problems. */
 fun List<Notice>.countsByEntity(entityType: String): List<EntityFindingCount> =

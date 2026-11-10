@@ -36,22 +36,6 @@ class TripPattern(
     var geometry: Line? = null,
 ) : RevisionScoped(revisionId)
 
-class StopPath(
-    revisionId: Long,
-    var tripPatternId: Long,
-    var stopPathIndex: Int,
-    var stopId: String,
-    var routeId: String? = null,
-    var stopSeq: Int,
-    var lengthM: Double,
-    var pickupType: Int?,
-    var dropOffType: Int?,
-    var waitStop: Boolean,
-    var scheduleAdherenceStop: Boolean,
-    var layoverStop: Boolean,
-    var breakTimeSec: Int?,
-) : RevisionScoped(revisionId)
-
 class ScheduleTime(
     revisionId: Long,
     var tripId: Long,
@@ -71,15 +55,6 @@ class Block(
     var endTimeSec: Int,
     var tripCount: Int,
     var routeIds: List<String>,
-) : RevisionScoped(revisionId)
-
-class BlockTrip(
-    revisionId: Long,
-    var blockId: Long,
-    var tripId: Long,
-    var listIndex: Int,
-    var layoverAfterSec: Int?,
-    var deadheadAfter: Boolean?,
 ) : RevisionScoped(revisionId)
 
 /** Every derived schedule table, parents before the tables that reference them. */

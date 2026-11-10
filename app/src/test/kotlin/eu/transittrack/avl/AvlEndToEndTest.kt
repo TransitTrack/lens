@@ -17,6 +17,9 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage
 import com.google.transit.realtime.GtfsRealtime.Position
 import com.google.transit.realtime.GtfsRealtime.VehicleDescriptor
 import com.google.transit.realtime.GtfsRealtime.VehiclePosition
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okio.Buffer
@@ -25,13 +28,12 @@ import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.graphql.test.autoconfigure.tester.AutoConfigureHttpGraphQlTester
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
-import org.springframework.graphql.test.tester.HttpGraphQlTester
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 
@@ -54,13 +56,14 @@ import eu.transittrack.gtfs.ingest.IngestionService
 import eu.transittrack.gtfs.model.TripRepository
 import eu.transittrack.gtfs.support.FixtureDownloader
 import eu.transittrack.support.PostgresPerClassTest
+import eu.transittrack.support.RestGet
 import eu.transittrack.util.paging.PageRequest
 
 /**
  * Full AVL pipeline through a real HTTP endpoint: a GTFS-RT `VehiclePosition` feed served by
  * [MockWebServer] is polled by [AvlIngestService], the resulting `avl_report` rows are matched by
  * [AvlMatchProcessor] against the derived schedule model, and the `vehicle_state` outcome is read
- * back over GraphQL.
+ * back over REST.
  */
 @Disabled
 @SpringBootTest(
@@ -73,11 +76,10 @@ import eu.transittrack.util.paging.PageRequest
     ],
 )
 @Import(AvlEndToEndTest.Stub::class)
-@AutoConfigureHttpGraphQlTester
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class AvlEndToEndTest(
-    @Autowired val tester: HttpGraphQlTester,
+    @LocalServerPort val port: Int,
     @Autowired val feedService: GtfsFeedService,
     @Autowired val ingestion: IngestionService,
     @Autowired val ingestService: AvlIngestService,
@@ -157,7 +159,7 @@ class AvlEndToEndTest(
             .toByteArray()
 
     @Test
-    fun `poll, match, advance, then stale on a far report - all visible over GraphQL`() {
+    fun `poll, match, advance, then stale on a far report - all visible over REST`() {
         val feedRow = feeds.findByCode("mbta-vp")!!
         val ctx = contextFactory.open(feedRow)!!
         val trip = trips.findByTripId(ctx.revisionId, "T1")!!
@@ -207,22 +209,19 @@ class AvlEndToEndTest(
         assertThat(s3.consecutiveFailures).isEqualTo(1)
         assertThat(s3.tripRowId).isEqualTo(trip.id)
 
-        // --- GraphQL surface ---
+        // --- REST surface ---
         // The schedule fixture uses a fixed date; expose a current vehicle state for this read.
         s3.reportTs = Instant.now()
         vehicleStates.save(s3)
-        val v =
-            tester
-                .document(
-                    """{ vehicle(feedCode:"mbta-vp", vehicleId:"bus-1"){ matched stale trip { tripId } } }""",
-                ).execute()
-                .path("vehicle")
-                .entity(Map::class.java)
-                .get()
-        assertThat(v["matched"]).isEqualTo(false)
-        assertThat(v["stale"]).isEqualTo(true)
-        @Suppress("UNCHECKED_CAST")
-        assertThat((v["trip"] as Map<String, Any?>)["tripId"]).isEqualTo("T1")
-        assertThat(v["trip"]).isNotNull()
+        val v = RestGet(port)("/api/v1/feeds/mbta-vp/avl/vehicles/bus-1").jsonObject
+        assertThat(v.getValue("matched").jsonPrimitive.boolean).isEqualTo(false)
+        assertThat(v.getValue("stale").jsonPrimitive.boolean).isEqualTo(true)
+        assertThat(
+            v
+                .getValue("trip")
+                .jsonObject
+                .getValue("tripId")
+                .jsonPrimitive.content,
+        ).isEqualTo("T1")
     }
 }

@@ -3,9 +3,6 @@ spring:
     banner-mode: off
   application:
     name: transit-track
-  graphql:
-    graphiql:
-      enabled: true
   kotlinx:
     serialization:
       json:

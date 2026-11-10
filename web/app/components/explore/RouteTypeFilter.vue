@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import type { Route } from '~/api'
 import {useRouteTypeFilter} from '~/composables/useRouteTypeFilter'
 
+const props = defineProps<{ routes: Route[] | undefined }>()
+
 const { t } = useI18n()
-const {types, hasMultiple, typeId, setType} = useRouteTypeFilter()
+const {types, hasMultiple, typeId, setType} = useRouteTypeFilter(toRef(props, 'routes'))
 
 const items = computed(() => [
   {label: t('filters.allTypes'), value: null},

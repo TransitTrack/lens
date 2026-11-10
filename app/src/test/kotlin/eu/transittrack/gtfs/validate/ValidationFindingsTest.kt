@@ -6,6 +6,7 @@ import io.github.transittrack.gtfsanalyzer.RuleClass
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
+import eu.transittrack.rest.generated.model.FindingSeverity
 import io.github.transittrack.gtfsanalyzer.Severity as EngineSeverity
 
 class ValidationFindingsTest {
@@ -101,7 +102,7 @@ class ValidationFindingsTest {
         assertThat(finding.entityType).isEqualTo("Trip")
         assertThat(finding.file).isEqualTo("stop_times.txt")
         assertThat(finding.line).isEqualTo(12)
-        assertThat(finding.details).containsEntry("distance_m", "932")
+        assertThat((finding.details as Map<*, *>)["distance_m"]).isEqualTo("932")
         assertThat(finding.remediation).isEqualTo("Check these two stops' times.")
     }
 }

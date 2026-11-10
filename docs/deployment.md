@@ -232,13 +232,13 @@ docker build --build-context transittrack-docs=docs -t lens-web:local web/
 The `transittrack-docs` build context bakes this `docs/` directory into the
 dashboard's in-app Docs pages (rendered by Nuxt Content at build time).
 
-`web/Dockerfile` is a two-stage build: `node:22-alpine` runs `pnpm run
+`web/Dockerfile` is a two-stage build: `node:24-alpine` runs `pnpm run
 generate` (the app is client-side-only — `ssr: false` — so this produces a
 fully static bundle in `.output/public/`, no Node runtime needed at
-runtime), and `nginx:alpine` serves it. The Apollo client calls a relative
-`/graphql` URL (see `app/plugins/apollo.client.ts`), which a static bundle
+runtime), and `nginx:alpine` serves it. The generated REST client calls relative
+`/api/v1` URLs, which a static bundle
 has no way to point at a backend host itself — nginx fills that gap via
-`web/nginx.conf.template`, reverse-proxying `/graphql` (and the read-only `/actuator/configprops`
+`web/nginx.conf.template`, reverse-proxying `/api` (and the read-only `/actuator/configprops`
 behind Docs → Live configuration) to `${BACKEND_URL}`.
 That template is processed by the official `nginx` image's own
 env-substitution-on-startup feature (any `*.template` under
@@ -262,43 +262,6 @@ frontend:
   replicaCount: 1
   service: { port: 80 }
   backendUrl: ""   # empty (default) = the in-cluster api Service, http://<release>-api:<roles.api.service.port>
-```
-
----
-
-## 8. Extensions
-
-Third-party AVL decoders, GTFS validators, vehicle matchers, and prediction
-strategies are loaded from extra jars on the classpath — no fork, no
-rebuild. See [api/README.md](../api/README.md) for the
-four extension points and their stability guarantees, and
-[examples/example-extension/](../examples/example-extension/) for a
-worked, buildable example.
-
-The image's `bootJar` manifest points at Spring Boot's `PropertiesLauncher`
-instead of the default `JarLauncher`, which reads the `loader.path`
-system property/environment variable (`LOADER_PATH`) at startup and adds
-every jar or directory listed there to the app's classloader. The
-Dockerfile creates an empty `/extensions` directory and sets
-`LOADER_PATH=/extensions`; drop extension jars there (bind mount, custom
-image layer, or the Helm knobs below) and they're picked up automatically
-via each jar's own
-`META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`
-— the same mechanism core's own auto-configuration uses.
-
-In the Helm chart, `extraVolumes`/`extraVolumeMounts` are the escape hatch
-for getting jars into `/extensions` on every role's Deployment — e.g. a
-ConfigMap (small jars only — ConfigMaps have a size limit) or a PVC
-populated by an init container:
-
-```yaml
-extraVolumes:
-  - name: extensions
-    configMap:
-      name: my-extensions
-extraVolumeMounts:
-  - name: extensions
-    mountPath: /extensions
 ```
 
 Renders one Deployment + one Service, both no-ops when `frontend.enabled` is

@@ -26,7 +26,6 @@ import eu.transittrack.schedule.model.ScheduleTime
 import eu.transittrack.schedule.model.ScheduleTimeRepository
 import eu.transittrack.schedule.model.StopPath
 import eu.transittrack.schedule.model.StopPathRepository
-import eu.transittrack.schedule.model.TripRef
 
 /**
  * How close (in metres) a match's `distanceAlongTripM` must be to a pattern's total shape length to
@@ -152,7 +151,7 @@ class StopPassageDerivationService(
             matches.mapNotNull { match ->
                 val report = reportsById[match.avlReportId] ?: return@mapNotNull null
                 val trip = tripFor(match.tripRowId) ?: return@mapNotNull null
-                val serviceDate = inferServiceDate(report, trip.toRef(), zone)
+                val serviceDate = inferServiceDate(report, trip.startTimeSec, zone)
                 ResolvedMatch(match, trip, serviceDate)
             }
 
@@ -269,24 +268,3 @@ class StopPassageDerivationService(
             .filter { it.serviceDate >= startDate && it.serviceDate <= endDate }
     }
 }
-
-private fun Trip.toRef() =
-    TripRef(
-        id = id!!,
-        revisionId = revisionId,
-        tripId = tripId,
-        routeId = routeId,
-        serviceId = serviceId,
-        tripHeadsign = tripHeadsign,
-        tripShortName = tripShortName,
-        directionId = directionId,
-        blockId = blockId,
-        shapeId = shapeId,
-        wheelchairAccessible = wheelchairAccessible,
-        bikesAllowed = bikesAllowed,
-        tripPatternId = tripPatternId,
-        startTimeSec = startTimeSec,
-        endTimeSec = endTimeSec,
-        frequencyBased = frequencyBased,
-        noSchedule = noSchedule,
-    )

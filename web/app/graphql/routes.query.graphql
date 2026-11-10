@@ -1,7 +1,0 @@
-query Routes($feedCode: String!) {
-  routes(feedCode: $feedCode) {
-    routeId
-    routeShortName
-    routeLongName
-  }
-}

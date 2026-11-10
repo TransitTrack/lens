@@ -1,13 +1,11 @@
 <script setup lang="ts">
+import { useQuery, useQueryCache } from '@pinia/colada'
+import { routesQuery, routeStopsQuery } from '~/composables/api/queries/gtfs'
+import { tripPatternsQuery, stopPathsQuery } from '~/composables/api/queries/schedule'
+import { headwayQuery, stopPredictionsQuery } from '~/composables/api/queries/avl'
+import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'
 import type {TableColumn} from '@nuxt/ui'
-import {
-  useRoutesQuery,
-  useHeadwayRoutePatternsQuery,
-  useHeadwayInfoQuery,
-  useStopBoardQuery,
-  type StopBoardQuery,
-  type PredictionAlgorithm,
-} from '~~/generated/graphql'
+import type { PredictionAlgorithm, StopPrediction } from '~/api'
 import {useFeeds} from '~/composables/useFeeds'
 import {usePollControl} from '~/composables/usePollControl'
 import {formatClock} from '~/utils/clock'
@@ -20,7 +18,7 @@ import type {Bar} from '~/utils/chart'
 
 const {t, locale} = useI18n()
 const {selectedFeed, selectedFeedCode, selectedAvlFeedCode} = useFeeds()
-const {intervalMs} = usePollControl()
+const {paused, intervalMs} = usePollControl()
 
 const selectedRouteId = ref<string | null>(null)
 const selectedStopId = ref<string | null>(null)
@@ -45,12 +43,12 @@ watch(algorithmOptions, (opts) => {
   }
 })
 
-const {result: routesResult} = useRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+const {data: routes} = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
   enabled: !!selectedFeedCode.value,
 }))
 const routeOptions = computed(() =>
-  (routesResult.value?.routes ?? []).map((r) => ({
+  (routes.value ?? []).map((r) => ({
     label: r.routeShortName ?? r.routeLongName ?? r.routeId,
     value: r.routeId,
   })),
@@ -58,11 +56,22 @@ const routeOptions = computed(() =>
 
 // Stops and directions cascade from the selected route: fetch that route's
 // patterns and derive the direction + stop options from them.
-const {result: patternsResult, loading: patternsLoading} = useHeadwayRoutePatternsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '', routeId: selectedRouteId.value ?? '' },
-  enabled: !!selectedFeedCode.value && !!selectedRouteId.value,
+const patternsEnabled = computed(() => !!selectedFeedCode.value && !!selectedRouteId.value)
+const {data: tripPatterns, isLoading: patternsLoading} = useQuery(() => ({
+  ...tripPatternsQuery({ feedCode: selectedFeedCode.value!, routeId: selectedRouteId.value ?? undefined }),
+  enabled: patternsEnabled.value,
 }))
-const routePatterns = computed(() => patternsResult.value?.tripPatterns ?? [])
+const {data: stopPaths} = useQuery(() => ({
+  ...stopPathsQuery({ feedCode: selectedFeedCode.value!, routeId: selectedRouteId.value ?? undefined }),
+  enabled: patternsEnabled.value,
+}))
+const {data: routeStops} = useQuery(() => ({
+  ...routeStopsQuery({ feedCode: selectedFeedCode.value!, routeId: selectedRouteId.value ?? '' }),
+  enabled: patternsEnabled.value,
+}))
+const routePatterns = computed(() =>
+  patternsWithStopPaths(tripPatterns.value ?? [], groupStopPaths(stopPaths.value ?? [], routeStops.value ?? [])),
+)
 
 const directionOptions = computed(() => {
   const dirs = [
@@ -112,22 +121,42 @@ const querySelected = computed(
   () => !!selectedAvlFeedCode.value && !!selectedStopId.value && !!selectedRouteId.value,
 )
 
-const {
-  result: headwayResult,
-  loading: headwayLoading,
-  error: headwayError,
-} = useHeadwayInfoQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: selectedStopId.value ?? '', routeId: selectedRouteId.value ?? '', directionId: selectedDirectionId.value, algorithm: selectedAlgorithm.value as PredictionAlgorithm | null },
-  enabled: querySelected.value, pollInterval: intervalMs.value,
-}))
-const headway = computed(() => headwayResult.value?.headway ?? null)
+// Polled queries: pausing stops auto-refetch; a paused query still loads once when its own key has no cached
+// data yet (first open, or a changed stop / route / direction / algorithm), then stays idle. The cache is read
+// by key rather than through the query's `data`, which shows the previous key's placeholder meanwhile.
+const queryCache = useQueryCache()
+const pollInterval = () => (paused.value ? false : intervalMs.value)
+const predictionParams = () => ({
+  avlFeedCode: selectedAvlFeedCode.value!,
+  stopId: selectedStopId.value ?? '',
+  directionId: selectedDirectionId.value ?? undefined,
+  algorithm: (selectedAlgorithm.value ?? undefined) as PredictionAlgorithm | undefined,
+})
 
-const {result: boardResult} = useStopBoardQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', stopId: selectedStopId.value ?? '', routeId: selectedRouteId.value, directionId: selectedDirectionId.value, algorithm: selectedAlgorithm.value as PredictionAlgorithm | null },
-  enabled: querySelected.value, pollInterval: intervalMs.value,
-}))
-type BoardRow = StopBoardQuery['stopPredictions'][number]
-const board = computed<BoardRow[]>(() => boardResult.value?.stopPredictions ?? [])
+const {
+  data: headwayData,
+  isLoading: headwayLoading,
+  error: headwayError,
+} = useQuery(() => {
+  const options = headwayQuery({ ...predictionParams(), routeId: selectedRouteId.value ?? '' })
+  return {
+    ...options,
+    enabled: querySelected.value && (!paused.value || queryCache.getQueryData(options.key) === undefined),
+    autoRefetch: pollInterval,
+  }
+})
+const headway = computed(() => headwayData.value ?? null)
+
+const {data: boardData} = useQuery(() => {
+  const options = stopPredictionsQuery({ ...predictionParams(), routeId: selectedRouteId.value ?? undefined })
+  return {
+    ...options,
+    enabled: querySelected.value && (!paused.value || queryCache.getQueryData(options.key) === undefined),
+    autoRefetch: pollInterval,
+  }
+})
+type BoardRow = StopPrediction
+const board = computed<BoardRow[]>(() => boardData.value ?? [])
 
 const boardColumns = computed<TableColumn<BoardRow>[]>(() => [
   {accessorKey: 'scheduledArrival', header: t('vehicles.field.scheduled')},

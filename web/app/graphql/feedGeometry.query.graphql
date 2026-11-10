@@ -1,3 +1,0 @@
-query FeedGeometry($feedCode: String!) {
-  feedGeometry(feedCode: $feedCode)
-}

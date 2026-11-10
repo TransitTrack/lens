@@ -215,7 +215,7 @@ class ScheduleDerivationEdgeCaseTest(
         runAllStages(rev)
 
         // E4 visits GHOST, which is not in stops.txt -> not derived, no pattern from it.
-        // The skipped trip keeps every derived column NULL (mirrors the GraphQL
+        // The skipped trip keeps every derived column NULL (mirrors the API
         // `trip(...){ startTimeSec pattern }` contract: both come back null).
         val e4 = trips.findByTripId(rev, "E4")!!
         assertThat(e4.tripPatternId).isNull()

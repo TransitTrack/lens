@@ -1,104 +1,57 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import {
-  useDraftTripDetailQuery,
-  useShiftTripMutation,
-  useDeleteTripMutation,
-  useUpdateStopTimeMutation,
-  useSetStopDwellMutation,
-  type DraftGridQuery,
-} from '~~/generated/graphql'
-import type { useDraftEditor } from '~/composables/useDraftEditor'
-import { useDraftEdit } from '~/composables/useDraftEdit'
+import type { DraftGridTrip } from '~/api'
+import type { DraftEditCommand, DraftTripDetail } from '~/types/draftEdits'
 import { parseDeltaInput, parseTimeInput, secToClock } from '~/utils/gtfsTime'
-
-type DraftGridTrip = DraftGridQuery['draftGrid']['trips'][number]
 
 const props = defineProps<{
   trip: DraftGridTrip
+  /** The trip's derived detail in the draft (read by the page), or null when not loaded / unknown. */
+  detail: DraftTripDetail | null
   activeCell: { tripId: string; stopSequence: number } | null
   activeCellValue: { arrivalSec: number | null; departureSec: number | null } | null
   activeStopName?: string | null
   readOnly: boolean
   derivationStale: boolean
-  feedCode: string
-  draftId: string
-  editor: ReturnType<typeof useDraftEditor>
 }>()
 
 const { t } = useI18n()
 
 const emit = defineEmits<{
-  changed: []
+  edit: [command: DraftEditCommand]
   duplicate: [tripId: string]
-  deleted: [tripId: string]
 }>()
 
 // --- derived detail ---------------------------------------------------
-const { result: detailResult } = useDraftTripDetailQuery(() => ({
-  variables: { feedCode: props.feedCode, tripId: props.trip.tripId, revisionId: props.draftId },
-  enabled: !props.derivationStale && !!props.trip,
-}))
-const detail = computed(() => detailResult.value?.trip ?? null)
 const runTime = computed(() => {
-  const d = detail.value
+  const d = props.detail
   if (!d || d.startTimeSec == null || d.endTimeSec == null) return null
   return secToClock(d.endTimeSec - d.startTimeSec)
 })
 
-const { run } = useDraftEdit(props.editor, { onChanged: () => emit('changed') })
-
 // --- shift ----------------------------------------------------------
-const { mutate: shiftTrip } = useShiftTripMutation()
 const shiftRaw = ref('')
 
 const shiftDelta = computed(() => parseDeltaInput(shiftRaw.value))
 const shiftInvalid = computed(() => shiftRaw.value.trim() !== '' && shiftDelta.value == null)
 
-async function applyShift(deltaSec: number) {
-  await run(
-    (v) =>
-      shiftTrip({ variables: {
-        input: {
-          draftId: v.draftId,
-          editor: v.editor,
-          expectedVersion: v.expectedVersion,
-          tripId: props.trip.tripId,
-          deltaSec,
-        },
-      } }),
-    'shiftTrip',
-  )
+function applyShift(deltaSec: number) {
+  emit('edit', { op: 'shiftTrip', body: { tripId: props.trip.tripId, deltaSec } })
 }
 
 function applyShiftInput() {
   const delta = shiftDelta.value
   if (delta == null) return
-  void applyShift(delta)
+  applyShift(delta)
   shiftRaw.value = ''
 }
 
 // --- delete -------------------------------------------------------
-const { mutate: deleteTrip } = useDeleteTripMutation()
+// The page drops the selection once the delete lands, which unmounts this panel (and its modal).
 const deleteOpen = ref(false)
 
-async function confirmDelete() {
-  const result = await run(
-    (v) =>
-      deleteTrip({ variables: {
-        input: {
-          draftId: v.draftId,
-          editor: v.editor,
-          expectedVersion: v.expectedVersion,
-          tripId: props.trip.tripId,
-        },
-      } }),
-    'deleteTrip',
-  )
-  if (result) {
-    deleteOpen.value = false
-    emit('deleted', props.trip.tripId)
-  }
+function confirmDelete() {
+  emit('edit', { op: 'deleteTrip', body: { tripId: props.trip.tripId } })
 }
 
 // --- active cell -------------------------------------------------
@@ -130,7 +83,7 @@ function commitArrText() {
     return
   }
   arr.value = parsed
-  void commitStopTime()
+  commitStopTime()
 }
 
 function commitDepText() {
@@ -140,49 +93,25 @@ function commitDepText() {
     return
   }
   dep.value = parsed
-  void commitStopTime()
+  commitStopTime()
 }
 
-const { mutate: updateStopTime } = useUpdateStopTimeMutation()
-const { mutate: setStopDwell } = useSetStopDwellMutation()
-
-async function commitStopTime() {
+function commitStopTime() {
   const seq = props.activeCell?.stopSequence
   if (seq == null) return
-  await run(
-    (v) =>
-      updateStopTime({ variables: {
-        input: {
-          draftId: v.draftId,
-          editor: v.editor,
-          expectedVersion: v.expectedVersion,
-          tripId: props.trip.tripId,
-          stopSequence: seq,
-          arrivalSec: arr.value,
-          departureSec: dep.value,
-        },
-      } }),
-    'updateStopTime',
-  )
+  emit('edit', {
+    op: 'updateStopTime',
+    body: { tripId: props.trip.tripId, stopSequence: seq, arrivalSec: arr.value, departureSec: dep.value },
+  })
 }
 
-async function commitDwell() {
+function commitDwell() {
   const seq = props.activeCell?.stopSequence
   if (seq == null || dwell.value == null) return
-  await run(
-    (v) =>
-      setStopDwell({ variables: {
-        input: {
-          draftId: v.draftId,
-          editor: v.editor,
-          expectedVersion: v.expectedVersion,
-          tripId: props.trip.tripId,
-          stopSequence: seq,
-          dwellSec: dwell.value as number,
-        },
-      } }),
-    'setStopDwell',
-  )
+  emit('edit', {
+    op: 'setStopDwell',
+    body: { tripId: props.trip.tripId, stopSequence: seq, dwellSec: dwell.value },
+  })
 }
 
 const dirLabel = computed(() =>

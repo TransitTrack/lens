@@ -4,7 +4,7 @@ import MapToolbox from '~/components/map/MapToolbox.vue'
 import { hideBasemapLabels, useMapStyle } from '~/composables/useMapStyle'
 import { boundsOf } from '~/utils/vehicleDetail'
 import { extentToBounds } from '~/utils/mapBounds'
-import type { LngLatBoundsExtent } from '~/composables/useFeedExtent'
+import type { LngLatBoundsExtent } from '~/utils/joins/extent'
 import type { MapLayerMouseEvent } from 'maplibre-gl'
 
 const props = defineProps<{
@@ -34,8 +34,8 @@ watch(
 )
 onBeforeUnmount(() => map.map?.off('style.load', hideStreetNames))
 
-// Capture the agency extent once. `useFeedExtent` hands back a fresh object on
-// every Apollo tick; binding it live would make <MglMap>'s bounds watcher snap
+// Capture the agency extent once. The page's extent is a fresh object on
+// every data refresh; binding it live would make <MglMap>'s bounds watcher snap
 // the view back on every data refresh. A real feed switch remounts this page.
 const initialBounds = shallowRef(extentToBounds(props.extent))
 watch(

@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { useRevisionsQuery, useDraftsQuery, useCompareRevisionsQuery } from '~~/generated/graphql'
+import { useQuery } from '@pinia/colada'
+import { revisionsQuery } from '~/composables/api/queries/gtfs'
+import { draftsQuery } from '~/composables/api/queries/drafts'
+import { compareRevisionsQuery } from '~/composables/api/queries/schedule'
+
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'
@@ -39,12 +43,12 @@ const serviceFilter = computed({
   set: (v: string | null) => router.replace({ query: { ...route.query, service: queryString(v) } }),
 })
 
-const { result: revisionsResult } = useRevisionsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
+const { data: revisions } = useQuery(() => ({
+  ...revisionsQuery({ feedCode: selectedFeedCode.value ?? '' }),
   enabled: !!selectedFeedCode.value,
 }))
-const { result: draftsResult } = useDraftsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value },
+const { data: drafts, status: draftsStatus } = useQuery(() => ({
+  ...draftsQuery({ feedCode: selectedFeedCode.value ?? undefined }),
   enabled: !!selectedFeedCode.value,
 }))
 
@@ -60,9 +64,9 @@ interface RevisionOption {
 }
 const revisionOptions = computed<RevisionOption[]>(() => {
   const draftLabels = new Map(
-    (draftsResult.value?.drafts ?? []).map((d) => [d.id, d.label ?? t('compare.untitledVersion', { version: d.version })]),
+    (drafts.value ?? []).map((d) => [d.id, d.label ?? t('compare.untitledVersion', { version: d.version })]),
   )
-  return (revisionsResult.value?.revisions ?? []).map((r) => {
+  return (revisions.value ?? []).map((r) => {
     const label = draftLabels.get(r.id)
     return {
       label: label
@@ -73,12 +77,28 @@ const revisionOptions = computed<RevisionOption[]>(() => {
   })
 })
 
-const { result, loading, error } = useCompareRevisionsQuery(() => ({
-  variables: { fromRevisionId: fromId.value, toRevisionId: toId.value, routeId: routeFilter.value, directionId: dirFilter.value, serviceId: serviceFilter.value, offset: 0, limit: 200 },
-  enabled: !!fromId.value && !!toId.value,
+// A comparison against a draft is never cached: find out which side (if any) is a draft
+// before the first request, so the comparison is read once under the right key.
+const draftIds = computed(() => new Set((drafts.value ?? []).map((d) => d.id)))
+const comparedDraftId = computed(() =>
+  draftIds.value.has(toId.value) ? toId.value : draftIds.value.has(fromId.value) ? fromId.value : undefined,
+)
+
+const { data, isLoading: loading, error } = useQuery(() => ({
+  ...compareRevisionsQuery({
+    fromRevisionId: fromId.value,
+    toRevisionId: toId.value,
+    routeId: routeFilter.value ?? undefined,
+    directionId: dirFilter.value ?? undefined,
+    serviceId: serviceFilter.value ?? undefined,
+    offset: 0,
+    limit: 200,
+    draftId: comparedDraftId.value,
+  }),
+  enabled: !!fromId.value && !!toId.value && (!selectedFeedCode.value || draftsStatus.value !== 'pending'),
 }))
 
-const comparison = computed(() => result.value?.compareRevisions ?? null)
+const comparison = computed(() => data.value ?? null)
 </script>
 
 <template>

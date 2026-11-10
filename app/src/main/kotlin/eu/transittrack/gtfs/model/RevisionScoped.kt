@@ -27,7 +27,7 @@ import eu.transittrack.gtfs.revision.GtfsRevisionTable
  * `id` is assigned from the `gtfs_entity_seq` sequence (see [RevisionScopedTable.id]).
  */
 abstract class RevisionScoped(
-    var revisionId: Long,
+    val revisionId: Long,
 ) {
     var id: Long? = null
 }

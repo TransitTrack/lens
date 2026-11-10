@@ -1,100 +1,76 @@
-import {
-  useDraftDetailQuery,
-  useDraftEditsQuery,
-  useClaimDraftEditorMutation,
-  useRenewDraftEditorMutation,
-  useReleaseDraftEditorMutation,
-  type DraftDetailQuery,
-  type DraftEditResultFFragment,
-} from '~~/generated/graphql'
+import type { Ref } from 'vue'
+import type { ClaimDraftEditorData, Draft, DraftEdit, DraftEditResult, Options, ReleaseDraftEditorData, RenewDraftEditorData } from '~/api'
 import { useEditorIdentity } from './useEditorIdentity'
 
-export type DraftDetail = NonNullable<DraftDetailQuery['draft']>
+export type DraftDetail = Draft
 
 /** server lease is 15 min; renew at 1/3 */
 const RENEW_INTERVAL_MS = 5 * 60_000
 
-interface MutateVars {
+export interface MutateVars {
   draftId: string
   editor: string
   expectedVersion: number
 }
 
-/** Pull the GraphQL error code out of whatever an Apollo call failed with. */
+/**
+ * What the page hands the editor: the draft and its edit history (read by the
+ * page's queries), a refresh of the draft that resolves with the fresh row, and
+ * the editor-lock mutations (SDK-shaped variables, e.g. a `mutateAsync`).
+ */
+export interface DraftEditorDeps {
+  draft: Ref<DraftDetail | null | undefined>
+  edits: Ref<DraftEdit[] | undefined>
+  refreshDraft: () => Promise<DraftDetail | null>
+  claim: (vars: Options<ClaimDraftEditorData>) => Promise<unknown>
+  renew: (vars: Options<RenewDraftEditorData>) => Promise<unknown>
+  release: (vars: Options<ReleaseDraftEditorData>) => Promise<unknown>
+}
+
+/** Read the stable application code from a REST problem response. */
 function errorCode(e: unknown): string | undefined {
-  const code = graphQlErrorsOf(e)[0]?.extensions?.code
+  const code = restProblemOf(e)?.code
   return typeof code === 'string' ? code : undefined
 }
 
 /**
- * Owns a schedule draft's editing session: the `DraftDetail` query, the editor
- * lock (claim on mount, renew on a heartbeat, release on unmount / unload), and
- * a `mutate` wrapper that injects `draftId` / `editor` / `expectedVersion` and
- * recovers from a stale-version conflict once.
+ * Owns a schedule draft's editing session: a local copy of the draft (so edit
+ * results fold in instantly), the editor lock (claim on mount, renew on a
+ * heartbeat, release on unmount / unload), and a `mutate` wrapper that injects
+ * `draftId` / `editor` / `expectedVersion` and recovers from a stale-version
+ * conflict once. It fetches nothing itself: reads and lock calls come from `deps`.
  */
-export function useDraftEditor(draftId: Ref<string>) {
+export function useDraftEditor(draftId: Ref<string>, deps: DraftEditorDeps) {
   const toast = useToast()
   const { t } = useI18n()
   const identity = useEditorIdentity()
   const me = identity.name
 
-  const {
-    result: detailResult,
-    loading,
-    refetch: refetchDraftDetailRaw,
-    onError: onDetailError,
-  } = useDraftDetailQuery(() => ({
-    variables: { id: draftId.value },
-    enabled: !!draftId.value,
-  }))
-
   const draft = ref<DraftDetail | null>(null)
 
   watch(
-    () => detailResult.value?.draft,
+    deps.draft,
     (d) => {
       draft.value = d ? { ...d } : null
     },
     { immediate: true },
   )
 
-  onDetailError((err) => {
-    toast.add({ title: t('drafts.loadFailed'), description: err.message, color: 'error' })
-  })
-
-  /**
-   * Refetch the draft and return the fresh row straight from the resolved
-   * query result — the `watch` that syncs `draft.value` only flushes on a
-   * later tick, so reading `draft.value` right after the await is still stale.
-   */
-  async function refetchDraft(): Promise<DraftDetail | null> {
-    const res = await refetchDraftDetailRaw()
-    return res?.result?.draft ?? detailResult.value?.draft ?? null
+  /** Refresh the draft and return the fresh row (the `watch` above only flushes on a later tick). */
+  async function refreshDraft(): Promise<DraftDetail | null> {
+    return (await deps.refreshDraft()) ?? deps.draft.value ?? null
   }
 
-  /**
-   * Refetch and return the draft version straight from the resolved query
-   * result — the `watch` that syncs `draft.value` only flushes on a later
-   * tick, so reading `draft.value` right after the await is still stale.
-   */
-  async function refetchDraftVersion(fallback: number): Promise<number> {
-    const res = await refetchDraftDetailRaw()
-    return (
-      res?.result?.draft?.version ?? detailResult.value?.draft?.version ?? fallback
-    )
+  async function refreshDraftVersion(fallback: number): Promise<number> {
+    return (await refreshDraft())?.version ?? fallback
   }
 
   // --- undo/redo seeding -------------------------------------------------------
   const canUndo = ref(false)
   const canRedo = ref(false)
 
-  const { result: editsResult, refetch: refetchEditsRaw } = useDraftEditsQuery(() => ({
-    variables: { id: draftId.value, limit: 500 },
-    enabled: !!draftId.value,
-  }))
-
   watch(
-    () => editsResult.value?.draftEdits,
+    deps.edits,
     (edits) => {
       if (!edits) return
       canUndo.value = edits.some((e) => !e.undone)
@@ -103,14 +79,9 @@ export function useDraftEditor(draftId: Ref<string>) {
     { immediate: true },
   )
 
-  async function refetchEdits() {
-    await refetchEditsRaw()
-  }
-
   // --- lock -----------------------------------------------------------------
-  const { mutate: claimDraftEditor } = useClaimDraftEditorMutation()
-  const { mutate: renewDraftEditor } = useRenewDraftEditorMutation()
-  const { mutate: releaseDraftEditor } = useReleaseDraftEditorMutation()
+  const claim = (editor: string, takeOver?: boolean) =>
+    deps.claim({ path: { id: draftId.value }, body: { editor, takeOver } })
 
   /** true once we hold the lock; false after a release / a claim failure. */
   const claimed = ref(false)
@@ -156,7 +127,7 @@ export function useDraftEditor(draftId: Ref<string>) {
       const code = errorCode(e)
 
       if (code === 'STALE_DRAFT') {
-        const freshVersion = await refetchDraftVersion(current.version)
+        const freshVersion = await refreshDraftVersion(current.version)
         try {
           return await run(freshVersion)
         } catch (retryErr) {
@@ -171,13 +142,13 @@ export function useDraftEditor(draftId: Ref<string>) {
 
       if (code === 'LOCK_LOST') {
         try {
-          await claimDraftEditor({ variables: { id: draftId.value, editor } })
+          await claim(editor)
           claimed.value = true
-          const freshVersion = await refetchDraftVersion(current.version)
+          const freshVersion = await refreshDraftVersion(current.version)
           return await run(freshVersion)
         } catch {
           claimed.value = false
-          await refetchDraft()
+          await refreshDraft()
           toast.add({ title: t('drafts.anotherHolds'), color: 'error' })
           throw e
         }
@@ -188,8 +159,8 @@ export function useDraftEditor(draftId: Ref<string>) {
     }
   }
 
-  /** Fold a `DraftEditResult` fragment into local state — no network. */
-  function applyResult(r: DraftEditResultFFragment) {
+  /** Fold a `DraftEditResult` into local state — no network. */
+  function applyResult(r: DraftEditResult) {
     if (draft.value) draft.value = { ...draft.value, ...r.draft }
     canUndo.value = r.canUndo
     canRedo.value = r.canRedo
@@ -198,7 +169,7 @@ export function useDraftEditor(draftId: Ref<string>) {
   async function takeOver() {
     const editor = await ensureIdentity()
     try {
-      await claimDraftEditor({ variables: { id: draftId.value, editor, takeOver: true } })
+      await claim(editor, true)
       claimed.value = true
       identityMissing.value = false
     } catch (e) {
@@ -209,7 +180,7 @@ export function useDraftEditor(draftId: Ref<string>) {
       })
       throw e
     }
-    await refetchDraft()
+    await refreshDraft()
   }
 
   // --- lifecycle (client only) ------------------------------------------
@@ -221,7 +192,7 @@ export function useDraftEditor(draftId: Ref<string>) {
     claimed.value = false
     if (!editor) return
     // fire-and-forget
-    void releaseDraftEditor({ variables: { id: draftId.value, editor } }).catch(() => {})
+    void deps.release({ path: { id: draftId.value }, body: { editor } }).catch(() => {})
   }
 
   function onBeforeUnload() {
@@ -240,19 +211,19 @@ export function useDraftEditor(draftId: Ref<string>) {
       return
     }
     try {
-      await claimDraftEditor({ variables: { id: draftId.value, editor } })
+      await claim(editor)
       claimed.value = true
     } catch {
       // someone else holds the lock — `readOnly` handles display
       claimed.value = false
     }
-    await refetchDraft()
+    await refreshDraft()
 
     // The component may have unmounted while the awaits above were pending.
     if (disposed) return
 
     renewTimer = setInterval(() => {
-      void renewDraftEditor({ variables: { id: draftId.value, editor } }).catch(() => {})
+      void deps.renew({ path: { id: draftId.value }, body: { editor } }).catch(() => {})
     }, RENEW_INTERVAL_MS)
 
     window.addEventListener('beforeunload', onBeforeUnload)
@@ -272,7 +243,6 @@ export function useDraftEditor(draftId: Ref<string>) {
 
   return {
     draft,
-    loading,
     readOnly,
     claimed,
     identityMissing,
@@ -283,7 +253,6 @@ export function useDraftEditor(draftId: Ref<string>) {
     mutate,
     applyResult,
     takeOver,
-    refetchDraft,
-    refetchEdits,
+    refreshDraft,
   }
 }

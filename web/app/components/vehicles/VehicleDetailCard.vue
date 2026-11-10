@@ -1,17 +1,14 @@
 <script setup lang="ts">
+import type { AvlReport } from '~/api'
 import { formatClock, formatDottedTimestamp } from '~/utils/clock'
-import type { VehicleRow } from '~/composables/useVehiclePolling'
+import type { VehicleRow } from '~/types/vehicles'
 import { adherenceBadge } from '~/utils/adherence'
 import { coarseAgeLabel, haversineM } from '~/utils/vehicleTelemetry'
-import { algorithmsIn, preferredAlgorithm, stopRows } from '~/utils/vehicleDetail'
-import { usePollControl } from '~/composables/usePollControl'
+import { chosenAlgorithm, stopRows } from '~/utils/vehicleDetail'
+import type { VehicleDetail } from '~/utils/joins/vehicleDetail'
 import { useFeeds } from '~/composables/useFeeds'
 import { useUnits } from '~/composables/useUnits'
-import {
-  useAgenciesDetailQuery,
-  useAvlTrailQuery,
-  useVehicleDetailQuery,
-} from '~~/generated/graphql'
+
 
 /**
  * Card for the vehicle selected on the overview map: summary facts plus
@@ -20,7 +17,12 @@ import {
  */
 const props = defineProps<{
   vehicle: VehicleRow
-  feedCode?: string | null
+  /** The selected vehicle's detail (read by the page); ignored when it is another vehicle's. */
+  vehicleDetail?: VehicleDetail | null
+  detailLoading?: boolean
+  /** The vehicle's newest AVL reports, newest first (for a speed estimate). */
+  recentReports?: AvlReport[]
+  agencyTimezone?: string | null
 }>()
 const emit = defineEmits<{
   close: []
@@ -31,34 +33,20 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
-const { intervalMs } = usePollControl()
 const { selectedFeed } = useFeeds()
 const units = useUnits()
 
 const vehicleId = computed(() => props.vehicle.vehicleId)
 const collapsed = ref(false)
 
-const { result: detailResult, loading: detailLoading } = useVehicleDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value },
-  enabled: !!props.feedCode, pollInterval: intervalMs.value,
-}))
+const algorithm = computed(() => chosenAlgorithm(selectedFeed.value?.predictionAlgorithms ?? []))
+
 const detail = computed(() => {
-  const v = detailResult.value?.vehicle
+  const v = props.vehicleDetail?.vehicle
   return v?.vehicleId === vehicleId.value ? v : null
 })
-
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '' },
-  enabled: !!props.feedCode,
-}))
-const agencyTimezone = computed(
-  () => agenciesResult.value?.agencies.find((agency) => agency.agencyTimezone)?.agencyTimezone,
-)
-
-const { result: trailResult } = useAvlTrailQuery(() => ({
-  variables: { feedCode: props.feedCode ?? '', vehicleId: vehicleId.value, limit: 2 },
-  enabled: !!props.feedCode, pollInterval: intervalMs.value,
-}))
+const detailLoading = computed(() => props.detailLoading)
+const agencyTimezone = computed(() => props.agencyTimezone ?? undefined)
 
 const trip = computed(() => detail.value?.trip ?? props.vehicle.trip)
 const route = computed(() => trip.value?.route)
@@ -78,7 +66,7 @@ const estimatedSpeedMps = computed(() => {
   if (detail.value?.speedMps != null || props.vehicle.speedMps != null) return null
   // avlReports are newest-first. A position-based estimate is only useful
   // over a short, valid interval; otherwise GPS drift can look like movement.
-  const [latest, previous] = trailResult.value?.avlReports ?? []
+  const [latest, previous] = props.recentReports ?? []
   if (
     !latest ||
     !previous ||
@@ -117,15 +105,9 @@ const tripProgress = computed(() => {
   }
 })
 
-const algorithm = computed(() =>
-  preferredAlgorithm(
-    algorithmsIn(detailResult.value?.vehiclePredictions ?? []),
-    selectedFeed.value?.predictionAlgorithms ?? [],
-  ),
-)
 const stops = computed(() =>
   detail.value
-    ? stopRows(detail.value, detailResult.value?.vehiclePredictions ?? [], algorithm.value)
+    ? stopRows(detail.value, props.vehicleDetail?.vehiclePredictions ?? [], algorithm.value)
     : [],
 )
 const nextStop = computed(() => stops.value.find((stop) => stop.state === 'current') ?? null)

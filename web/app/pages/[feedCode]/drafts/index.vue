@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
 import type { TableColumn, DropdownMenuItem } from '@nuxt/ui'
-import { useDraftsQuery, useDiscardDraftMutation, type DraftsQuery } from '~~/generated/graphql'
+import type { Draft } from '~/api'
+import { draftsQuery } from '~/composables/api/queries/drafts'
+import { revisionsQuery } from '~/composables/api/queries/gtfs'
+import { discardDraftMutation, forkDraftMutation } from '~/composables/api/mutations/drafts'
+import { activeRevision } from '~/utils/joins/feeds'
 import { useFeeds } from '~/composables/useFeeds'
 import AppPage from '~/components/shell/AppPage.vue'
 import PageState from '~/components/shell/PageState.vue'
@@ -15,13 +20,37 @@ const { t, locale } = useI18n()
 
 const newOpen = ref(false)
 
-const { result, loading, error, refetch } = useDraftsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value },
+const queryCache = useQueryCache()
+
+const { data: draftsData, isLoading: loading, error } = useQuery(() => ({
+  ...draftsQuery({ feedCode: selectedFeedCode.value ?? undefined }),
   enabled: !!selectedFeedCode.value,
 }))
+const drafts = computed<Draft[]>(() => draftsData.value ?? [])
 
-type Draft = DraftsQuery['drafts'][number]
-const drafts = computed<Draft[]>(() => result.value?.drafts ?? [])
+// --- new draft (forked from the ACTIVE revision) --------------------------
+// Read on mount rather than when the dialog opens: the layout's readiness shares this entry, and Pinia Colada
+// keeps the options of whichever consumer applied them last — a disabled read here would stop its polling.
+const { data: revisions } = useQuery(() => ({
+  ...revisionsQuery({ feedCode: selectedFeedCode.value ?? '' }),
+  enabled: !!selectedFeedCode.value,
+}))
+const newDraftBase = computed(() => activeRevision(revisions.value ?? []))
+
+const { mutateAsync: fork, isLoading: forking } = useMutation(forkDraftMutation(queryCache))
+
+async function onFork(input: { label: string | null, editor: string }) {
+  editorName.value = input.editor
+  toast.add({ title: t('drafts.forking'), description: t('drafts.copyingRows'), color: 'info', icon: 'i-lucide-git-fork' })
+  try {
+    // Always fork the ACTIVE revision (`baseRevisionId: null`) — see NewDraftDialog.
+    const created = await fork({ body: { feedCode: selectedFeedCode.value ?? '', baseRevisionId: null, label: input.label, editor: input.editor } })
+    newOpen.value = false
+    if (created?.id) await navigateTo(feedPath('/drafts/' + created.id))
+  } catch (e) {
+    toast.add({ title: t('drafts.forkFailed'), description: (e as Error).message, color: 'error' })
+  }
+}
 
 interface ValidationSummary {
   errorCount?: number
@@ -86,22 +115,21 @@ const discardOpen = computed({
     if (!v) discardTarget.value = null
   },
 })
-const { mutate: discard, loading: discarding } = useDiscardDraftMutation()
+const { mutateAsync: discard, isLoading: discarding } = useMutation(discardDraftMutation(queryCache))
 
 async function confirmDiscard() {
   const target = discardTarget.value
   if (!target) return
   try {
-    await discard({ variables: { id: target.id, editor: editorName.value ?? '' } })
+    await discard({ path: { id: target.id }, body: { editor: editorName.value ?? '' } })
     toast.add({
       title: t('drafts.discardedNamed', { name: target.label ?? target.id }),
       color: 'success',
       icon: 'i-lucide-trash-2',
     })
     discardTarget.value = null
-    await refetch()
   } catch (e) {
-    const code = graphQlErrorsOf(e)[0]?.extensions?.code
+    const code = restProblemOf(e)?.code
     if (code === 'LOCK_LOST') {
       toast.add({
         title: t('drafts.lockLost'),
@@ -226,6 +254,11 @@ function rowActions(row: Draft): DropdownMenuItem[][] {
       </template>
     </UModal>
 
-    <NewDraftDialog v-model:open="newOpen" />
+    <NewDraftDialog
+      v-model:open="newOpen"
+      :active-revision="newDraftBase"
+      :forking="forking"
+      @submit="onFork"
+    />
   </AppPage>
 </template>

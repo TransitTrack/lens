@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { useMutation, useQuery, useQueryCache } from '@pinia/colada'
+import { feedQuery, revisionsQuery, feedInfoQuery, routesQuery, agenciesQuery } from '~/composables/api/queries/gtfs'
+import { ingestFeedMutation, updateFeedMutation, activateRevisionMutation, deleteRevisionMutation } from '~/composables/api/mutations/gtfs'
+import { activeRevision } from '~/utils/joins/feeds'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
@@ -6,15 +10,7 @@ import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import FeedFeatures from '~/components/explore/FeedFeatures.vue'
 import FeedDatasetHistory from '~/components/explore/FeedDatasetHistory.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import {
-  useFeedDetailQuery,
-  useAgenciesDetailQuery,
-  useExploreRoutesQuery,
-  useIngestFeedMutation,
-  useActivateRevisionMutation,
-  useDeleteRevisionMutation,
-  useUpdateFeedMutation,
-} from '~~/generated/graphql'
+
 import { gtfsDate } from '~/utils/gtfs'
 import { deriveFeatures } from '~/utils/feedFeatures'
 
@@ -22,34 +18,48 @@ const { t, te, locale } = useI18n()
 const { selectedFeedCode } = useFeeds()
 const toast = useToast()
 
-const { result: agenciesResult } = useAgenciesDetailQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: agenciesData } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-const { result: routesResult } = useExploreRoutesQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const { data: routesData } = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
-const routes = computed(() => routesResult.value?.routes ?? [])
+const routes = computed(() => routesData.value ?? [])
 
 const agencies = computed(() => {
   const byAgency = new Map<string, number>()
   for (const r of routes.value) {
     if (r.agencyId) byAgency.set(r.agencyId, (byAgency.get(r.agencyId) ?? 0) + 1)
   }
-  return (agenciesResult.value?.agencies ?? []).map((a) => ({
+  return (agenciesData.value ?? []).map((a) => ({
     ...a,
     routeCount: a.agencyId ? (byAgency.get(a.agencyId) ?? 0) : 0,
   }))
 })
 
-const { result, loading, refetch } = useFeedDetailQuery(() => ({
-  variables: { code: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const { data: feedData, isLoading: feedLoading } = useQuery(() => ({
+  ...feedQuery({ code: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: revisions, isLoading: revisionsLoading } = useQuery(() => ({
+  ...revisionsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: infoData } = useQuery(() => ({
+  ...feedInfoQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
 
-const feed = computed(() => result.value?.feed ?? null)
-const info = computed(() => result.value?.feedInfo ?? null)
+const loading = computed(() => feedLoading.value || revisionsLoading.value)
+const feed = computed(() => {
+  if (!feedData.value) return null
+  const list = revisions.value ?? []
+  return { ...feedData.value, revisions: list, activeRevision: activeRevision(list) }
+})
+const info = computed(() => infoData.value ?? null)
 const rev = computed(() => feed.value?.activeRevision ?? null)
 
 const rowCounts = computed<[string, number][]>(() => {
@@ -59,11 +69,14 @@ const rowCounts = computed<[string, number][]>(() => {
 })
 
 const features = computed(() =>
-  deriveFeatures({
-    filesPresent: rev.value?.filesPresent,
-    rowCounts: (rev.value?.rowCounts ?? null) as Record<string, number> | null,
-    routes: routes.value,
-  }, t),
+  deriveFeatures(
+    {
+      filesPresent: rev.value?.filesPresent,
+      rowCounts: (rev.value?.rowCounts ?? null) as Record<string, number> | null,
+      routes: routes.value,
+    },
+    t,
+  ),
 )
 
 interface StatusChip {
@@ -94,10 +107,11 @@ const statusChips = computed<StatusChip[]>(() => {
 })
 
 // --- mutations -------------------------------------------------------------
-const { mutate: ingest, loading: ingesting } = useIngestFeedMutation()
-const { mutate: activate } = useActivateRevisionMutation()
-const { mutate: remove } = useDeleteRevisionMutation()
-const { mutate: update, loading: updating } = useUpdateFeedMutation()
+const queryCache = useQueryCache()
+const { mutateAsync: ingest, isLoading: ingesting } = useMutation(ingestFeedMutation(queryCache))
+const { mutateAsync: activate } = useMutation(activateRevisionMutation(queryCache))
+const { mutateAsync: remove } = useMutation(deleteRevisionMutation(queryCache))
+const { mutateAsync: update, isLoading: updating } = useMutation(updateFeedMutation(queryCache))
 
 // i18n-keys: feed.dataset.statusValue.*
 function statusLabel(status: string): string {
@@ -107,39 +121,56 @@ function statusLabel(status: string): string {
 
 async function reingest() {
   try {
-    const res = await ingest({ variables: { feedCode: selectedFeedCode.value ?? '' } })
+    const res = await ingest({ path: { feedCode: selectedFeedCode.value ?? '' } })
     toast.add({
       title: t('explore.feed.ingestTriggered'),
       description: t('explore.feed.ingestRevision', {
-        id: res?.data?.ingestFeed.id,
-        status: statusLabel(String(res?.data?.ingestFeed.status)),
+        id: res?.id,
+        status: statusLabel(String(res?.status)),
       }),
       color: 'success',
       icon: 'i-lucide-download',
     })
-    await refetch()
   } catch (e) {
-    toast.add({ title: t('explore.feed.ingestFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.ingestFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 
 async function activateRevision(id: string) {
   try {
-    await activate({ variables: { revisionId: id } })
-    toast.add({ title: t('explore.feed.activated', { id }), color: 'success', icon: 'i-lucide-check' })
-    await refetch()
+    await activate({ path: { revisionId: id } })
+    toast.add({
+      title: t('explore.feed.activated', { id }),
+      color: 'success',
+      icon: 'i-lucide-check',
+    })
   } catch (e) {
-    toast.add({ title: t('explore.feed.activateFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.activateFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 
 async function deleteRevision(id: string) {
   try {
-    await remove({ variables: { revisionId: id } })
-    toast.add({ title: t('explore.feed.deleted', { id }), color: 'success', icon: 'i-lucide-trash-2' })
-    await refetch()
+    await remove({ path: { id } })
+    toast.add({
+      title: t('explore.feed.deleted', { id }),
+      color: 'success',
+      icon: 'i-lucide-trash-2',
+    })
   } catch (e) {
-    toast.add({ title: t('explore.feed.deleteFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.deleteFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 
@@ -159,21 +190,24 @@ watch(editOpen, (open) => {
 
 async function saveFeed() {
   try {
-    await update({ variables: {
-      code: selectedFeedCode.value ?? '',
-      input: {
+    await update({
+      path: { code: selectedFeedCode.value ?? '' },
+      body: {
         name: form.name,
         description: form.description || null,
         url: form.url,
         pollingCron: form.pollingCron || null,
         enabled: form.enabled,
       },
-    } })
+    })
     toast.add({ title: t('explore.feed.updated'), color: 'success', icon: 'i-lucide-check' })
     editOpen.value = false
-    await refetch()
   } catch (e) {
-    toast.add({ title: t('explore.feed.updateFailed'), description: (e as Error).message, color: 'error' })
+    toast.add({
+      title: t('explore.feed.updateFailed'),
+      description: (e as Error).message,
+      color: 'error',
+    })
   }
 }
 </script>
@@ -242,7 +276,9 @@ async function saveFeed() {
                     date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale),
                     size: (rev.byteSize / 1e6).toFixed(1),
                   })
-                : t('explore.feed.latestDataset', { date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale) })
+                : t('explore.feed.latestDataset', {
+                    date: gtfsDate(rev.activatedAt ?? rev.createdAt, locale),
+                  })
             }}
           </span>
         </div>
@@ -255,7 +291,9 @@ async function saveFeed() {
             v-if="rev && rowCounts.length"
             class="flex flex-col gap-3 border-b border-default p-4"
           >
-            <div class="text-sm font-medium text-muted">{{ t('explore.feed.activeRevision', { id: rev.id }) }}</div>
+            <div class="text-sm font-medium text-muted">
+              {{ t('explore.feed.activeRevision', { id: rev.id }) }}
+            </div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               <div
                 v-for="[name, count] in rowCounts"
@@ -310,7 +348,10 @@ async function saveFeed() {
               <dt class="text-dimmed">{{ t('explore.feed.language') }}</dt>
               <dd>{{ info.feedLang ?? '—' }}</dd>
               <dt class="text-dimmed">{{ t('explore.feed.valid') }}</dt>
-              <dd>{{ gtfsDate(info.feedStartDate, locale) }} → {{ gtfsDate(info.feedEndDate, locale) }}</dd>
+              <dd>
+                {{ gtfsDate(info.feedStartDate, locale) }} →
+                {{ gtfsDate(info.feedEndDate, locale) }}
+              </dd>
               <dt class="text-dimmed">{{ t('explore.feed.contact') }}</dt>
               <dd>{{ info.feedContactEmail ?? info.feedContactUrl ?? '—' }}</dd>
             </dl>
@@ -377,7 +418,12 @@ async function saveFeed() {
       </template>
       <template #footer>
         <div class="flex justify-end gap-2">
-          <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="editOpen = false" />
+          <UButton
+            color="neutral"
+            variant="ghost"
+            :label="t('common.cancel')"
+            @click="editOpen = false"
+          />
           <UButton :loading="updating" :label="t('common.save')" @click="saveFeed" />
         </div>
       </template>

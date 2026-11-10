@@ -19,8 +19,7 @@ FROM nginx:alpine AS runtime
 COPY --from=build /workspace/.output/public /usr/share/nginx/html
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
-# Reverse-proxy target for the relative `/graphql` calls the Apollo client makes
-# (see app/plugins/apollo.client.ts) — the built static bundle has no way to
+# Reverse-proxy target for the relative `/api` calls — the static bundle has no way to
 # know the backend's address itself, so nginx fills that gap. Overridable per
 # environment without a rebuild; the nginx image's own entrypoint envsubst's
 # *.template files in /etc/nginx/templates/ using only real env vars (nginx's

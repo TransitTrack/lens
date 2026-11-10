@@ -1,6 +1,4 @@
 import { hexColor, routeTypeLabel } from '~/utils/gtfs'
-import { decodeGeoJson } from '~/utils/geojson'
-import { useFeedGeometryQuery } from '~~/generated/graphql'
 import type { GeoJSON } from 'geojson'
 
 /** Properties the backend puts on each `kind: 'pattern'` feature. */
@@ -35,26 +33,16 @@ function distinctRouteColor(routeId: string): string {
 }
 
 /**
- * The GTFS network geometry for a feed — route pattern polylines (coloured by
- * route_color) and boarding stops — as ready-to-render GeoJSON. One cached fetch;
- * safe to mount behind a live-polling map as a static base layer.
+ * Shapes the GTFS network geometry features (from `feedGeometryQuery`, fetched by the page) into
+ * ready-to-render GeoJSON: route pattern polylines (coloured by route_color) and boarding stops.
+ * Safe to mount behind a live-polling map as a static base layer.
  */
-export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
+export function useFeedGeometry(features: Ref<GeoJSON.Feature[]>) {
   const { t } = useI18n()
-  const { result, loading } = useFeedGeometryQuery(() => ({
-    variables: { feedCode: gtfsFeedCode.value ?? '' },
-    enabled: !!gtfsFeedCode.value, fetchPolicy: 'no-cache',
-  }))
-
-  // Decode once per result; `lines` and `stops` are views over the same collection.
-  const all = computed<GeoJSON.Feature[]>(() => {
-    const encoded = result.value?.feedGeometry
-    return encoded ? decodeGeoJson<GeoJSON.FeatureCollection>(encoded).features : []
-  })
 
   const lines = computed<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
-    features: all.value
+    features: features.value
       .filter((f) => f.properties?.kind === 'pattern')
       .map((f) => {
         const p = f.properties as unknown as PatternProps
@@ -74,10 +62,10 @@ export function useFeedGeometry(gtfsFeedCode: Ref<string | null>) {
 
   const stops = computed<GeoJSON.FeatureCollection>(() => ({
     type: 'FeatureCollection',
-    features: all.value
+    features: features.value
       .filter((f) => f.properties?.kind === 'stop')
       .map((f) => ({ ...f, properties: { name: f.properties?.name } })),
   }))
 
-  return { lines, stops, loading }
+  return { lines, stops }
 }

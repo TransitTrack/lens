@@ -8,8 +8,7 @@ YAML under `app/src/main/resources/db/changelog/` and are listed in `db.changelo
 
 Application JSON uses kotlinx.serialization and the shared `ProjectJson` configuration,
 also exposed as the Spring `Json` bean. Exposed's typed JSONB columns use this configuration;
-prediction algorithms retain their enum names as JSON strings without adding serialization
-dependencies to the extension API. Lists, maps, and 64-bit row counts keep their existing
+prediction algorithms retain their enum names as JSON strings. Lists, maps, and 64-bit row counts keep their existing
 database representation.
 
 Columns containing pre-encoded JSON (geometry, validation reports, optimization payloads,

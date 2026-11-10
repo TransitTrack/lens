@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { h } from 'vue'
 import AppPage from '../../app/components/shell/AppPage.vue'
+import { withFeedContext } from '../helpers/feedContext'
 
 describe('AppPage', () => {
   it('renders the title and #actions slot in the header row', async () => {
     const wrapper = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       props: { title: 'Vehicles' },
       slots: {
         actions: () => h('button', { class: 'act' }, 'Do thing'),
@@ -19,6 +21,7 @@ describe('AppPage', () => {
 
   it('omits the header row when there is no title and no actions', async () => {
     const wrapper = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       slots: { default: () => h('p', 'just body') },
     })
     expect(wrapper.find('h1').exists()).toBe(false)
@@ -26,6 +29,7 @@ describe('AppPage', () => {
 
   it('renders the header row for a #leading slot even without a title', async () => {
     const wrapper = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       slots: {
         leading: () => h('a', { class: 'back' }, 'Back'),
         default: () => h('p', 'x'),
@@ -36,11 +40,13 @@ describe('AppPage', () => {
 
   it('renders the #toolbar slot only when provided', async () => {
     const without = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       slots: { default: () => h('p', 'x') },
     })
     expect(without.find('[data-testid="app-page-toolbar"]').exists()).toBe(false)
 
     const withBar = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       slots: {
         toolbar: () => h('div', 'tabs'),
         default: () => h('p', 'x'),
@@ -51,11 +57,13 @@ describe('AppPage', () => {
 
   it('wraps the body in a UContainer by default and not when fullBleed', async () => {
     const contained = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       slots: { default: () => h('p', 'x') },
     })
     expect(contained.find('[data-testid="app-page-container"]').exists()).toBe(true)
 
     const bleed = await mountSuspended(AppPage, {
+      ...withFeedContext(),
       props: { fullBleed: true },
       slots: { default: () => h('p', 'x') },
     })

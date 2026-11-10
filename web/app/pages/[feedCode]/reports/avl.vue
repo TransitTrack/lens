@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { avlReportCatalogQuery, avlReportPageQuery } from '~/composables/api/queries/avl'
+import { tripsByKeysQuery } from '~/composables/api/queries/gtfs'
+import { gtfsFeedCodeOf } from '~/utils/joins/feeds'
+import { reportTripKeys, reportsWithTrips } from '~/utils/joins/reports'
 import { h } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import {
-  type AvlReportPageQuery,
-  useAvlReportCatalogQuery,
-  useAvlReportPageQuery,
-} from '~~/generated/graphql'
 import AppPage from '~/components/shell/AppPage.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
@@ -28,7 +28,7 @@ interface ReportFilters {
 const PAGE_SIZE = 100
 
 const { t, locale } = useI18n()
-const { selectedAvlFeedCode } = useFeeds()
+const { selectedAvlFeedCode, avlFeeds } = useFeeds()
 const units = useUnits()
 const filters = reactive<ReportFilters>({
   vehicleId: null,
@@ -48,17 +48,17 @@ const filtersAccordionItems = computed(() => [
 const openFilterAccordion = ref<string | undefined>(FILTERS_ACCORDION_VALUE)
 
 const {
-  result: catalogResult,
-  loading: catalogLoading,
+  data: catalog,
+  isLoading: catalogLoading,
   error: catalogError,
-} = useAvlReportCatalogQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '' },
+} = useQuery(() => ({
+  ...avlReportCatalogQuery({ avlFeedCode: selectedAvlFeedCode.value! }),
   enabled: !!selectedAvlFeedCode.value,
 }))
 
-const timeZone = computed(() => catalogResult.value?.avlReportCatalog.timeZone ?? null)
+const timeZone = computed(() => catalog.value?.timeZone ?? null)
 const vehicleItems = computed(() =>
-  (catalogResult.value?.avlReportCatalog.vehicleIds ?? []).map((vehicleId) => ({
+  (catalog.value?.vehicleIds ?? []).map((vehicleId) => ({
     label: vehicleId,
     value: vehicleId,
   })),
@@ -99,11 +99,8 @@ function runReport() {
   submitted.value = next
   openFilterAccordion.value = undefined
   if (isRepeat) {
-    void refetchPage({
-      feedCode: selectedAvlFeedCode.value ?? '',
-      ...next,
-      pageSize: PAGE_SIZE,
-    })
+    // Same filters as the report on screen, so the query key is unchanged: re-run it explicitly.
+    void refreshPage()
   }
 }
 
@@ -113,18 +110,37 @@ function setPage(page: number) {
 }
 
 const {
-  result: pageResult,
-  loading: pageLoading,
+  data: pageData,
+  isLoading: pageLoading,
   error: pageError,
-  refetch: refetchPage,
-} = useAvlReportPageQuery(() => ({
-  variables: { feedCode: selectedAvlFeedCode.value ?? '', vehicleId: submitted.value?.vehicleId ?? '', date: submitted.value?.date ?? '', startTime: submitted.value?.startTime ?? '', endTime: submitted.value?.endTime ?? '', page: submitted.value?.page ?? 1, pageSize: PAGE_SIZE },
-  enabled: !!selectedAvlFeedCode.value && !!submitted.value, fetchPolicy: 'network-only',
+  refresh: refreshPage,
+} = useQuery(() => ({
+  ...avlReportPageQuery({
+    avlFeedCode: selectedAvlFeedCode.value!,
+    vehicleId: submitted.value?.vehicleId ?? '',
+    date: submitted.value?.date ?? '',
+    startTime: submitted.value?.startTime ?? '',
+    endTime: submitted.value?.endTime ?? '',
+    page: submitted.value?.page ?? 1,
+    pageSize: PAGE_SIZE,
+  }),
+  enabled: !!selectedAvlFeedCode.value && !!submitted.value,
 }))
 
-type ReportRow = AvlReportPageQuery['avlReportPage']['items'][number]
+// Each report's matched trip is read once per distinct (revision, trip) pair, against the AVL feed's GTFS feed.
+const gtfsFeedCode = computed(() => gtfsFeedCodeOf(avlFeeds.value, selectedAvlFeedCode.value ?? ''))
+const tripKeys = computed(() => reportTripKeys(pageData.value?.items ?? []))
+const { data: trips } = useQuery(() => ({
+  ...tripsByKeysQuery({ feedCode: gtfsFeedCode.value!, keys: tripKeys.value }),
+  enabled: !!gtfsFeedCode.value && tripKeys.value.length > 0,
+}))
 
-const reportPage = computed(() => pageResult.value?.avlReportPage ?? null)
+const reportPage = computed(() => {
+  const page = pageData.value
+  if (!page) return null
+  return { ...page, items: reportsWithTrips(page.items, trips.value ?? new Map()) }
+})
+type ReportRow = NonNullable<typeof reportPage.value>['items'][number]
 const rows = computed<ReportRow[]>(() => reportPage.value?.items ?? [])
 const pageStart = computed(
   () => ((reportPage.value?.page ?? 1) - 1) * (reportPage.value?.pageSize ?? PAGE_SIZE),

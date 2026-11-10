@@ -17,7 +17,7 @@ import eu.transittrack.gtfs.store.GtfsTables
 
 /**
  * Generic long-tail read: dumps every row of one revision-scoped `gtfs_*` table as a raw `Map`
- * (serialized by the GraphQL `JSON` scalar).
+ * (serialized as plain JSON).
  *
  * The table is chosen from the schema `GtfsTable` enum, whose values are the GTFS *file* names
  * (`FARE_PRODUCTS`); the physical tables are the pluralised, un-prefixed form (`fare_products`);

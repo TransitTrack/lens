@@ -1,4 +1,12 @@
 <script setup lang="ts">
+import { useQuery } from '@pinia/colada'
+import { stopsQuery, routesQuery, agenciesQuery, validationFindingCountsQuery } from '~/composables/api/queries/gtfs'
+import { tripPatternsQuery, stopPathsQuery } from '~/composables/api/queries/schedule'
+import type { Stop } from '~/api'
+import { useFindingsFilter } from '~/composables/useFindingsFilter'
+import { groupStopPaths, patternsWithStopPaths } from '~/utils/joins/stopPaths'
+import { indexBy, withRoute } from '~/utils/joins/routes'
+import { agenciesExtent } from '~/utils/joins/extent'
 import SplitterGrip from '~/components/shell/SplitterGrip.vue'
 import { formatNumber } from '~/utils/intlLocale'
 import type { SplitterItem, TableColumn } from '@nuxt/ui'
@@ -6,28 +14,52 @@ import AppPage from '~/components/shell/AppPage.vue'
 import ExploreToolbar from '~/components/explore/ExploreToolbar.vue'
 import StopsMap from '~/components/explore/StopsMap.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useFeedExtent } from '~/composables/useFeedExtent'
 import { useAgencyFilter } from '~/composables/useAgencyFilter'
-import { useExplorePatterns } from '~/composables/useExplorePatterns'
-import { useExploreStopsQuery, type ExploreStopsQuery } from '~~/generated/graphql'
+import { useExplorePatterns, type Pattern } from '~/composables/useExplorePatterns'
 import { useSplitLayout } from '~/composables/useSplitLayout'
 
 const { t, locale } = useI18n()
 const { selectedFeedCode, feedPath } = useFeeds()
-const { extent } = useFeedExtent(selectedFeedCode)
-const { agencyId } = useAgencyFilter()
 
-const { result, loading } = useExploreStopsQuery(() => ({
-  variables: { feedCode: selectedFeedCode.value ?? '' },
-  enabled: !!selectedFeedCode.value,
+const enabled = computed(() => !!selectedFeedCode.value)
+const { data: stopRows, isLoading: loading } = useQuery(() => ({
+  ...stopsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
 }))
+const { data: agencies } = useQuery(() => ({
+  ...agenciesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: enabled.value,
+}))
+const { data: findingCounts } = useQuery(() => ({
+  ...validationFindingCountsQuery({ feedCode: selectedFeedCode.value!, entityType: 'Stop' }),
+  enabled: enabled.value,
+}))
+const extent = computed(() => agenciesExtent(agencies.value ?? []))
+const { agencyId } = useAgencyFilter(agencies)
 
 // only needed to resolve which stops an agency serves
-const { stopIdsForAgency } = useExplorePatterns(computed(() => !!agencyId.value))
+const patternsEnabled = computed(() => enabled.value && !!agencyId.value)
+const { data: tripPatterns } = useQuery(() => ({
+  ...tripPatternsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: patternsEnabled.value,
+}))
+const { data: stopPaths } = useQuery(() => ({
+  ...stopPathsQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: patternsEnabled.value,
+}))
+const { data: routes } = useQuery(() => ({
+  ...routesQuery({ feedCode: selectedFeedCode.value! }),
+  enabled: patternsEnabled.value,
+}))
+const patterns = computed<Pattern[]>(() => {
+  const routeById = indexBy(routes.value ?? [], 'routeId')
+  const grouped = groupStopPaths(stopPaths.value ?? [], stopRows.value ?? [])
+  return patternsWithStopPaths(tripPatterns.value ?? [], grouped).map((p) => withRoute(p, routeById))
+})
+const { stopIdsForAgency } = useExplorePatterns(patterns)
 const agencyStopIds = computed(() => stopIdsForAgency(agencyId.value))
 
-type Stop = ExploreStopsQuery['stops'][number]
-const allStops = computed(() => result.value?.stops ?? [])
+const allStops = computed(() => stopRows.value ?? [])
 
 const inAgency = computed(() => {
   const set = agencyStopIds.value
@@ -50,10 +82,7 @@ const stats = computed(() => {
   ]
 })
 
-const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(
-  selectedFeedCode,
-  'Stop',
-)
+const { onlyWithFindings, count: findingsCount, keep: hasFindings } = useFindingsFilter(findingCounts)
 const search = ref('')
 const focusId = ref<string | null>(null)
 
@@ -133,7 +162,7 @@ const splitterItems = computed<SplitterItem[]>(() =>
     :description="t('explore.stops.description')"
   >
     <template #toolbar>
-      <ExploreToolbar />
+      <ExploreToolbar :agencies="agencies" />
     </template>
 
     <div class="grid shrink-0 grid-cols-2 border-b border-default sm:grid-cols-4">

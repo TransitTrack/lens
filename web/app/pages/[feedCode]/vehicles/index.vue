@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useQuery, useQueryCache } from '@pinia/colada'
+import { liveVehiclesQuery } from '~/composables/api/queries/avl'
 import { formatNumber } from '~/utils/intlLocale'
 import AppPage from '~/components/shell/AppPage.vue'
 import VehicleList from '~/components/vehicles/VehicleList.vue'
@@ -6,9 +8,9 @@ import VehicleFacets from '~/components/vehicles/VehicleFacets.vue'
 import PollControl from '~/components/shell/PollControl.vue'
 import NoRealtimeState from '~/components/shell/NoRealtimeState.vue'
 import { useFeeds } from '~/composables/useFeeds'
-import { useVehiclePolling } from '~/composables/useVehiclePolling'
+import { usePollControl } from '~/composables/usePollControl'
 import { useVehicleListPrefs } from '~/composables/useVehicleListPrefs'
-import { useAvlFeedsQuery } from '~~/generated/graphql'
+
 import { buildOverviewStats } from '~/utils/overviewStats'
 import {
   VEHICLE_STATES,
@@ -18,11 +20,23 @@ import {
 } from '~/utils/vehicleFilters'
 
 const { t, locale } = useI18n()
-const { selectedAvlFeedCode, feedPath } = useFeeds()
+const { selectedAvlFeedCode, feedPath, avlFeeds } = useFeeds()
 const route = useRoute()
 const router = useRouter()
-const { vehicles, loading, error } = useVehiclePolling(selectedAvlFeedCode)
-const { result: feedsResult } = useAvlFeedsQuery(() => ({ pollInterval: 60_000 }))
+const { paused, intervalMs } = usePollControl()
+const queryCache = useQueryCache()
+
+// Polled: pausing stops auto-refetch; a paused query still loads once when its own key has no cached data
+// yet, then stays idle. The cache is read by key, not through `data` (the previous key's placeholder).
+const { data: vehiclesData, isLoading: loading, error } = useQuery(() => {
+  const options = liveVehiclesQuery({ feedCode: selectedAvlFeedCode.value ?? '' })
+  return {
+    ...options,
+    enabled: !!selectedAvlFeedCode.value && (!paused.value || queryCache.getQueryData(options.key) === undefined),
+    autoRefetch: () => (paused.value ? false : intervalMs.value),
+  }
+})
+const vehicles = computed(() => vehiclesData.value ?? [])
 
 // State and routes live in the URL (?state=late&route=501,560) so a filtered view can be
 // bookmarked and survives reloads; the search text stays local.
@@ -58,7 +72,7 @@ const activeFilterCount = computed(
   () => (filters.value.state ? 1 : 0) + filters.value.routeIds.length,
 )
 
-const stats = computed(() => buildOverviewStats(vehicles.value, feedsResult.value?.avlFeeds ?? [], t))
+const stats = computed(() => buildOverviewStats(vehicles.value, avlFeeds.value, t))
 const newestReport = computed(() =>
   vehicles.value.reduce<string | null>(
     (max, v) => (!max || v.reportTs > max ? v.reportTs : max),

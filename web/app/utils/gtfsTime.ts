@@ -143,7 +143,7 @@ export function parseDeltaInput(raw: string): number | null {
  *   23415  → "06:30:15"   (seconds shown when non-zero)
  *   90000  → "25:00"      (hours may exceed 24)
  */
-export function secToClock(sec: number | null): string {
+export function secToClock(sec: number | null | undefined): string {
   if (sec == null || !Number.isFinite(sec)) return "";
   const total = Math.max(0, Math.round(sec));
   const h = Math.floor(total / 3600);

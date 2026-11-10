@@ -13,6 +13,7 @@ plugins {
     id("com.diffplug.spotless")
     id("com.google.protobuf")
     id("org.jetbrains.kotlinx.benchmark")
+    id("org.openapi.generator")
 }
 
 group = "eu.transittrack"
@@ -46,7 +47,6 @@ sourceSets {
     }
 }
 
-val graphqlJavaExtendedScalarsVersion = project.property("graphqlJavaExtendedScalarsVersion") as String
 val okhttpVersion = project.property("okhttpVersion") as String
 val gtfsAnalyzerVersion = project.property("gtfsAnalyzerVersion") as String
 val guavaVersion = project.property("guavaVersion") as String
@@ -61,17 +61,15 @@ val exposedVersion = project.property("exposedVersion") as String
 dependencies {
     // Source: https://mvnrepository.com/artifact/org.jetbrains.exposed/exposed-bom
     implementation(platform("org.jetbrains.exposed:exposed-bom:$exposedVersion"))
-    implementation(project(":api"))
+    implementation(project(":geo"))
 
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-liquibase")
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-kotlinx-serialization-json")
     implementation("io.github.transittrack:gtfs-analyzer:$gtfsAnalyzerVersion")
-    implementation("com.graphql-java:graphql-java-extended-scalars:$graphqlJavaExtendedScalarsVersion")
     implementation("com.github.ben-manes.caffeine:caffeine")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
@@ -90,7 +88,6 @@ dependencies {
     kapt("org.springframework.boot:spring-boot-configuration-processor")
 
     testImplementation("org.springframework.boot:spring-boot-starter-cache-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-graphql-test")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
     testImplementation("org.springframework.boot:spring-boot-starter-liquibase-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
@@ -368,49 +365,6 @@ tasks.withType<Test> {
     maxHeapSize = "2g"
 }
 
-// ExtensionLoadingTest only passes with the example-extension jar on loader.path (see the
-// extensionLoadingTest task below), so it's excluded from the default suite, which shouldn't
-// require that module to be built.
-tasks.test {
-    exclude("**/ExtensionLoadingTest.class")
-}
-
-evaluationDependsOn(":examples:example-extension")
-
-tasks.register<Test>("extensionLoadingTest") {
-    // `-Dloader.path` alone only does something when PropertiesLauncher.main() bootstraps the
-    // JVM's classpath from it; a @SpringBootTest run inside this Gradle worker calls
-    // SpringApplication.run() directly and never goes through that launcher, so the extension jar
-    // has to be put on the test's own classpath for the AutoConfiguration.imports discovery this
-    // test proves to actually see it. `loader.path` is still set, matching how the packaged app
-    // is launched in production (see the Dockerfile/bootJar wiring above).
-    val exampleExtensionJar = project(":examples:example-extension").tasks.named<Jar>("jar")
-    dependsOn(exampleExtensionJar)
-    useJUnitPlatform()
-    include("**/ExtensionLoadingTest.class")
-    testClassesDirs = sourceSets["test"].output.classesDirs
-    classpath = sourceSets["test"].runtimeClasspath + files(exampleExtensionJar.flatMap { it.archiveFile })
-    doFirst {
-        systemProperty(
-            "loader.path",
-            exampleExtensionJar
-                .get()
-                .archiveFile
-                .get()
-                .asFile.parentFile.absolutePath,
-        )
-    }
-}
-
-// PropertiesLauncher (instead of the default JarLauncher) reads `loader.path` at startup and adds
-// every jar/directory listed there to the app classloader, so extension jars dropped into
-// /extensions (see Dockerfile) are picked up without repackaging the fat jar.
-tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
-    manifest {
-        attributes("Main-Class" to "org.springframework.boot.loader.launch.PropertiesLauncher")
-    }
-}
-
 // Automatically apply styling whenever you run a Gradle build
 tasks.withType<KotlinCompile>().configureEach {
     dependsOn("spotlessApply")
@@ -446,5 +400,65 @@ tasks.matching { it.name == "benchmarkBaselineBenchmark" }.configureEach {
                 "-rf", "json", "-rff", dir.resolve("benchmark.json").absolutePath,
             ),
         )
+    }
+}
+
+// Generate the server contract from the versioned OpenAPI document.
+openApiGenerate {
+    generatorName.set("kotlin-spring")
+    cleanupOutput.set(true)
+    inputSpec.set(
+        rootProject.layout.projectDirectory
+            .file("api-contract/openapi.yaml")
+            .asFile.absolutePath,
+    )
+    outputDir.set(
+        layout.buildDirectory
+            .dir("generated/openapi")
+            .get()
+            .asFile.absolutePath,
+    )
+    apiPackage.set("eu.transittrack.rest.generated.api")
+    modelPackage.set("eu.transittrack.rest.generated.model")
+    configOptions.set(
+        mapOf(
+            "interfaceOnly" to "true",
+            "exceptionHandler" to "false",
+            "generateJsonIncludeAnnotations" to "false",
+            "generateJsonSetterNullsAnnotations" to "false",
+            "useSpringBoot4" to "true",
+            "useTags" to "true",
+            "skipDefaultInterface" to "true",
+            "useBeanValidation" to "false",
+            "annotationLibrary" to "none",
+            "documentationProvider" to "none",
+            "gradleBuildFile" to "false",
+        ),
+    )
+}
+
+openApiValidate {
+    inputSpec.set(
+        rootProject.layout.projectDirectory
+            .file("api-contract/openapi.yaml")
+            .asFile.absolutePath,
+    )
+}
+
+// The generated API is compiled with the application; it is not checked into source control.
+kotlin.sourceSets.named("main") {
+    kotlin.srcDir(layout.buildDirectory.dir("generated/openapi/src/main/kotlin/eu/transittrack/rest/generated"))
+}
+
+tasks.matching { it.name == "kaptGenerateStubsKotlin" }.configureEach { dependsOn(tasks.named("openApiGenerate")) }
+tasks.named("compileKotlin") { dependsOn(tasks.named("openApiGenerate")) }
+
+tasks.named("check") { dependsOn(tasks.named("openApiValidate")) }
+
+// Serves the REST contract as a static resource at /api/v1/openapi.yaml (classpath:/static), so the
+// web app's API reference always shows the spec of the backend it talks to.
+tasks.named<ProcessResources>("processResources") {
+    from(rootProject.layout.projectDirectory.file("api-contract/openapi.yaml")) {
+        into("static/api/v1")
     }
 }
